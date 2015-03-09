@@ -13,6 +13,13 @@ function declareNames()
 # declare variables that hold the (possible mangled) names of c++ library functions
 global const pumi_libname = "libfuncs1"
 global const init_name = "initABC"
+global const getMeshPtr_name = "getMeshPtr"
+global const getMeshShapePtr_name = "getMeshShapePtr"
+global const getVertNumbering_name = "getVertNumbering"
+global const getEdgeNumbering_name = "getEdgeNumbering"
+global const getFaceNumbering_name = "getFaceNumbering"
+global const getElNumbering_name = "getElNumbering"
+
 global const resetVertIt_name = "resetVertIt"
 global const resetEdgeIt_name = "resetEdgeIt"
 global const resetFaceIt_name = "resetFaceIt"
@@ -43,7 +50,7 @@ global const getVertNumber2_name = "getVertNumber2"
 global const getEdgeNumber2_name = "getEdgeNumber2"
 global const getFaceNumber2_name = "getFaceNumber2"
 global const getElNumber2_name = "getElNumber2"
-
+global const getMeshDimension_name = "getMeshDimension"
 
 global const checkVars_name = "checkVars"
 global const checkNums_name = "checkNums"
@@ -51,6 +58,10 @@ global const getVertCoords_name = "getVertCoords"
 global const getEdgeCoords_name = "getEdgeCoords"
 global const getFaceCoords_name = "getFaceCoords"
 global const getElCoords_name = "getElCoords"
+global const countNodesOnJ_name = "countNodesOnJ"
+global const createNumberingJ_name = "createNumberingJ"
+global const numberJ_name = "numberJ"
+global const getNumberJ_name = "getNumberJ"
 
 end
 
@@ -71,12 +82,16 @@ end
                        each type in the mesh
 """
 
-function init()
+function init(dmg_name::AbstractString, smb_name::AbstractString)
 # initilize mesh interface
-
+# initilize pointers to some value
+# this is hack-ish -- there should be a better way to do this
+#m_ptr = Ptr{Void}
+#mshape_ptr = Ptr{Void}
 downward_counts = zeros(Int32, 4,4);
 num_Entities = zeros(Int32, 4, 1)
-i = ccall( (init_name, pumi_libname), Int32, (Ptr{Int32},Ptr{Int32}), downward_counts, num_Entities )  # call init in interface library
+
+i = ccall( (init_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8}, Ptr{Int32},Ptr{Int32}), dmg_name, smb_name, downward_counts, num_Entities )  # call init in interface library
 
 if ( i != 0)
   println("init failed, exiting ...")
@@ -87,6 +102,41 @@ end
 return downward_counts, num_Entities
 end
 
+function getMeshPtr()
+
+  m_ptr = ccall( (getMeshPtr_name, pumi_libname), Ptr{Void}, () )
+  return m_ptr
+end
+
+function getMeshShapePtr()
+
+  m_ptr = ccall( (getMeshShapePtr_name, pumi_libname), Ptr{Void}, () )
+  return m_ptr
+end
+
+function getVertNumbering()
+
+  numbering_ptr = ccall( (getVertNumbering_name, pumi_libname), Ptr{Void}, () )
+  return numbering_ptr
+end
+
+function getEdgeNumbering()
+
+  numbering_ptr = ccall( (getEdgeNumbering_name, pumi_libname), Ptr{Void}, () )
+  return numbering_ptr
+end
+
+function getFaceNumbering()
+
+  numbering_ptr = ccall( (getFaceNumbering_name, pumi_libname), Ptr{Void}, () )
+  return numbering_ptr
+end
+
+function getElNumbering()
+
+  numbering_ptr = ccall( (getElNumbering_name, pumi_libname), Ptr{Void}, () )
+  return numbering_ptr
+end
 
 function resetVertIt()
 # reset the vertex iterator to the beginning
@@ -302,6 +352,13 @@ function getElNumber2(entity)
   return i
 end
 
+function getMeshDimension(m_ptr)
+# get mesh dimension
+
+  i = ccall( (getMeshDimension_name, pumi_libname), Int32, (Ptr{Void},), m_ptr)
+  return i
+end
+
 
 function checkVars()
 ccall ( (checkVars_name, pumi_libname), Void, () );
@@ -377,5 +434,40 @@ if ( i != 0)
 end
 
 println("in julia, coords = ", coords)
+
+end
+
+function countNodesOnJ(shape_ptr, i::Integer)
+# count the number of nodes on type i (apf::Mesh::TYPE)
+
+i = ccall( (countNodesOnJ_name, pumi_libname), Int32, (Ptr{Void}, Int32), shape_ptr, i)
+return i
+
+end
+
+
+function createNumberingJ(m_ptr, name::AbstractString, field, components::Integer)
+# create a generally defined numbering, get a pointer to it
+# this just passes through to apf::createNumbering
+
+numbering_ptr = ccall ( (createNumberingJ_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{UInt8}, Ptr{Void}, Int32), m_ptr, name, field, components)
+
+return numbering_ptr
+end
+
+function numberJ(numbering_ptr, entity, node::Integer, component::Integer, number::Integer)
+#  assign a number to a node defined on a mesh entity
+
+ccall( (numberJ_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Int32, Int32), numbering_ptr, entity, node, component, number)
+return i
+
+end
+
+
+function getNumberJ(n_ptr, entity, node::Integer, component::Integer)
+#  retrieve the number  of a node defined on a mesh entity for a particular numbering
+
+i = ccall( (getNumberJ_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Int32), n_ptr, entity, node, component)
+return i
 
 end

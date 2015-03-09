@@ -20,7 +20,16 @@ include("funcs1.jl")
 include("funcs2.jl")
 declareNames();  # declare global variable names
 # initilize mesh
-downward_counts_tmp, num_entities_tmp = init()
+dmg_name = "cube.dmg"
+smb_name = "tet-mesh-1.smb"
+downward_counts_tmp, num_entities_tmp = init(dmg_name, smb_name)
+m_ptr = getMeshPtr()
+mshape_ptr = getMeshShapePtr()
+
+vertN_ptr = getVertNumbering()
+edgeN_ptr = getEdgeNumbering()
+faceN_ptr = getFaceNumbering()
+elN_ptr = getElNumbering()
 
 global const downward_counts = downward_counts_tmp
 global const num_entities = num_entities_tmp
@@ -125,3 +134,31 @@ entity = getVert()
 println("typeof(entity) in main = ", typeof(entity) )
 i = getVertNumber2(entity)
 println("vertex number = ", i)
+
+i = getMeshDimension(m_ptr);
+println("mesh dimension from julia = ", i )
+
+i = countNodesOnJ(mshape_ptr, 2);
+println("number of nodes on type 2 = ", i)
+
+numbering_ptr = createNumberingJ(m_ptr, "numberingJ1", mshape_ptr, 1)
+println("created numbering")
+
+numberJ(numbering_ptr, entity, 0, 0, 5)
+i = getNumberJ(numbering_ptr, entity, 0, 0)
+println("number of entity = ", i)
+
+i = getNumberJ(vertN_ptr, entity, 0, 0)
+println("global number of vertex entity = ", i)
+
+entity = getEdge()
+i = getNumberJ(edgeN_ptr, entity, 0, 0)
+println("global number of edge entity = ", i)
+
+entity = getFace()
+i = getNumberJ(faceN_ptr, entity, 0, 0)
+println("global number of face entity = ", i)
+
+entity = getEl()
+i = getNumberJ(elN_ptr, entity, 0, 0)
+println("global number of element entity = ", i)

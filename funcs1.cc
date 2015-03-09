@@ -29,7 +29,7 @@
 //declare global variables (persistent state of library)
 
 apf::Mesh2* m;
-
+apf::FieldShape* mshape;
 
 apf::Numbering* elNums; // element numbering
 apf::Numbering* faceNums; // face numbering
@@ -56,7 +56,9 @@ const char *names[] = { "vertex", "edge", "face", "element"};  // array of strin
 // initilize global variables, used by all fucntions
 // downward_counts = numDown
 // number_entities = numEntity
-int initABC(int downward_counts[4][4], int number_entities[4] )
+// m_ptr = mesh pointer
+// mshape_ptr = pointer to mesh shape (m->getShape())
+int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int number_entities[4] )
 {
   std::cout << "Entered init\n" << std::endl;
 
@@ -65,7 +67,8 @@ int initABC(int downward_counts[4][4], int number_entities[4] )
   gmi_register_mesh();
 
   // load mesh
-  m = apf::loadMdsMesh("cube.dmg", "tet-mesh-1.smb");
+//  m = apf::loadMdsMesh("cube.dmg", "tet-mesh-1.smb");
+  m = apf::loadMdsMesh(dmg_name, smb_name);
   std::cout << std::endl;
 /* 
   // initilize iterators
@@ -144,6 +147,36 @@ int initABC(int downward_counts[4][4], int number_entities[4] )
   std::cout << std::endl;
 
   return 0;
+}
+
+apf::Mesh2* getMeshPtr()
+{
+  return m;
+}
+
+apf::FieldShape* getMeshShapePtr()
+{
+  return m->getShape();
+}
+
+apf::Numbering* getVertNumbering()
+{
+  return numberings[0];
+}
+
+apf::Numbering* getEdgeNumbering()
+{
+  return numberings[1];
+}
+
+apf::Numbering* getFaceNumbering()
+{
+  return numberings[2];
+}
+
+apf::Numbering* getElNumbering()
+{
+  return numberings[3];
 }
 
 void resetVertIt()
@@ -327,6 +360,14 @@ int getElNumber2(apf::MeshEntity* e)
   return i;
 }
 
+// get dimension of mesh
+int getMeshDimension(apf::Mesh2* m_local)
+{
+  int i = m_local->getDimension();
+  std::cout << "Mesh Dimesion = " << i << std::endl;
+  return i;
+}
+
 // check that global variable are persisent
 void checkVars()
 {
@@ -499,3 +540,37 @@ int getElCoords(double coords[][3], int sx, int sy)
 
   return 0;
 }
+
+
+int countNodesOnJ(apf::FieldShape* field, int type)
+{
+  apf::FieldShape* field2 = m->getShape();
+  int i = field2->countNodesOn(2);
+//  int i = field->countNodesOn(type);
+  return i;
+}
+
+
+// create a generally defined numbering from julia
+apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShape* field, int components)
+{
+//    return apf::createNumbering(m, "num1", m->getShape(), 1);
+//    return apf::createNumbering(m_local, "num1", m->getShape(), 1);
+//    return apf::createNumbering(m_local, "num1", m_local->getShape(), components);
+    return apf::createNumbering(m_local, name, field, components);
+}
+
+// number an entity in a given numbering from julia
+void numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number)
+{
+  apf::number(n, e, node, component, number);
+}
+
+// retrieve a number from julia
+int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
+{
+  int i = apf::getNumber(n, e, node, component);
+  return i;
+}
+
+
