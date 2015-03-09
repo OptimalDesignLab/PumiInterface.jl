@@ -10,11 +10,12 @@
  */
 extern "C" {
 // this function does not pass opaque pointers
-extern int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numberEntities[4]);
+extern int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numberEntities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1]);
 
 // these functions do pass pointers
 extern apf::Mesh2* getMeshPtr();
 extern apf::FieldShape* getMeshShapePtr();
+extern apf::FieldShape* getConstantShapePtr(int dimension);
 extern apf::Numbering* getVertNumbering();
 extern apf::Numbering* getEdgeNumbering();
 extern apf::Numbering* getFaceNumbering();

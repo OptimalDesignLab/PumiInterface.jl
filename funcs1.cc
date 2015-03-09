@@ -58,7 +58,7 @@ const char *names[] = { "vertex", "edge", "face", "element"};  // array of strin
 // number_entities = numEntity
 // m_ptr = mesh pointer
 // mshape_ptr = pointer to mesh shape (m->getShape())
-int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int number_entities[4] )
+int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1] )
 {
   std::cout << "Entered init\n" << std::endl;
 
@@ -69,6 +69,8 @@ int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numbe
   // load mesh
 //  m = apf::loadMdsMesh("cube.dmg", "tet-mesh-1.smb");
   m = apf::loadMdsMesh(dmg_name, smb_name);
+  m_ptr_array[0] = m;
+  mshape_ptr_array[0] = m->getShape();
   std::cout << std::endl;
 /* 
   // initilize iterators
@@ -157,6 +159,12 @@ apf::Mesh2* getMeshPtr()
 apf::FieldShape* getMeshShapePtr()
 {
   return m->getShape();
+}
+
+// get constant field shape of given dimension
+apf::FieldShape* getConstantShapePtr(int dimension)
+{
+  return apf::getConstant(dimension);
 }
 
 apf::Numbering* getVertNumbering()

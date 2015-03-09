@@ -159,24 +159,30 @@ apf::FieldShape* getMeshShapePtr()
   return m->getShape();
 }
 
+// get constant field shape of given dimension
+apf::FieldShape* getConstantShapePtr(int dimension)
+{
+  return apf::getConstant(dimension);
+}
+
 apf::Numbering* getVertNumbering()
 {
-  return numberings[0]
+  return numberings[0];
 }
 
 apf::Numbering* getEdgeNumbering()
 {
-  return numberings[1]
+  return numberings[1];
 }
 
 apf::Numbering* getFaceNumbering()
 {
-  return numberings[2]
+  return numberings[2];
 }
 
 apf::Numbering* getElNumbering()
 {
-  return numberings[3]
+  return numberings[3];
 }
 
 void resetVertIt()

@@ -15,6 +15,7 @@ extern int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], in
 // these functions do pass pointers
 extern apf::Mesh2* getMeshPtr();
 extern apf::FieldShape* getMeshShapePtr();
+extern apf::FieldShape* getConstantShapePtr(int dimension);
 extern apf::Numbering* getVertNumbering();
 extern apf::Numbering* getEdgeNumbering();
 extern apf::Numbering* getFaceNumbering();
@@ -38,7 +39,7 @@ extern void incrementElItn(int n);
 
 extern void resetElIt();
 extern void setGlobalVertNumber(int val); // do not use
-extern int getGlobalVertNumber();
+extern int getGlobalVertNumber(); // do not use
 extern int getVertNumber();
 extern int getEdgeNumber();
 extern int getFaceNumber();

@@ -14,7 +14,13 @@ function declareNames()
 global const pumi_libname = "libfuncs1"
 global const init_name = "initABC"
 global const getMeshPtr_name = "getMeshPtr"
+global const getConstantShapePtr_name = "getConstantShapePtr"
 global const getMeshShapePtr_name = "getMeshShapePtr"
+global const getVertNumbering_name = "getVertNumbering"
+global const getEdgeNumbering_name = "getEdgeNumbering"
+global const getFaceNumbering_name = "getFaceNumbering"
+global const getElNumbering_name = "getElNumbering"
+
 global const resetVertIt_name = "resetVertIt"
 global const resetEdgeIt_name = "resetEdgeIt"
 global const resetFaceIt_name = "resetFaceIt"
@@ -86,7 +92,10 @@ function init(dmg_name::AbstractString, smb_name::AbstractString)
 downward_counts = zeros(Int32, 4,4);
 num_Entities = zeros(Int32, 4, 1)
 
-i = ccall( (init_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8}, Ptr{Int32},Ptr{Int32}), dmg_name, smb_name, downward_counts, num_Entities )  # call init in interface library
+m_ptr_array = Array(Ptr{Void}, 1)
+mshape_ptr_array = Array(Ptr{Void}, 1)
+
+i = ccall( (init_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8}, Ptr{Int32},Ptr{Int32}, Ptr{Void}, Ptr{Void}), dmg_name, smb_name, downward_counts, num_Entities, m_ptr_array, mshape_ptr_array )  # call init in interface library
 
 if ( i != 0)
   println("init failed, exiting ...")
@@ -94,23 +103,55 @@ if ( i != 0)
 end
 
 
-return downward_counts, num_Entities
+return downward_counts, num_Entities, m_ptr_array[1], mshape_ptr_array[1]
 end
 
+
+# no longer needed
 function getMeshPtr()
 
   m_ptr = ccall( (getMeshPtr_name, pumi_libname), Ptr{Void}, () )
   return m_ptr
 end
 
+# no longer needed
 function getMeshShapePtr()
 
   m_ptr = ccall( (getMeshShapePtr_name, pumi_libname), Ptr{Void}, () )
   return m_ptr
 end
 
+function getConstantShapePtr(dimension::Integer)
+  mshape_ptr = ccall( ( getConstantShapePtr_name, pumi_libname), Ptr{Void}, (Int32,), dimension)
+
+  return mshape_ptr
+
+end
 
 
+function getVertNumbering()
+
+  numbering_ptr = ccall( (getVertNumbering_name, pumi_libname), Ptr{Void}, () )
+  return numbering_ptr
+end
+
+function getEdgeNumbering()
+
+  numbering_ptr = ccall( (getEdgeNumbering_name, pumi_libname), Ptr{Void}, () )
+  return numbering_ptr
+end
+
+function getFaceNumbering()
+
+  numbering_ptr = ccall( (getFaceNumbering_name, pumi_libname), Ptr{Void}, () )
+  return numbering_ptr
+end
+
+function getElNumbering()
+
+  numbering_ptr = ccall( (getElNumbering_name, pumi_libname), Ptr{Void}, () )
+  return numbering_ptr
+end
 
 function resetVertIt()
 # reset the vertex iterator to the beginning

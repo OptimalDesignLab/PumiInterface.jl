@@ -16,13 +16,13 @@
 #dlopen("libph", RTLD_GLOBAL)
 #dlopen("libspr", RTLD_GLOBAL)
 
-include("funcs1.jl")
+using PumiInterface
 include("funcs2.jl")
 declareNames();  # declare global variable names
 # initilize mesh
 dmg_name = "cube.dmg"
 smb_name = "tet-mesh-1.smb"
-downward_counts_tmp, num_entities_tmp = init(dmg_name, smb_name)
+downward_counts_tmp, num_entities_tmp, m2_ptr, mshape_ptr = init(dmg_name, smb_name)
 m_ptr = getMeshPtr()
 mshape_ptr = getMeshShapePtr()
 
@@ -88,17 +88,6 @@ sbpMatrix = makeSBPMatrix()
 println("sbpMatrix = ", sbpMatrix)
 
 
-resetVertIt()
-i = 3
-setGlobalVertNumber(i)
-j = getGlobalVertNumber()
-println("j = ", j)
-
-
-i += 1
-setGlobalVertNumber(i)
-j = getGlobalVertNumber()
-println("j = ", j)
 
 
 resetVertIt()
@@ -162,3 +151,6 @@ println("global number of face entity = ", i)
 entity = getEl()
 i = getNumberJ(elN_ptr, entity, 0, 0)
 println("global number of element entity = ", i)
+
+i = getMeshDimension(m2_ptr)
+println("mesh2 dimension = ", i)
