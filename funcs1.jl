@@ -18,11 +18,33 @@ global const resetEdgeIt_name = "resetEdgeIt"
 global const resetFaceIt_name = "resetFaceIt"
 global const resetElIt_name  = "resetElIt"
 global const incrementVertIt_name = "incrementVertIt"
+global const incrementVertItn_name = "incrementVertItn"
+
 global const incrementEdgeIt_name = "incrementEdgeIt"
+global const incrementEdgeItn_name = "incrementEdgeItn"
+
 global const incrementFaceIt_name = "incrementFaceIt"
+global const incrementFaceItn_name = "incrementFaceItn"
+
 global const incrementElIt_name = "incrementElIt"
+global const incrementElItn_name = "incrementElItn"
+
 global const setGlobalVertNumber_name = "setGlobalVertNumber"
 global const getGlobalVertNumber_name = "getGlobalVertNumber"
+global const getVertNumber_name = "getVertNumber"
+global const getEdgeNumber_name = "getEdgeNumber"
+global const getFaceNumber_name = "getFaceNumber"
+global const getElNumber_name = "getElNumber"
+global const getVert_name = "getVert"
+global const getEdge_name = "getEdge"
+global const getFace_name = "getFace"
+global const getEl_name = "getEl"
+global const getVertNumber2_name = "getVertNumber2"
+global const getEdgeNumber2_name = "getEdgeNumber2"
+global const getFaceNumber2_name = "getFaceNumber2"
+global const getElNumber2_name = "getElNumber2"
+
+
 global const checkVars_name = "checkVars"
 global const checkNums_name = "checkNums"
 global const getVertCoords_name = "getVertCoords"
@@ -109,13 +131,36 @@ return nothing
 
 end
 
-function incrementEdgeIt()
-# increment it edge iterator
 
-ccall( (incrementedgeIt_name, pumi_libname), Void, () );
+function incrementVertItn(n::Integer)
+# increment it vertex iterator
+
+ccall( (incrementVertItn_name, pumi_libname), Void, (Int32,), n );
 return nothing
 
 end
+
+
+
+
+function incrementEdgeIt()
+# increment it edge iterator
+
+ccall( (incrementEdgeIt_name, pumi_libname), Void, () );
+return nothing
+
+end
+
+function incrementEdgeItn(n::Integer)
+# increment it vertex iterator
+
+ccall( (incrementEdgeItn_name, pumi_libname), Void, (Int32,), n );
+return nothing
+
+end
+
+
+
 
 function incrementFaceIt()
 # increment it Face iterator
@@ -125,6 +170,17 @@ return nothing
 
 end
 
+function incrementFaceItn(n::Integer)
+# increment it face iterator n times
+
+ccall( (incrementFaceItn_name, pumi_libname), Void, (Int32,), n );
+return nothing
+
+end
+
+
+
+
 function incrementElIt()
 # increment it element iterator
 
@@ -132,6 +188,17 @@ ccall( (incrementElIt_name, pumi_libname), Void, () );
 return nothing
 
 end
+
+function incrementElItn(n::Integer)
+# increment it element iterator
+
+ccall( (incrementElItn_name, pumi_libname), Void, (Int32,), n );
+return nothing
+
+end
+
+
+
 
 function setGlobalVertNumber(val::Integer)
 # set global Vertex number of the current node
@@ -147,6 +214,92 @@ function getGlobalVertNumber()
 i = ccall( (getGlobalVertNumber_name, pumi_libname), Int32, () )
 return i
 
+end
+
+
+function getVertNumber()
+# get the number of the current vertex
+  i = ccall( (getVertNumber_name, pumi_libname), Int32, () )
+  return i
+end
+
+
+function getEdgeNumber()
+# get the number of the current edge
+  i = ccall( (getEdgeNumber_name, pumi_libname), Int32, () )
+  return i
+end
+
+
+function getFaceNumber()
+# get the number of the current face
+  i = ccall( (getFaceNumber_name, pumi_libname), Int32, () )
+  return i
+end
+
+function getElNumber()
+# get the number of the current element
+  i = ccall( (getElNumber_name, pumi_libname), Int32, () )
+  return i
+end
+
+
+function getVert()
+# get pointer to current vertex
+  entity = ccall( (getVert_name, pumi_libname), Ptr{Void}, () )
+
+  return entity
+end
+
+function getEdge()
+# get pointer to current Edge
+  entity = ccall( (getEdge_name, pumi_libname), Ptr{Void}, () )
+
+  return entity
+end
+
+function getFace()
+# get pointer to current face
+  entity = ccall( (getFace_name, pumi_libname), Ptr{Void}, () )
+
+  return entity
+end
+
+function getEl()
+# get pointer to current element
+  entity = ccall( (getEl_name, pumi_libname), Ptr{Void}, () )
+
+  return entity
+end
+
+
+
+
+function getVertNumber2(entity)
+
+  i = ccall( (getVertNumber2_name, pumi_libname), Int32, (Ptr{Void},), entity)
+  return i
+end
+
+
+function getEdgeNumber2(entity)
+
+  i = ccall( (getEdgeNumber2_name, pumi_libname), Int32, (Ptr{Void},), entity)
+  return i
+end
+
+
+function getFaceNumber2(entity)
+
+  i = ccall( (getFaceNumber2_name, pumi_libname), Int32, (Ptr{Void},), entity)
+  return i
+end
+
+
+function getElNumber2(entity)
+
+  i = ccall( (getElNumber2_name, pumi_libname), Int32, (Ptr{Void},), entity)
+  return i
 end
 
 
