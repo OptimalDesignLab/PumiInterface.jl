@@ -127,7 +127,7 @@ println("vertex number = ", i)
 i = getMeshDimension(m_ptr);
 println("mesh dimension from julia = ", i )
 
-i = countNodesOnJ(mshape_ptr, 2);
+i = countNodesOn(mshape_ptr, 2);
 println("number of nodes on type 2 = ", i)
 
 numbering_ptr = createNumberingJ(m_ptr, "numberingJ1", mshape_ptr, 1)
@@ -154,3 +154,19 @@ println("global number of element entity = ", i)
 
 i = getMeshDimension(m2_ptr)
 println("mesh2 dimension = ", i)
+
+downwards, npoints = getDownward(m_ptr, entity, 0)
+println("npoints = ", npoints)
+j = 1
+for entity2 in downwards
+  num = getNumberJ(vertN_ptr, entity2, 0, 0);
+  println("entity $j on current element has number", num)
+  j += 1
+end
+
+entity_type = getType(m_ptr, entity)
+println("type of current entity = ", entity_type)
+i = countNodesOn(mshape_ptr, entity_type)
+println(" number of nodes on current entity = ", i)
+
+printNumberingName(faceN_ptr)

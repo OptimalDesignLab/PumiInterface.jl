@@ -376,6 +376,25 @@ int getMeshDimension(apf::Mesh2* m_local)
   return i;
 }
 
+// untested
+int getType(apf::Mesh2* m_local, apf::MeshEntity* e)
+{
+  return m_local->getType(e);
+}
+
+// get the downward adjacencies of a MeshEntity
+// supply a 12 element array of Ptr{Void}
+// the function return an integer telling the number of entities put into the
+// array
+int getDownward(apf::Mesh2* m_local, apf::MeshEntity* e, int dimension, apf::MeshEntity* downwards[12])
+{
+  std::cout << "in C++ getDownwards, dimension = " << dimension << std::endl;
+  int numDown = m->getDownward(e, dimension, downwards);
+  return numDown;
+}
+
+
+
 // check that global variable are persisent
 void checkVars()
 {
@@ -549,15 +568,15 @@ int getElCoords(double coords[][3], int sx, int sy)
   return 0;
 }
 
-
-int countNodesOnJ(apf::FieldShape* field, int type)
+/*
+int countNodesOn(apf::FieldShape* field, int type)
 {
-  apf::FieldShape* field2 = m->getShape();
-  int i = field2->countNodesOn(2);
-//  int i = field->countNodesOn(type);
+//  apf::FieldShape* field2 = m->getShape();
+//  int i = field2->countNodesOn(2);
+  int i = field->countNodesOn(type);
   return i;
 }
-
+*/
 
 // create a generally defined numbering from julia
 apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShape* field, int components)
@@ -569,9 +588,11 @@ apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShap
 }
 
 // number an entity in a given numbering from julia
-void numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number)
+int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number)
 {
   apf::number(n, e, node, component, number);
+  int i = apf::getNumber(n,e,node,component);
+  return i;
 }
 
 // retrieve a number from julia
@@ -581,4 +602,14 @@ int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
   return i;
 }
 
+
+int countNodesOn(apf::FieldShape* mshape_ptr, int type)
+{
+  return mshape_ptr->countNodesOn(type);
+}
+
+extern void printNumberingName(apf::Numbering* n)
+{
+  std::cout << "name of numbering = " << apf::getName(n) << std::endl;
+}
 

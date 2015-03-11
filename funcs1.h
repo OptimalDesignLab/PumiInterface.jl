@@ -57,6 +57,8 @@ extern int getFaceNumber2(apf::MeshEntity* e);
 extern int getElNumber2(apf::MeshEntity* e);
 
 extern int getMeshDimension(apf::Mesh2* m_local);
+extern int getType(apf::Mesh2* m_local, apf::MeshEntity* e);
+extern int getDownward(apf::Mesh2* m_local, apf::MeshEntity* e, int dimension, apf::MeshEntity* downwards[12]);
 
 // these function do not pass pointers
 extern void checkVars();
@@ -67,12 +69,15 @@ extern int getFaceCoords(double coords[][3], int sx, int sy);
 extern int getElCoords(double coords[][3], int sx, int sy);
 
 // these function pass pointers
-extern int countNodesOnJ(apf::FieldShape* field, int type);
+//extern int countNodesOn(apf::FieldShape* field, int type);
 
 // create a generally defined numbering from julia
 extern  apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShape* field, int components);
-extern void numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number);
+extern int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number);
 extern  int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component);
+
+extern int countNodesOn(apf::FieldShape* mshape_ptr, int type);
+extern void printNumberingName(apf::Numbering* n);
 
 
 }
