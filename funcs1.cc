@@ -151,6 +151,103 @@ int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numbe
   return 0;
 }
 
+// init for 2d mesh
+int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1] )
+{
+  std::cout << "Entered init\n" << std::endl;
+
+  MPI_Init(0,NULL);  // initilize MPI 
+  PCU_Comm_Init();   // initilize PUMI's communication
+  gmi_register_mesh();
+
+  // load mesh
+//  m = apf::loadMdsMesh("cube.dmg", "tet-mesh-1.smb");
+  m = apf::loadMdsMesh(dmg_name, smb_name);
+  m_ptr_array[0] = m;
+  mshape_ptr_array[0] = m->getShape();
+  std::cout << std::endl;
+/* 
+  // initilize iterators
+  elIt = m->begin(3);
+  its[2] = m->begin(2);
+  its[1] = m->begin(1);
+  its[0] = m->begin(0);
+  
+*/
+  // initilize  number of each type of entity
+  for (int i = 0; i < 3; ++i)
+  {
+    numEntity[i] = apf::countOwned(m, i);
+    number_entities[i] = numEntity[i];
+  }
+
+
+
+  // initilize numberings
+  numberings[0] = numberOwnedDimension(m, "vertNums", 0);
+  numberings[1] = numberOwnedDimension(m, "edgeNums", 1);
+  numberings[2] = numberOwnedDimension(m, "faceNums", 2);
+//  numberings[3] = numberOwnedDimension(m, "elNums", 3);
+
+  // initalize tags
+  globalVertNums = m->createIntTag("globalNodeNumber", 1);
+
+
+  // initilize iterators
+  its[0] = m->begin(0);
+  its[1] = m->begin(1);
+  its[2] = m->begin(2);
+//  its[3] = m->begin(3);
+  for (int i = 0; i < 3; ++i)
+  {
+    int type = m->getType(m->deref(its[i]));
+    std::cout << "type of its[" << i << "] = " << type;
+    std::cout << "index its[" << i << "] = " << type << std::endl;
+  }
+
+    
+  // initilize number of downward adjacencies each type has, assuming all
+  // elements have same number of downward adjacencies
+  apf::MeshEntity* e_tmp;
+  apf::Downward tmp;
+  for (int i = 0; i < 3 ; ++i)
+  {
+    e_tmp = m->deref(its[i]);
+    for (int j = 0; j < 3; ++j)
+    {
+      if ( j < i)
+      {
+        numDown[i][j] = m->getDownward(e_tmp, j, tmp);
+        downward_counts[j][i] = numDown[i][j];
+      }
+      else
+      {
+        numDown[i][j] = 0;
+        downward_counts[j][i] = 0;
+      }
+      std::cout << names[i] << " has " << numDown[i][j];
+      std::cout << " downward adjacencies of type " << names[j] << std::endl;
+    }
+  }
+
+  std::cout << std::endl;
+/*
+  numberings[0] = numberOwnedDimension(m, "elNums", 0);
+  numberings[1] = numberOwnedDimension(m, "elNums", 1);
+  numberings[2] = numberOwnedDimension(m, "elNums", 2);
+  numberings[3] = numberOwnedDimension(m, "elNums", 3);
+*/
+
+  std::cout << "numV = " << numEntity[0] << " , numEdge = " << numEntity[1];
+  std::cout << " , numFace = " << numEntity[2] << std::endl;
+  std::cout << std::endl;
+
+  return 0;
+}
+
+
+
+
 apf::Mesh2* getMeshPtr()
 {
   return m;
@@ -396,6 +493,7 @@ int getDownward(apf::Mesh2* m_local, apf::MeshEntity* e, int dimension, apf::Mes
 
 
 // check that global variable are persisent
+// doesn't work in 2d
 void checkVars()
 {
   std::cout << "Entered checkVars()" << std::endl;
@@ -420,6 +518,7 @@ void checkVars()
 
 
 // print numberings of all mesh entitites
+// doesn't work in 2d
 void checkNums()
 {
   std::cout << "Entered checkNums" << std::endl;
@@ -608,8 +707,28 @@ int countNodesOn(apf::FieldShape* mshape_ptr, int type)
   return mshape_ptr->countNodesOn(type);
 }
 
-extern void printNumberingName(apf::Numbering* n)
+void printNumberingName(apf::Numbering* n)
 {
   std::cout << "name of numbering = " << apf::getName(n) << std::endl;
 }
+
+// initilizes tags on *mesh entities* (not the mesh field)
+apf::MeshTag* createDoubleTag(apf::Mesh2 * m_local, char* name, int size)
+{
+  return m_local->createDoubleTag(name, size);
+}
+
+void setDoubleTag(apf::Mesh2 * m_local, apf::MeshEntity* e, apf::MeshTag* tag,  double data[])
+{
+//  std::cout << "in C++, about to set tag" << std::endl;
+  m_local->setDoubleTag( e, tag, data);
+//  std::cout << "finished seeting tag" << std::endl;
+}
+
+void getDoubleTag(apf::Mesh2 * m_local, apf::MeshEntity* e, apf::MeshTag* tag,  double* data)
+{
+  m_local->getDoubleTag( e, tag, data);
+}
+
+
 

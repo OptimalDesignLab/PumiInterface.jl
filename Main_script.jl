@@ -170,3 +170,17 @@ i = countNodesOn(mshape_ptr, entity_type)
 println(" number of nodes on current entity = ", i)
 
 printNumberingName(faceN_ptr)
+
+resetVertIt()
+incrementIt(3)
+entity = getEl()
+i = getNumberJ(elN_ptr, entity, 0, 0)
+println("global number of vertex entity = ", i)
+
+
+tag_ptr = createDoubleTag( m_ptr, "tag1", 2)
+setDoubleTag( m_ptr, entity, tag_ptr, [3.5, 2.5])
+data_ret = zeros(1,2)
+data_ret[1] = 2.0
+getDoubleTag( m_ptr, entity, tag_ptr, data_ret)
+println("data_ret = ", data_ret)

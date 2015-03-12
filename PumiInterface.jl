@@ -15,6 +15,7 @@ function declareNames()
 # declare variables that hold the (possible mangled) names of c++ library functions
 global const pumi_libname = "libfuncs1"
 global const init_name = "initABC"
+global const init2_name = "initABC2"
 global const getMeshPtr_name = "getMeshPtr"
 global const getConstantShapePtr_name = "getConstantShapePtr"
 global const getMeshShapePtr_name = "getMeshShapePtr"
@@ -70,9 +71,13 @@ global const getNumberJ_name = "getNumberJ"
 global const countNodesOn_name = "countNodesOn"
 global const printNumberingName_name = "printNumberingName"
 
+global const createDoubleTag_name = "createDoubleTag"
+global const setDoubleTag_name = "setDoubleTag"
+global const getDoubleTag_name = "getDoubleTag"
+
 end
 
-export declareNames, init, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getElNumber2, getMeshDimension, getType, getDownward, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, countNodesOn, printNumberingName
+export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getElNumber2, getMeshDimension, getType, getDownward, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, countNodesOn, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag
 @doc """
   initilize the state of the interface library
 
@@ -111,6 +116,32 @@ end
 
 return downward_counts, num_Entities, m_ptr_array[1], mshape_ptr_array[1]
 end
+
+function init2(dmg_name::AbstractString, smb_name::AbstractString)
+# initilize mesh interface
+# initilize pointers to some value
+# this is hack-ish -- there should be a better way to do this
+#m_ptr = Ptr{Void}
+#mshape_ptr = Ptr{Void}
+downward_counts = zeros(Int32, 3,3);
+num_Entities = zeros(Int32, 4, 1)
+
+m_ptr_array = Array(Ptr{Void}, 1)
+mshape_ptr_array = Array(Ptr{Void}, 1)
+
+i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8}, Ptr{Int32},Ptr{Int32}, Ptr{Void}, Ptr{Void}), dmg_name, smb_name, downward_counts, num_Entities, m_ptr_array, mshape_ptr_array )  # call init in interface library
+
+if ( i != 0)
+  println("init failed, exiting ...")
+  exit()
+end
+
+
+return downward_counts, num_Entities, m_ptr_array[1], mshape_ptr_array[1]
+end
+
+
+
 
 
 # no longer needed
@@ -538,6 +569,31 @@ function printNumberingName(numbering)
   ccall( (printNumberingName_name, pumi_libname), Void, (Ptr{Void},), numbering)
   return nothing
 end
+
+function createDoubleTag( m_ptr, name::AbstractString, components::Integer)
+
+  tag_ptr = ccall( (createDoubleTag_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{UInt8}, Int32), m_ptr, name, components)
+
+  return tag_ptr
+end
+
+function setDoubleTag( m_ptr, entity, tag_ptr, data)
+
+  ccall( (setDoubleTag_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Float64}), m_ptr, entity, tag_ptr, data)
+
+  return nothing
+end
+
+function getDoubleTag( m_ptr, entity, tag_ptr, data)
+
+ccall( (getDoubleTag_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Float64}), m_ptr, entity, tag_ptr, data)
+
+
+  return nothing
+end
+
+
+
 
 declareNames()  # will this execute when module is compiled?
 
