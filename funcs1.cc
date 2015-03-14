@@ -24,6 +24,7 @@
 #include <math.h>
 
 #include "funcs1.h"
+//#include "a2.h"
 
 //=============================================================================
 //declare global variables (persistent state of library)

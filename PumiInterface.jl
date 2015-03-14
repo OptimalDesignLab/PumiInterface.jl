@@ -75,9 +75,11 @@ global const createDoubleTag_name = "createDoubleTag"
 global const setDoubleTag_name = "setDoubleTag"
 global const getDoubleTag_name = "getDoubleTag"
 
+
+global const reorder_name = "reorder"
 end
 
-export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getElNumber2, getMeshDimension, getType, getDownward, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, countNodesOn, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag
+export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getElNumber2, getMeshDimension, getType, getDownward, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, countNodesOn, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder
 @doc """
   initilize the state of the interface library
 
@@ -592,6 +594,18 @@ ccall( (getDoubleTag_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Void}
   return nothing
 end
 
+
+
+# these functions are not to be used meshes that are either large or 3d
+function reorder(m_ptr, ndof::Integer, nnodes::Integer, dof_statusN_ptr, nodeNums, elNums)
+
+  nodeN_array = [nodeNums] # pass by reference, holds numbering of dofs
+  elN_array = [elNums] # pass by reference, hold numbering of elements
+
+  ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}),  m_ptr, ndof, nnodes,  2, dof_statusN_ptr, nodeNums, elNums)
+  return nothing
+
+end
 
 
 

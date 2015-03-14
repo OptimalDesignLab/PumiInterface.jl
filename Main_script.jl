@@ -22,6 +22,8 @@ declareNames();  # declare global variable names
 # initilize mesh
 dmg_name = "cube.dmg"
 smb_name = "tet-mesh-1.smb"
+#dmg_name = "reorder_a.dmg"
+#smb_name = "reorder_a.smb"
 downward_counts_tmp, num_entities_tmp, m2_ptr, mshape_ptr = init(dmg_name, smb_name)
 m_ptr = getMeshPtr()
 mshape_ptr = getMeshShapePtr()
@@ -184,3 +186,5 @@ data_ret = zeros(1,2)
 data_ret[1] = 2.0
 getDoubleTag( m_ptr, entity, tag_ptr, data_ret)
 println("data_ret = ", data_ret)
+
+reorder(m_ptr)

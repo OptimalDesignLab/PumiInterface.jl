@@ -24,6 +24,7 @@
 #include <math.h>
 
 #include "funcs1.h"
+#include "a2.h"
 
 //=============================================================================
 //declare global variables (persistent state of library)
@@ -720,9 +721,9 @@ apf::MeshTag* createDoubleTag(apf::Mesh2 * m_local, char* name, int size)
 
 void setDoubleTag(apf::Mesh2 * m_local, apf::MeshEntity* e, apf::MeshTag* tag,  double data[])
 {
-  std::cout << "in C++, about to set tag" << std::endl;
+//  std::cout << "in C++, about to set tag" << std::endl;
   m_local->setDoubleTag( e, tag, data);
-  std::cout << "finished seeting tag" << std::endl;
+//  std::cout << "finished seeting tag" << std::endl;
 }
 
 void getDoubleTag(apf::Mesh2 * m_local, apf::MeshEntity* e, apf::MeshTag* tag,  double* data)
