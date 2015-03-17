@@ -14,7 +14,7 @@ extern "C"
   extern void numberdofs(apf::Mesh2* m, apf::Numbering* nodeNums, int numN);
   extern void numberElements(apf::Mesh2*& m, apf::Numbering*& elNums, int numEl);
   extern void printElNumbers(apf::Mesh2*& m, apf::Numbering*& elNums);
-  extern void reorder(apf::Mesh2* m, int ndof, const int nnodes, const int comp, apf::Numbering* dof_statusNumbering, apf::Numbering* nodeNums, apf::Numbering* elNums);
+  extern void reorder(apf::Mesh2* m, int ndof, const int nnodes, const int comp, apf::Numbering* dof_statusNumbering, apf::Numbering* nodeNums, apf::Numbering* elNums, apf::MeshEntity* els_reordered[]);
 }
 
 #endif

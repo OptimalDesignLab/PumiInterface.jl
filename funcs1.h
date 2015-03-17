@@ -61,6 +61,8 @@ extern int getElNumber2(apf::MeshEntity* e);
 extern int getMeshDimension(apf::Mesh2* m_local);
 extern int getType(apf::Mesh2* m_local, apf::MeshEntity* e);
 extern int getDownward(apf::Mesh2* m_local, apf::MeshEntity* e, int dimension, apf::MeshEntity* downwards[12]);
+extern int countAdjacent(apf::Mesh2* m_local, apf::MeshEntity* e, int dimension);
+void getAdjacent(apf::MeshEntity* adjacencies_ret[]);
 
 // these function do not pass pointers
 extern void checkVars();

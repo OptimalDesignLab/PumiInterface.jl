@@ -1,7 +1,10 @@
 # functions to test the julia/PUMI interface
 module PumiInterface
-# no names should exported because there should be higher level function
+include("PumiInterface2.jl")  # higher level functions
+
+# no names should exported because there should be higher level functions
 # wrapping these
+# but they are going to be exported anyways
 @doc """
   declareNames() declares global constant variables that are used to construct
   the first argument to the ccall function (it must be a constant expression)
@@ -57,6 +60,8 @@ global const getElNumber2_name = "getElNumber2"
 global const getMeshDimension_name = "getMeshDimension"
 global const getType_name = "getType"
 global const getDownward_name = "getDownward"
+global const countAdjacent_name = "countAdjacent"
+global const getAdjacent_name = "getAdjacent"
 
 global const checkVars_name = "checkVars"
 global const checkNums_name = "checkNums"
@@ -79,7 +84,10 @@ global const getDoubleTag_name = "getDoubleTag"
 global const reorder_name = "reorder"
 end
 
-export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getElNumber2, getMeshDimension, getType, getDownward, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, countNodesOn, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder
+
+# export low level interface functions
+export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, countNodesOn, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder
+
 @doc """
   initilize the state of the interface library
 
@@ -433,6 +441,25 @@ function getDownward(m_ptr, entity, dimension::Integer)
 
 end
 
+function countAdjacent(m_ptr, entity, dimension::Integer)
+# counts the number of upward adjacencies of meshentity with given dimension
+# use with getAdjacent to fetch them
+
+i = ccall( (countAdjacent_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32), m_ptr, entity, dimension)
+
+return i
+
+end
+
+function getAdjacent(num_adjacent::Integer)
+# returns an array of MeshEntity* that are the upward adjacencies fetched by countAdjacent
+# this could be made  more efficient by taking in an array and resizing it if it is too small
+  adjacencies_ret = Array(Ptr{Void}, num_adjacent)  # create the array
+
+  ccall( (getAdjacent_name, pumi_libname), Void, (Ptr{Void},), adjacencies_ret)
+
+  return adjacencies_ret
+end
 
 function checkVars()
 ccall ( (checkVars_name, pumi_libname), Void, () );
@@ -597,12 +624,12 @@ end
 
 
 # these functions are not to be used meshes that are either large or 3d
-function reorder(m_ptr, ndof::Integer, nnodes::Integer, dof_statusN_ptr, nodeNums, elNums)
+function reorder(m_ptr, ndof::Integer, nnodes::Integer, dof_statusN_ptr, nodeNums, elNums, els_reordered)
 
   nodeN_array = [nodeNums] # pass by reference, holds numbering of dofs
   elN_array = [elNums] # pass by reference, hold numbering of elements
 
-  ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}),  m_ptr, ndof, nnodes,  2, dof_statusN_ptr, nodeNums, elNums)
+  ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}),  m_ptr, ndof, nnodes,  2, dof_statusN_ptr, nodeNums, elNums, els_reordered)
   return nothing
 
 end

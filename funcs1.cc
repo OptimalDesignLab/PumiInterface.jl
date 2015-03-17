@@ -492,6 +492,39 @@ int getDownward(apf::Mesh2* m_local, apf::MeshEntity* e, int dimension, apf::Mes
 }
 
 
+apf::DynamicArray<apf::MeshEntity*> adjacencies;
+bool adjacent_ready = false;  // stores whether countAdjacent has been called
+                              // before getAdjacent
+// gets the mesh entities adjacenct to the given meshentity e, stores them in
+// the global variable, and returns the number of entities
+// the getAdjacent  function only returns the adjcencies fetched by this function
+int countAdjacent(apf::Mesh2* m_local, apf::MeshEntity* e, int dimension)
+{
+  m_local->getAdjacent(e, dimension, adjacencies);
+  int num_adjacent = adjacencies.getSize();
+  adjacent_ready = true;
+  return num_adjacent;
+}
+
+// returns the adjacencies fetched by countAdjacent, copying them into
+// adjacencies_ret[]
+void getAdjacent(apf::MeshEntity* adjacencies_ret[])
+{
+  if (!adjacent_ready)
+  {
+    std::cout << "Warning, adjacencies might not  be ready" << std::endl;
+  }
+
+  int num_adjacent = adjacencies.getSize();
+  for (int i = 0; i < num_adjacent; ++i)
+  {
+    adjacencies_ret[i] = adjacencies[i];
+  }
+
+  adjacent_ready = false;
+
+}
+
 
 // check that global variable are persisent
 // doesn't work in 2d

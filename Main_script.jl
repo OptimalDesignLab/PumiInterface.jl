@@ -187,4 +187,16 @@ data_ret[1] = 2.0
 getDoubleTag( m_ptr, entity, tag_ptr, data_ret)
 println("data_ret = ", data_ret)
 
-reorder(m_ptr)
+
+entity = getVert()
+#i = countAdjacent(m_ptr, entity, 3)
+println("vertex has ", i, " 3d regions ")
+
+#adj = getAdjacent(i)
+
+(adj, n) = getAdjacentFull(m_ptr, entity, 3)
+
+for k in adj
+  n = getNumberJ(elN_ptr, k, 0, 0)
+  println("element number = ", n)
+end

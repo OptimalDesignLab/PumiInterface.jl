@@ -11,14 +11,14 @@
 
 #include "a2.h"
 
-bool hasNode(apf::Mesh2* m, apf::MeshEntity* e)
+bool hasNode(apf::Mesh2* m_local, apf::MeshEntity* e)
 {
-  return m->getShape()->countNodesOn(m->getType(e)) > 0;
+  return m_local->getShape()->countNodesOn(m_local->getType(e)) > 0;
 }
 
-int nodeCount(apf::Mesh2* m, apf::MeshEntity* e)
+int nodeCount(apf::Mesh2* m_local, apf::MeshEntity* e)
 {
-  return m->getShape()->countNodesOn(m->getType(e));
+  return m_local->getShape()->countNodesOn(m_local->getType(e));
 }
 
 // adds p2 to the end of q1
@@ -37,7 +37,7 @@ void addQueues(std::queue<apf::MeshEntity*> & q1, std::queue<apf::MeshEntity*> &
 // get starting entity for node reordering
 // search for node vertex classified on geometric vertex that has minimum
 // connectivity
-apf::MeshEntity* getStartEntity(apf::Mesh2* & m)
+apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local)
 {
   apf::MeshEntity* e_min; // minimum degree meshentity
   apf::MeshEntity* e_i; // current meshentity
@@ -46,24 +46,24 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m)
   apf::ModelEntity* me_i;
   int me_dimension;
 
-  apf::MeshIterator* it = m->begin(0); // iterator over verticies
+  apf::MeshIterator* it = m_local->begin(0); // iterator over verticies
 
 
   // initilize
-  e_i = m->deref(it);
-  numEdges_i = m->countUpward(e_i);
+  e_i = m_local->deref(it);
+  numEdges_i = m_local->countUpward(e_i);
 
   e_min = e_i;
   numEdges_min = numEdges_i;
 
 
-  while ( (e_i = m->iterate(it)) )
+  while ( (e_i = m_local->iterate(it)) )
   {
-    me_i = m->toModel(e_i);
-    me_dimension = m->getModelType(me_i);
+    me_i = m_local->toModel(e_i);
+    me_dimension = m_local->getModelType(me_i);
     if ( !me_dimension ) // if me_dimension == 0
     {
-      numEdges_i = m->countUpward(e_i);
+      numEdges_i = m_local->countUpward(e_i);
       if (numEdges_i < numEdges_min)
       {
         e_min = e_i;
@@ -77,9 +77,9 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m)
 }
 
 
-void printType(apf::Mesh* m, apf::MeshEntity* e)
+void printType(apf::Mesh* m_local, apf::MeshEntity* e)
 {
-  int type_enum = m->getType(e);
+  int type_enum = m_local->getType(e);
   // check type, print appropriate message
   
       switch(type_enum)
@@ -118,9 +118,9 @@ void printType(apf::Mesh* m, apf::MeshEntity* e)
 // initially number all dofs with number greater than number of nodes, to show
 // they have not received final number yet
 
-void numberdofs(apf::Mesh2* m, apf::Numbering* nodeNums, int numN, int comp)
+void numberdofs(apf::Mesh2* m_local, apf::Numbering* nodeNums, int numN, int comp)
 {
-//  apf::FieldShape* fieldshape = m->getShape();
+//  apf::FieldShape* fieldshape = m_local->getShape();
   apf::MeshIterator* it;
   apf::MeshEntity* e;
   int numNodes_typei;
@@ -129,16 +129,16 @@ void numberdofs(apf::Mesh2* m, apf::Numbering* nodeNums, int numN, int comp)
 
   for (int i = 0; i < 4; ++i) // loop over entity types
   {
-    it = m->begin(i);
-    e = m->deref(it);
-    numNodes_typei = nodeCount(m,e);
+    it = m_local->begin(i);
+    e = m_local->deref(it);
+    numNodes_typei = nodeCount(m_local,e);
     std::cout << "entity type " << i << " has " << numNodes_typei << " nodes" << std::endl;
-    it = m->begin(i);
+    it = m_local->begin(i);
 
     if (numNodes_typei)  // if there are any dofs on this type of entity
     {
       
-      while ( (e = m->iterate(it)) )
+      while ( (e = m_local->iterate(it)) )
       {
         for ( int j = 0; j < numNodes_typei; ++j)
         {
@@ -159,14 +159,14 @@ void numberdofs(apf::Mesh2* m, apf::Numbering* nodeNums, int numN, int comp)
 
 // number elements with numbers greater than number of elements to show they 
 // have not yet received their final number
-void numberElements(apf::Mesh2*& m, apf::Numbering*& elNums, int numEl)
+void numberElements(apf::Mesh2*& m_local, apf::Numbering*& elNums, int numEl)
 {
-  apf::MeshIterator* it = m->begin(2);
+  apf::MeshIterator* it = m_local->begin(2);
   apf::MeshEntity* e;
   int k = numEl + 1;
 
   
-  while ( (e = m->iterate(it) ) )
+  while ( (e = m_local->iterate(it) ) )
   {
     std::cout << "labelling element " << k - numEl << " as " << k << std::endl;
     apf::number(elNums, e, 0, 0, k);
@@ -175,12 +175,12 @@ void numberElements(apf::Mesh2*& m, apf::Numbering*& elNums, int numEl)
 
 }
 
-void printElNumbers(apf::Mesh2*& m, apf::Numbering*& elNums)
+void printElNumbers(apf::Mesh2*& m_local, apf::Numbering*& elNums)
 {
-  apf::MeshIterator* it = m->begin(2);
+  apf::MeshIterator* it = m_local->begin(2);
   apf::MeshEntity* e;
   int i = 1;
-  while ((e = m->iterate(it) ) )
+  while ((e = m_local->iterate(it) ) )
   {
     int num = apf::getNumber(elNums, e, 0 , 0);
     std::cout << "element " << i << "1 number = " << num << std::endl;
@@ -200,7 +200,8 @@ void printElNumbers(apf::Mesh2*& m, apf::Numbering*& elNums)
 // comp is the number of dofs per node (the number of components in the dof numberings)
 // nodeNums is a numbering over the dofs to be populated with global node numbers
 // elNums is numbering over elements (faces) to be populated
-void reorder(apf::Mesh2* m, int ndof, const int nnodes, const int comp, apf::Numbering* dof_statusNumbering, apf::Numbering* nodeNums, apf::Numbering* elNums)
+// els_reordered is array of pointers to the faces in the new order
+void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, apf::Numbering* dof_statusNumbering, apf::Numbering* nodeNums, apf::Numbering* elNums, apf::MeshEntity* els_reordered[])
 {
 /*
   if (argc != 3) {
@@ -212,7 +213,7 @@ void reorder(apf::Mesh2* m, int ndof, const int nnodes, const int comp, apf::Num
   gmi_register_mesh();
   apf::Mesh2* m = apf::loadMdsMesh(argv[1], argv[2]);
 */
-  apf::FieldShape* fieldshape = m->getShape();
+  apf::FieldShape* fieldshape = m_local->getShape();
   
   std::cout << " field has nodes in dimension: 0 => " << fieldshape->hasNodesIn(0) << std::endl;
   std::cout << " 1 => " << fieldshape->hasNodesIn(1) << std::endl;
@@ -223,44 +224,47 @@ void reorder(apf::Mesh2* m, int ndof, const int nnodes, const int comp, apf::Num
 //  apf::Numbering* tmp = apf::numberOwnedNodes(m, "tmpnumber");
 //  const int numN = apf::countNodes(tmp);
   const int numN = nnodes;
-  const int numEl = m->count(m->getDimension());  // counts the number of numbered entitites
+  const int numEl = m_local->count(m_local->getDimension());  // counts the number of numbered entitites
 
   std::cout << "numN = " << numN << " , numEl = " << numEl << std::endl;
   
 
   // create empty numberings of the proper shape
 //  apf::Numbering* elNums = apf::createNumbering(m, "elementNumbers", apf::getConstant(2), 1);
-  numberElements(m, elNums, numEl);
+  numberElements(m_local, elNums, numEl);
   std::cout << "finished initial numbering of elements" << std::endl;
-//  apf::Numbering* nodeNums = createNumbering(m, "nodeNumbers", m->getShape(), 1);
-  numberdofs(m, nodeNums, numN, comp);
+//  apf::Numbering* nodeNums = createNumbering(m, "nodeNumbers", m_local->getShape(), 1);
+  numberdofs(m_local, nodeNums, numN, comp);
   std::cout << "finished initial numbering of nodes" << std::endl;
 
 
 
   //print initial numberings
-  apf::writeVtkFiles("number_orig", m);
+  apf::writeVtkFiles("number_orig", m_local);
 
 
-  printElNumbers( m, elNums);
+  printElNumbers( m_local, elNums);
 
   // create queues
   std::queue < apf::MeshEntity*> que1;
   std::queue < apf::MeshEntity*> tmpQue;
 
-//  apf::MeshIterator* it = m->begin(m->getDimension());
-  apf::MeshIterator* nodeIt = m->begin(0);
+//  apf::MeshIterator* it = m_local->begin(m_local->getDimension());
+  apf::MeshIterator* nodeIt = m_local->begin(0);
 
   apf::MeshEntity* e;
 
   // get starting entity
-  e = m->iterate(nodeIt);
+  e = m_local->iterate(nodeIt);
 
   int nodelabel_i = ndof + 1;
   int elementLabel_i = numEl + 1;
   int numNodes_i;
 
-  e = getStartEntity(m); // get starting node
+  std::cout << "starting nodelabel+1 = " << nodelabel_i << std::endl;
+  std::cout << "starting elementlabel_i = " << elementLabel_i << std::endl;
+
+  e = getStartEntity(m_local); // get starting node
   // queue initial entity
   que1.push(e);
   
@@ -269,14 +273,14 @@ void reorder(apf::Mesh2* m, int ndof, const int nnodes, const int comp, apf::Num
     e = que1.front(); // get next element in queue
     que1.pop();  // remove that element from the que
 
-    numNodes_i = nodeCount(m,e); // get number of nodes on this entity
+    numNodes_i = nodeCount(m_local,e); // get number of nodes on this entity
 
     std::cout << std::endl;
     std::cout << "at beginning of while loop" << std::endl;
     std::cout << "type of current entity = ";
-    printType(m, e);
+    printType(m_local, e);
 
-    int type_enum_e = m->getType(e);
+    int type_enum_e = m_local->getType(e);
 
     if ( type_enum_e == apf::Mesh::VERTEX)
     {
@@ -305,26 +309,26 @@ void reorder(apf::Mesh2* m, int ndof, const int nnodes, const int comp, apf::Num
     }
 
     // if e is a vertex, find adjacencies, look for unlabeled nodes
-    if (m->getType(e) == apf::Mesh::VERTEX)
+    if (m_local->getType(e) == apf::Mesh::VERTEX)
     {
       // count number of edges that contain vertex e
-      int numEdges_w = m->countUpward(e);
+      int numEdges_w = m_local->countUpward(e);
       for (int i = 0; i < numEdges_w; ++i)  // loop over edges
       {
 //        std::cout << "  on edge " << i << std::endl;
-        apf::MeshEntity* edge_i = m->getUpward(e, i); // get the edge
+        apf::MeshEntity* edge_i = m_local->getUpward(e, i); // get the edge
 //        std::cout << " edge has type" << std::endl;
 //        printType(m, edge_i);
-        int numFaces_i = m->countUpward(edge_i); // get number of faces on the edge
+        int numFaces_i = m_local->countUpward(edge_i); // get number of faces on the edge
 
         for (int j = 0; j < numFaces_i; ++j)  // loop over faces
         {
 //          std::cout << "    on face " << j << std::endl;
-          apf::MeshEntity* face_j = m->getUpward(edge_i, j);  // get face
+          apf::MeshEntity* face_j = m_local->getUpward(edge_i, j);  // get face
 //          std::cout << " face has type";
 //          printType(m, face_j);
           int faceNum_j = apf::getNumber(elNums, face_j, 0, 0); // get face number
-          int numNodes_j = nodeCount(m, face_j); // get number of nodes on face
+          int numNodes_j = nodeCount(m_local, face_j); // get number of nodes on face
 
 
 //          std::cout << "    face number = " << faceNum_j << std::endl;
@@ -334,6 +338,8 @@ void reorder(apf::Mesh2* m, int ndof, const int nnodes, const int comp, apf::Num
             elementLabel_i -= 1;  // decrement element label
 //            std::cout << "    renumbering face " << faceNum_j << " to " << elementLabel_i << std::endl;
             apf::number(elNums, face_j, 0, 0, elementLabel_i); // number element
+            els_reordered[elementLabel_i-1] = face_j; // store element in returned array
+                                                      // include -1 offset for 0 based indexing
           }
 
           // check if face has nodes that need labelling
@@ -357,14 +363,14 @@ void reorder(apf::Mesh2* m, int ndof, const int nnodes, const int comp, apf::Num
         }  // end face loop
 
         // look at other vertex on edge
-        apf::MeshEntity* otherVertex = apf::getEdgeVertOppositeVert(m, edge_i, e);
+        apf::MeshEntity* otherVertex = apf::getEdgeVertOppositeVert(m_local, edge_i, e);
         int otherVertex_num = getNumber(nodeNums, otherVertex, 0,0);
         bool labeled = (otherVertex_num <= numN);
         bool queued = (otherVertex_num > 2*numN);  // vertex already queued
 
 //        std::cout << " other vertex number = " << otherVertex_num << std::endl;
 
-        if (hasNode(m, edge_i))
+        if (hasNode(m_local, edge_i))
         {
 //          std::cout << "edge has node " << std::endl;
           int edgeNode_num = getNumber(nodeNums, edge_i,0,0); // get number of first node on edge
@@ -373,7 +379,7 @@ void reorder(apf::Mesh2* m, int ndof, const int nnodes, const int comp, apf::Num
           if ((labeled || queued) && edgeNotLabeled)
           {
             // label all nodes on edge
-            int numEdgeNodes = nodeCount(m, e);
+            int numEdgeNodes = nodeCount(m_local, e);
             for (int j = 0; j < numEdgeNodes; ++j)
             {
 //              int nodeNum_j = apf::getNumber(nodeNums, edge_i, j, c);
@@ -433,10 +439,10 @@ void reorder(apf::Mesh2* m, int ndof, const int nnodes, const int comp, apf::Num
     } // end while loop over que    
 
 
-  apf::writeVtkFiles("number", m);
-  m->destroyNative();
-  apf::destroyMesh(m);
-  PCU_Comm_Free();
-  MPI_Finalize();
+  apf::writeVtkFiles("number", m_local);
+//  m_local->destroyNative();
+//  apf::destroyMesh(m);
+//  PCU_Comm_Free();
+// MPI_Finalize();
 }
 
