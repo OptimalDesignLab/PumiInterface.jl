@@ -14,6 +14,7 @@
 #include <iostream>
 #include <apf.h>
 #include <gmi_mesh.h>
+#include <gmi_null.h>
 #include <apfMDS.h>
 #include <apfMesh2.h>
 #include <PCU.h>
@@ -22,6 +23,7 @@
 
 #include <stdlib.h>   // malloc, free, etc.
 #include <math.h>
+#include <string.h>
 
 #include "funcs1.h"
 //#include "a2.h"
@@ -65,11 +67,26 @@ int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numbe
 
   MPI_Init(0,NULL);  // initilize MPI 
   PCU_Comm_Init();   // initilize PUMI's communication
-  gmi_register_mesh();
+//  gmi_register_mesh();
 
   // load mesh
 //  m = apf::loadMdsMesh("cube.dmg", "tet-mesh-1.smb");
-  m = apf::loadMdsMesh(dmg_name, smb_name);
+
+
+  if (strcmp(dmg_name, ".null") == 0)
+  {
+    gmi_register_null();
+    std::cout << "loading null geometric model" << std::endl;
+    gmi_model* g = gmi_load(".null");
+    std::cout << "finished loading geometric model" << std::endl;
+    m = apf::loadMdsMesh(g, smb_name);
+  } else {
+    gmi_register_mesh();
+    std::cout << "loading geometric model from file" << std::endl;
+    m = apf::loadMdsMesh(dmg_name, smb_name);
+  }
+
+  std::cout << "finished loading mesh" << std::endl;
   m_ptr_array[0] = m;
   mshape_ptr_array[0] = m->getShape();
   std::cout << std::endl;
@@ -149,6 +166,41 @@ int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numbe
   std::cout << " , numFace = " << numEntity[2] << " , numEl = " << numEntity[3] << std::endl;
   std::cout << std::endl;
 
+  apf::MeshEntity* e = m->deref(its[2]);
+  apf::MeshElement* e_el = apf::createMeshElement(m, e);
+  int numI = apf::countIntPoints(e_el, 3);
+  std::cout << numI << " integrations points required for 5th order accuracy" << std::endl;
+
+  for ( int i = 0; i < numI; ++i)
+  {
+    apf::Vector3 coords;  // declare vector to hold coordinates
+    apf::Matrix3x3 mat;
+    apf::getIntPoint(e_el, 3, i, coords);
+    apf::getJacobian(e_el, coords, mat);
+
+    std::cout << "point " << i << " has coordinates " << coords << std::endl;
+    std::cout << "  and jacobian = \n" << mat << std::endl;
+  }
+
+  e = m->deref(its[1]);
+  e_el = apf::createMeshElement(m,e);
+  numI = apf::countIntPoints(e_el,5);
+  std::cout << numI << " integration points required on edge for 5th order accuraccy" << std::endl;
+
+
+
+  for ( int i = 0; i < numI; ++i)
+  {
+    apf::Vector3 coords;  // declare vector to hold coordinates
+    apf::getIntPoint(e_el, 5, i, coords);
+    std::cout << "point " << i << " has coordinates " << coords << std::endl;
+  }
+
+
+
+
+  apf::writeVtkFiles("output_init", m);
+
   return 0;
 }
 
@@ -159,11 +211,26 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
 
   MPI_Init(0,NULL);  // initilize MPI 
   PCU_Comm_Init();   // initilize PUMI's communication
-  gmi_register_mesh();
+//  gmi_register_mesh();
 
   // load mesh
 //  m = apf::loadMdsMesh("cube.dmg", "tet-mesh-1.smb");
-  m = apf::loadMdsMesh(dmg_name, smb_name);
+
+  if (strcmp(dmg_name, ".null") == 0)
+  {
+    gmi_register_null();
+    std::cout << "loading null geometric model" << std::endl;
+    gmi_model* g = gmi_load(".null");
+    std::cout << "finished loading geometric model" << std::endl;
+    m = apf::loadMdsMesh(g, smb_name);
+  } else {
+    gmi_register_mesh();
+    std::cout << "loading geometric model from file" << std::endl;
+    m = apf::loadMdsMesh(dmg_name, smb_name);
+  }
+
+
+
   m_ptr_array[0] = m;
   mshape_ptr_array[0] = m->getShape();
   std::cout << std::endl;
@@ -242,7 +309,26 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
   std::cout << "numV = " << numEntity[0] << " , numEdge = " << numEntity[1];
   std::cout << " , numFace = " << numEntity[2] << std::endl;
   std::cout << std::endl;
+/*
+  apf::MeshEntity* e = m->deref(its[2]);
+  apf::MeshElement* e_el = apf::createMeshElement(m, e);
+  int numI = apf::countIntPoints(e_el, 3);
+  std::cout << numI << " integrations points required for 5th order accuracy" << std::endl;
 
+  for ( int i = 0; i < numI; ++i)
+  {
+    apf::Vector3 coords;  // declare vector to hold coordinates
+    apf::Matrix3x3 mat;
+    apf::getIntPoint(e_el, 3, i, coords);
+    apf::getJacobian(e_el, coords, mat);
+
+    std::cout << "point " << i << " has coordinates " << coords << std::endl;
+    std::cout << "  and jacobian = \n" << mat << std::endl;
+  }
+*/
+
+
+  apf::writeVtkFiles("output_init", m);
   return 0;
 }
 
@@ -355,6 +441,17 @@ void incrementElItn(int n)
 {
   for (int i=0; i < n; ++i)
     m->iterate(its[3]);
+}
+
+
+int count(apf::Mesh2* m_local, int dimension)
+{
+  return m_local->count(dimension);
+}
+
+void writeVtkFiles(char* name, apf::Mesh2* m_local)
+{
+  apf::writeVtkFiles(name, m_local);
 }
 
 
@@ -486,7 +583,7 @@ int getType(apf::Mesh2* m_local, apf::MeshEntity* e)
 // array
 int getDownward(apf::Mesh2* m_local, apf::MeshEntity* e, int dimension, apf::MeshEntity* downwards[12])
 {
-  std::cout << "in C++ getDownwards, dimension = " << dimension << std::endl;
+//  std::cout << "in C++ getDownwards, dimension = " << dimension << std::endl;
   int numDown = m->getDownward(e, dimension, downwards);
   return numDown;
 }
@@ -524,6 +621,104 @@ void getAdjacent(apf::MeshEntity* adjacencies_ret[])
   adjacent_ready = false;
 
 }
+
+
+// apf::Fieldshape Functions
+// check whether the given field as nodes on entities of the specified dimension
+bool hasNodesIn(apf::FieldShape* fshape_local, int dimension)
+{
+  return fshape_local->hasNodesIn(dimension);
+}
+
+// determine the number of nodes on entities of a given type (apf::Mesh::Type)
+int countNodesOn(apf::FieldShape* fshape_local, int type)
+{
+  return fshape_local->countNodesOn(type);
+}
+
+// get the EntityShape (object describing shape functions) of a type of entity
+apf::EntityShape* getEntityShape(apf::FieldShape* mshape_local, int type)
+{
+  return mshape_local->getEntityShape(type);
+}
+
+
+// MeshElement related functions
+extern apf::MeshElement* createMeshElement( apf::Mesh2* m_local, apf::MeshEntity* e)
+{
+  return apf::createMeshElement(m_local, e);
+}
+
+// count the number of integration points needed to achieve specified order of 
+// accuracy.  MeshElement can be edges as well as 2D and 3D regions.
+// not sure what happens if it is a vertex.
+int countIntPoints(apf::MeshElement* e, int order)
+{
+  return apf::countIntPoints(e, order);
+}
+
+extern void getIntPoint(apf::MeshElement* e, int order, int point, double coords[3])
+{
+  apf::Vector3 vec;
+  apf::getIntPoint(e, order, point, vec); // coordinates are now in vec
+  coords[0] = vec[0];
+  coords[1] = vec[1];
+  coords[2] = vec[2];
+}
+
+
+extern double getIntWeight(apf::MeshElement* e, int order, int point)
+{
+  return apf::getIntWeight(e, order, point);
+}
+
+
+// functions involving EntityShape
+
+int countNodes(apf::EntityShape* eshape_local)
+{
+  return eshape_local->countNodes();
+}
+
+// get shape function values
+// vals had better be the right size
+void getValues(apf::EntityShape* eshape_local, double xi[3], double vals[])
+{
+  apf::Vector3 xi_vec (xi[0], xi[1], xi[2]); // create vector of coordinates
+  apf::NewArray<double> vals_array;  // array to store retrieved values in
+  int numN_local = eshape_local->countNodes();  // get number of nodes
+  eshape_local->getValues(xi_vec, vals_array);
+
+  // copy vals_array into vals to be returned
+  for (int i = 0; i < numN_local; ++i)
+  {
+    vals[i] = vals_array[i];
+  }
+
+}
+
+// get shape function gradient values
+// vals had better be the right size
+void getLocalGradients(apf::EntityShape* eshape_local, double xi[3], double vals[][3])
+{
+  apf::Vector3 xi_vec (xi[0], xi[1], xi[2]); // create vector of coordinates
+  apf::NewArray<apf::Vector3> vals_array;  // array to store retrieved values in
+  int numN_local = eshape_local->countNodes();  // get number of nodes
+  eshape_local->getLocalGradients(xi_vec, vals_array);
+
+  // copy vals_array into vals to be returned
+  for (int i = 0; i < numN_local; ++i)
+  {
+    apf::Vector3 tmp = vals_array[i];  // get the ith vector
+    for (int j = 0; j < 3; ++j)
+    {
+      vals[i][j] = tmp[j];  // copy the vector into a column of vals
+    }
+  }
+
+}
+
+
 
 
 // check that global variable are persisent
@@ -701,15 +896,6 @@ int getElCoords(double coords[][3], int sx, int sy)
   return 0;
 }
 
-/*
-int countNodesOn(apf::FieldShape* field, int type)
-{
-//  apf::FieldShape* field2 = m->getShape();
-//  int i = field2->countNodesOn(2);
-  int i = field->countNodesOn(type);
-  return i;
-}
-*/
 
 // create a generally defined numbering from julia
 apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShape* field, int components)
@@ -724,8 +910,8 @@ apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShap
 int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number)
 {
   apf::number(n, e, node, component, number);
-  int i = apf::getNumber(n,e,node,component);
-  return i;
+//  int i = apf::getNumber(n,e,node,component);
+  return 0;
 }
 
 // retrieve a number from julia
@@ -736,9 +922,9 @@ int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
 }
 
 
-int countNodesOn(apf::FieldShape* mshape_ptr, int type)
+apf::Mesh* getMesh(apf::Numbering* n)
 {
-  return mshape_ptr->countNodesOn(type);
+  return apf::getMesh(n);
 }
 
 void printNumberingName(apf::Numbering* n)

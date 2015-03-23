@@ -24,6 +24,8 @@ dmg_name = "cube.dmg"
 smb_name = "tet-mesh-1.smb"
 #dmg_name = "reorder_a.dmg"
 #smb_name = "reorder_a.smb"
+#dmg_name = ".null"
+#smb_name = ".smb"
 downward_counts_tmp, num_entities_tmp, m2_ptr, mshape_ptr = init(dmg_name, smb_name)
 m_ptr = getMeshPtr()
 mshape_ptr = getMeshShapePtr()
@@ -189,14 +191,63 @@ println("data_ret = ", data_ret)
 
 
 entity = getVert()
-#i = countAdjacent(m_ptr, entity, 3)
-println("vertex has ", i, " 3d regions ")
+n = countAdjacent(m_ptr, entity, 3)
+#println("vertex has ", i, " 3d regions ")
 
-#adj = getAdjacent(i)
+adj = getAdjacent(n)
 
 (adj, n) = getAdjacentFull(m_ptr, entity, 3)
-
+println("vertex has ", n, " 3d regions ")
+println("size(adj) = ", size(adj))
 for k in adj
   n = getNumberJ(elN_ptr, k, 0, 0)
+  m = countDownwards(m_ptr, k)
   println("element number = ", n)
+  println("downward adjacency counts = ", m)
 end
+
+hasNodesIn(mshape_ptr, 0)
+hasNodesIn(mshape_ptr, 1)
+
+i = countNodesOn(mshape_ptr, getType(m_ptr, entity))
+println("number of nodes on vertex = ", i)
+
+for i = 0:4
+  j = countNodesOn(mshape_ptr, i)
+  println("entity of type ", i, "has ", j, " nodes")
+end
+
+
+eshape_ptr = getEntityShape(mshape_ptr, 3)
+i = countNodes(eshape_ptr)
+println("number of nodes on entity of type 3 = ", i)
+
+i = countAllNodes(mshape_ptr, 3)
+println("number of nodes on entity of type 3 = ", i)
+
+printEdgeVertNumbers(edgeN_ptr, vertN_ptr)
+
+writeVtkFiles("vtkTest", m_ptr)
+
+entity = getFace()
+etype = getType(m_ptr, entity)
+eshape_ptr = getEntityShape(mshape_ptr, etype)
+
+
+mel_ptr = createMeshElement(m_ptr, entity)
+i = countIntPoints(mel_ptr, 5)
+println("face requires ", i, " points for 5th order accurate integration")
+numN = countNodes(eshape_ptr)
+
+for k=1:i
+  coords = getIntPoint(mel_ptr, 5, k)
+  weight = getIntWeight(mel_ptr, 5,k)
+  sh_vals = getValues2(eshape_ptr, coords)
+  shd_vals = getLocalGradients2(eshape_ptr, coords)
+  println("point ", k, " has coordinates ", coords, " and weight ", weight)
+  println("shape function values = ", sh_vals)
+  println("shape function derivative values = ", shd_vals)
+  print("\n")
+end
+
+

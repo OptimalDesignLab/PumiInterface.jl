@@ -43,6 +43,9 @@ global const incrementFaceItn_name = "incrementFaceItn"
 global const incrementElIt_name = "incrementElIt"
 global const incrementElItn_name = "incrementElItn"
 
+global const count_name = "count"
+global const writeVtkFiles_name = "writeVtkFiles"
+
 global const setGlobalVertNumber_name = "setGlobalVertNumber"
 global const getGlobalVertNumber_name = "getGlobalVertNumber"
 global const getVertNumber_name = "getVertNumber"
@@ -63,17 +66,29 @@ global const getDownward_name = "getDownward"
 global const countAdjacent_name = "countAdjacent"
 global const getAdjacent_name = "getAdjacent"
 
+global const hasNodesIn_name = "hasNodesIn"
+global const countNodesOn_name = "countNodesOn"
+global const getEntityShape_name = "getEntityShape"
+
+global const createMeshElement_name = "createMeshElement"
+global const countIntPoints_name = "countIntPoints"
+global const getIntPoint_name = "getIntPoint"
+global const getIntWeight_name = "getIntWeight"
+
+global const countNodes_name = "countNodes"
+global const getValues_name = "getValues"
+global const getLocalGradients_name = "getLocalGradients"
+
 global const checkVars_name = "checkVars"
 global const checkNums_name = "checkNums"
 global const getVertCoords_name = "getVertCoords"
 global const getEdgeCoords_name = "getEdgeCoords"
 global const getFaceCoords_name = "getFaceCoords"
 global const getElCoords_name = "getElCoords"
-#global const countNodesOn_name = "countNodesOn"
 global const createNumberingJ_name = "createNumberingJ"
 global const numberJ_name = "numberJ"
 global const getNumberJ_name = "getNumberJ"
-global const countNodesOn_name = "countNodesOn"
+global const getMesh_name = "getMesh"
 global const printNumberingName_name = "printNumberingName"
 
 global const createDoubleTag_name = "createDoubleTag"
@@ -86,7 +101,7 @@ end
 
 
 # export low level interface functions
-export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, countNodesOn, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder
+export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, countNodes, getValues, getLocalGradients, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder
 
 @doc """
   initilize the state of the interface library
@@ -310,7 +325,19 @@ return nothing
 end
 
 
+function countJ(m_ptr, dimension::Integer)
+# returns the number of entities of a particular dimension
 
+  i = ccall( (count_name, pumi_libname), Int32, (Ptr{Void},Int32), m_ptr, dimension)
+  return i
+end
+
+function writeVtkFiles(name::AbstractString, m_ptr)
+# write vtk files to be read by paraview
+
+  ccall( (writeVtkFiles_name, pumi_libname), Void, (Ptr{UInt8}, Ptr{Void}), name, m_ptr)
+  return nothing
+end
 
 function setGlobalVertNumber(val::Integer)
 # set global Vertex number of the current node
@@ -461,6 +488,114 @@ function getAdjacent(num_adjacent::Integer)
   return adjacencies_ret
 end
 
+
+function hasNodesIn(mshape_ptr, dimension::Int)
+# check whether this FieldShape* has nodes on entities of a given dimension
+
+  i = ccall ( (hasNodesIn_name, pumi_libname), Cuchar, (Ptr{Void}, Int32), mshape_ptr, dimension)
+
+  i_bool = convert(Bool, i)
+  println("hasNodesIn returned", i_bool)
+
+  return i_bool
+
+end
+
+function countNodesOn(mshape_ptr, entity_type::Integer)
+# count the number of nodes on an entity of the specified type (apf::Mesh::Type)
+  i = ccall ( (countNodesOn_name, pumi_libname), Int32, (Ptr{Void}, Int32), mshape_ptr, entity_type)
+
+  return i
+
+end
+
+function getEntityShape(mshape_ptr, entity_type::Integer)
+# get the EntityShape* (object describing shape functions) ofa given entity type
+
+  eshape_ptr = ccall ( (getEntityShape_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Int32), mshape_ptr, entity_type)
+
+  return eshape_ptr
+end
+
+
+function createMeshElement(m_ptr, entity)
+# creates a MeshElement from a MeshEntity
+
+  mel_ptr = ccall ( ( createMeshElement_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Void}), m_ptr, entity)
+  return mel_ptr
+end
+
+function countIntPoints(mel_ptr, order::Integer)
+# count the number of integration points needed to achieve specified order of
+# accuracy.  MeshElement can be edges as well as 2D and 3D regions.
+# not sure what happens if it is a vertex.
+
+  i = ccall ( (countIntPoints_name, pumi_libname), Int32, (Ptr{Void}, Int32), mel_ptr, order)
+  return i
+end
+
+function getIntPoint(mel_ptr, order::Integer, point::Integer)
+# returns a vector containing the parent coordinates of the integration point
+# order = order of accuracy of integration
+# point = which integration point (1 thru number of points )
+
+   coords = zeros(3)
+   ccall( (getIntPoint_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Ptr{Float64}), mel_ptr, order, point-1, coords)
+   return coords
+end
+
+function getIntWeight(mel_ptr, order::Integer, point::Integer)
+# gets the weight corresponding to the integration point (see getIntPoint)
+
+  i = ccall( (getIntWeight_name, pumi_libname), Float64, (Ptr{Void}, Int32, Int32), mel_ptr, order, point-1)
+  return i
+end
+
+
+
+function countNodes(eshape_ptr)
+# get the total number of nodes related to an entity (including downward adjacencies)
+
+  i = ccall ( (countNodes_name, pumi_libname), Int32, (Ptr{Void},), eshape_ptr)
+  return i
+end
+
+function getValues( eshape_ptr, coords::Array{Float64,1}, numN::Integer)
+#  gets an array of shape function values at the specified coordinates
+# numN is the number of points affecting the entity that was used to get eshape_ptr
+# coords must be a vector of length 3
+# the output is a vector of length numN
+
+  vals = zeros(numN)
+  ccall ( (getValues_name, pumi_libname), Void, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}), eshape_ptr, coords, vals)
+
+  return vals
+end
+
+
+function getLocalGradients( eshape_ptr, coords::Array{Float64,1}, numN::Integer)
+#  gets an array of shape function derivatives at the specified coordinates
+# numN is the number of points affecting the entity that was used to get eshape_ptr
+# coords must be a vector of length 3
+# the output is a matrix of dimension 3 x numN
+
+  vals = zeros(3, numN)
+  ccall ( (getLocalGradients_name, pumi_libname), Void, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}), eshape_ptr, coords, vals)
+
+  return vals
+end
+
+function checkVars()
+ccall ( (checkVars_name, pumi_libname), Void, () );
+
+return nothing
+end
+
+
+
+
+
+
 function checkVars()
 ccall ( (checkVars_name, pumi_libname), Void, () );
 
@@ -539,15 +674,6 @@ println("in julia, coords = ", coords)
 end
 
 
-#
-#function countNodesOnJ(shape_ptr, i::Integer)
-# count the number of nodes on type i (apf::Mesh::TYPE)
-#
-#i = ccall( (countNodesOnJ_name, pumi_libname), Int32, (Ptr{Void}, Int32), shape_ptr, i)
-#return i
-#
-#end
-
 
 function createNumberingJ(m_ptr, name::AbstractString, field, components::Integer)
 # create a generally defined numbering, get a pointer to it
@@ -563,11 +689,11 @@ function numberJ(numbering_ptr, entity, node::Integer, component::Integer, numbe
 
   i = ccall( (numberJ_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Int32, Int32), numbering_ptr, entity, node, component, number)
 
- if i == number
-   println("numbering successful")
- else
-   println("numbering failure, number sent = $number, number returnee = $i")
- end
+# if i == number
+#   println("numbering successful")
+# else
+#   println("numbering failure, number sent = $number, number returnee = $i")
+# end
 
 return nothing
 
@@ -582,15 +708,14 @@ return i
 
 end
 
-function countNodesOn(mshape_ptr, entity_type::Integer)
-# gets the number of nodes on an entity of given type
-# type must be an enum of apf::Mesh::TYPE
 
-i = ccall ( (countNodesOn_name, pumi_libname), Int32, (Ptr{Void}, Int32), mshape_ptr, entity_type)
+function getMesh(n_ptr)
+# get the mesh a numbering is defined on
 
-return i
-
+  m_ptr = ccall( (getMesh_name, pumi_libname), Ptr{Void}, (Ptr{Void},), n_ptr)
+  return m_ptr
 end
+
 
 function printNumberingName(numbering)
 # print the name of a numbering

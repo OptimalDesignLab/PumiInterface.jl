@@ -40,6 +40,9 @@ extern void incrementElIt();
 extern void incrementElItn(int n);
 
 extern void resetElIt();
+extern int count(apf::Mesh2* m_local, int dimension);
+extern void writeVtkFiles(char* name, apf::Mesh2* m_local);
+
 extern void setGlobalVertNumber(int val); // do not use
 extern int getGlobalVertNumber(); // do not use
 extern int getVertNumber();
@@ -53,17 +56,37 @@ extern apf::MeshEntity* getEdge();
 extern apf::MeshEntity* getFace();
 extern apf::MeshEntity* getEl();
 
+// these functions are deprecated, use getNumberJ insteady
 extern int getVertNumber2(apf::MeshEntity* e);
 extern int getEdgeNumber2(apf::MeshEntity* e);
 extern int getFaceNumber2(apf::MeshEntity* e);
 extern int getElNumber2(apf::MeshEntity* e);
 
+// these functions pass pointers
 extern int getMeshDimension(apf::Mesh2* m_local);
 extern int getType(apf::Mesh2* m_local, apf::MeshEntity* e);
 extern int getDownward(apf::Mesh2* m_local, apf::MeshEntity* e, int dimension, apf::MeshEntity* downwards[12]);
 extern int countAdjacent(apf::Mesh2* m_local, apf::MeshEntity* e, int dimension);
+void getAdjacent(apf::MeshEntity* adjacencies_ret[]);
 
-// these function do not pass pointers
+
+// FieldShape functions
+bool hasNodesIn(apf::FieldShape* fshape_local, int dimension);
+extern int countNodesOn(apf::FieldShape* mshape_ptr, int type);
+extern apf::EntityShape* getEntityShape(apf::FieldShape* mshape_local, int type);
+
+// MeshElement related functions
+extern apf::MeshElement* createMeshElement( apf::Mesh2* m_local, apf::MeshEntity* e);
+extern int countIntPoints(apf::MeshElement* e, int order);
+extern void getIntPoint(apf::MeshElement* e, int order, int point, double coords[3]);
+extern double getIntWeight(apf::MeshElement* e, int order, int point);
+
+// Entityshape functions
+extern int countNodes(apf::EntityShape* eshape_local);
+
+
+
+// these function do not pass pointers (they use the iterators internally)
 extern void checkVars();
 extern void checkNums();
 extern void getVertCoords(double coords[][3], int sx, int sy);
@@ -72,14 +95,11 @@ extern int getFaceCoords(double coords[][3], int sx, int sy);
 extern int getElCoords(double coords[][3], int sx, int sy);
 
 // these function pass pointers
-//extern int countNodesOn(apf::FieldShape* field, int type);
-
 // create a generally defined numbering from julia
 extern  apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShape* field, int components);
 extern int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number);
 extern  int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component);
-
-extern int countNodesOn(apf::FieldShape* mshape_ptr, int type);
+extern apf::Mesh* getMesh(apf::Numbering* n);
 extern void printNumberingName(apf::Numbering* n);
 
 extern apf::MeshTag* createDoubleTag(apf::Mesh2 * m_local, char* name, int size);
