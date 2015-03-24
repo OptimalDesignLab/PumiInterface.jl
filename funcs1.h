@@ -80,6 +80,7 @@ extern apf::MeshElement* createMeshElement( apf::Mesh2* m_local, apf::MeshEntity
 extern int countIntPoints(apf::MeshElement* e, int order);
 extern void getIntPoint(apf::MeshElement* e, int order, int point, double coords[3]);
 extern double getIntWeight(apf::MeshElement* e, int order, int point);
+extern void getJacobian(apf::MeshElement* e, double coords[3], double jac[3][3]);
 
 // Entityshape functions
 extern int countNodes(apf::EntityShape* eshape_local);

@@ -83,7 +83,8 @@ extern double getIntWeight(apf::MeshElement* e, int order, int point);
 
 // Entityshape functions
 extern int countNodes(apf::EntityShape* eshape_local);
-
+extern void getValues(apf::EntityShape* eshape_local, double xi[3], double vals[]);
+extern void getLocalGradients(apf::EntityShape* eshape_local, double xi[3], double vals[][3]);
 
 
 // these function do not pass pointers (they use the iterators internally)

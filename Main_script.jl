@@ -244,9 +244,11 @@ for k=1:i
   weight = getIntWeight(mel_ptr, 5,k)
   sh_vals = getValues2(eshape_ptr, coords)
   shd_vals = getLocalGradients2(eshape_ptr, coords)
+  jac = getJacobian(mel_ptr, coords)
   println("point ", k, " has coordinates ", coords, " and weight ", weight)
   println("shape function values = ", sh_vals)
   println("shape function derivative values = ", shd_vals)
+  println("jacobian = \n", jac)
   print("\n")
 end
 

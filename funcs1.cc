@@ -86,6 +86,8 @@ int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numbe
     m = apf::loadMdsMesh(dmg_name, smb_name);
   }
 
+
+  apf::writeVtkFiles("output_check", m);
   std::cout << "finished loading mesh" << std::endl;
   m_ptr_array[0] = m;
   mshape_ptr_array[0] = m->getShape();
@@ -181,7 +183,7 @@ int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numbe
     std::cout << "point " << i << " has coordinates " << coords << std::endl;
     std::cout << "  and jacobian = \n" << mat << std::endl;
   }
-
+/*
   e = m->deref(its[1]);
   e_el = apf::createMeshElement(m,e);
   numI = apf::countIntPoints(e_el,5);
@@ -196,7 +198,7 @@ int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numbe
     std::cout << "point " << i << " has coordinates " << coords << std::endl;
   }
 
-
+*/
 
 
   apf::writeVtkFiles("output_init", m);
@@ -229,6 +231,7 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     m = apf::loadMdsMesh(dmg_name, smb_name);
   }
 
+  apf::writeVtkFiles("output_check", m);
 
 
   m_ptr_array[0] = m;
@@ -309,7 +312,8 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
   std::cout << "numV = " << numEntity[0] << " , numEdge = " << numEntity[1];
   std::cout << " , numFace = " << numEntity[2] << std::endl;
   std::cout << std::endl;
-/*
+
+  resetFaceIt();
   apf::MeshEntity* e = m->deref(its[2]);
   apf::MeshElement* e_el = apf::createMeshElement(m, e);
   int numI = apf::countIntPoints(e_el, 3);
@@ -325,7 +329,7 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     std::cout << "point " << i << " has coordinates " << coords << std::endl;
     std::cout << "  and jacobian = \n" << mat << std::endl;
   }
-*/
+
 
 
   apf::writeVtkFiles("output_init", m);
@@ -670,6 +674,24 @@ extern void getIntPoint(apf::MeshElement* e, int order, int point, double coords
 extern double getIntWeight(apf::MeshElement* e, int order, int point)
 {
   return apf::getIntWeight(e, order, point);
+}
+
+// gets the jacobian of a mesh element at a specified location in parametric coordinates
+extern void getJacobian(apf::MeshElement* e, double coords[3], double jac[3][3])
+{
+  // copy coordinates to vec
+  apf::Vector3 vec (coords[0], coords[1], coords[2]);
+
+  // create matrix to hold jacobian
+  apf::Matrix3x3 jac_local;
+
+  // poppulate jac_local with the jacobian
+  apf::getJacobian(e, vec, jac_local);
+
+  // copy the jacobian to jac to be returned
+  jac_local.toArray(jac);
+
+  std::cout << "jac_local = " << jac_local << std::endl;
 }
 
 

@@ -74,6 +74,7 @@ global const createMeshElement_name = "createMeshElement"
 global const countIntPoints_name = "countIntPoints"
 global const getIntPoint_name = "getIntPoint"
 global const getIntWeight_name = "getIntWeight"
+global const getJacobian_name = "getJacobian"
 
 global const countNodes_name = "countNodes"
 global const getValues_name = "getValues"
@@ -101,7 +102,7 @@ end
 
 
 # export low level interface functions
-export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, countNodes, getValues, getLocalGradients, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder
+export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder
 
 @doc """
   initilize the state of the interface library
@@ -552,6 +553,16 @@ function getIntWeight(mel_ptr, order::Integer, point::Integer)
 end
 
 
+function getJacobian(mel_ptr, coords::Array{Float64,1})
+# gets the jacobian of a mesh element at a particular location in parametric space
+# coords should be a vector of length 3
+
+  jac = zeros(3,3)
+
+  ccall( (getJacobian_name, pumi_libname), Void, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}), mel_ptr, coords, jac)
+
+  return jac.'  # return the transpose because of row major ordering
+end
 
 function countNodes(eshape_ptr)
 # get the total number of nodes related to an entity (including downward adjacencies)
