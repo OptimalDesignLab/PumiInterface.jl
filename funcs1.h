@@ -96,6 +96,13 @@ extern int getEdgeCoords(double coords[2][3], int sx, int sy);
 extern int getFaceCoords(double coords[][3], int sx, int sy);
 extern int getElCoords(double coords[][3], int sx, int sy);
 
+// these functinos pass pointers
+extern void getVertCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);
+extern int getEdgeCoords2(apf::MeshEntity* e, double coords[2][3], int sx, int sy);
+int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);
+
+
+
 // these function pass pointers
 // create a generally defined numbering from julia
 extern  apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShape* field, int components);

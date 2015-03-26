@@ -83,8 +83,11 @@ global const getLocalGradients_name = "getLocalGradients"
 global const checkVars_name = "checkVars"
 global const checkNums_name = "checkNums"
 global const getVertCoords_name = "getVertCoords"
+global const getVertCoords2_name = "getVertCoords2"
 global const getEdgeCoords_name = "getEdgeCoords"
+global const getEdgeCoords2_name = "getEdgeCoords2"
 global const getFaceCoords_name = "getFaceCoords"
+global const getFaceCoords2_name = "getFaceCoords2"
 global const getElCoords_name = "getElCoords"
 global const createNumberingJ_name = "createNumberingJ"
 global const numberJ_name = "numberJ"
@@ -118,6 +121,8 @@ export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapeP
 		       same for different elements, so they are set to zero
     * num_Entities : returns column vector containing number of entities of
                        each type in the mesh
+    * m_ptr :        pointer to apf::Mesh2 that was loaded from the smb file
+    * mshape_ptr :   pointer to the apf::FieldShape of the mesh
 """
 
 function init(dmg_name::AbstractString, smb_name::AbstractString)
@@ -143,6 +148,8 @@ end
 return downward_counts, num_Entities, m_ptr_array[1], mshape_ptr_array[1]
 end
 
+
+# 2d initilization
 function init2(dmg_name::AbstractString, smb_name::AbstractString)
 # initilize mesh interface
 # initilize pointers to some value
@@ -633,6 +640,23 @@ println("\n from julia, coords = ", coords)
 return coords
 end
 
+
+function getVertCoords(entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
+# coords is array to put coordsinates in, must be 3 by 1,
+# m, n are number of rows, columns in coords, respectively
+
+#coords = Array(Float64, 3, 2)   # pass an array 3 by n (3 coordinates each for n points)
+#(m,n) = size(coords)
+# pass reversed m,n because C arrays are row-major
+ccall( (getVertCoords2_name, pumi_libname), Void, (Ptr{Void}, Ptr{Float64}, Int32, Int32), entity, coords, n, m) 
+
+println("\n from julia, coords = ", coords)
+
+return coords
+end
+
+
+
 function getEdgeCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
 # coords is array to put coordinates in, must be 3 by 2
 # m,n = number of rows, columns in coords, respectively
@@ -647,6 +671,25 @@ end
 println("in julia, coords = ", coords)
 
 end
+
+function getEdgeCoords(entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
+# coords is array to put coordinates in, must be 3 by 2
+# m,n = number of rows, columns in coords, respectively
+
+i = ccall( (getEdgeCoords2_name, pumi_libname), Int, (Ptr{Void}, Ptr{Float64}, Int32, Int32), entity, coords, n, m);
+
+if ( i != 0)
+  println("Error in getEdgeCoords... exiting")
+  exit()
+end
+
+println("in julia, coords = ", coords)
+
+end
+
+
+
+
 
 function getFaceCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
 # get coordinates of points on a face, in order
@@ -665,6 +708,26 @@ end
 println("in julia, coords = ", coords)
 
 end
+
+
+function getFaceCoords(entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
+# get coordinates of points on a face, in order
+# coords is array to populate with coordinates, must by 3 by number of points
+# on a face
+# m,n = number of rows, columns in coords, respectively
+
+# reverse m and n because C is row major
+i = ccall( (getFaceCoords2_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Float64}, Int32, Int32), entity, coords, n, m);
+
+if ( i != 0)
+  println("Error in getEdgeCoords... exiting")
+  exit()
+end
+
+println("in julia, coords = ", coords)
+
+end
+
 
 function getElCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
 # get coordinates of points in an element, in order

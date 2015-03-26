@@ -821,6 +821,21 @@ void getVertCoords(double coords[][3], int sx, int sy)
 
 }
 
+// get the coordinates of a vertex
+// coords is 2d array to populate, sx and sy are dimension of the array
+void getVertCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
+{
+  std::cout << "in getVertCoords" << std::endl;
+  std::cout << "sx = " << sx << " ,sy = " << sy << std::endl;
+  apf::Vector3 vec;
+  m->getPoint(e, 0, vec);
+  std::cout << "coords = " << vec << std::endl;
+  coords[0][0] = vec[0];
+  coords[0][1] = vec[1];
+  coords[0][2] = vec[2];
+
+}
+
 // get the coordinates of the two points that define, iterate edge iterator
 // an edge
 int getEdgeCoords(double coords[2][3], int sx, int sy)
@@ -857,6 +872,40 @@ int getEdgeCoords(double coords[2][3], int sx, int sy)
   return 0;
 }
 
+// get the coordinates of the two points that define and edge
+int getEdgeCoords2(apf::MeshEntity* e, double coords[2][3], int sx, int sy)
+{
+  std::cout <<"in getEdgeCoords" << std::endl;
+  if (sx < 2 || sy != 3)
+  {
+    std::cout << "Warning: coords array too small" << std::endl;
+    return -1;
+  }
+
+  apf::Vector3 vec;
+  apf::MeshEntity* verts[2];
+  std::cout << " about to get downward entities" << std::endl;
+  m->getDownward(e, 0, verts);
+  std::cout << "got vertices of edge" << std::endl;
+  // get coordinates of each vertex
+  m->getPoint(verts[0], 0, vec);
+  coords[0][0] = vec[0];
+  coords[0][1] = vec[1];
+  coords[0][2] = vec[2];
+
+  std::cout << "first point coordinates = " << vec << std::endl;
+
+  m->getPoint(verts[1], 0, vec);
+  coords[1][0] = vec[0];
+  coords[1][1] = vec[1];
+  coords[1][2] = vec[2];
+
+  std::cout << "second point coordinates = " << vec << std::endl;
+
+  return 0;
+}
+
+
 // get populate coords with coordinates of vertices that define the current face
 //  and iterates of face iterator
 // sx = x dimension of array, sy = y dimension of array
@@ -888,6 +937,39 @@ int getFaceCoords(double coords[][3], int sx, int sy)
 
   return 0;
 }
+
+// get populate coords with coordinates of vertices that define the current face
+// sx = x dimension of array, sy = y dimension of array
+int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
+{
+  std::cout << "Entered getFaceCoords22" << std::endl;
+
+  apf::Downward verts;  // hold vertices
+  int numDownward = m->getDownward(e, 0, verts);  // populate verts
+
+  if ( sx < numDownward || sy != 3)
+  {
+    std::cout << " Warning, array not right size ";
+    std::cout << " Array must be " << numDownward << " by 3, is ";
+    std::cout << sx << " by " << sy << std::endl;
+    return -1;
+  }
+
+  apf::Vector3 vec;  // vector to hold coordinates of a point
+  for ( int i = 0; i < numDownward; ++i) // loop over vertices
+  {
+    m->getPoint(verts[i], 0, vec); // populate vec with coordinates of vertex
+    std::cout << "coordinates of vertex " << i << " = " << vec << std::endl;
+    coords[i][0] = vec[0];
+    coords[i][1] = vec[1];
+    coords[i][2] = vec[2];
+  }
+
+  return 0;
+}
+
+
+
 
 int getElCoords(double coords[][3], int sx, int sy)
 {

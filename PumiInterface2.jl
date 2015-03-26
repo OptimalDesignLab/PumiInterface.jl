@@ -2,7 +2,7 @@
 # function
 
 
-export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, getValues2, getLocalGradients2
+export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, getValues2, getLocalGradients2, getJacobian2
 
 function getAdjacentFull(m_ptr, entity, dimension::Integer)
 # returns an array with the adjacencies of meshentity entity of specified dimension, and the number of entries in the array
@@ -106,4 +106,12 @@ function getLocalGradients2(eshape_ptr, coords)
    numN = countNodes(eshape_ptr)
    vals = getLocalGradients(eshape_ptr, coords, numN)
    return vals
+end
+
+function getJacobian2(m_ptr, entity, coords)
+# creates a mesh element, then gets its jacobian at the coordinates
+
+   mel_ptr = createMeshElement(m_ptr, entity)
+   jac = getJacobian(mel_ptr, coords)
+   return jac
 end

@@ -252,4 +252,20 @@ for k=1:i
   print("\n")
 end
 
+resetVertIt()
+entity = getVert()
+coords = zeros(3,1)
+getVertCoords(entity, coords, 3, 1)
+println("coords = ", coords)
+
+resetEdgeIt()
+entity = getEdge()
+coords = zeros(3,2)
+getEdgeCoords(entity, coords, 3, 2)
+println("coords = ", coords)
+
+resetFaceIt()
+entity = getFace()
+coords = zeros(3,3)
+getFaceCoords(entity, coords, 3, 4)
 
