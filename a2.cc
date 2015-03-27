@@ -213,6 +213,8 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
   gmi_register_mesh();
   apf::Mesh2* m = apf::loadMdsMesh(argv[1], argv[2]);
 */
+
+  std::cout << "Entered reorder" << std::endl;
   apf::FieldShape* fieldshape = m_local->getShape();
   
   std::cout << " field has nodes in dimension: 0 => " << fieldshape->hasNodesIn(0) << std::endl;
