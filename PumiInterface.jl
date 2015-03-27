@@ -497,7 +497,7 @@ function getAdjacent(num_adjacent::Integer)
 end
 
 
-function hasNodesIn(mshape_ptr, dimension::Int)
+function hasNodesIn(mshape_ptr, dimension::Integer)
 # check whether this FieldShape* has nodes on entities of a given dimension
 
   i = ccall ( (hasNodesIn_name, pumi_libname), Cuchar, (Ptr{Void}, Int32), mshape_ptr, dimension)
@@ -545,7 +545,7 @@ end
 function getIntPoint(mel_ptr, order::Integer, point::Integer)
 # returns a vector containing the parent coordinates of the integration point
 # order = order of accuracy of integration
-# point = which integration point (1 thru number of points )
+# point = which integration point (1 thru number omef points )
 
    coords = zeros(3)
    ccall( (getIntPoint_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Ptr{Float64}), mel_ptr, order, point-1, coords)
@@ -806,7 +806,7 @@ function createDoubleTag( m_ptr, name::AbstractString, components::Integer)
 end
 
 function setDoubleTag( m_ptr, entity, tag_ptr, data)
-
+  # data is the array of data to be stored in the tag
   ccall( (setDoubleTag_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Float64}), m_ptr, entity, tag_ptr, data)
 
   return nothing

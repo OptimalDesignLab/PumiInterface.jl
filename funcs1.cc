@@ -225,7 +225,7 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     gmi_model* g = gmi_load(".null");
     std::cout << "finished loading geometric model" << std::endl;
     m = apf::loadMdsMesh(g, smb_name);
-    apf::changeMeshShape(m, apf::getLagrange(1), false);  // for linear meshes only!
+    apf::changeMeshShape(m, m->getShape(), false);
   } else {
     gmi_register_mesh();
     std::cout << "loading geometric model from file" << std::endl;

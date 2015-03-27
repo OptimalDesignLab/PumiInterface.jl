@@ -50,12 +50,31 @@ Gets called from Julia like this:
 
   getDownward(m_ptr, args...)
 
-Where m_ptr is a pointer to a PUMI object.
+Where m_ptr is a pointer to the PUMI object.  The function arguments that are pointers are 
+currently left untyped in the function declaration.  It is the users responsibility to pass
+ it a pointer to the right kind of object.  The name of the arguments will tell you the type 
+of object the pointer must point to:
+
+m_ptr = apf::Mesh2*
+mshape_ptr = apf::FieldShape*
+eshape_ptr = apf::EntityShape*
+entity = apf::MeshEntity*
+mel_ptr = apf::MeshElement*
+field = apf::FieldShape*
+n_ptr = apf::Numbering*
+numbering_ptr = apf::Numbering*
+numbering = apf::Numbering*
+tag_ptr = apf::MeshTag*
+
+If you pass an invalid pointer, PUMI will segfault, typically without giving 
+any useful error data.
 
 The functions init and init2 take in two strings, the names of the mesh and geometry files,
 and return pointers to the mesh (and apf::Mesh2 object), and mesh apf::FieldShape object, as
  well as a few other things.  Using these pointers and other functions provided, you can get 
 pointers to other object, such as Numberings, Tags, EntityShapes, MeshElements etc.
+
+
 
 To get pointers to MeshEntitys, the library provides access to 4 iterators, one over each dimension
  entity.  The functions increment* increment these iterators, and the functions get* return a 
