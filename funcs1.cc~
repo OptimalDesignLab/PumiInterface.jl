@@ -225,7 +225,10 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     gmi_model* g = gmi_load(".null");
     std::cout << "finished loading geometric model" << std::endl;
     m = apf::loadMdsMesh(g, smb_name);
-    apf::changeMeshShape(m, m->getShape(), false);  // for linear meshes only!
+//    apf::changeMeshShape(m, apf::getLagrange(2), true);
+//    apf::changeMeshShape(m, apf::getLagrange(1), false); // for linear meshes
+//        apf::changeMeshShape(m, m->getShape(), false);
+    m->verify();
   } else {
     gmi_register_mesh();
     std::cout << "loading geometric model from file" << std::endl;
@@ -943,7 +946,7 @@ int getFaceCoords(double coords[][3], int sx, int sy)
 // sx = x dimension of array, sy = y dimension of array
 int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
 {
-  std::cout << "Entered getFaceCoords22" << std::endl;
+//  std::cout << "Entered getFaceCoords22" << std::endl;
 
   apf::Downward verts;  // hold vertices
   int numDownward = m->getDownward(e, 0, verts);  // populate verts
@@ -960,7 +963,7 @@ int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
   for ( int i = 0; i < numDownward; ++i) // loop over vertices
   {
     m->getPoint(verts[i], 0, vec); // populate vec with coordinates of vertex
-    std::cout << "coordinates of vertex " << i << " = " << vec << std::endl;
+//    std::cout << "coordinates of vertex " << i << " = " << vec << std::endl;
     coords[i][0] = vec[0];
     coords[i][1] = vec[1];
     coords[i][2] = vec[2];

@@ -503,7 +503,7 @@ function hasNodesIn(mshape_ptr, dimension::Integer)
   i = ccall ( (hasNodesIn_name, pumi_libname), Cuchar, (Ptr{Void}, Int32), mshape_ptr, dimension)
 
   i_bool = convert(Bool, i)
-  println("hasNodesIn returned", i_bool)
+#  println("hasNodesIn returned", i_bool)
 
   return i_bool
 
@@ -635,7 +635,7 @@ function getVertCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
 # pass reversed m,n because C arrays are row-major
 ccall( (getVertCoords_name, pumi_libname), Void, (Ptr{Float64}, Int32, Int32), coords, n, m) 
 
-println("\n from julia, coords = ", coords)
+#println("\n from julia, coords = ", coords)
 
 return coords
 end
@@ -650,7 +650,7 @@ function getVertCoords(entity, coords::Array{Float64, 2}, m::Integer, n::Integer
 # pass reversed m,n because C arrays are row-major
 ccall( (getVertCoords2_name, pumi_libname), Void, (Ptr{Void}, Ptr{Float64}, Int32, Int32), entity, coords, n, m) 
 
-println("\n from julia, coords = ", coords)
+#println("\n from julia, coords = ", coords)
 
 return coords
 end
@@ -668,7 +668,7 @@ if ( i != 0)
   exit()
 end
 
-println("in julia, coords = ", coords)
+#println("in julia, coords = ", coords)
 
 end
 
@@ -683,7 +683,7 @@ if ( i != 0)
   exit()
 end
 
-println("in julia, coords = ", coords)
+#println("in julia, coords = ", coords)
 
 end
 
@@ -705,7 +705,7 @@ if ( i != 0)
   exit()
 end
 
-println("in julia, coords = ", coords)
+#println("in julia, coords = ", coords)
 
 end
 
@@ -724,7 +724,7 @@ if ( i != 0)
   exit()
 end
 
-println("in julia, coords = ", coords)
+#println("in julia, coords = ", coords)
 
 end
 
@@ -743,7 +743,7 @@ if ( i != 0)
   exit()
 end
 
-println("in julia, coords = ", coords)
+#println("in julia, coords = ", coords)
 
 end
 
@@ -829,6 +829,8 @@ function reorder(m_ptr, ndof::Integer, nnodes::Integer, dof_statusN_ptr, nodeNum
   elN_array = [elNums] # pass by reference, hold numbering of elements
 
   ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}),  m_ptr, ndof, nnodes,  2, dof_statusN_ptr, nodeNums, elNums, els_reordered)
+
+  flush_cstdio()
   return nothing
 
 end

@@ -171,7 +171,7 @@ int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numbe
   apf::MeshEntity* e = m->deref(its[2]);
   apf::MeshElement* e_el = apf::createMeshElement(m, e);
   int numI = apf::countIntPoints(e_el, 3);
-  std::cout << numI << " integrations points required for 5th order accuracy" << std::endl;
+//  std::cout << numI << " integrations points required for 5th order accuracy" << std::endl;
 
   for ( int i = 0; i < numI; ++i)
   {
@@ -225,7 +225,10 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     gmi_model* g = gmi_load(".null");
     std::cout << "finished loading geometric model" << std::endl;
     m = apf::loadMdsMesh(g, smb_name);
-    apf::changeMeshShape(m, m->getShape(), false);
+//    apf::changeMeshShape(m, apf::getLagrange(2), true);
+//    apf::changeMeshShape(m, apf::getLagrange(1), false); // for linear meshes
+//        apf::changeMeshShape(m, m->getShape(), false);
+    m->verify();
   } else {
     gmi_register_mesh();
     std::cout << "loading geometric model from file" << std::endl;
@@ -318,7 +321,7 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
   apf::MeshEntity* e = m->deref(its[2]);
   apf::MeshElement* e_el = apf::createMeshElement(m, e);
   int numI = apf::countIntPoints(e_el, 3);
-  std::cout << numI << " integrations points required for 5th order accuracy" << std::endl;
+//  std::cout << numI << " integrations points required for 5th order accuracy" << std::endl;
 
   for ( int i = 0; i < numI; ++i)
   {
@@ -327,8 +330,8 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     apf::getIntPoint(e_el, 3, i, coords);
     apf::getJacobian(e_el, coords, mat);
 
-    std::cout << "point " << i << " has coordinates " << coords << std::endl;
-    std::cout << "  and jacobian = \n" << mat << std::endl;
+//    std::cout << "point " << i << " has coordinates " << coords << std::endl;
+//    std::cout << "  and jacobian = \n" << mat << std::endl;
   }
 
 
@@ -572,7 +575,7 @@ int getElNumber2(apf::MeshEntity* e)
 int getMeshDimension(apf::Mesh2* m_local)
 {
   int i = m_local->getDimension();
-  std::cout << "Mesh Dimesion = " << i << std::endl;
+//  std::cout << "Mesh Dimesion = " << i << std::endl;
   return i;
 }
 
@@ -692,7 +695,7 @@ extern void getJacobian(apf::MeshElement* e, double coords[3], double jac[3][3])
   // copy the jacobian to jac to be returned
   jac_local.toArray(jac);
 
-  std::cout << "jac_local = " << jac_local << std::endl;
+//  std::cout << "jac_local = " << jac_local << std::endl;
 }
 
 
@@ -810,12 +813,12 @@ void checkNums()
 // coords is 2d array to populate, sx and sy are dimension of the array
 void getVertCoords(double coords[][3], int sx, int sy)
 {
-  std::cout << "in getVertCoords" << std::endl;
-  std::cout << "sx = " << sx << " ,sy = " << sy << std::endl;
+//  std::cout << "in getVertCoords" << std::endl;
+//  std::cout << "sx = " << sx << " ,sy = " << sy << std::endl;
   apf::MeshEntity* e = m->deref(its[0]);
   apf::Vector3 vec;
   m->getPoint(e, 0, vec);
-  std::cout << "coords = " << vec << std::endl;
+//  std::cout << "coords = " << vec << std::endl;
   coords[0][0] = vec[0];
   coords[0][1] = vec[1];
   coords[0][2] = vec[2];
@@ -826,11 +829,11 @@ void getVertCoords(double coords[][3], int sx, int sy)
 // coords is 2d array to populate, sx and sy are dimension of the array
 void getVertCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
 {
-  std::cout << "in getVertCoords" << std::endl;
-  std::cout << "sx = " << sx << " ,sy = " << sy << std::endl;
+//  std::cout << "in getVertCoords" << std::endl;
+//  std::cout << "sx = " << sx << " ,sy = " << sy << std::endl;
   apf::Vector3 vec;
   m->getPoint(e, 0, vec);
-  std::cout << "coords = " << vec << std::endl;
+//  std::cout << "coords = " << vec << std::endl;
   coords[0][0] = vec[0];
   coords[0][1] = vec[1];
   coords[0][2] = vec[2];
@@ -841,7 +844,7 @@ void getVertCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
 // an edge
 int getEdgeCoords(double coords[2][3], int sx, int sy)
 {
-  std::cout <<"in getEdgeCoords" << std::endl;
+//  std::cout <<"in getEdgeCoords" << std::endl;
   if (sx < 2 || sy != 3)
   {
     std::cout << "Warning: coords array too small" << std::endl;
@@ -852,23 +855,23 @@ int getEdgeCoords(double coords[2][3], int sx, int sy)
 
   apf::Vector3 vec;
   apf::MeshEntity* verts[2];
-  std::cout << " about to get downward entities" << std::endl;
+//  std::cout << " about to get downward entities" << std::endl;
   m->getDownward(e, 0, verts);
-  std::cout << "got vertices of edge" << std::endl;
+//  std::cout << "got vertices of edge" << std::endl;
   // get coordinates of each vertex
   m->getPoint(verts[0], 0, vec);
   coords[0][0] = vec[0];
   coords[0][1] = vec[1];
   coords[0][2] = vec[2];
 
-  std::cout << "first point coordinates = " << vec << std::endl;
+//  std::cout << "first point coordinates = " << vec << std::endl;
 
   m->getPoint(verts[1], 0, vec);
   coords[1][0] = vec[0];
   coords[1][1] = vec[1];
   coords[1][2] = vec[2];
 
-  std::cout << "second point coordinates = " << vec << std::endl;
+//  std::cout << "second point coordinates = " << vec << std::endl;
 
   return 0;
 }
@@ -876,7 +879,7 @@ int getEdgeCoords(double coords[2][3], int sx, int sy)
 // get the coordinates of the two points that define and edge
 int getEdgeCoords2(apf::MeshEntity* e, double coords[2][3], int sx, int sy)
 {
-  std::cout <<"in getEdgeCoords" << std::endl;
+//  std::cout <<"in getEdgeCoords" << std::endl;
   if (sx < 2 || sy != 3)
   {
     std::cout << "Warning: coords array too small" << std::endl;
@@ -885,23 +888,23 @@ int getEdgeCoords2(apf::MeshEntity* e, double coords[2][3], int sx, int sy)
 
   apf::Vector3 vec;
   apf::MeshEntity* verts[2];
-  std::cout << " about to get downward entities" << std::endl;
+//  std::cout << " about to get downward entities" << std::endl;
   m->getDownward(e, 0, verts);
-  std::cout << "got vertices of edge" << std::endl;
+//  std::cout << "got vertices of edge" << std::endl;
   // get coordinates of each vertex
   m->getPoint(verts[0], 0, vec);
   coords[0][0] = vec[0];
   coords[0][1] = vec[1];
   coords[0][2] = vec[2];
 
-  std::cout << "first point coordinates = " << vec << std::endl;
+//  std::cout << "first point coordinates = " << vec << std::endl;
 
   m->getPoint(verts[1], 0, vec);
   coords[1][0] = vec[0];
   coords[1][1] = vec[1];
   coords[1][2] = vec[2];
 
-  std::cout << "second point coordinates = " << vec << std::endl;
+//  std::cout << "second point coordinates = " << vec << std::endl;
 
   return 0;
 }
@@ -912,7 +915,7 @@ int getEdgeCoords2(apf::MeshEntity* e, double coords[2][3], int sx, int sy)
 // sx = x dimension of array, sy = y dimension of array
 int getFaceCoords(double coords[][3], int sx, int sy)
 {
-  std::cout << "Entered getFaceCoords" << std::endl;
+//  std::cout << "Entered getFaceCoords" << std::endl;
 
   apf::MeshEntity* e = m->deref(its[2]);
   apf::Downward verts;  // hold vertices
@@ -930,7 +933,7 @@ int getFaceCoords(double coords[][3], int sx, int sy)
   for ( int i = 0; i < numDownward; ++i) // loop over vertices
   {
     m->getPoint(verts[i], 0, vec); // populate vec with coordinates of vertex
-    std::cout << "coordinates of vertex " << i << " = " << vec << std::endl;
+//    std::cout << "coordinates of vertex " << i << " = " << vec << std::endl;
     coords[i][0] = vec[0];
     coords[i][1] = vec[1];
     coords[i][2] = vec[2];
@@ -943,7 +946,7 @@ int getFaceCoords(double coords[][3], int sx, int sy)
 // sx = x dimension of array, sy = y dimension of array
 int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
 {
-  std::cout << "Entered getFaceCoords22" << std::endl;
+//  std::cout << "Entered getFaceCoords22" << std::endl;
 
   apf::Downward verts;  // hold vertices
   int numDownward = m->getDownward(e, 0, verts);  // populate verts
@@ -960,7 +963,7 @@ int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
   for ( int i = 0; i < numDownward; ++i) // loop over vertices
   {
     m->getPoint(verts[i], 0, vec); // populate vec with coordinates of vertex
-    std::cout << "coordinates of vertex " << i << " = " << vec << std::endl;
+//    std::cout << "coordinates of vertex " << i << " = " << vec << std::endl;
     coords[i][0] = vec[0];
     coords[i][1] = vec[1];
     coords[i][2] = vec[2];
@@ -974,7 +977,7 @@ int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
 
 int getElCoords(double coords[][3], int sx, int sy)
 {
-  std::cout << "Entered getElCoords" << std::endl;
+//  std::cout << "Entered getElCoords" << std::endl;
 
   apf::MeshEntity* e = m->deref(its[3]);
   apf::Downward verts; // hold vertices
@@ -992,7 +995,7 @@ int getElCoords(double coords[][3], int sx, int sy)
   for ( int i = 0; i < numDownward; ++i) // loop over vertices
   {
     m->getPoint(verts[i], 0, vec); // populate vec with coordinates of vertex
-    std::cout << "coordinates of vertex " << i << " = " << vec << std::endl;
+//    std::cout << "coordinates of vertex " << i << " = " << vec << std::endl;
     coords[i][0] = vec[0];
     coords[i][1] = vec[1];
     coords[i][2] = vec[2];

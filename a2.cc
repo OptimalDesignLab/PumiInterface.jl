@@ -64,10 +64,12 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local)
     if ( !me_dimension ) // if me_dimension == 0
     {
       numEdges_i = m_local->countUpward(e_i);
+      std::cout << "this entity has " << numEdges_i << " upward edges" << std::endl;
       if (numEdges_i < numEdges_min)
       {
         e_min = e_i;
         numEdges_min = numEdges_i;
+        std::cout << "choosing this vertex" << std::endl;
       }
     }
   }
