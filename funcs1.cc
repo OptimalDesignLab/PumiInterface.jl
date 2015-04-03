@@ -207,7 +207,8 @@ int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numbe
 }
 
 // init for 2d mesh
-int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1] )
+// order = order of shape functions to use
+int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order )
 {
   std::cout << "Entered init\n" << std::endl;
 
@@ -226,7 +227,7 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     std::cout << "finished loading geometric model" << std::endl;
     m = apf::loadMdsMesh(g, smb_name);
 //    apf::changeMeshShape(m, apf::getLagrange(2), true);
-    apf::changeMeshShape(m, apf::getLagrange(1), false); // for linear meshes
+//    apf::changeMeshShape(m, apf::getLagrange(1), false); // for linear meshes
 //    apf::changeMeshShape(m, apf::getSerendipity(), true);
 //        apf::changeMeshShape(m, m->getShape(), false);
     m->verify();
@@ -234,6 +235,16 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     gmi_register_mesh();
     std::cout << "loading geometric model from file" << std::endl;
     m = apf::loadMdsMesh(dmg_name, smb_name);
+  }
+
+  if ( order == 1)
+  {
+    apf::changeMeshShape(m, apf::getLagrange(1), false);
+  } else if ( order == 2 )
+  {
+    apf::changeMeshShape(m, apf::getSerendipity(), true);
+  } else {
+    std::cout << "Error: shape function order not supported, order request = " << order << std::endl;
   }
 
   std::cout << "finished loading mesh, changing shape" << std::endl;
