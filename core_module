@@ -1,0 +1,25 @@
+#%Module
+
+module load mpich3/3.1.2-thread-multiple parmetis/mpich3.1.2 zoltan/mpich3.1.2 simmetrix/simModSuite netcdf
+set		name		pumi
+set             repo            core-sim
+set             version         4a91800
+set             path            /users/creanj/pumi2/core/build
+
+prepend-path    PKG_CONFIG_PATH	        $path/lib/pkgconfig
+prepend-path    CMAKE_PREFIX_PATH	$path
+prepend-path    PATH                    $path/bin
+prepend-path    LD_LIBRARY_PATH         $path/lib
+setenv		PUMI_INSTALL_DIR	$path
+setenv 		PUMI_INCLUDE_DIR 	$path/include
+setenv 		PUMI_LIB_DIR     	$path/lib
+setenv		PUMI_BIN_DIR		$path/bin
+
+module-whatis "Parallel Unstructured Mesh Infrastructure"
+
+proc ModulesHelp { } {
+    global name
+    global version
+    puts stderr "Sets the path and environment variables for $name ($version)"
+}
+

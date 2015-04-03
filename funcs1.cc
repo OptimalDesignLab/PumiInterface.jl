@@ -226,7 +226,8 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     std::cout << "finished loading geometric model" << std::endl;
     m = apf::loadMdsMesh(g, smb_name);
 //    apf::changeMeshShape(m, apf::getLagrange(2), true);
-//    apf::changeMeshShape(m, apf::getLagrange(1), false); // for linear meshes
+    apf::changeMeshShape(m, apf::getLagrange(1), false); // for linear meshes
+//    apf::changeMeshShape(m, apf::getSerendipity(), true);
 //        apf::changeMeshShape(m, m->getShape(), false);
     m->verify();
   } else {
@@ -235,6 +236,7 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     m = apf::loadMdsMesh(dmg_name, smb_name);
   }
 
+  std::cout << "finished loading mesh, changing shape" << std::endl;
   apf::writeVtkFiles("output_check", m);
 
 
