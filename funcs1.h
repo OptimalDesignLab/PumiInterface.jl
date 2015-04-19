@@ -113,9 +113,15 @@ extern void printNumberingName(apf::Numbering* n);
 
 extern apf::MeshTag* createDoubleTag(apf::Mesh2 * m_local, char* name, int size);
 
-void setDoubleTag(apf::Mesh2* m_local, apf::MeshEntity* e, apf::MeshTag* tag,  double data[]);
+extern void setDoubleTag(apf::Mesh2* m_local, apf::MeshEntity* e, apf::MeshTag* tag,  double data[]);
 
-void getDoubleTag(apf::Mesh2* m_local, apf::MeshEntity* e, apf::MeshTag* tag,  double* data);
+extern void getDoubleTag(apf::Mesh2* m_local, apf::MeshEntity* e, apf::MeshTag* tag,  double* data);
+
+
+
+// mesh adaptation functions
+extern void createIsoFunc(apf::Mesh2* m_local);
+extern void runIsoAdapt(apf::Mesh2* m_local);
 
 }
 

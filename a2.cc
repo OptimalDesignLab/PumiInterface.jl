@@ -184,7 +184,7 @@ void printElNumbers(apf::Mesh2*& m_local, apf::Numbering*& elNums)
   int i = 1;
   while ((e = m_local->iterate(it) ) )
   {
-    int num = apf::getNumber(elNums, e, 0 , 0);
+//    int num = apf::getNumber(elNums, e, 0 , 0);
 //    std::cout << "element " << i << "1 number = " << num << std::endl;
     ++i;
   }
@@ -296,7 +296,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
     {
       for ( int c = 0; c < comp; ++c) // loop over dof of the node
       {
-        int nodenum_i = apf::getNumber(nodeNums, e, i, c);
+//        int nodenum_i = apf::getNumber(nodeNums, e, i, c);
         int dof_status = apf::getNumber(dof_statusNumbering, e, i, c);
         if (dof_status >= 2) // if node is free for loaded
         {
@@ -389,7 +389,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
 //              int nodeNum_j = apf::getNumber(nodeNums, edge_i, j, c);
               for (int c = 0; c < comp; ++c) // loop over dofs of node
               {
-                int nodeNum_j = apf::getNumber(nodeNums, edge_i, j, c);
+//                int nodeNum_j = apf::getNumber(nodeNums, edge_i, j, c);
                 int dof_status = apf::getNumber(dof_statusNumbering, edge_i, j, c);
                 if (dof_status >= 2) // if node is free or loaded
                 {

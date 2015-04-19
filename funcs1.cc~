@@ -20,12 +20,14 @@
 #include <PCU.h>
 #include <apfNumbering.h>
 #include <apfShape.h>
+#include <ma.h>
 
 #include <stdlib.h>   // malloc, free, etc.
 #include <math.h>
 #include <string.h>
 
 #include "funcs1.h"
+#include "adaptFuncsJ.h"
 //#include "a2.h"
 
 //=============================================================================
@@ -53,7 +55,7 @@ apf::Numbering* numberings[4];  // numberings of each type of entity
                                 // numberings are 1 index (not zero)
 apf::MeshTag* globalVertNums;    // tag each vertex with global vertex number
 const char *names[] = { "vertex", "edge", "face", "element"};  // array of strings, used for printing output inside loops
-
+IsotropicFunctionJ isofunc;  // declare isotropic function at global scope
 
 
 // initilize global variables, used by all fucntions
@@ -1069,6 +1071,23 @@ void setDoubleTag(apf::Mesh2 * m_local, apf::MeshEntity* e, apf::MeshTag* tag,  
 void getDoubleTag(apf::Mesh2 * m_local, apf::MeshEntity* e, apf::MeshTag* tag,  double* data)
 {
   m_local->getDoubleTag( e, tag, data);
+}
+
+
+// mesh adapatation function
+extern void createIsoFunc(apf::Mesh2* m_local)
+{
+  std::cout << "in createIsoFunc" << std::endl;
+//  IsotropicFunctionJ newisofunc(m_local); // create new function
+//  isofunc = newisofunc; // copy to global isofunc
+}
+
+// run mesh adaptation using isofunc
+void runIsoAdapt(apf::Mesh2* m_local)
+{
+  IsotropicFunctionJ* isofunc_ptr = &isofunc;
+  ma::Input* inputconfig = ma::configure(m_local, isofunc_ptr);
+  ma::adapt(inputconfig);
 }
 
 

@@ -101,11 +101,14 @@ global const getDoubleTag_name = "getDoubleTag"
 
 
 global const reorder_name = "reorder"
+
+global const createIsoFunc_name = "createIsoFunc"
+global const runIsoAdapt_name = "runIsoAdapt"
 end
 
 
 # export low level interface functions
-export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder
+export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, runIsoAdapt
 
 @doc """
   initilize the state of the interface library
@@ -838,6 +841,23 @@ function reorder(m_ptr, ndof::Integer, nnodes::Integer, dof_statusN_ptr, nodeNum
 
 end
 
+
+# mesh adapatation functions
+function createIsoFunc(m_ptr)
+# creates a function that describes how to refine the mesh isotropically
+
+  ccall((createIsoFunc_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+
+  return nothing
+end
+
+function runIsoAdapt(m_ptr)
+# run mesh adaptation using previously created isofunc
+
+  ccall( (runIsoAdapt_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+
+  return nothing
+end
 
 
 declareNames()  # will this execute when module is compiled?
