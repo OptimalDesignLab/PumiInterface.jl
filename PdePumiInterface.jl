@@ -4,11 +4,11 @@ push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
 using PumiInterface
 
 
-export PumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getNumEl, getNumEdges, getNumVerts, getNumNodes, getBoundaryEdgeNums, getBoundaryFaceNums
+export AbstractMesh,PumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getBoundaryEdgeNums, getBoundaryFaceNums
 
 abstract AbstractMesh
 
-type PumiMesh2   # 2d pumi mesh, triangle only
+type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
 
@@ -111,6 +111,7 @@ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order)
   println("typeof dofnums_Nptr = ", typeof(dofnums_Nptr))
   println("typeof bnd_edges_small = ", typeof(bnd_edges_small))
 
+  writeVtkFiles("mesh_complete", m_ptr)
   return PumiMesh2(m_ptr, mshape_ptr, numVert, numEdge, numEl, order, numdof, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
 end
 
@@ -131,12 +132,13 @@ n = length(elnums)
 
 coords = zeros(3, 3, n)  # first dimension = x,y, or z, second dimension = vertex number
 
-for i=1:n
-  println("i = ", i)
-  elnum_i = elnums[i]
-  el_i = mesh.elements[elnum_i]
-  sub_array = sub(coords, :, :, i)
-  getFaceCoords(el_i, sub_array, 3, 3)  # populate coords
+for j = 1:n  # loop over elements in elnums
+#  println("j = ", j)
+  elnum_j = elnums[j]
+#  println("elnum_j = ", elnum_j)
+  el_j = mesh.elements[elnum_j]
+  sub_array = sub(coords, :, :, j)
+  getFaceCoords(el_j, sub_array, 3, 3)  # populate coords
 end
 
 return coords
@@ -155,16 +157,35 @@ function getGlobalNodeNumber(mesh::PumiMesh2, el_num::Integer, local_node_num::I
 # this only works for first and second order
 
 
-println("el_num = ", el_num, " local_node_num = ", local_node_num)
+#println("el_num = ", el_num, " local_node_num = ", local_node_num)
 el = mesh.elements[el_num]  # get element
 node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el)
-println("node_entities = ", node_entities)
+#println("node_entities = ", node_entities)
 node_entity = node_entities[local_node_num]
-println("node_entity = ", node_entity)
+#println("node_entity = ", node_entity)
 number_i = getNumberJ(mesh.dofnums_Nptr, node_entities[local_node_num], 0, 0)
-println("global dof number = ", number_i)
+#println("global dof number = ", number_i)
 
 return number_i
+
+end
+
+function getGlobalNodeNumbers(mesh::PumiMesh2, elnum::Integer)
+# gets global node numbers of all nodes of the element
+# this only works for first and second order
+el_i = mesh.elements[elnum]
+type_i = getType(mesh.m_ptr, el_i)
+
+
+nnodes = countAllNodes(mesh.mshape_ptr, type_i)
+node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
+dofnums = zeros(Int, nnodes)  # to be populated with global dof numbers
+for i=1:nnodes
+  dofnums[i] = getNumberJ(mesh.dofnums_Nptr, node_entities[i], 0, 0)
+end
+
+return dofnums
+
 
 end
 
@@ -190,7 +211,7 @@ end
 function getNumNodes(mesh::PumiMesh2)
 # returns total number of nodes in the mesh
 
-return mesh.numdof
+return mesh.numDof
 end
 
 function getBoundaryEdgeNums(mesh::PumiMesh2)

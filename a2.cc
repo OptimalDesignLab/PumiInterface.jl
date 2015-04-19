@@ -64,7 +64,7 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local)
     if ( !me_dimension ) // if me_dimension == 0
     {
       numEdges_i = m_local->countUpward(e_i);
-      std::cout << "this entity has " << numEdges_i << " upward edges" << std::endl;
+//      std::cout << "this entity has " << numEdges_i << " upward edges" << std::endl;
       if (numEdges_i < numEdges_min)
       {
         e_min = e_i;
@@ -134,7 +134,7 @@ void numberdofs(apf::Mesh2* m_local, apf::Numbering* nodeNums, int numN, int com
     it = m_local->begin(i);
     e = m_local->deref(it);
     numNodes_typei = nodeCount(m_local,e);
-    std::cout << "entity type " << i << " has " << numNodes_typei << " nodes" << std::endl;
+//    std::cout << "entity type " << i << " has " << numNodes_typei << " nodes" << std::endl;
     it = m_local->begin(i);
 
     if (numNodes_typei)  // if there are any dofs on this type of entity
@@ -147,7 +147,7 @@ void numberdofs(apf::Mesh2* m_local, apf::Numbering* nodeNums, int numN, int com
           for ( int c = 0; c < comp; ++c)
           {
             apf::number(nodeNums, e, j, c, k); // label current node
-            std::cout << "initially numbered dof " << k << std::endl;
+//            std::cout << "initially numbered dof " << k << std::endl;
             k += 1;
           }
         }
@@ -170,7 +170,7 @@ void numberElements(apf::Mesh2*& m_local, apf::Numbering*& elNums, int numEl)
   
   while ( (e = m_local->iterate(it) ) )
   {
-    std::cout << "labelling element " << k - numEl << " as " << k << std::endl;
+//    std::cout << "labelling element " << k - numEl << " as " << k << std::endl;
     apf::number(elNums, e, 0, 0, k);
     ++k;
   }
@@ -185,7 +185,7 @@ void printElNumbers(apf::Mesh2*& m_local, apf::Numbering*& elNums)
   while ((e = m_local->iterate(it) ) )
   {
     int num = apf::getNumber(elNums, e, 0 , 0);
-    std::cout << "element " << i << "1 number = " << num << std::endl;
+//    std::cout << "element " << i << "1 number = " << num << std::endl;
     ++i;
   }
 }
@@ -280,8 +280,8 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
     numNodes_i = nodeCount(m_local,e); // get number of nodes on this entity
 
     std::cout << std::endl;
-    std::cout << "at beginning of while loop" << std::endl;
-    std::cout << "type of current entity = ";
+//    std::cout << "at beginning of while loop" << std::endl;
+//    std::cout << "type of current entity = ";
     printType(m_local, e);
 
     int type_enum_e = m_local->getType(e);
@@ -303,9 +303,9 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
 //          int nodenum_i = apf::getNumber(nodeNums, e, i, c);
           nodelabel_i -= 1;  // decrement nodelabel
           number(nodeNums, e, i, c, nodelabel_i);
-          std::cout << "relabeling node " << nodenum_i << " to " << nodelabel_i << std::endl;
+//          std::cout << "relabeling node " << nodenum_i << " to " << nodelabel_i << std::endl;
         } else {
-           std::cout << "found non free node " << nodenum_i << " , status = " << dof_status << std::endl;
+//           std::cout << "found non free node " << nodenum_i << " , status = " << dof_status << std::endl;
            apf::number(nodeNums, e, i, c, 0);
           }
 
@@ -394,10 +394,10 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
                 if (dof_status >= 2) // if node is free or loaded
                 {
                   nodelabel_i -= 1;
-                  std::cout << " relabelling node " << nodeNum_j << " to " << nodelabel_i << std::endl;
+//                  std::cout << " relabelling node " << nodeNum_j << " to " << nodelabel_i << std::endl;
                   apf::number(nodeNums, edge_i, j, c, nodelabel_i);
                 } else {
-                  std::cout << " found non free node " << nodeNum_j << " , status = " << dof_status << std::endl;
+//                  std::cout << " found non free node " << nodeNum_j << " , status = " << dof_status << std::endl;
                   apf::number(nodeNums, edge_i, j, c, 0);
                 }
               }

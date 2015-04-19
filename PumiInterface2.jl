@@ -2,7 +2,7 @@
 # function
 
 
-export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, getValues2, getLocalGradients2, getJacobian2
+export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, getValues2, getLocalGradients2, getJacobian2, getNodeEntities
 
 function getAdjacentFull(m_ptr, entity, dimension::Integer)
 # returns an array with the adjacencies of meshentity entity of specified dimension, and the number of entries in the array
@@ -115,3 +115,28 @@ function getJacobian2(m_ptr, entity, coords)
    jac = getJacobian(mel_ptr, coords)
    return jac
 end
+
+
+function getNodeEntities(m_ptr, mshape_ptr, entity)
+# get the meshentities that have nodes on them 
+# this only works for first and second order
+  
+  entity_type = getType(m_ptr, entity)
+  eshape_ptr = getEntityShape(mshape_ptr, entity_type)
+  nnodes = countNodes(eshape_ptr)
+  downward_entities = Array(Ptr{Void}, nnodes)  # one node per entity only
+  
+  if hasNodesIn(mshape_ptr, 0)  # vertices
+    (verts, numV) = getDownward(m_ptr, entity, 0)
+    downward_entities[1:numV] = verts
+	
+    if hasNodesIn(mshape_ptr, 1)  # edges
+      (edges, numEdges) = getDownward(mesh.mshape_ptr, entity, 1)
+	  downward_entities[(numV+1):(numV+numEdges)] = edges
+	 end
+  end
+  
+  return downward_entities
+end
+
+
