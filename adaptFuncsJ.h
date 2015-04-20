@@ -21,11 +21,17 @@ class IsotropicFunctionJ : public ma::IsotropicFunction
   public: 
 
     IsotropicFunctionJ() { };  // default constructor
-    IsotropicFunctionJ(apf::Mesh* m_): m(m_) { } // useful constructor
+    IsotropicFunctionJ(apf::Mesh2* m_, double(*sizefunc)(apf::MeshEntity*vert, apf::Mesh2* m_ptr, double* u), double* u_): m(m_), juliafunc(sizefunc), u(u_) { } // useful constructor
 
-    apf::Mesh* m;
+    // data members
+    apf::Mesh2* m;
 
     double getValue(apf::MeshEntity* vert);
+
+  private:
+    double (*juliafunc)(apf::MeshEntity* vert, apf::Mesh2* m_ptr, double *u);
+    double *u;  // pointer to array that holds u (avoids copying in constructor)
+
 
 
 

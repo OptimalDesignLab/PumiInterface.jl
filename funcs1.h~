@@ -120,8 +120,8 @@ extern void getDoubleTag(apf::Mesh2* m_local, apf::MeshEntity* e, apf::MeshTag* 
 
 
 // mesh adaptation functions
-extern void createIsoFunc(apf::Mesh2* m_local);
-extern void runIsoAdapt(apf::Mesh* m_local);
+extern void createIsoFunc(apf::Mesh2* m_local, double *u, double(*sizefunc)(apf::MeshEntity*vert, apf::Mesh2* m_local));
+extern void runIsoAdapt(apf::Mesh2* m_local);
 
 }
 

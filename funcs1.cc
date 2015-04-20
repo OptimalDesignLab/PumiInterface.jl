@@ -1075,10 +1075,10 @@ void getDoubleTag(apf::Mesh2 * m_local, apf::MeshEntity* e, apf::MeshTag* tag,  
 
 
 // mesh adapatation function
-extern void createIsoFunc(apf::Mesh2* m_local)
+extern void createIsoFunc(apf::Mesh2* m_local, double(*sizefunc)(apf::MeshEntity*vert, apf::Mesh2* m_local, double* u), double *u)
 {
   std::cout << "in createIsoFunc" << std::endl;
-  IsotropicFunctionJ newisofunc(m_local); // create new function
+  IsotropicFunctionJ newisofunc(m_local, sizefunc, u); // create new function
   isofunc = newisofunc; // copy to global isofunc
 }
 

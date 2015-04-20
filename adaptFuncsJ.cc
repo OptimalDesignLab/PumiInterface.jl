@@ -5,8 +5,10 @@
 
 
 // return the size of element desired at a particular vertex
+// this function can access any data members of the class
 double IsotropicFunctionJ::getValue(apf::MeshEntity* vert)
 {
+/*
   apf::Vector3 coords;
   m->getPoint(vert, 0, coords);
 
@@ -18,5 +20,8 @@ double IsotropicFunctionJ::getValue(apf::MeshEntity* vert)
 
   if (h_value <= 0.0)
     std::cout << "    Warning: h_value is negative " << std::endl;
+*/
+  double h_value = (*juliafunc)(vert, m, u);
+  std::cout << "from c++, h_value = " << h_value << std::endl;
   return h_value;
 }

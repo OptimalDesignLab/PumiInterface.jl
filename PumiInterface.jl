@@ -843,10 +843,12 @@ end
 
 
 # mesh adapatation functions
-function createIsoFunc(m_ptr)
+function createIsoFunc(m_ptr, sizefunc, u::AbstractVector)
 # creates a function that describes how to refine the mesh isotropically
+# m_ptr is pointer to the mesh
+# sizefunc is a pointer to a c callable function
 
-  ccall((createIsoFunc_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+  ccall((createIsoFunc_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}), m_ptr, sizefunc, u)
 
   return nothing
 end
