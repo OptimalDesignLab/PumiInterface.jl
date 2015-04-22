@@ -14,6 +14,8 @@ extern int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], in
 
 int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order );
 
+void cleanup(apf::Mesh* m_local);
+
 // these functions do pass pointers
 extern apf::Mesh2* getMeshPtr();
 extern apf::FieldShape* getMeshShapePtr();

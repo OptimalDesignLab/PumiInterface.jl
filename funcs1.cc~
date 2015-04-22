@@ -214,8 +214,14 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
 {
   std::cout << "Entered init\n" << std::endl;
 
-  MPI_Init(0,NULL);  // initilize MPI 
-  PCU_Comm_Init();   // initilize PUMI's communication
+  if ( PCU_Comm_Initialized() ) // if init has been called before
+  {
+    std::cout << "Performing cleanup" << std::endl;
+    cleanup(m);  // destroy existing mesh
+  } else {
+      MPI_Init(0,NULL);  // initilize MPI 
+      PCU_Comm_Init();   // initilize PUMI's communication
+  }
 //  gmi_register_mesh();
 
   // load mesh
@@ -355,8 +361,14 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
   return 0;
 }
 
-
-
+// perform cleanup activities, making it safe to load a new mesh
+void cleanup(apf::Mesh* m_local)
+{
+  m_local->destroyNative();
+  apf::destroyMesh(m_local);
+//  PCU_Comm_Free();
+//  MPI_Finalize();
+}
 
 apf::Mesh2* getMeshPtr()
 {
