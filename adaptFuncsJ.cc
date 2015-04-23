@@ -25,3 +25,16 @@ double IsotropicFunctionJ::getValue(apf::MeshEntity* vert)
   std::cout << "from c++, h_value = " << h_value << std::endl;
   return h_value;
 }
+
+// populates vector h with desired element size in each direction
+// 
+void AnisotropicFunctionJ::getValue(apf::MeshEntity* vert, ma::Matrix &r, ma::Vector &h)
+{
+  // copy ma::Matrix to C standard arrays
+  r.toArray(r_array);
+  
+  // call julia function to populate h_array
+  (*juliafunc)(vert, r_array, h_array, m, u);
+
+  h.fromArray(h_array);
+}

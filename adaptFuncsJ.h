@@ -42,7 +42,7 @@ class AnisotropicFunctionJ : public ma::AnisotropicFunction
   public: 
 
     AnisotropicFunctionJ() { };  // default constructor
-    AnisotropicFunctionJ(apf::Mesh2* m_, double(*sizefunc)(apf::MeshEntity*vert, apf::Mesh2* m_ptr, double* u), double* u_): m(m_), juliafunc(sizefunc), u(u_) { } // useful constructor
+    AnisotropicFunctionJ(apf::Mesh2* m_, void(*sizefunc)(apf::MeshEntity*vert,double r[3][3], double h[3], apf::Mesh2* m_ptr, double* u), double* u_): m(m_), juliafunc(sizefunc), u(u_) { } // useful constructor
 
     // data members
     apf::Mesh2* m;
@@ -50,8 +50,10 @@ class AnisotropicFunctionJ : public ma::AnisotropicFunction
     void getValue(apf::MeshEntity* vert, ma::Matrix &r, ma::Vector &v);
 
   private:
-    double (*juliafunc)(apf::MeshEntity* vert, apf::Mesh2* m_ptr, double *u);
+    void (*juliafunc)(apf::MeshEntity* vert, double r[3][3], double h[3], apf::Mesh2* m_ptr, double *u);
     double *u;  // pointer to array that holds u (avoids copying in constructor)
+    double r_array[3][3];  // array used to turn ma::Matrix into standard data type
+    double h_array[3];  // array used to turn vector into standard data type
 
 
 

@@ -35,7 +35,7 @@
 
 apf::Mesh2* m;
 apf::FieldShape* mshape;
-
+apf::MeshEntity* entity_global;  // token mesh entity used for EntityShape
 apf::Numbering* elNums; // element numbering
 apf::Numbering* faceNums; // face numbering
 apf::Numbering* edgeNums; // edge numbering
@@ -261,6 +261,8 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
 
   m_ptr_array[0] = m;
   mshape_ptr_array[0] = m->getShape();
+  its[0] = m->begin(0);
+  entity_global = m->iterate(its[0]);  // get token mesh entity
   std::cout << std::endl;
 /* 
   // initilize iterators
@@ -740,7 +742,7 @@ void getValues(apf::EntityShape* eshape_local, double xi[3], double vals[])
   apf::Vector3 xi_vec (xi[0], xi[1], xi[2]); // create vector of coordinates
   apf::NewArray<double> vals_array;  // array to store retrieved values in
   int numN_local = eshape_local->countNodes();  // get number of nodes
-  eshape_local->getValues(xi_vec, vals_array);
+  eshape_local->getValues(m, entity_global, xi_vec, vals_array);
 
   // copy vals_array into vals to be returned
   for (int i = 0; i < numN_local; ++i)
@@ -757,7 +759,7 @@ void getLocalGradients(apf::EntityShape* eshape_local, double xi[3], double vals
   apf::Vector3 xi_vec (xi[0], xi[1], xi[2]); // create vector of coordinates
   apf::NewArray<apf::Vector3> vals_array;  // array to store retrieved values in
   int numN_local = eshape_local->countNodes();  // get number of nodes
-  eshape_local->getLocalGradients(xi_vec, vals_array);
+  eshape_local->getLocalGradients(m, entity_global, xi_vec, vals_array);
 
   // copy vals_array into vals to be returned
   for (int i = 0; i < numN_local; ++i)
