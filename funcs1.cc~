@@ -35,7 +35,7 @@
 
 apf::Mesh2* m;
 apf::FieldShape* mshape;
-
+apf::MeshEntity* entity_global;  // token mesh entity used for EntityShape
 apf::Numbering* elNums; // element numbering
 apf::Numbering* faceNums; // face numbering
 apf::Numbering* edgeNums; // edge numbering
@@ -56,7 +56,7 @@ apf::Numbering* numberings[4];  // numberings of each type of entity
 apf::MeshTag* globalVertNums;    // tag each vertex with global vertex number
 const char *names[] = { "vertex", "edge", "face", "element"};  // array of strings, used for printing output inside loops
 IsotropicFunctionJ isofunc;  // declare isotropic function at global scope
-
+AnisotropicFunctionJ anisofunc; // declare anisotropic function at global scope
 
 // initilize global variables, used by all fucntions
 // downward_counts = numDown
@@ -261,6 +261,8 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
 
   m_ptr_array[0] = m;
   mshape_ptr_array[0] = m->getShape();
+  its[0] = m->begin(0);
+  entity_global = m->iterate(its[0]);  // get token mesh entity
   std::cout << std::endl;
 /* 
   // initilize iterators
@@ -740,7 +742,7 @@ void getValues(apf::EntityShape* eshape_local, double xi[3], double vals[])
   apf::Vector3 xi_vec (xi[0], xi[1], xi[2]); // create vector of coordinates
   apf::NewArray<double> vals_array;  // array to store retrieved values in
   int numN_local = eshape_local->countNodes();  // get number of nodes
-  eshape_local->getValues(xi_vec, vals_array);
+  eshape_local->getValues(m, entity_global, xi_vec, vals_array);
 
   // copy vals_array into vals to be returned
   for (int i = 0; i < numN_local; ++i)
@@ -757,7 +759,7 @@ void getLocalGradients(apf::EntityShape* eshape_local, double xi[3], double vals
   apf::Vector3 xi_vec (xi[0], xi[1], xi[2]); // create vector of coordinates
   apf::NewArray<apf::Vector3> vals_array;  // array to store retrieved values in
   int numN_local = eshape_local->countNodes();  // get number of nodes
-  eshape_local->getLocalGradients(xi_vec, vals_array);
+  eshape_local->getLocalGradients(m, entity_global, xi_vec, vals_array);
 
   // copy vals_array into vals to be returned
   for (int i = 0; i < numN_local; ++i)
@@ -1094,11 +1096,24 @@ extern void createIsoFunc(apf::Mesh2* m_local, double(*sizefunc)(apf::MeshEntity
   isofunc = newisofunc; // copy to global isofunc
 }
 
+void createAnIsoFunc(apf::Mesh2* m_local,  void (*sizefunc)(apf::MeshEntity* vert, double r[3][3], double h[3], apf::Mesh2* m_ptr, double *u), double *u)
+{
+
+  AnisotropicFunctionJ newanisofunc(m_local, sizefunc, u);  // create new function
+  anisofunc = newanisofunc;  // copy to global anisofunc
+}
 // run mesh adaptation using isofunc
 void runIsoAdapt(apf::Mesh2* m_local)
 {
   IsotropicFunctionJ* isofunc_ptr = &isofunc;
   ma::Input* inputconfig = ma::configure(m_local, isofunc_ptr);
+  ma::adapt(inputconfig);
+}
+
+void runAnisoAdapt(apf::Mesh2* m_local)
+{
+  AnisotropicFunctionJ* anisofunc_ptr = &anisofunc;
+  ma::Input* inputconfig = ma::configure(m_local, anisofunc_ptr);
   ma::adapt(inputconfig);
 }
 

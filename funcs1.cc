@@ -56,7 +56,7 @@ apf::Numbering* numberings[4];  // numberings of each type of entity
 apf::MeshTag* globalVertNums;    // tag each vertex with global vertex number
 const char *names[] = { "vertex", "edge", "face", "element"};  // array of strings, used for printing output inside loops
 IsotropicFunctionJ isofunc;  // declare isotropic function at global scope
-
+AnisotropicFunctionJ anisofunc; // declare anisotropic function at global scope
 
 // initilize global variables, used by all fucntions
 // downward_counts = numDown
@@ -1096,11 +1096,24 @@ extern void createIsoFunc(apf::Mesh2* m_local, double(*sizefunc)(apf::MeshEntity
   isofunc = newisofunc; // copy to global isofunc
 }
 
+void createAnisoFunc(apf::Mesh2* m_local,  void (*sizefunc)(apf::MeshEntity* vert, double r[3][3], double h[3], apf::Mesh2* m_ptr, double *u), double *u)
+{
+
+  AnisotropicFunctionJ newanisofunc(m_local, sizefunc, u);  // create new function
+  anisofunc = newanisofunc;  // copy to global anisofunc
+}
 // run mesh adaptation using isofunc
 void runIsoAdapt(apf::Mesh2* m_local)
 {
   IsotropicFunctionJ* isofunc_ptr = &isofunc;
   ma::Input* inputconfig = ma::configure(m_local, isofunc_ptr);
+  ma::adapt(inputconfig);
+}
+
+void runAnisoAdapt(apf::Mesh2* m_local)
+{
+  AnisotropicFunctionJ* anisofunc_ptr = &anisofunc;
+  ma::Input* inputconfig = ma::configure(m_local, anisofunc_ptr);
   ma::adapt(inputconfig);
 }
 

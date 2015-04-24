@@ -32,9 +32,32 @@ void AnisotropicFunctionJ::getValue(apf::MeshEntity* vert, ma::Matrix &r, ma::Ve
 {
   // copy ma::Matrix to C standard arrays
   r.toArray(r_array);
+  std::cout << "from C++, r = " << r << std::endl;
+
+  for (int i = 0; i < 3; ++i)
+  {
+    for (int j = 0; j < 3; ++j)
+    {
+      std::cout << "r_array " << i << " , " << j << " = " << r_array[i][j] << std::endl;
+    }
+  }
   
   // call julia function to populate h_array
   (*juliafunc)(vert, r_array, h_array, m, u);
 
+
   h.fromArray(h_array);
+  std::cout << "after sizefunc, h = " << h << std::endl;
+//  r.fromArray(r_array);
+  for (int i = 0; i < 3; ++i)
+  {
+    for (int j = 0; j < 3; ++j)
+    {
+      r[i][j] = r_array[i][j];
+      std::cout << " r[i][j] = " << r[i][j] << std::endl;
+    }
+  }
+ 
+
+  std::cout << "after size function, h = " << h << std::endl;
 }

@@ -103,12 +103,14 @@ global const getDoubleTag_name = "getDoubleTag"
 global const reorder_name = "reorder"
 
 global const createIsoFunc_name = "createIsoFunc"
+global const createAnisoFunc_name = "createAnisoFunc"
 global const runIsoAdapt_name = "runIsoAdapt"
+global const runAnisoAdapt_name = "runAnisoAdapt"
 end
 
 
 # export low level interface functions
-export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, runIsoAdapt
+export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt
 
 @doc """
   initilize the state of the interface library
@@ -853,12 +855,35 @@ function createIsoFunc(m_ptr, sizefunc, u::AbstractVector)
   return nothing
 end
 
+function createAnisoFunc(m_ptr, sizefunc, u::AbstractVector)
+# creates a function that describes how to refine the mesh anisotropically
+# m_ptr is a pointer to the mesh
+# sizefunc is a pointer to a c callable function
+# u is the solution vector
+
+
+  ccall( (createAnisoFunc_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}), m_ptr, sizefunc, u)
+
+return nothing
+
+end
+
 function runIsoAdapt(m_ptr)
 # run mesh adaptation using previously created isofunc
 
   ccall( (runIsoAdapt_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
 
   return nothing
+end
+
+
+function runAnisoAdapt(m_ptr)
+# run mesh adaptation using previously defines anisotropic function
+
+  ccall( (runAnisoAdapt_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+
+  return nothing
+
 end
 
 

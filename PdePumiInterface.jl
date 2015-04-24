@@ -4,7 +4,7 @@ push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
 using PumiInterface
 
 
-export AbstractMesh,PumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getBoundaryEdgeNums, getBoundaryFaceNums
+export AbstractMesh,PumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum
 
 abstract AbstractMesh
 
@@ -260,4 +260,30 @@ face_nums = zeros(Int, 0)
 return face_nums
 end
 
+function getBoundaryEdgeLocalNum(mesh::PumiMesh2, edge_num::Integer)
+# gets the local edge number of a specified edge that is on the boundary
+# of the mesh
+# edge_num is an edge num from the output of getBoundaryEdgeNums()
+  edge_i = mesh.edges[edge_num]
+
+  # get mesh face associated with edge
+  countAdjacent(mesh.m_ptr, edge_i, 2)
+  face = getAdjacent(1)[1]  # get the single face (not an array)
+
+  facenum_i = getFaceNumber2(face) + 1  # convert to 1 based indexing
+
+  (down_edges, numedges) = getDownward(mesh.m_ptr, face, 1)
+  edgenum_local = 0
+  for j = 1:3  # find which local edge is edge_i
+    if down_edges[j] == edge_i
+      edgenum_local = j
+    end
+  end
+
+  return edgenum_local
+
 end
+
+
+
+end  # end of module
