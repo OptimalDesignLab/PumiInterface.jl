@@ -135,8 +135,8 @@ end
 
 
 function getElementVertCoords(mesh::PumiMesh2,  elnums::Array{Int,1})
-# elnums = array of element numbbers
-# return array 
+# elnums = vector of element numbbers
+# return array of size 3x3, where each column contains the coordinates of a vertex
 
 
 # get the number of verts 
@@ -167,6 +167,7 @@ function getGlobalNodeNumber(mesh::PumiMesh2, el_num::Integer, local_node_num::I
 # el_num = element number
 # local_node_num = vector of dof numbers on the specified node within element
 # this only works for first and second order
+# returns a vector with dof numbers of all dofs on the node
 
 
 #println("el_num = ", el_num, " local_node_num = ", local_node_num)
@@ -182,14 +183,14 @@ for i=1:mesh.numDofPerNode
 #println("global dof number = ", number_i)
 end
 
-return number_i
+return dofnums
 
 end
 
 function getGlobalNodeNumbers(mesh::PumiMesh2, elnum::Integer)
 # gets global node numbers of all dof on all nodes of the element
 # this only works for first and second order
-# output formap is array [numdofpernode, nnodes]
+# output formap is array [numdofpernode, nnodes]  (each column contains dof numbers for a node)
 el_i = mesh.elements[elnum]
 type_i = getType(mesh.m_ptr, el_i)
 
@@ -244,7 +245,7 @@ return mesh.numDofPerNode
 end
 
 function getBoundaryEdgeNums(mesh::PumiMesh2)
-# get array of edge numbers that are on boundary
+# get vector of edge numbers that are on boundary
 
 edge_nums = mesh.boundary_edge_nums
 return edge_nums
@@ -255,6 +256,7 @@ end
 function getBoundaryFaceNums(mesh::PumiMesh2)
 # get array of face numbers that are on boundary
 # this only works in 2d
+# this function doesn't work yet
 #face_nums = zeros(Int, numEdges_on_boundary)
 face_nums = zeros(Int, 0)
 return face_nums
@@ -263,7 +265,8 @@ end
 function getBoundaryEdgeLocalNum(mesh::PumiMesh2, edge_num::Integer)
 # gets the local edge number of a specified edge that is on the boundary
 # of the mesh
-# edge_num is an edge num from the output of getBoundaryEdgeNums()
+# edge_num is an edge num from the output of getBoundaryEdgeNums() (ie. the global edge number)
+# the local edge number is the edge number within the element (1st,s 2nd, 3rd...)
   edge_i = mesh.edges[edge_num]
 
   # get mesh face associated with edge
