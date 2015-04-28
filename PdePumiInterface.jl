@@ -100,7 +100,6 @@ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; do
   for i=1:numEdge
     edge_i = getEdge()
     numFace = countAdjacent(m_ptr, edge_i, 2)  # should be count upward
-    faces = getAdjacent(numFace)
 
     if numFace == 1  # if an exterior edge
       faces = getAdjacent(numFace)
