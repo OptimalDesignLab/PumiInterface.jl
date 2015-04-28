@@ -4,13 +4,14 @@ push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
 using PumiInterface
 using SummationByParts
 
-export AbstractMesh,PumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getBoundaryArray
+export AbstractMesh,PumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getBoundaryArray, saveSolutionToMesh
 
 abstract AbstractMesh
 
 type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
+  f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
 
   numVert::Int  # number of vertices in the mesh
   numEdge::Int # number of edges in the mesh
@@ -27,6 +28,7 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
 
   dofnums_Nptr::Ptr{Void}  # pointer to Numbering of dofs (result of reordering)
   boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
+
   
   
 end
@@ -40,6 +42,7 @@ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; do
 
 
   tmp, num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
+  f_ptr = createPackedField(m_ptr, "solution_field", dofpernode)
 
   numVert = convert(Int, num_Entities[1])
   numEdge =convert(Int,  num_Entities[2])
@@ -51,10 +54,13 @@ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; do
   dofnums_Nptr = createNumberingJ(m_ptr, "reordered dof numbers", mshape_ptr, dofpernode)  # 1 dof per node
 
   # get pointers to all MeshEntities
+  # also initilize the field to zero
   resetAllIts2()
-
+#  comps = zeros(dofpernode)
+  comps = [1.0, 2, 3, 4]
   for i=1:numVert
     verts[i] = getVert()
+    setComponents(f_ptr, verts[i], 0, comps)  # initilize the field
     incrementVertIt()
   end
 
@@ -129,7 +135,7 @@ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; do
   println("typeof bnd_edges_small = ", typeof(bnd_edges_small))
 
   writeVtkFiles("mesh_complete", m_ptr)
-  return PumiMesh2(m_ptr, mshape_ptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
+  return PumiMesh2(m_ptr, mshape_ptr, f_ptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
 end
 
 
@@ -309,6 +315,23 @@ function getBoundaryArray(mesh::PumiMesh2)
 end
 
 
+function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
+# saves the solution in the vector u to the mesh (in preparation for mesh adaptation
+# linear meshes only
+
+  dofnums = zeros(mesh.numDofPerNode)
+  u_vals = zeros(mesh.numDofPerNode)
+  for i=1:mesh.numVert
+    for j = 1:mesh.numDofPerNode  # get dof numbers of this vertex
+      dofnums[j] = getNumberJ(mesh.dofnums_Nptr, mesh.verts[i], 0, j-1)
+    end
+    println("dofnums = ", dofnums)
+    u_vals[:] = u[dofnums]
+    setComponents(mesh.f_ptr, mesh.verts[i], 0, u_vals)
+  end
+
+  return nothing
+end  # end function saveSolutionToMesh
 
  
 
