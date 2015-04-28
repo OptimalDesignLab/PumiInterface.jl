@@ -2,9 +2,9 @@ module PdePumiInterface
 push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
 
 using PumiInterface
+using SummationByParts
 
-
-export AbstractMesh,PumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum
+export AbstractMesh,PumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getBoundaryArray
 
 abstract AbstractMesh
 
@@ -26,7 +26,7 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   elements::Array{Ptr{Void},1}  # pointers to faces
 
   dofnums_Nptr::Ptr{Void}  # pointer to Numbering of dofs (result of reordering)
-  boundary_edge_nums::Array{Int, 1}
+  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
   
   
 end
@@ -96,18 +96,24 @@ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; do
 
   # count boundary edges
   bnd_edges_cnt = 0
-  bnd_edges = Array(Int, numEdge)
+  bnd_edges = Array(Int, numEdge, 2)
   for i=1:numEdge
     edge_i = getEdge()
     numFace = countAdjacent(m_ptr, edge_i, 2)  # should be count upward
+    faces = getAdjacent(numFace)
+
     if numFace == 1  # if an exterior edge
+      faces = getAdjacent(numFace)
+      facenum = getFaceNumber2(faces[1]) + 1
+
       bnd_edges_cnt += 1
-      bnd_edges[bnd_edges_cnt] = i
+      bnd_edges[bnd_edges_cnt, 1] = facenum
+      bnd_edges[bnd_edges_cnt, 2] = i
     end
     incrementEdgeIt()
   end
 
-  bnd_edges_small = bnd_edges[1:bnd_edges_cnt]
+  bnd_edges_small = bnd_edges[1:bnd_edges_cnt, :]
 
   println("typeof m_ptr = ", typeof(m_ptr))
   println("typeof mshape_ptr = ", typeof(mshape_ptr))
@@ -178,7 +184,7 @@ node_entity = node_entities[local_node_num]
 #println("node_entity = ", node_entity)
 dofnums = zeros(Int, mesh.numDofPerNode)
 for i=1:mesh.numDofPerNode
-  dofnums[i] = getNumberJ(mesh.dofnums_Nptr, node_entities[local_node_num], 0, j-1)
+  dofnums[i] = getNumberJ(mesh.dofnums_Nptr, node_entities[local_node_num], 0, i-1)
 
 #println("global dof number = ", number_i)
 end
@@ -287,6 +293,24 @@ function getBoundaryEdgeLocalNum(mesh::PumiMesh2, edge_num::Integer)
 
 end
 
+function getBoundaryArray(mesh::PumiMesh2)
+# get an array of type Boundary for SBP
+# creating an an array of a user defined type seems like a waste of memory operations
 
+  bnd_array = Array(Boundary, mesh.numBoundaryEdges)
+
+  for i=1:mesh.numBoundaryEdges
+    facenum = mesh.boundary_nums[i,1]
+    edgenum_global = mesh.boundary_nums[i,2]
+    edgenum_local = getBoundaryEdgeLocalNum(mesh, edgenum_global)
+    bnd_array[i] = Boundary(facenum, edgenum_local)
+  end
+
+  return bnd_array
+end
+
+
+
+ 
 
 end  # end of module

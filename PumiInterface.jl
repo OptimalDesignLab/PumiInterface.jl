@@ -886,6 +886,29 @@ function runAnisoAdapt(m_ptr)
 
 end
 
+# apf::Field related function
+# needed for automagical solution transfer
+function createPackedField(m_ptr, fieldname::AbstractString, numcomponents::Integer)
+# create a field with the specified number of componenets per node
+# returns a pointer to the field
+
+  f_ptr = ccall((createPackedField_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{UInt8}, Int32), m, fieldname, numcomponents)
+
+  return f_ptr
+end
+
+function setComponents(f_ptr, entity_ptr, node::Integer, components::AbstractVector)
+  ccall((setComponents_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Float64}), f_ptr, entity_ptr, node, components)
+
+  return nothing
+end
+
+function getComponents(f_ptr, entity_ptr, node::Integer, components::AbstractVector)
+
+  ccall( (getComponents_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Float64}), f_ptr, entity_ptr, node, components)
+
+  return nothing
+end
 
 declareNames()  # will this execute when module is compiled?
 

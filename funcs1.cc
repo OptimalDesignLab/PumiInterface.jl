@@ -1118,4 +1118,22 @@ void runAnisoAdapt(apf::Mesh2* m_local)
 }
 
 
+// these are completely untested
+// apf::Field functions (needed for automagical solution transfer)
+apf::Field* createPackedField(apf::Mesh* m, char* fieldname, int numcomponents)
+{
+  return apf::createPackedField(m, fieldname, numcomponents);
+}
 
+// set the values of all components on a node
+void setComponents(apf::Field* f, apf::MeshEntity* e, int node,  double const components[])
+{
+  apf::setComponents(f, e, node, components);
+}
+
+// copy the field values into the array components
+// the array had better be the right size
+void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components[])
+{
+  apf::getComponents(f, e, node, components);
+}
