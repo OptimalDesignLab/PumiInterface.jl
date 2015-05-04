@@ -22,7 +22,7 @@ double IsotropicFunctionJ::getValue(apf::MeshEntity* vert)
     std::cout << "    Warning: h_value is negative " << std::endl;
 */
   double h_value = (*juliafunc)(vert, m, u);
-  std::cout << "from c++, h_value = " << h_value << std::endl;
+//  std::cout << "from c++, h_value = " << h_value << std::endl;
   return h_value;
 }
 
@@ -43,7 +43,7 @@ void AnisotropicFunctionJ::getValue(apf::MeshEntity* vert, ma::Matrix &r, ma::Ve
   }
   
   // call julia function to populate h_array
-  (*juliafunc)(vert, r_array, h_array, m, u);
+  (*juliafunc)(vert, r_array, h_array, m, f_ptr, operator_ptr);
 
 
   h.fromArray(h_array);

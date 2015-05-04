@@ -4,7 +4,7 @@ push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
 using PumiInterface
 using SummationByParts
 
-export AbstractMesh,PumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getBoundaryArray, saveSolutionToMesh
+export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution
 
 abstract AbstractMesh
 
@@ -22,7 +22,8 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   numDofPerNode::Int  # number of dofs per node
   numBoundaryEdges::Int # number of edges on the exterior boundary
 
-  verts::Array{Ptr{Void},1}  # holds pointers to mesh entities
+  # hold pointers to mesh entities
+  verts::Array{Ptr{Void},1}  # holds pointers to mesh vertices
   edges::Array{Ptr{Void},1}  # pointers to mesh edges
   elements::Array{Ptr{Void},1}  # pointers to faces
 
@@ -119,7 +120,7 @@ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; do
   end
 
   bnd_edges_small = bnd_edges[1:bnd_edges_cnt, :]
-
+#=
   println("typeof m_ptr = ", typeof(m_ptr))
   println("typeof mshape_ptr = ", typeof(mshape_ptr))
   println("typeof numVerg = ", typeof(numVert))
@@ -133,12 +134,148 @@ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; do
   println("typeof element = ", typeof(elements))
   println("typeof dofnums_Nptr = ", typeof(dofnums_Nptr))
   println("typeof bnd_edges_small = ", typeof(bnd_edges_small))
+=#
+  println("numVert = ", numVert)
+  println("numEdge = ", numEdge)
+  println("numEl = ", numEl)
+  println("numDof = ", numdof)
+  println("numNodes = ", numnodes)
+
+
 
   writeVtkFiles("mesh_complete", m_ptr)
   return PumiMesh2(m_ptr, mshape_ptr, f_ptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
 end
 
 
+# for reinitilizeing after mesh adaptation
+function reinitPumiMesh2(mesh::PumiMesh2)
+  # construct pumi mesh by loading the files named
+  # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
+  # smb_name = name of .smb (mesh) file to load
+  # order = order of shape functions
+  # dofpernode = number of dof per node, default = 1
+
+  println("Reinitilizng PumiMesh2")
+
+  # create random filenames because they are not used
+  smb_name = "a"
+  dmg_name = "b"
+  order = mesh.order
+  dofpernode = mesh.numDofPerNode
+  tmp, num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order, false) # do not load new mesh
+  f_ptr = mesh.f_ptr  # use existing solution field
+
+  numVert = convert(Int, num_Entities[1])
+  numEdge =convert(Int,  num_Entities[2])
+  numEl = convert(Int, num_Entities[3])
+
+  verts = Array(Ptr{Void}, numVert)
+  edges = Array(Ptr{Void}, numEdge)
+  elements = Array(Ptr{Void}, numEl)
+  dofnums_Nptr = mesh.dofnums_Nptr  # use existing dof pointers
+
+  # get pointers to all MeshEntities
+  # also initilize the field to zero
+  resetAllIts2()
+#  comps = zeros(dofpernode)
+  comps = [1.0, 2, 3, 4]
+  for i=1:numVert
+    verts[i] = getVert()
+    incrementVertIt()
+  end
+
+  for i=1:numEdge
+    edges[i] = getEdge()
+    incrementEdgeIt()
+  end
+
+  for i=1:numEl
+    elements[i] = getFace()
+    incrementFaceIt()
+  end
+
+  resetAllIts2()
+  println("performing initial numbering of dofs")
+  # calculate number of nodes, dofs (works for first and second order)
+  numnodes = order*numVert 
+  numdof = numnodes*dofpernode
+  # number dofs
+  ctr= 1
+  for i=1:numVert
+    for j=1:dofpernode
+      numberJ(dofnums_Nptr, verts[i], 0, j-1, ctr)
+#      println("vertex ", i,  " numbered ", ctr)
+      ctr += 1
+    end
+  end
+
+  if order >= 2
+    for i=1:numEdges
+      for j=1:dofpernode
+        numberJ(dofnums_Nptr, edges[i], 0, j-1, ctr)
+        ctr += 1
+      end
+    end
+  end
+
+ 
+
+  # count boundary edges
+  bnd_edges_cnt = 0
+  bnd_edges = Array(Int, numEdge, 2)
+  for i=1:numEdge
+    edge_i = getEdge()
+    numFace = countAdjacent(m_ptr, edge_i, 2)  # should be count upward
+
+    if numFace == 1  # if an exterior edge
+      faces = getAdjacent(numFace)
+      facenum = getFaceNumber2(faces[1]) + 1
+
+      bnd_edges_cnt += 1
+      bnd_edges[bnd_edges_cnt, 1] = facenum
+      bnd_edges[bnd_edges_cnt, 2] = i
+    end
+    incrementEdgeIt()
+  end
+
+  bnd_edges_small = bnd_edges[1:bnd_edges_cnt, :]
+
+  # replace exising fields with new values
+  mesh.numVert = numVert
+  mesh.numEdge = numEdge
+  mesh.numEl = numEl
+  mesh.numDof = numdof
+  mesh.numNodes= numnodes
+  mesh.numBoundaryEdges = bnd_edges_cnt
+  mesh.verts = verts  # does this need to be a deep copy?
+  mesh.edges = edges
+  mesh.elements = elements
+  mesh.boundary_nums = bnd_edges_small
+
+#=
+  println("typeof m_ptr = ", typeof(m_ptr))
+  println("typeof mshape_ptr = ", typeof(mshape_ptr))
+  println("typeof numVerg = ", typeof(numVert))
+  println("typeof numEdge = ", typeof(numEdge))
+  println("typeof numEl = ", typeof(numEl))
+  println("typeof order = ", typeof(order))
+  println("typeof numdof = ", typeof(numdof))
+  println("typeof bnd_edges_cnt = ", typeof(bnd_edges_cnt))
+  println("typeof verts = ", typeof(verts))
+  println("typeof edges = ", typeof(edges))
+  println("typeof element = ", typeof(elements))
+  println("typeof dofnums_Nptr = ", typeof(dofnums_Nptr))
+  println("typeof bnd_edges_small = ", typeof(bnd_edges_small))
+=#
+  println("numVert = ", numVert)
+  println("numEdge = ", numEdge)
+  println("numEl = ", numEl)
+  println("numDof = ", numdof)
+  println("numNodes = ", numnodes)
+
+  writeVtkFiles("mesh_complete", m_ptr)
+end
 
 
 
@@ -147,7 +284,8 @@ end
 
 function getElementVertCoords(mesh::PumiMesh2,  elnums::Array{Int,1})
 # elnums = vector of element numbbers
-# return array of size 3x3, where each column contains the coordinates of a vertex
+# return array of size 3x3xn, where each column (first index) contains the coordinates of a vertex
+# n is the number of elements in elnums
 
 
 # get the number of verts 
@@ -319,13 +457,13 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
 # saves the solution in the vector u to the mesh (in preparation for mesh adaptation
 # linear meshes only
 
-  dofnums = zeros(mesh.numDofPerNode)
+  dofnums = zeros(Int, mesh.numDofPerNode)
   u_vals = zeros(mesh.numDofPerNode)
   for i=1:mesh.numVert
     for j = 1:mesh.numDofPerNode  # get dof numbers of this vertex
       dofnums[j] = getNumberJ(mesh.dofnums_Nptr, mesh.verts[i], 0, j-1)
     end
-    println("dofnums = ", dofnums)
+#    println("dofnums = ", dofnums)
     u_vals[:] = u[dofnums]
     setComponents(mesh.f_ptr, mesh.verts[i], 0, u_vals)
   end
@@ -333,6 +471,34 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
   return nothing
 end  # end function saveSolutionToMesh
 
- 
+
+function retrieveSolutionFromMesh(mesh::PumiMesh2, u::AbstractVector)
+# retrieve solution from mesh (after mesh adaptation)
+# mesh needs to have been reinitilized after mesh adaptation, u needs to be the right size for the new mesh
+  # linear meshes only
+
+  dofnums = zeros(Int, mesh.numDofPerNode)
+  u_vals = zeros(mesh.numDofPerNode)
+  for i=1:mesh.numVert
+    for j = 1:mesh.numDofPerNode  # get dof numbers of this vertex
+      dofnums[j] = getNumberJ(mesh.dofnums_Nptr, mesh.verts[i], 0, j-1)
+    end
+    getComponents(mesh.f_ptr, mesh.verts[i], 0, u_vals)
+    u[dofnums] = u_vals
+  end
+
+  return nothing
+end  # end function saveSolutionToMesh
+
+
+function retrieveNodeSolution(f_ptr, entity, u_node::AbstractVector)
+# retrieve solution on a particular entity, stores it in u_node
+# u_node must be a vector of length mesh.numDofPerNode
+# used during mesh adaptation
+# this is a low level function because t takes in f_ptr, entity rather than the mesh object and an index
+
+  getComponents(f_ptr, entity, 0, u_node)
+
+end
 
 end  # end of module

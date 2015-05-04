@@ -12,9 +12,11 @@ extern "C" {
 // this function does not pass opaque pointers
 extern int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numberEntities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1]);
 
-int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order );
+int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh );
 
+// these functions are not user accessible
 void cleanup(apf::Mesh* m_local);
+void destroyNumberings(); 
 
 // these functions do pass pointers
 extern apf::Mesh2* getMeshPtr();
@@ -124,7 +126,7 @@ extern void getDoubleTag(apf::Mesh2* m_local, apf::MeshEntity* e, apf::MeshTag* 
 // mesh adaptation functions
 extern void createIsoFunc(apf::Mesh2* m_local, double(*sizefunc)(apf::MeshEntity*vert, apf::Mesh2* m_local, double *u), double *u);
 extern void runIsoAdapt(apf::Mesh2* m_local);
-extern void createAnisoFunc(apf::Mesh2* m_local,  void (*sizefunc)(apf::MeshEntity* vert, double r[3][3], double h[3], apf::Mesh2* m_ptr, double *u), double *u);
+extern void createAnisoFunc(apf::Mesh2* m_local,  void (*sizefunc)(apf::MeshEntity* vert, double r[3][3], double h[3], apf::Mesh2* m_ptr, void *f_ptr, double *operator_ptr), apf::Field *f_ptr, double *operator_ptr);
 void runAnisoAdapt(apf::Mesh2* m_local);
 
 

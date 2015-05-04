@@ -160,11 +160,12 @@ end
 
 
 # 2d initilization
-function init2(dmg_name::AbstractString, smb_name::AbstractString, order::Integer)
+function init2(dmg_name::AbstractString, smb_name::AbstractString, order::Integer, load_mesh=true)
 # initilize mesh interface
 # initilize pointers to some value
 # order = order of shape functions to use, currently only necessary because
 #      pumi does not properly support saving shape functions to files
+# load_mesh : load mesh from file, or perform initilization functions on existing mesh (for re-initilizing after mesh adaptation)
 
 # this is hack-ish -- there should be a better way to do this
 #m_ptr = Ptr{Void}
@@ -175,7 +176,7 @@ num_Entities = zeros(Int32, 4, 1)
 m_ptr_array = Array(Ptr{Void}, 1)
 mshape_ptr_array = Array(Ptr{Void}, 1)
 
-i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8}, Ptr{Int32},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Int32), dmg_name, smb_name, downward_counts, num_Entities, m_ptr_array, mshape_ptr_array, order )  # call init in interface library
+i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8}, Ptr{Int32},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Int32, Int32), dmg_name, smb_name, downward_counts, num_Entities, m_ptr_array, mshape_ptr_array, order, load_mesh )  # call init in interface library
 
 if ( i != 0)
   println("init failed, exiting ...")
@@ -860,14 +861,17 @@ function createIsoFunc(m_ptr, sizefunc, u::AbstractVector)
   return nothing
 end
 
-function createAnisoFunc(m_ptr, sizefunc, u::AbstractVector)
+function createAnisoFunc(m_ptr, sizefunc, f_ptr, operator)
 # creates a function that describes how to refine the mesh anisotropically
 # m_ptr is a pointer to the mesh
 # sizefunc is a pointer to a c callable function
 # u is the solution vector
+# operator is an SBP operator
 
+operator_ptr = pointer_from_objref(operator)
+println("in PumiInterface, operator_ptr = ", operator_ptr)
 
-  ccall( (createAnisoFunc_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}), m_ptr, sizefunc, u)
+  ccall( (createAnisoFunc_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}), m_ptr, sizefunc, f_ptr, operator_ptr)
 
 return nothing
 

@@ -41,6 +41,7 @@ apf::Numbering* faceNums; // face numbering
 apf::Numbering* edgeNums; // edge numbering
 apf::Numbering* vertNums; // vertex numbers
 
+bool meshloaded = false;  // record whether or not a mesh has been loaded
 
 apf::MeshEntity* e_tmp;
 
@@ -118,7 +119,7 @@ int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numbe
   numberings[3] = numberOwnedDimension(m, "elNums", 3);
 
   // initalize tags
-  globalVertNums = m->createIntTag("globalNodeNumber", 1);
+//  globalVertNums = m->createIntTag("globalNodeNumber", 1);
 
 
   // initilize iterators
@@ -210,52 +211,68 @@ int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numbe
 
 // init for 2d mesh
 // order = order of shape functions to use
-int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order )
+// load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
+int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh )
 {
   std::cout << "Entered init\n" << std::endl;
 
-  if ( PCU_Comm_Initialized() ) // if init has been called before
+  // various startup options
+
+  // initilize communications if needed
+  if (!PCU_Comm_Initialized())
   {
-    std::cout << "Performing cleanup" << std::endl;
-    cleanup(m);  // destroy existing mesh
-  } else {
-      MPI_Init(0,NULL);  // initilize MPI 
-      PCU_Comm_Init();   // initilize PUMI's communication
+    MPI_Init(0,NULL);  // initilize MPI 
+    PCU_Comm_Init();   // initilize PUMI's communication
   }
-//  gmi_register_mesh();
+ 
 
-  // load mesh
-//  m = apf::loadMdsMesh("cube.dmg", "tet-mesh-1.smb");
-
-  if (strcmp(dmg_name, ".null") == 0)
+  if (load_mesh)  // if the user said to load a new mesh
   {
-    gmi_register_null();
-    std::cout << "loading null geometric model" << std::endl;
-    gmi_model* g = gmi_load(".null");
-    std::cout << "finished loading geometric model" << std::endl;
-    m = apf::loadMdsMesh(g, smb_name);
+    if ( meshloaded)  // if a mesh has been loaded before
+    {
+      std::cout << "Performing cleanup before loading new mesh" << std::endl;
+      cleanup(m);
+    }
+
+    if (strcmp(dmg_name, ".null") == 0)
+    {
+      gmi_register_null();
+      std::cout << "loading null geometric model" << std::endl;
+      gmi_model* g = gmi_load(".null");
+      std::cout << "finished loading geometric model" << std::endl;
+      m = apf::loadMdsMesh(g, smb_name);
 //    apf::changeMeshShape(m, apf::getLagrange(2), true);
 //    apf::changeMeshShape(m, apf::getLagrange(1), false); // for linear meshes
 //    apf::changeMeshShape(m, apf::getSerendipity(), true);
 //        apf::changeMeshShape(m, m->getShape(), false);
-    m->verify();
-  } else {
-    gmi_register_mesh();
-    std::cout << "loading geometric model from file" << std::endl;
-    m = apf::loadMdsMesh(dmg_name, smb_name);
+      m->verify();
+    } else {
+      gmi_register_mesh();
+      std::cout << "loading geometric model from file" << std::endl;
+      m = apf::loadMdsMesh(dmg_name, smb_name);
+    }
+
+    meshloaded = true;  // record the fact that a mesh is now loaded
+
+    // apply shape functions to newly loaded mesh
+    if ( order == 1)
+    {
+      apf::changeMeshShape(m, apf::getLagrange(1), false);
+    } else if ( order == 2 )
+    {
+      apf::changeMeshShape(m, apf::getSerendipity(), true);
+    } else {
+      std::cout << "Error: shape function order not supported, order request = " << order << std::endl;
+    }
+  
+    std::cout << "finished loading mesh, changing shape" << std::endl;
+
+  } else {  // if not loading a mesh
+    destroyNumberings();  // destroy the numberings before creating new ones
+    std::cout << "finished destroying numberings of existing mesh" << std::endl;
   }
 
-  if ( order == 1)
-  {
-    apf::changeMeshShape(m, apf::getLagrange(1), false);
-  } else if ( order == 2 )
-  {
-    apf::changeMeshShape(m, apf::getSerendipity(), true);
-  } else {
-    std::cout << "Error: shape function order not supported, order request = " << order << std::endl;
-  }
-
-  std::cout << "finished loading mesh, changing shape" << std::endl;
+  // this should have a new filename everytime
   apf::writeVtkFiles("output_check", m);
 
 
@@ -263,7 +280,7 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
   mshape_ptr_array[0] = m->getShape();
   its[0] = m->begin(0);
   entity_global = m->iterate(its[0]);  // get token mesh entity
-  std::cout << std::endl;
+  std::cout << "initilized library global variables" << std::endl;
 /* 
   // initilize iterators
   elIt = m->begin(3);
@@ -279,7 +296,7 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     number_entities[i] = numEntity[i];
   }
 
-
+  std::cout << "counted number of mesh each type of mesh entities" << std::endl;
 
   // initilize numberings
   numberings[0] = numberOwnedDimension(m, "vertNums", 0);
@@ -287,9 +304,11 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
   numberings[2] = numberOwnedDimension(m, "faceNums", 2);
 //  numberings[3] = numberOwnedDimension(m, "elNums", 3);
 
+  std::cout << "about to create tag field" << std::endl;
   // initalize tags
-  globalVertNums = m->createIntTag("globalNodeNumber", 1);
+//  globalVertNums = m->createIntTag("globalNodeNumber", 1);
 
+  std::cout << " finished creating tag field" << std::endl;
 
   // initilize iterators
   its[0] = m->begin(0);
@@ -368,9 +387,20 @@ void cleanup(apf::Mesh* m_local)
 {
   m_local->destroyNative();
   apf::destroyMesh(m_local);
+  meshloaded = false;
 //  PCU_Comm_Free();
 //  MPI_Finalize();
 }
+
+// destroy numberings after mesh adaptation
+// 2d mesh only
+void destroyNumberings()
+{
+  apf::destroyNumbering(numberings[0]);
+  apf::destroyNumbering(numberings[1]);
+  apf::destroyNumbering(numberings[2]);
+}
+ 
 
 apf::Mesh2* getMeshPtr()
 {
@@ -493,6 +523,8 @@ void writeVtkFiles(char* name, apf::Mesh2* m_local)
 
 
 // tag current vertex with val, part of MeshTag globalNodeNumbers
+//
+// these functions no longer work
 void setGlobalVertNumber(int val)
 {
   apf::MeshEntity* e = m->deref(its[0]);  // get current vertex
@@ -637,7 +669,7 @@ int countAdjacent(apf::Mesh2* m_local, apf::MeshEntity* e, int dimension)
   m_local->getAdjacent(e, dimension, adjacencies);
   int num_adjacent = adjacencies.getSize();
   adjacent_ready = true;
-  std::cout << " set adjcent_read = true" << std::endl;
+//  std::cout << " set adjcent_read = true" << std::endl;
   return num_adjacent;
 }
 
@@ -657,7 +689,7 @@ void getAdjacent(apf::MeshEntity* adjacencies_ret[])
   }
 
   adjacent_ready = false;
-  std::cout << "set adjacent_ready = false" << std::endl;
+ // std::cout << "set adjacent_ready = false" << std::endl;
 
 }
 
@@ -1098,10 +1130,12 @@ extern void createIsoFunc(apf::Mesh2* m_local, double(*sizefunc)(apf::MeshEntity
   isofunc = newisofunc; // copy to global isofunc
 }
 
-void createAnisoFunc(apf::Mesh2* m_local,  void (*sizefunc)(apf::MeshEntity* vert, double r[3][3], double h[3], apf::Mesh2* m_ptr, double *u), double *u)
+// using a double* for the operator only works on 64 bit systems
+void createAnisoFunc(apf::Mesh2* m_local,  void (*sizefunc)(apf::MeshEntity* vert, double r[3][3], double h[3], apf::Mesh2* m_ptr, void *f_ptr, double *operator_ptr), apf::Field *f_ptr, double *operator_ptr)
 {
+//  std::cout << " in c++, operator_ptr = " << operator_ptr << std::endl;
 
-  AnisotropicFunctionJ newanisofunc(m_local, sizefunc, u);  // create new function
+  AnisotropicFunctionJ newanisofunc(m_local, sizefunc, f_ptr, operator_ptr);  // create new function
   anisofunc = newanisofunc;  // copy to global anisofunc
 }
 // run mesh adaptation using isofunc
@@ -1120,7 +1154,6 @@ void runAnisoAdapt(apf::Mesh2* m_local)
 }
 
 
-// these are completely untested
 // apf::Field functions (needed for automagical solution transfer)
 apf::Field* createPackedField(apf::Mesh* m, char* fieldname, int numcomponents)
 {
