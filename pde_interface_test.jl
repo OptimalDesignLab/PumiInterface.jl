@@ -1,7 +1,7 @@
 push!(LOAD_PATH, "/users/creanj/julialib_for/PUMI.jl")
 #include("pde_interface.jl")
 using PdePumiInterface
-
+using PumiInterface
 dmg_name = ".null"
 smb_name = "tri8l.smb"
 
@@ -23,3 +23,8 @@ for i=1:mesh.numBoundaryEdges
   bndry = bnd_array[i]
   println("element ", bndry.element, " has local edge number ", bndry.face, " on the external boundary")
 end
+
+printEdgeVertNumbers(mesh.edge_Nptr, mesh.vert_Nptr)
+
+adjacent_nums, num_adjacent = getAdjacentEntityNums(mesh, 1, 1, 2)
+println("adjacent_nums = ", adjacent_nums, " num_adjacent = ", num_adjacent)

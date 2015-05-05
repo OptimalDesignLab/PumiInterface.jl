@@ -4,7 +4,7 @@ push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
 using PumiInterface
 using SummationByParts
 
-export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution
+export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution
 
 abstract AbstractMesh
 
@@ -12,6 +12,9 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
+  vert_Nptr::Ptr{Void}  # numbering of vertices
+  edge_Nptr::Ptr{Void}  # numbering of edges
+  el_Nptr::Ptr{Void}  # numbering of elements (faces)
 
   numVert::Int  # number of vertices in the mesh
   numEdge::Int # number of edges in the mesh
@@ -48,6 +51,11 @@ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; do
   numVert = convert(Int, num_Entities[1])
   numEdge =convert(Int,  num_Entities[2])
   numEl = convert(Int, num_Entities[3])
+
+  # get pointers to mesh entity numberings
+  vert_Nptr = getVertNumbering()
+  edge_Nptr = getEdgeNumbering()
+  el_Nptr = getFaceNumbering()
 
   verts = Array(Ptr{Void}, numVert)
   edges = Array(Ptr{Void}, numEdge)
@@ -144,7 +152,7 @@ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; do
 
 
   writeVtkFiles("mesh_complete", m_ptr)
-  return PumiMesh2(m_ptr, mshape_ptr, f_ptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
+  return PumiMesh2(m_ptr, mshape_ptr, f_ptr, vert_Nptr, edge_Nptr, el_Nptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
 end
 
 
@@ -169,6 +177,13 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   numVert = convert(Int, num_Entities[1])
   numEdge =convert(Int,  num_Entities[2])
   numEl = convert(Int, num_Entities[3])
+
+  mesh.vert_Nptr = getVertNumbering()
+  mesh.edge_Nptr = getEdgeNumbering()
+  mesh.el_Nptr = getFaceNumbering()
+
+
+
 
   verts = Array(Ptr{Void}, numVert)
   edges = Array(Ptr{Void}, numEdge)
@@ -361,6 +376,16 @@ return dofnums
 
 end
 
+function getEdgeNumber(mesh::PumiMesh2, edge_num::Integer)
+# get the number of an edge
+
+  i = getNumberJ(mesh.edge_Nptr, mesh.edges[edge_num], 0, 0)
+
+  return i
+
+end
+
+
 function getNumEl(mesh::PumiMesh2)
 # returns the number of elements in the mesh
 
@@ -393,6 +418,12 @@ return mesh.numDofPerNode
 
 end
 
+function getNumBoundaryEdges(mesh::PumiMesh2)
+# return the number of edges on the boundary
+
+  return length(mesh.boundary_edge_nums)
+end
+
 function getBoundaryEdgeNums(mesh::PumiMesh2)
 # get vector of edge numbers that are on boundary
 
@@ -410,6 +441,72 @@ function getBoundaryFaceNums(mesh::PumiMesh2)
 face_nums = zeros(Int, 0)
 return face_nums
 end
+
+
+function getAdjacentEntityNums(mesh::PumiMesh2, entity_index::Integer, input_dimension::Integer, output_dimension::Integer)
+# gets the numbers of the adjacent entities (upward or downward) of the given entity
+# entity_index specifies the index of the input entity
+# input_dimension specifies the dimension of the input entity (0 =vert, 1 = edge ...)
+# output_dimension is the dimension of the adjacent  entities to be retrieved
+# returns an array containing the indicies of the adjacent entities, and the number of them
+# the length of the array might be greater than the number of adjacencies, so use the second returned value for the number of adjacencies
+
+
+if (input_dimension == output_dimension)
+  println("cannot get same level adjacencies")
+end
+
+
+array1 = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
+#array2 = [mesh.verts; mesh.edges; mesh.elements]  # array of arrays
+array2 = Array(Array{Ptr{Void},1}, 3)
+array2[1] = mesh.verts
+array2[2] = mesh.edges
+array2[3] = mesh.elements
+
+# choose which numbering to use
+numbering_ptr = array1[output_dimension + 1]
+println("numbering_ptr = ", numbering_ptr)
+
+
+# get the the entity
+#println("array2 = ", array2)
+entity_array = array2[input_dimension + 1]
+entity = entity_array[entity_index]
+#entity = array2[input_dimension+1][entity_index]
+#println("entity = ", entity)
+
+#=
+entity_type = getType(mesh.m_ptr, entity)
+println("entity_type = ", entity_type)
+entity_num = getNumberJ(mesh.edge_Nptr, entity, 0, 0)
+println("edge number = ", entity_num)
+=#
+
+if input_dimension > output_dimension # downward adjacencies
+  println("getting downward adjacencies")
+  adjacent_entities, num_adjacent = getDownward(mesh.m_ptr, entity, output_dimension)
+
+else  # upward adjacencies
+  println("getting upward adjacencies")
+  num_adjacent = countAdjacent(mesh.m_ptr, entity, output_dimension)
+  adjacent_entities = getAdjacent(num_adjacent)
+end
+
+# get their numbers
+adjacent_nums = zeros(Int, num_adjacent)
+for i=1:num_adjacent # loop over adjacent entities
+  
+  # get their numbers here
+  adjacent_nums[i] = getNumberJ(numbering_ptr, adjacent_entities[i], 0, 0) + 1
+end
+
+return adjacent_nums, num_adjacent
+
+
+end
+
+
 
 function getBoundaryEdgeLocalNum(mesh::PumiMesh2, edge_num::Integer)
 # gets the local edge number of a specified edge that is on the boundary
