@@ -4,7 +4,7 @@ push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
 using PumiInterface
 using SummationByParts
 
-export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution
+export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums
 
 abstract AbstractMesh
 
@@ -421,13 +421,13 @@ end
 function getNumBoundaryEdges(mesh::PumiMesh2)
 # return the number of edges on the boundary
 
-  return length(mesh.boundary_edge_nums)
+  return length(mesh.boundary_nums)[1]
 end
 
 function getBoundaryEdgeNums(mesh::PumiMesh2)
 # get vector of edge numbers that are on boundary
 
-edge_nums = mesh.boundary_edge_nums
+edge_nums = mesh.boundary_nums
 return edge_nums
 end
 
@@ -525,6 +525,25 @@ function getBoundaryEdgeLocalNum(mesh::PumiMesh2, edge_num::Integer)
   edgenum_local = 0
   for j = 1:3  # find which local edge is edge_i
     if down_edges[j] == edge_i
+      edgenum_local = j
+    end
+  end
+
+  return edgenum_local
+
+end
+
+function getEdgeLocalNum(mesh::PumiMesh2, edge_num::Integer, element_num::Integer)
+# find the local edge number of a specified edge on a specified element
+
+  edge = mesh.edges[edge_num]
+  element = mesh.elements[element_num]
+
+  (down_edges, numedges) = getDownward(mesh.m_ptr, element, 1)
+
+  edgenum_local = 0
+   for j = 1:3  # find which local edge is edge_i
+    if down_edges[j] == edge
       edgenum_local = j
     end
   end
