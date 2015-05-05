@@ -32,3 +32,6 @@ println("adjacent_nums = ", adjacent_nums, " num_adjacent = ", num_adjacent)
 edgenum_local = getEdgeLocalNum(mesh, 1, adjacent_nums[1])
 println("edgenum_local = ", edgenum_local)
 
+
+num_bnd_elements = getNumBoundaryElements(mesh)
+println("number of boundary elements = ", num_bnd_elements)

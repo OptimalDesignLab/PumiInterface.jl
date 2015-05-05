@@ -4,7 +4,7 @@ push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
 using PumiInterface
 using SummationByParts
 
-export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums
+export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements
 
 abstract AbstractMesh
 
@@ -422,6 +422,12 @@ function getNumBoundaryEdges(mesh::PumiMesh2)
 # return the number of edges on the boundary
 
   return length(mesh.boundary_nums)[1]
+end
+
+function getNumBoundaryElements(mesh::PumiMesh2)
+# count the number of elements on the boundary
+
+   return length(unique(mesh.boundary_nums[:,1]))
 end
 
 function getBoundaryEdgeNums(mesh::PumiMesh2)
