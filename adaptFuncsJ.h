@@ -52,7 +52,7 @@ class AnisotropicFunctionJ : public ma::AnisotropicFunction
 
   private:
     void (*juliafunc)(apf::MeshEntity* vert, double r[3][3], double h[3], apf::Mesh2* m_ptr, void *f_ptr, double *operator_ptr);
-    void *f_ptr;
+    void *f_ptr; // pointer to apf::Field, to be passed to Julia)
     double *operator_ptr;  // pointer to operator (julia object that gets passed to sizefunc)
     double r_array[3][3];  // array used to turn ma::Matrix into standard data type
     double h_array[3];  // array used to turn vector into standard data type

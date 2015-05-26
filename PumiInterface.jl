@@ -766,6 +766,7 @@ end
 function createNumberingJ(m_ptr, name::AbstractString, field, components::Integer)
 # create a generally defined numbering, get a pointer to it
 # this just passes through to apf::createNumbering
+# field is an apf::FieldShape*
 
 numbering_ptr = ccall ( (createNumberingJ_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{UInt8}, Ptr{Void}, Int32), m_ptr, name, field, components)
 

@@ -4,7 +4,7 @@ push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
 using PumiInterface
 using SummationByParts
 
-export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements
+export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray
 
 abstract AbstractMesh
 
@@ -421,7 +421,7 @@ end
 function getNumBoundaryEdges(mesh::PumiMesh2)
 # return the number of edges on the boundary
 
-  return length(mesh.boundary_nums)[1]
+  return mesh.numBoundaryEdges
 end
 
 function getNumBoundaryElements(mesh::PumiMesh2)
@@ -439,6 +439,7 @@ end
 
 
 
+# this doesn't exist for a 2D mesh
 function getBoundaryFaceNums(mesh::PumiMesh2)
 # get array of face numbers that are on boundary
 # this only works in 2d
@@ -472,7 +473,7 @@ array2[3] = mesh.elements
 
 # choose which numbering to use
 numbering_ptr = array1[output_dimension + 1]
-println("numbering_ptr = ", numbering_ptr)
+#println("numbering_ptr = ", numbering_ptr)
 
 
 # get the the entity
@@ -490,11 +491,11 @@ println("edge number = ", entity_num)
 =#
 
 if input_dimension > output_dimension # downward adjacencies
-  println("getting downward adjacencies")
+#  println("getting downward adjacencies")
   adjacent_entities, num_adjacent = getDownward(mesh.m_ptr, entity, output_dimension)
 
 else  # upward adjacencies
-  println("getting upward adjacencies")
+#  println("getting upward adjacencies")
   num_adjacent = countAdjacent(mesh.m_ptr, entity, output_dimension)
   adjacent_entities = getAdjacent(num_adjacent)
 end
@@ -558,11 +559,12 @@ function getEdgeLocalNum(mesh::PumiMesh2, edge_num::Integer, element_num::Intege
 
 end
 
-function getBoundaryArray(mesh::PumiMesh2)
+function getBoundaryArray(mesh::PumiMesh2, bnd_array::Array{Boundary, 1})
 # get an array of type Boundary for SBP
 # creating an an array of a user defined type seems like a waste of memory operations
+# bnd_array is a vector of type Boundary with length equal to the number of edges on the boundary of the mesh
 
-  bnd_array = Array(Boundary, mesh.numBoundaryEdges)
+#  bnd_array = Array(Boundary, mesh.numBoundaryEdges)
 
   for i=1:mesh.numBoundaryEdges
     facenum = mesh.boundary_nums[i,1]
@@ -571,8 +573,143 @@ function getBoundaryArray(mesh::PumiMesh2)
     bnd_array[i] = Boundary(facenum, edgenum_local)
   end
 
-  return bnd_array
+  return nothing
 end
+
+
+function getInterfaceArray(mesh::PumiMesh2, interfaces::AbstractArray{Interface,1})
+# get array of [elementL, elementR, edgeL, edgeR] for each internal edge,
+# where elementL and R are the elements that use the edge, edgeL R are the
+# local number of the edge within the element
+# interfaces is the array to be populated with the data, it must be 
+# number of internal edges by 1
+
+  # only need internal boundaries (not external)
+#  num_ext_edges = size(getBoundaryEdgeNums(mesh))[1]  # bad memory efficiency
+#  num_int_edges = getNumEdges(mesh) - num_ext_edges
+
+#  new_bndry = Boundary(2, 3)
+#   println("new_bndry = ", new_bndry)
+
+#  new_interface = Interface(1, 2, 3, 4)
+#   println("new_interface = ", new_interface)
+
+#   println("num_int_edges = ", num_int_edges)
+
+#  interfaces = Array(typeof(new_interface), num_int_edges)
+
+  pos = 1 # current position in interfaces
+  for i=1:getNumEdges(mesh)
+#     println("i = ", i)
+#     println("pos = ", pos)
+    # get number of elements using the edge
+    adjacent_nums, num_adjacent = getAdjacentEntityNums(mesh, i, 1, 2)
+#     println("num_adjacent = ", num_adjacent)
+#     println("adjacent_nums = ", adjacent_nums)
+    if num_adjacent > 1  # internal edge
+#       println("this is an internal edge")
+      element1 = adjacent_nums[1]
+      element2 = adjacent_nums[2]
+
+#      coords_1 = x[:, :, element1]
+#      coords_2 = x[:, :, element2]
+
+      coords_1 = zeros(3,3)
+      coords_2 = zeros(3,3)
+      getFaceCoords(mesh.elements[element1], coords_1, 3, 3)
+      getFaceCoords(mesh.elements[element2], coords_2, 3, 3)
+
+      # calculate centroid
+      centroid1 = sum(coords_1, 2)
+      centroid2 = sum(coords_2, 2)
+
+      if abs(centroid1[1] - centroid2[2]) < 1e-10  # if big enough difference
+        if centroid1[1] < centroid2[1]
+    elementL = element1
+    elementR = element2
+        else
+    elementL = element2
+    elementR = element1
+        end
+      else  # use y coordinate to decide
+        if centroid1[2] < centroid2[2]
+    elementL = element1
+    elementR = element2
+        else
+    elementL = element2
+    elementR = element1
+        end
+      end
+
+      edgeL = getEdgeLocalNum(mesh, i, elementL)
+      edgeR = getEdgeLocalNum(mesh, i, elementR)
+
+      interfaces[pos] = Interface(elementL, elementR, edgeL, edgeR)
+#       println("updating pos")
+      pos += 1
+
+  #    print("\n")
+
+    end  # end if internal edge
+
+#     print("\n")
+  end  # end loop over edges
+
+  return nothing
+
+end  # end function
+
+
+
+
+
+#=
+function getEdgeInterfaceData(i::Integer)
+
+#     println("i = ", i)
+#     println("pos = ", pos)
+    # get number of elements using the edge
+    adjacent_nums, num_adjacent = getAdjacentEntityNums(mesh, i, 1, 2)
+#     println("num_adjacent = ", num_adjacent)
+#     println("adjacent_nums = ", adjacent_nums)
+    if num_adjacent > 1  # internal edge
+#       println("this is an internal edge")
+      element1 = adjacent_nums[1]
+      element2 = adjacent_nums[2]
+
+      coords_1 = x[:, :, element1]
+      coords_2 = x[:, :, element2]
+
+      # calculate centroid
+      centroid1 = sum(coords_1, 2)
+      centroid2 = sum(coords_2, 2)
+
+      if abs(centroid1[1] - centroid2[2]) < 1e-10  # if big enough difference
+        if centroid1[1] < centroid2[1]
+    elementL = element1
+    elementR = element2
+        else
+    elementL = element2
+    elementR = element1
+        end
+      else  # use y coordinate to decide
+        if centroid1[2] < centroid2[2]
+    elementL = element1
+    elementR = element2
+        else
+    elementL = element2
+    elementR = element1
+        end
+      end
+
+      edgeL = getEdgeLocalNum(mesh, i, elementL)
+      edgeR = getEdgeLocalNum(mesh, i, elementR)
+
+      return elementL, elementR, edgeL, edgeR
+    end
+
+=#
+
 
 
 function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
