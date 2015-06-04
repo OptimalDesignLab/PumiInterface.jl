@@ -25,6 +25,7 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   numDofPerNode::Int  # number of dofs per node
   numBoundaryEdges::Int # number of edges on the exterior boundary
   numInterfaces::Int # number of internal interfaces
+  numNodesPerElement::Int  # number of nodes per element
 
   # hold pointers to mesh entities
   verts::Array{Ptr{Void},1}  # holds pointers to mesh vertices
@@ -39,7 +40,7 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
 
   coords::Array{Float64, 3}  # store coordinate field
   dxidx::Array{Float64, 4}  # store scaled mapping jacobian
-  jac::Array{Float64,3}  # store mapping jacobian output
+  jac::Array{Float64,2}  # store mapping jacobian output
 
 
 
@@ -53,6 +54,7 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   mesh = new()
   mesh.numDofPerNode = dofpernode
   mesh.order = order
+  mesh.numNodesPerElement = getNumNodes(order)
   tmp, num_Entities, mesh.m_ptr, mesh.mshape_ptr = init2(dmg_name, smb_name, order)
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
 
@@ -180,126 +182,25 @@ end
 end
 
 
-#=
-function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; dofpernode=1)
-  # construct pumi mesh by loading the files named
-  # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
-  # smb_name = name of .smb (mesh) file to load
-  # order = order of shape functions
-  # dofpernode = number of dof per node, default = 1
+function getNumNodes(order::Integer)
+# get the number of nodes on an element
+# assumes SBP elements
 
-
-  tmp, num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
-  f_ptr = createPackedField(m_ptr, "solution_field", dofpernode)
-
-  numVert = convert(Int, num_Entities[1])
-  numEdge =convert(Int,  num_Entities[2])
-  numEl = convert(Int, num_Entities[3])
-
-  # get pointers to mesh entity numberings
-  vert_Nptr = getVertNumbering()
-  edge_Nptr = getEdgeNumbering()
-  el_Nptr = getFaceNumbering()
-
-  verts = Array(Ptr{Void}, numVert)
-  edges = Array(Ptr{Void}, numEdge)
-  elements = Array(Ptr{Void}, numEl)
-  dofnums_Nptr = createNumberingJ(m_ptr, "reordered dof numbers", mshape_ptr, dofpernode)  # 1 dof per node
-
-  # get pointers to all MeshEntities
-  # also initilize the field to zero
-  resetAllIts2()
-#  comps = zeros(dofpernode)
-  comps = [1.0, 2, 3, 4]
-  for i=1:numVert
-    verts[i] = getVert()
-    setComponents(f_ptr, verts[i], 0, comps)  # initilize the field
-    incrementVertIt()
+  nnodes = 0
+  if order == 1
+    nnodes = 3
+  elseif order == 2
+    nnodes = 7
+  elseif order == 3
+    nnodes = 12
+  elseif order == 4
+    nnodes = 18
+  else
+    println("Warning, unsupported order elements are requested")
   end
 
-  for i=1:numEdge
-    edges[i] = getEdge()
-    incrementEdgeIt()
-  end
-
-  for i=1:numEl
-    elements[i] = getFace()
-    incrementFaceIt()
-  end
-
-  resetAllIts2()
-  println("performing initial numbering of dofs")
-  # calculate number of nodes, dofs (works for first and second order)
-  numnodes = order*numVert 
-  numdof = numnodes*dofpernode
-  # number dofs
-  ctr= 1
-  for i=1:numVert
-    for j=1:dofpernode
-      numberJ(dofnums_Nptr, verts[i], 0, j-1, ctr)
-      println("vertex ", i,  " numbered ", ctr)
-      ctr += 1
-    end
-  end
-
-  if order >= 2
-    for i=1:numEdges
-      for j=1:dofpernode
-        numberJ(dofnums_Nptr, edges[i], 0, j-1, ctr)
-        ctr += 1
-      end
-    end
-  end
-
- 
-
-  # count boundary edges
-  bnd_edges_cnt = 0
-  bnd_edges = Array(Int, numEdge, 2)
-  for i=1:numEdge
-    edge_i = getEdge()
-    numFace = countAdjacent(m_ptr, edge_i, 2)  # should be count upward
-
-    if numFace == 1  # if an exterior edge
-      faces = getAdjacent(numFace)
-      facenum = getFaceNumber2(faces[1]) + 1
-
-      bnd_edges_cnt += 1
-      bnd_edges[bnd_edges_cnt, 1] = facenum
-      bnd_edges[bnd_edges_cnt, 2] = i
-    end
-    incrementEdgeIt()
-  end
-
-  bnd_edges_small = bnd_edges[1:bnd_edges_cnt, :]
-#=
-  println("typeof m_ptr = ", typeof(m_ptr))
-  println("typeof mshape_ptr = ", typeof(mshape_ptr))
-  println("typeof numVerg = ", typeof(numVert))
-  println("typeof numEdge = ", typeof(numEdge))
-  println("typeof numEl = ", typeof(numEl))
-  println("typeof order = ", typeof(order))
-  println("typeof numdof = ", typeof(numdof))
-  println("typeof bnd_edges_cnt = ", typeof(bnd_edges_cnt))
-  println("typeof verts = ", typeof(verts))
-  println("typeof edges = ", typeof(edges))
-  println("typeof element = ", typeof(elements))
-  println("typeof dofnums_Nptr = ", typeof(dofnums_Nptr))
-  println("typeof bnd_edges_small = ", typeof(bnd_edges_small))
-=#
-  println("numVert = ", numVert)
-  println("numEdge = ", numEdge)
-  println("numEl = ", numEl)
-  println("numDof = ", numdof)
-  println("numNodes = ", numnodes)
-
-
-
-  writeVtkFiles("mesh_complete", m_ptr)
-  # could use incomplete initilization to avoid copying arrays
-  return PumiMesh2(m_ptr, mshape_ptr, f_ptr, vert_Nptr, edge_Nptr, el_Nptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
+  return nnodes
 end
-=#
 
 # for reinitilizeing after mesh adaptation
 function reinitPumiMesh2(mesh::PumiMesh2)
