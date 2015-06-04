@@ -24,6 +24,7 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   numNodes::Int  # number of nodes
   numDofPerNode::Int  # number of dofs per node
   numBoundaryEdges::Int # number of edges on the exterior boundary
+  numInterfaces::Int # number of internal interfaces
 
   # hold pointers to mesh entities
   verts::Array{Ptr{Void},1}  # holds pointers to mesh vertices
@@ -33,10 +34,153 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   dofnums_Nptr::Ptr{Void}  # pointer to Numbering of dofs (result of reordering)
   boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
 
-  
+  bndryfaces::Array{Boundary, 1}  # store data on external boundary of mesh
+  interfaces::Array{Interface, 1}  # store data on internal edges
+
+  coords::Array{Float64, 3}  # store coordinate field
+  dxidx::Array{Float64, 4}  # store scaled mapping jacobian
+  jac::Array{Float64,3}  # store mapping jacobian output
+
+
+
+ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; dofpernode=1)
+  # construct pumi mesh by loading the files named
+  # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
+  # smb_name = name of .smb (mesh) file to load
+  # order = order of shape functions
+  # dofpernode = number of dof per node, default = 1
+
+  mesh = new()
+  mesh.numDofPerNode = dofpernode
+  mesh.order = order
+  tmp, num_Entities, mesh.m_ptr, mesh.mshape_ptr = init2(dmg_name, smb_name, order)
+  mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
+
+  mesh.numVert = convert(Int, num_Entities[1])
+  mesh.numEdge =convert(Int,  num_Entities[2])
+  mesh.numEl = convert(Int, num_Entities[3])
+
+  # get pointers to mesh entity numberings
+  mesh.vert_Nptr = getVertNumbering()
+  mesh.edge_Nptr = getEdgeNumbering()
+  mesh.el_Nptr = getFaceNumbering()
+
+  mesh.verts = Array(Ptr{Void}, mesh.numVert)
+  mesh.edges = Array(Ptr{Void}, mesh.numEdge)
+  mesh.elements = Array(Ptr{Void}, mesh.numEl)
+  mesh.dofnums_Nptr = createNumberingJ(mesh.m_ptr, "reordered dof numbers", mesh.mshape_ptr, dofpernode)  # 1 dof per node
+
+  # get pointers to all MeshEntities
+  # also initilize the field to zero
+  resetAllIts2()
+#  comps = zeros(dofpernode)
+  comps = [1.0, 2, 3, 4]
+  for i=1:mesh.numVert
+    mesh.verts[i] = getVert()
+    setComponents(mesh.f_ptr, mesh.verts[i], 0, comps)  # initilize the field
+    incrementVertIt()
+  end
+
+  for i=1:mesh.numEdge
+    mesh.edges[i] = getEdge()
+    incrementEdgeIt()
+  end
+
+  for i=1:mesh.numEl
+    mesh.elements[i] = getFace()
+    incrementFaceIt()
+  end
+
+  resetAllIts2()
+  println("performing initial numbering of dofs")
+  # calculate number of nodes, dofs (works for first and second order)
+  numnodes = order*mesh.numVert 
+  numdof = numnodes*dofpernode
+  # number dofs
+  ctr= 1
+  for i=1:mesh.numVert
+    for j=1:dofpernode
+      numberJ(mesh.dofnums_Nptr, mesh.verts[i], 0, j-1, ctr)
+      println("vertex ", i,  " numbered ", ctr)
+      ctr += 1
+    end
+  end
+
+  if order >= 2
+    for i=1:mesh.numEdges
+      for j=1:dofpernode
+        numberJ(mesh.dofnums_Nptr, mesh.edges[i], 0, j-1, ctr)
+        ctr += 1
+      end
+    end
+  end
+
+  mesh.numNodes = numnodes
+  mesh.numDof = numdof
+
+  # count boundary edges
+  bnd_edges_cnt = 0
+  bnd_edges = Array(Int, mesh.numEdge, 2)
+  for i=1:mesh.numEdge
+    edge_i = getEdge()
+    numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
+
+    if numFace == 1  # if an exterior edge
+      faces = getAdjacent(numFace)
+      facenum = getFaceNumber2(faces[1]) + 1
+
+      bnd_edges_cnt += 1
+      bnd_edges[bnd_edges_cnt, 1] = facenum
+      bnd_edges[bnd_edges_cnt, 2] = i
+    end
+    incrementEdgeIt()
+  end
+
+  mesh.boundary_nums = bnd_edges[1:bnd_edges_cnt, :] # copy, bad but unavoidable
+  mesh.numBoundaryEdges = bnd_edges_cnt
+
+  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
+  getBoundaryArray(mesh)
+
+  mesh.numInterfaces = mesh.numEdge - mesh.numBoundaryEdges
+  mesh.interfaces = Array(Interface, mesh.numInterfaces)
+  getInterfaceArray(mesh)
+
+#=
+  println("typeof m_ptr = ", typeof(m_ptr))
+  println("typeof mshape_ptr = ", typeof(mshape_ptr))
+  println("typeof numVerg = ", typeof(numVert))
+  println("typeof numEdge = ", typeof(numEdge))
+  println("typeof numEl = ", typeof(numEl))
+  println("typeof order = ", typeof(order))
+  println("typeof numdof = ", typeof(numdof))
+  println("typeof bnd_edges_cnt = ", typeof(bnd_edges_cnt))
+  println("typeof verts = ", typeof(verts))
+  println("typeof edges = ", typeof(edges))
+  println("typeof element = ", typeof(elements))
+  println("typeof dofnums_Nptr = ", typeof(dofnums_Nptr))
+  println("typeof bnd_edges_small = ", typeof(bnd_edges_small))
+=#
+  println("numVert = ", mesh.numVert)
+  println("numEdge = ", mesh.numEdge)
+  println("numEl = ", mesh.numEl)
+  println("numDof = ", mesh.numDof)
+  println("numNodes = ", mesh.numNodes)
+
+
+
+  writeVtkFiles("mesh_complete", mesh.m_ptr)
+  return mesh
+  # could use incomplete initilization to avoid copying arrays
+#  return PumiMesh2(m_ptr, mshape_ptr, f_ptr, vert_Nptr, edge_Nptr, el_Nptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
+end
+
+ 
   
 end
 
+
+#=
 function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; dofpernode=1)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
@@ -152,9 +296,10 @@ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; do
 
 
   writeVtkFiles("mesh_complete", m_ptr)
+  # could use incomplete initilization to avoid copying arrays
   return PumiMesh2(m_ptr, mshape_ptr, f_ptr, vert_Nptr, edge_Nptr, el_Nptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
 end
-
+=#
 
 # for reinitilizeing after mesh adaptation
 function reinitPumiMesh2(mesh::PumiMesh2)
@@ -294,8 +439,20 @@ end
 
 
 
+function getElementVertCoords(mesh::PumiMesh2, elnum::Integer, coords::AbstractArray{Float64,2})
+# get the coordinates of the vertices of an element
+# elnum is the number of the element
+# coords is the array to be populated with the coordinates
+# each column of coords contains the coordinates for a vertex
+# coords must be 3x3
 
+  el_j = mesh.elements[elnum]
+  (sizex, sizey) = size(coords)
+  getFaceCoords(el_j, coords, sizex, sizey)  # populate coords
 
+  return nothing
+
+end # end function
 
 function getElementVertCoords(mesh::PumiMesh2,  elnums::Array{Int,1})
 # elnums = vector of element numbbers
@@ -559,25 +716,25 @@ function getEdgeLocalNum(mesh::PumiMesh2, edge_num::Integer, element_num::Intege
 
 end
 
-function getBoundaryArray(mesh::PumiMesh2, bnd_array::Array{Boundary, 1})
+function getBoundaryArray(mesh::PumiMesh2)
 # get an array of type Boundary for SBP
 # creating an an array of a user defined type seems like a waste of memory operations
 # bnd_array is a vector of type Boundary with length equal to the number of edges on the boundary of the mesh
 
-#  bnd_array = Array(Boundary, mesh.numBoundaryEdges)
+#  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
 
   for i=1:mesh.numBoundaryEdges
     facenum = mesh.boundary_nums[i,1]
     edgenum_global = mesh.boundary_nums[i,2]
     edgenum_local = getBoundaryEdgeLocalNum(mesh, edgenum_global)
-    bnd_array[i] = Boundary(facenum, edgenum_local)
+    mesh.bndryfaces[i] = Boundary(facenum, edgenum_local)
   end
 
   return nothing
 end
 
 
-function getInterfaceArray(mesh::PumiMesh2, interfaces::AbstractArray{Interface,1})
+function getInterfaceArray(mesh::PumiMesh2)
 # get array of [elementL, elementR, edgeL, edgeR] for each internal edge,
 # where elementL and R are the elements that use the edge, edgeL R are the
 # local number of the edge within the element
@@ -644,7 +801,7 @@ function getInterfaceArray(mesh::PumiMesh2, interfaces::AbstractArray{Interface,
       edgeL = getEdgeLocalNum(mesh, i, elementL)
       edgeR = getEdgeLocalNum(mesh, i, elementR)
 
-      interfaces[pos] = Interface(elementL, elementR, edgeL, edgeR)
+      mesh.interfaces[pos] = Interface(elementL, elementR, edgeL, edgeR)
 #       println("updating pos")
       pos += 1
 
