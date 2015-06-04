@@ -38,13 +38,15 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   bndryfaces::Array{Boundary, 1}  # store data on external boundary of mesh
   interfaces::Array{Interface, 1}  # store data on internal edges
 
-  coords::Array{Float64, 3}  # store coordinate field
+  coords::Array{Float64, 3}  # store coordinates of all nodes
   dxidx::Array{Float64, 4}  # store scaled mapping jacobian
   jac::Array{Float64,2}  # store mapping jacobian output
 
+  dofs::Array{Float64, 3}  # store dof numbers of solution array to speed assembly
 
 
- function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order; dofpernode=1)
+
+ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::SBPOperator; dofpernode=1)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -148,6 +150,12 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
 
+  getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
+  getDofNumbers(mesh)  # store dof numbers
+
+  mesh.dxidx = Array(Float64, 2, 2, sbp.numnodes, mesh.numEl)
+  mesh.jac = Array(Float64, sbp.numnodes, mesh.numEl)
+  mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
 #=
   println("typeof m_ptr = ", typeof(m_ptr))
   println("typeof mshape_ptr = ", typeof(mshape_ptr))
@@ -202,6 +210,24 @@ function getNumNodes(order::Integer)
   return nnodes
 end
 
+function getDofNumbers(mesh::PumiMesh2)
+# populate array of dof numbers, in same shape as solution array u (or q)
+
+mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
+
+for i=1:mesh.numEl
+  dofnums = getGlobalNodeNumbers(mesh, i)
+
+  for j=1:mesh.numNodesPerElement
+    for k=1:mesh.numDofPerNode  # loop over dofs on the node
+      mesh.dofs[k, j, i] = dofnums[k,j]
+    end
+  end
+end
+
+return nothing
+
+end
 # for reinitilizeing after mesh adaptation
 function reinitPumiMesh2(mesh::PumiMesh2)
   # construct pumi mesh by loading the files named
@@ -337,6 +363,29 @@ function reinitPumiMesh2(mesh::PumiMesh2)
 
   writeVtkFiles("mesh_complete", m_ptr)
 end
+
+
+function getCoordinates(mesh::PumiMesh2, sbp::SBPOperator)
+# populate the coords array of the mesh object
+
+mesh.coords = Array(Float64, 2, sbp.numnodes, mesh.numEl)
+
+coords_i = zeros(3,3)
+coords_it = zeros(3,2)
+for i=1:mesh.numEl  # loop over elements
+  
+  el_i = mesh.elements[i]
+  (sizex, sizey) = size(coords_i)
+  getFaceCoords(el_i, coords_i, sizex, sizey)  # populate coords
+
+  coords_it[:,:] = coords_i[1:2, :].'
+  mesh.coords[:, :, i] = calcnodes(sbp, coords_it)
+end
+
+return nothing
+
+end
+
 
 
 
