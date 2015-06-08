@@ -1,12 +1,14 @@
 module PdePumiInterface
 push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
-
+push!(LOAD_PATH, "/users/creanj/.julia/v0.4/PDESolver/src/common")
 using PumiInterface
 using SummationByParts
+using CommonTypes
+
 
 export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray
 
-abstract AbstractMesh
+#abstract AbstractMesh
 
 type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
@@ -95,53 +97,11 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
     incrementFaceIt()
   end
 
-  resetAllIts2()
-  println("performing initial numbering of dofs")
-  # calculate number of nodes, dofs (works for first and second order)
-  numnodes = order*mesh.numVert 
-  numdof = numnodes*dofpernode
-  # number dofs
-  ctr= 1
-  for i=1:mesh.numVert
-    for j=1:dofpernode
-      numberJ(mesh.dofnums_Nptr, mesh.verts[i], 0, j-1, ctr)
-      println("vertex ", i,  " numbered ", ctr)
-      ctr += 1
-    end
-  end
+  # use partially constructed mesh object to populate arrays
 
-  if order >= 2
-    for i=1:mesh.numEdges
-      for j=1:dofpernode
-        numberJ(mesh.dofnums_Nptr, mesh.edges[i], 0, j-1, ctr)
-        ctr += 1
-      end
-    end
-  end
+  numberDofs(mesh)
 
-  mesh.numNodes = numnodes
-  mesh.numDof = numdof
-
-  # count boundary edges
-  bnd_edges_cnt = 0
-  bnd_edges = Array(Int, mesh.numEdge, 2)
-  for i=1:mesh.numEdge
-    edge_i = getEdge()
-    numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
-
-    if numFace == 1  # if an exterior edge
-      faces = getAdjacent(numFace)
-      facenum = getFaceNumber2(faces[1]) + 1
-
-      bnd_edges_cnt += 1
-      bnd_edges[bnd_edges_cnt, 1] = facenum
-      bnd_edges[bnd_edges_cnt, 2] = i
-    end
-    incrementEdgeIt()
-  end
-
-  mesh.boundary_nums = bnd_edges[1:bnd_edges_cnt, :] # copy, bad but unavoidable
-  mesh.numBoundaryEdges = bnd_edges_cnt
+  countBoundaryEdges(mesh)
 
   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
   getBoundaryArray(mesh)
@@ -209,6 +169,76 @@ function getNumNodes(order::Integer)
 
   return nnodes
 end
+
+
+function numberDofs(mesh::PumiMesh2)
+# number the degrees of freedom of the mesh, using the apf::Numbering* stroed
+# in the mesh
+
+  # move this into a function
+  resetAllIts2()
+  println("performing initial numbering of dofs")
+  # calculate number of nodes, dofs (works for first and second order)
+  numnodes = mesh.order*mesh.numVert 
+  numdof = numnodes*mesh.numDofPerNode
+  # number dofs
+  ctr= 1
+  for i=1:mesh.numVert
+    for j=1:mesh.numDofPerNode
+      numberJ(mesh.dofnums_Nptr, mesh.verts[i], 0, j-1, ctr)
+      println("vertex ", i,  " numbered ", ctr)
+      ctr += 1
+    end
+  end
+
+  if mesh.order >= 2
+    for i=1:mesh.numEdges
+      for j=1:mesh.numDofPerNode
+        numberJ(mesh.dofnums_Nptr, mesh.edges[i], 0, j-1, ctr)
+        ctr += 1
+      end
+    end
+  end
+
+  mesh.numNodes = numnodes
+  mesh.numDof = numdof
+
+return nothing
+
+end  # end function
+
+
+
+function countBoundaryEdges(mesh::PumiMesh2)
+  # move this into a function
+  # count boundary edges
+  bnd_edges_cnt = 0
+  bnd_edges = Array(Int, mesh.numEdge, 2)
+  for i=1:mesh.numEdge
+    edge_i = getEdge()
+    numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
+
+    if numFace == 1  # if an exterior edge
+      faces = getAdjacent(numFace)
+      facenum = getFaceNumber2(faces[1]) + 1
+
+      bnd_edges_cnt += 1
+      bnd_edges[bnd_edges_cnt, 1] = facenum
+      bnd_edges[bnd_edges_cnt, 2] = i
+    end
+    incrementEdgeIt()
+  end
+
+
+  mesh.boundary_nums = bnd_edges[1:bnd_edges_cnt, :] # copy, bad but unavoidable
+  mesh.numBoundaryEdges = bnd_edges_cnt
+
+return nothing
+
+end  # end function
+
+
+
 
 function getDofNumbers(mesh::PumiMesh2)
 # populate array of dof numbers, in same shape as solution array u (or q)
