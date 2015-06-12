@@ -3,14 +3,14 @@ push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
 push!(LOAD_PATH, "/users/creanj/.julia/v0.4/PDESolver/src/common")
 using PumiInterface
 using SummationByParts
-using CommonTypes
+using PDESolverCommon
 
 
 export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray
 
 #abstract AbstractMesh
 
-type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
+type PumiMesh2{T1} <: AbstractMesh{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
@@ -40,11 +40,11 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   bndryfaces::Array{Boundary, 1}  # store data on external boundary of mesh
   interfaces::Array{Interface, 1}  # store data on internal edges
 
-  coords::Array{Float64, 3}  # store coordinates of all nodes
-  dxidx::Array{Float64, 4}  # store scaled mapping jacobian
-  jac::Array{Float64,2}  # store mapping jacobian output
+  coords::Array{T1, 3}  # store coordinates of all nodes
+  dxidx::Array{T1, 4}  # store scaled mapping jacobian
+  jac::Array{T1,2}  # store mapping jacobian output
 
-  dofs::Array{Float64, 3}  # store dof numbers of solution array to speed assembly
+  dofs::Array{Int, 3}  # store dof numbers of solution array to speed assembly
 
 
 
@@ -113,8 +113,8 @@ type PumiMesh2 <: AbstractMesh   # 2d pumi mesh, triangle only
   getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
   getDofNumbers(mesh)  # store dof numbers
 
-  mesh.dxidx = Array(Float64, 2, 2, sbp.numnodes, mesh.numEl)
-  mesh.jac = Array(Float64, sbp.numnodes, mesh.numEl)
+  mesh.dxidx = Array(T1, 2, 2, sbp.numnodes, mesh.numEl)
+  mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
   mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
 #=
   println("typeof m_ptr = ", typeof(m_ptr))
