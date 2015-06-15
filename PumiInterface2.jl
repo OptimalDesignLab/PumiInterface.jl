@@ -119,12 +119,23 @@ end
 
 function getNodeEntities(m_ptr, mshape_ptr, entity)
 # get the meshentities that have nodes on them 
-# this only works for first and second order
+# this only works for simplex elements
   
   entity_type = getType(m_ptr, entity)
   eshape_ptr = getEntityShape(mshape_ptr, entity_type)
   nnodes = countNodes(eshape_ptr)
   downward_entities = Array(Ptr{Void}, nnodes)  # one node per entity only
+
+  if 2D element
+  vert_nodes = hasNodesIn(mshape_ptr, 0)
+  edge_nodes = hasNodesIn(mshape_ptr, 1)
+  face_nodes = hasNodesIn(mshape_ptr, 2)
+  
+  
+  if 3D element
+  region_nodes = hasNodesIn(mshape_ptr,3)
+
+  
   
   if hasNodesIn(mshape_ptr, 0)  # vertices
     (verts, numV) = getDownward(m_ptr, entity, 0)
@@ -133,7 +144,11 @@ function getNodeEntities(m_ptr, mshape_ptr, entity)
     if hasNodesIn(mshape_ptr, 1)  # edges
       (edges, numEdges) = getDownward(mesh.mshape_ptr, entity, 1)
 	  downward_entities[(numV+1):(numV+numEdges)] = edges
-	 end
+    end
+
+    if hasNodesIn(mshape_ptr, 2)  # faces
+
+    end
   end
   
   return downward_entities

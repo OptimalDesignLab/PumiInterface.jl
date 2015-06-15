@@ -28,6 +28,7 @@
 
 #include "funcs1.h"
 #include "adaptFuncsJ.h"
+#include "apfSBPShape.h"
 //#include "a2.h"
 
 //=============================================================================
@@ -1154,7 +1155,6 @@ void runAnisoAdapt(apf::Mesh2* m_local)
 }
 
 
-// these are completely untested
 // apf::Field functions (needed for automagical solution transfer)
 apf::Field* createPackedField(apf::Mesh* m, char* fieldname, int numcomponents)
 {

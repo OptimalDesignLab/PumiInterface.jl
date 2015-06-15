@@ -28,6 +28,7 @@ type PumiMesh2{T1} <: AbstractMesh{T1}   # 2d pumi mesh, triangle only
   numBoundaryEdges::Int # number of edges on the exterior boundary
   numInterfaces::Int # number of internal interfaces
   numNodesPerElement::Int  # number of nodes per element
+  numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
 
   # hold pointers to mesh entities
   verts::Array{Ptr{Void},1}  # holds pointers to mesh vertices
@@ -172,6 +173,82 @@ end
 
 
 function numberDofs(mesh::PumiMesh2)
+# assign dof numbers to entire mesh
+# calculates numNodes, numDof
+# assumes mesh elements have already been reordered
+
+  println("Entered numberDofs")
+
+  # calculate number of nodes, dofs
+  num_nodes_v = 1  # number of nodes on a vertex
+  num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
+  num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
+  numnodes = num_nodes_v*mesh.numVert + num_nodes_e*mesh.numEdge + num_nodes_f*mesh.numEl
+  numDof = mesh.numDofPerNode*numnodes
+
+
+  if (numDof > 2^30)
+    println("Warning: too many dofs, renumbering will fail")
+  end
+
+  # save numbers to mesh
+  mesh.numNodes = numnodes
+  mesh.numDof = numDof
+
+  # initally number all dofs as numDof+1 to 2*numDof
+  # this allows quick check to see if somthing is labelled or not
+
+  resetAllIts2()
+  # mesh iterator increment, retreval functions
+  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
+  iterators_get = [getVert, getEdge, getFace]
+  num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
+  num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f]
+
+  mesh.numNodesPerType = num_entities
+
+  println("num_entities = ", num_entities)
+
+  curr_dof = numDof+1
+  for etype = 1:3 # loop over entity types
+    println("etype = ", etype)
+    for entity = 1:num_entities[etype]  # loop over all entities of this type
+      println("  entity number: ", entity)
+      entity_ptr = iterators_get[etype]()  # get entity
+
+      for node = 1:num_nodes_entity[etype]
+	for dof = mesh.numDofPerNode
+	  numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, dof, curr_dof)
+	  curr_dof += 1
+	end  # end loop over dof
+      end  # end loop over node
+
+    iterators_inc[etype]()
+    end  # end loop over entities
+  end  # end loop over entity types
+
+  println("Finished initial numbering of dofs") 
+
+#=
+  curr_dof = 1
+  for i=1:mesh.numEl
+    # get vertices, edges for this element
+    verts_i = getDownward(mesh.m_ptr, mesh.elements[i], 0)
+    edges_i = getDownward(mesh.m_ptr, mesh.elements[i], 1)
+    for j=1:3  # loop over vertices, edges
+      vert_j = verts_i[j]
+      edge_j = edges_i[j]
+      for i=1:mesh.numDofPerNode
+        numb
+=#
+
+  resetAllIts2()
+  return nothing
+
+end
+
+#=
+function numberDofs(mesh::PumiMesh2)
 # number the degrees of freedom of the mesh, using the apf::Numbering* stroed
 # in the mesh
 
@@ -206,12 +283,13 @@ function numberDofs(mesh::PumiMesh2)
 return nothing
 
 end  # end function
-
+=#
 
 
 function countBoundaryEdges(mesh::PumiMesh2)
   # move this into a function
   # count boundary edges
+  resetEdgeIt()
   bnd_edges_cnt = 0
   bnd_edges = Array(Int, mesh.numEdge, 2)
   for i=1:mesh.numEdge

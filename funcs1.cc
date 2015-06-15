@@ -28,6 +28,7 @@
 
 #include "funcs1.h"
 #include "adaptFuncsJ.h"
+#include "apfSBPShape.h"
 //#include "a2.h"
 
 //=============================================================================
