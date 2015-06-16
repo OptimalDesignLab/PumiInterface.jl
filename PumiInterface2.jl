@@ -119,39 +119,72 @@ end
 
 function getNodeEntities(m_ptr, mshape_ptr, entity)
 # get the meshentities that have nodes on them 
+# duplicates entities that have multiple nodes
 # this only works for simplex elements
   
   entity_type = getType(m_ptr, entity)
   eshape_ptr = getEntityShape(mshape_ptr, entity_type)
   nnodes = countNodes(eshape_ptr)
-  downward_entities = Array(Ptr{Void}, nnodes)  # one node per entity only
+  downward_entities = Array(Ptr{Void}, nnodes)  # holds mesh entities
 
-  if 2D element
-  vert_nodes = hasNodesIn(mshape_ptr, 0)
-  edge_nodes = hasNodesIn(mshape_ptr, 1)
-  face_nodes = hasNodesIn(mshape_ptr, 2)
+  num_vert_nodes = countNodesOn(mshape_ptr, 0)
+  num_edge_nodes = countNodesOn(mshape_ptr, 1)
+  num_face_nodes = countNodesOn(mshape_ptr, 2)
+  num_region_nodes = countNodesOn(mshape_ptr, 4) # tetrahedron
   
-  
-  if 3D element
-  region_nodes = hasNodesIn(mshape_ptr,3)
+  has_vert_nodes = (num_vert_nodes != 0)
+  has_edge_nodes = (num_edge_nodes != 0)
+  has_face_nodes = (num_face_nodes != 0)
+  has_region_nodes = (num_region_nodes != 0)
+#=
 
+  if entity_type == 2  # triangle
+    num_entities = 3*has_vert_nodes + 3*has_edge_nodes + has_face_nodes
+  elseif entity_type == 4 # tetrahedron
+    num_entities = 4*has_vert_nodes + 6*has_edge_nodes + 4*has_face_nodes + has_region_nodes
+  else
+    println("element type not supported by getNodeEntities")
+  end
   
-  
-  if hasNodesIn(mshape_ptr, 0)  # vertices
+=#  
+  if has_vert_nodes  # vertices
     (verts, numV) = getDownward(m_ptr, entity, 0)
     downward_entities[1:numV] = verts
 	
-    if hasNodesIn(mshape_ptr, 1)  # edges
-      (edges, numEdges) = getDownward(mesh.mshape_ptr, entity, 1)
-	  downward_entities[(numV+1):(numV+numEdges)] = edges
-    end
+    if has_edge_nodes # edges
+      (edges, numEdges) = getDownward(mshape_ptr, entity, 1)
+          for i=1:numEdges
+	    insertN(downward_entities, edges[i], numV+num_edge_nodes*(i-1) + 1, num_edge_nodes)
+	  end
+#	  downward_entities[(numV+1):(numV+numEdges)] = edges
 
-    if hasNodesIn(mshape_ptr, 2)  # faces
+      if has_face_nodes
+	(faces, numFaces) = getDownward(mshape_ptr, entity, 2)
+	for i=1:numFaces
+	  insertN(downward_entities, faces[i], numV + num_edge_nodes*numEdges +num_edge_nodes*(i-1) + 1, num_face_nodes)
+	end
+#	downward_entities[ (numV+numEdges+1):(numV+numEdges+numFaces)] = faces
 
+	if has_region_nodes
+	  (regions, numRegions) = getDownward(m_ptr, entity, 4)
+	  for i=1:numRegions
+	    insertN(downward_entities, regions[i], numV + num_edge_nodes*numEdges + num_face_nodes*numFaces + num_region_nodes*(i-1) + 1, num_region_nodes)
+	  end
+#	  downward_entities[(numV+numEdges+numFaces+1):(numV+numEdges+numFaces+numRegions)] = regions
+        end
+      end
     end
   end
   
   return downward_entities
 end
 
+function insertN{T}(vec::AbstractArray{T}, element::T,  index::Integer, n::Integer)
+# insert element into the vector n times, starting at index
 
+  for i=index:(index+n-1)
+    vec[i] = element
+  end
+
+  return nothing
+end
