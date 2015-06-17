@@ -214,17 +214,17 @@ function numberDofs(mesh::PumiMesh2)
 #  curr_dof = 1
   curr_dof = numDof+1
   for etype = 1:3 # loop over entity types
-    println("etype = ", etype)
+#    println("etype = ", etype)
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
       for entity = 1:num_entities[etype]  # loop over all entities of this type
-	println("  entity number: ", entity)
+#	println("  entity number: ", entity)
 	entity_ptr = iterators_get[etype]()  # get entity
 
 	for node = 1:num_nodes_entity[etype]
-	  println("    node : ", node)
+#	  println("    node : ", node)
 	  for dof = 1:mesh.numDofPerNode
 	    numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, dof-1, curr_dof)
-	    println("      entity ", entity_ptr, " labelled ", curr_dof)
+#	    println("      entity ", entity_ptr, " labelled ", curr_dof)
 	    curr_dof += 1
 	  end  # end loop over dof
 	end  # end loop over node
@@ -398,7 +398,7 @@ for i=1:mesh.numEl
   end
 end
 
-println("mesh.dof = ", mesh.dofs)
+#println("mesh.dof = ", mesh.dofs)
 
 return nothing
 
@@ -545,6 +545,8 @@ function getCoordinates(mesh::PumiMesh2, sbp::SBPOperator)
 
 mesh.coords = Array(Float64, 2, sbp.numnodes, mesh.numEl)
 
+println("entered getCoordinates")
+
 coords_i = zeros(3,3)
 coords_it = zeros(3,2)
 for i=1:mesh.numEl  # loop over elements
@@ -553,8 +555,12 @@ for i=1:mesh.numEl  # loop over elements
   (sizex, sizey) = size(coords_i)
   getFaceCoords(el_i, coords_i, sizex, sizey)  # populate coords
 
+  println("coords_i = ", coords_i)
+
   coords_it[:,:] = coords_i[1:2, :].'
+  println("coords_it = ", coords_it)
   mesh.coords[:, :, i] = calcnodes(sbp, coords_it)
+  println("mesh.coords[:,:,i] = ", mesh.coords[:,:,i])
 end
 
 return nothing
@@ -1024,17 +1030,17 @@ function getEdgeInterfaceData(i::Integer)
 
 function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
 # saves the solution in the vector u to the mesh (in preparation for mesh adaptation
-# linear meshes only
 
-  dofnums = zeros(Int, mesh.numDofPerNode)
-  u_vals = zeros(mesh.numDofPerNode)
+ # dofnums = zeros(Int, mesh.numDofPerNode)
+#  u_vals = zeros(mesh.numDofPerNode)
 
 
-    num_entities = [3, 3, 1] # number of vertices, edges, faces
+  num_entities = [3, 3, 1] # number of vertices, edges, faces
 
+  q_vals = zeros(4)
 
   for el=1:mesh.numEl
-    el_i = mesh.elements[i]
+    el_i = mesh.elements[el]
     node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
     col = 1 # current node of the element
     for i=1:3  # loop over verts, edges, faces
@@ -1042,47 +1048,20 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
 	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
 	  entity = node_entities[col]  # current entity
           
-
+          # get solution values
 	  for p=1:mesh.numDofPerNode  # loop over all dofs
-	    dofnums[p, col] = getNumberJ(mesh.dofnums_Nptr, entity, k-1, p-1)
+	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, k-1, p-1)
+	    q_vals[p] = u[dofnum_p]
 	  end
+          # save to mesh
+          setComponents(mesh.f_ptr, entity, k-1, q_vals)
+
 	  col += 1
 	end  # end loop over nodes on curren entity
       end  # end loop over entities of current type
     end  # end loop over entity types
+  end  # end loop over elements
 
-
-
-
-
-
-  for i=1:mesh.numEl
-    dofnums = getGlobalNodeNumbers(mesh, i)
-    el_i = mesh.elements[i]
-    node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
-
-    for j=1:mesh.numNodesPerElement
-      
-
-
-      for k=1:mesh.numDofPerNode  # loop over dofs on the node
-	mesh.dofs[k, j, i] = dofnums[k,j]
-      end
-    end
-  end
-
-
-
-
-
-  for i=1:mesh.numVert
-    for j = 1:mesh.numDofPerNode  # get dof numbers of this vertex
-      dofnums[j] = getNumberJ(mesh.dofnums_Nptr, mesh.verts[i], 0, j-1)
-    end
-#    println("dofnums = ", dofnums)
-    u_vals[:] = u[dofnums]
-    setComponents(mesh.f_ptr, mesh.verts[i], 0, u_vals)
-  end
 
   return nothing
 end  # end function saveSolutionToMesh
@@ -1091,17 +1070,38 @@ end  # end function saveSolutionToMesh
 function retrieveSolutionFromMesh(mesh::PumiMesh2, u::AbstractVector)
 # retrieve solution from mesh (after mesh adaptation)
 # mesh needs to have been reinitilized after mesh adaptation, u needs to be the right size for the new mesh
-  # linear meshes only
 
-  dofnums = zeros(Int, mesh.numDofPerNode)
-  u_vals = zeros(mesh.numDofPerNode)
-  for i=1:mesh.numVert
-    for j = 1:mesh.numDofPerNode  # get dof numbers of this vertex
-      dofnums[j] = getNumberJ(mesh.dofnums_Nptr, mesh.verts[i], 0, j-1)
-    end
-    getComponents(mesh.f_ptr, mesh.verts[i], 0, u_vals)
-    u[dofnums] = u_vals
-  end
+
+
+
+  num_entities = [3, 3, 1] # number of vertices, edges, faces
+
+  q_vals = zeros(4)
+
+  for el=1:mesh.numEl
+    el_i = mesh.elements[el]
+    node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
+    col = 1 # current node of the element
+    for i=1:3  # loop over verts, edges, faces
+      for j=1:num_entities[i]  # loop over all entities of this type
+	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
+	  entity = node_entities[col]  # current entity
+         
+	  # get values from mesh
+          getComponents(mesh.f_ptr, entity, k-1, q_vals)
+
+          # put solution values into vector u
+	  for p=1:mesh.numDofPerNode  # loop over all dofs
+	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, k-1, p-1)
+	    u[dofnum_p] = q_vals[p]
+	  end
+	  col += 1
+	end  # end loop over nodes on curren entity
+      end  # end loop over entities of current type
+    end  # end loop over entity types
+  end  # end loop over elements
+
+  
 
   return nothing
 end  # end function saveSolutionToMesh
