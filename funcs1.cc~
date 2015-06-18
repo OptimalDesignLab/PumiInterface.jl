@@ -262,8 +262,6 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     } else
     {
       apf::changeMeshShape(m, apf::getSBPShape(order), true);
-    } else {
-      std::cout << "Error: shape function order not supported, order request = " << order << std::endl;
     }
   
     std::cout << "finished loading mesh, changing shape" << std::endl;
@@ -323,7 +321,7 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     std::cout << "index its[" << i << "] = " << type << std::endl;
   }
 
-    
+/*    
   // initilize number of downward adjacencies each type has, assuming all
   // elements have same number of downward adjacencies
   apf::MeshEntity* e_tmp;
@@ -347,7 +345,7 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
       std::cout << " downward adjacencies of type " << names[j] << std::endl;
     }
   }
-
+*/
   std::cout << std::endl;
 /*
   numberings[0] = numberOwnedDimension(m, "elNums", 0);

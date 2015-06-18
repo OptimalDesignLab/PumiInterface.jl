@@ -60,7 +60,7 @@ type PumiMesh2{T1} <: AbstractMesh{T1}   # 2d pumi mesh, triangle only
   mesh.numDofPerNode = dofpernode
   mesh.order = order
   mesh.numNodesPerElement = getNumNodes(order)
-  tmp, num_Entities, mesh.m_ptr, mesh.mshape_ptr = init2(dmg_name, smb_name, order)
+  num_Entities, mesh.m_ptr, mesh.mshape_ptr = init2(dmg_name, smb_name, order)
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
 
   mesh.numVert = convert(Int, num_Entities[1])
@@ -81,10 +81,8 @@ type PumiMesh2{T1} <: AbstractMesh{T1}   # 2d pumi mesh, triangle only
   # also initilize the field to zero
   resetAllIts2()
 #  comps = zeros(dofpernode)
-  comps = [1.0, 2, 3, 4]
   for i=1:mesh.numVert
     mesh.verts[i] = getVert()
-    setComponents(mesh.f_ptr, mesh.verts[i], 0, comps)  # initilize the field
     incrementVertIt()
   end
 

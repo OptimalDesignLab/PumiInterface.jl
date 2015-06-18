@@ -213,7 +213,7 @@ int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numbe
 // init for 2d mesh
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
-int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh )
+int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh )
 {
   std::cout << "Entered init\n" << std::endl;
 
@@ -321,7 +321,7 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
     std::cout << "index its[" << i << "] = " << type << std::endl;
   }
 
-    
+/*    
   // initilize number of downward adjacencies each type has, assuming all
   // elements have same number of downward adjacencies
   apf::MeshEntity* e_tmp;
@@ -345,7 +345,7 @@ int initABC2(char* dmg_name, char* smb_name, int downward_counts[3][3], int numb
       std::cout << " downward adjacencies of type " << names[j] << std::endl;
     }
   }
-
+*/
   std::cout << std::endl;
 /*
   numberings[0] = numberOwnedDimension(m, "elNums", 0);

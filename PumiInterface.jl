@@ -170,13 +170,13 @@ function init2(dmg_name::AbstractString, smb_name::AbstractString, order::Intege
 # this is hack-ish -- there should be a better way to do this
 #m_ptr = Ptr{Void}
 #mshape_ptr = Ptr{Void}
-downward_counts = zeros(Int32, 3,3);
+#downward_counts = zeros(Int32, 3,3);
 num_Entities = zeros(Int32, 4, 1)
 
 m_ptr_array = Array(Ptr{Void}, 1)
 mshape_ptr_array = Array(Ptr{Void}, 1)
 
-i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8}, Ptr{Int32},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Int32, Int32), dmg_name, smb_name, downward_counts, num_Entities, m_ptr_array, mshape_ptr_array, order, load_mesh )  # call init in interface library
+i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, order, load_mesh )  # call init in interface library
 
 if ( i != 0)
   println("init failed, exiting ...")
@@ -184,7 +184,7 @@ if ( i != 0)
 end
 
 
-return downward_counts, num_Entities, m_ptr_array[1], mshape_ptr_array[1]
+return num_Entities, m_ptr_array[1], mshape_ptr_array[1]
 end
 
 
