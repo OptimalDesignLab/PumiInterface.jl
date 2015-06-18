@@ -2,7 +2,7 @@
 # function
 
 
-export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, getValues2, getLocalGradients2, getJacobian2, getNodeEntities
+export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities
 
 function getAdjacentFull(m_ptr, entity, dimension::Integer)
 # returns an array with the adjacencies of meshentity entity of specified dimension, and the number of entries in the array
@@ -89,6 +89,29 @@ function printEdgeVertNumbers(edgeN_ptr, vertN_ptr)
 
 end
 
+
+function printFaceVertNumbers(faceN_ptr, vertN_ptr)
+#print the numbers of the vertices that compose a face
+resetFaceIt();
+m_ptr = getMesh(faceN_ptr)
+m = countJ(m_ptr, 2)  # count number of faces on the mesh
+println("numFaces = ", m)
+
+ for i=1:m  # loop over faces
+   face_i = getFace()
+   face_num = getNumberJ(faceN_ptr, face_i, 0, 0)
+   (verts, nverts) = getDownward(m_ptr, face_i, 0)
+   vertnums = zeros(Int, nverts)
+   for j=1:nverts
+     vertnums[j] = getNumberJ(vertN_ptr, verts[j], 0, 0)
+   end
+
+   println("face ", face_num, " has vertices $vertnums")
+   incrementFaceIt()
+ end
+
+ return nothing
+end
 
 function getValues2(eshape_ptr, coords::Array{Float64,1})
 # gets the values of the shape functions at coords

@@ -9,7 +9,7 @@ using PDESolverCommon
 export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray
 
 #abstract AbstractMesh
-
+include("./PdePumiInterface3.jl")
 type PumiMesh2{T1} <: AbstractMesh{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
