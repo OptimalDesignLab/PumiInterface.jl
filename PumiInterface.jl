@@ -141,7 +141,7 @@ function init(dmg_name::AbstractString, smb_name::AbstractString, order::Integer
 # this is hack-ish -- there should be a better way to do this
 #m_ptr = Ptr{Void}
 #mshape_ptr = Ptr{Void}
-num_Entities = zeros(Int32, 4, 1)
+num_Entities = zeros(Int32, 4)
 
 m_ptr_array = Array(Ptr{Void}, 1)
 mshape_ptr_array = Array(Ptr{Void}, 1)
