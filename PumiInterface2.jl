@@ -2,7 +2,7 @@
 # function
 
 
-export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities
+export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities, getEntityLocalNumber
 
 function getAdjacentFull(m_ptr, entity, dimension::Integer)
 # returns an array with the adjacencies of meshentity entity of specified dimension, and the number of entries in the array
@@ -210,4 +210,28 @@ function insertN{T}(vec::AbstractArray{T}, element::T,  index::Integer, n::Integ
   end
 
   return nothing
+end
+
+function getEntityLocalNumber(mesh::Ptr{Void}, entity::Ptr{Void}, parent::Ptr{Void},  entity_dim::Integer, parent_dim::Integer)
+# get the local index of the entity among all the entities of the same dimension that
+# belong to the same parent
+# entity_dim is the dimension of the entity
+# parent_dim is the dimension of the parent
+# zero based indexing
+
+  if parent_dim <= entity_dim
+    println("parent dimension must be > entity dimension")
+    return -1
+  end
+
+  (down_entities, numdown) = getDownward(mesh, parent, entity_dim)
+
+  local_num = -1
+  for i=1:numdown
+    if (down_entities[i] == entity)
+      local_num = i-1
+    end
+  end
+
+  return local_num
 end

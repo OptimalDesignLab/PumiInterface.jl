@@ -21,6 +21,7 @@ type PumiMesh3{T1} <: AbstractMesh{T1}   # 3d pumi mesh, tetrahedron only
   numInterfaces::Int # number of internal interfaces
   numNodesPerElement::Int  # number of nodes per element
   numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
+  num_entities::Array{Int, 1}  # numbe of entities of each type in the mesh
 
   # hold pointers to mesh entities
   verts::Array{Ptr{Void},1}  # holds pointers to mesh vertices
@@ -105,6 +106,8 @@ type PumiMesh3{T1} <: AbstractMesh{T1}   # 3d pumi mesh, tetrahedron only
 #  numberDofs(mesh)
 
   countBoundaryFaces(mesh)
+   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
+  getBoundaryArray(mesh)
 #=
   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
   getBoundaryArray(mesh)
@@ -207,5 +210,259 @@ return nothing
 
 end  # end function
 
+
+function getBoundaryArray(mesh::PumiMesh3)
+# get an array of type Boundary for SBP
+# creating an an array of a user defined type seems like a waste of memory operations
+# bnd_array is a vector of type Boundary with length equal to the number of edges on the boundary of the mesh
+
+#  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
+
+  for i=1:mesh.numBoundaryFaces
+    elnum = mesh.boundary_nums[i,1]
+    facenum_global = mesh.boundary_nums[i,2]
+    facenum_local = getBoundaryEntityLocalNum(mesh, facenum_global, 2)
+    mesh.bndryfaces[i] = Boundary(elnum, facenum_local)
+  end
+
+  return nothing
+end
+
+function getBoundaryEntityLocalNum(mesh::PumiMesh3, entity_num::Integer, entity_dim::Integer)
+# gets the local edge number of a specified edge that is on the boundary
+# of the mesh
+# entity_num is an the  num from the output of getBoundaryEdgeNums() (ie. the global entity number)
+# entity_dim is the dimension of the entity (0 = vertex, 1 = edge, 2 = face)
+# the local edge number is the edge number within the element (1st,s 2nd, 3rd...)
+  if entity_dim == 1
+    entity_i = mesh.edges[entity_num]
+  elseif entity_dim == 2
+    entity_i = mesh.faces[entity_num]
+  else
+    println("unsupported entity dimension requested for getBoundaryEntityLocalNum")
+    println("requested entity dimension = ", entity_dim)
+  end
+
+  # get mesh face or region associated with edge
+  countAdjacent(mesh.m_ptr, entity_i, entity_dim+1)
+  parent = getAdjacent(1)[1]  # get the single face (not an array)
+
+  local_num = getEntityLocalNumber(mesh.m_ptr, entity_i, parent, entity_dim, entity_dim+1)
+
+  return local_num
+
+end
+
+function numberDofs(mesh::PumiMesh3)
+# assign dof numbers to entire mesh
+# calculates numNodes, numDof
+# assumes mesh elements have already been reordered
+# this method minimizes the assembly/disassembly time
+# because blocks of entries in res go into res_vec
+  println("Entered numberDofs")
+
+  # calculate number of nodes, dofs
+  num_nodes_v = 1  # number of nodes on a vertex
+  num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
+  num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
+  num_nodes_el = countNodesOn(mesh.mshape_ptr,3) # on element interior
+  numnodes = num_nodes_v*mesh.numVert + num_nodes_e*mesh.numEdge + num_nodes_f*mesh.numFace + num_nodes_el*mesh.numEl
+  numDof = mesh.numDofPerNode*numnodes
+  println("expected number of dofs = ", numDof)
+
+
+  if (numDof > 2^30)
+    println("Warning: too many dofs, renumbering will fail")
+  end
+
+  # save numbers to mesh
+  mesh.numNodes = numnodes
+  mesh.numDof = numDof
+
+  # initally number all dofs as numDof+1 to 2*numDof
+  # this allows quick check to see if somthing is labelled or not
+
+  resetAllIts2()
+  # mesh iterator increment, retreval functions
+  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
+  iterators_get = [getVert, getEdge, getFace, getEl]
+  num_entities = [mesh.numVert, mesh.numEdge, mesh.numFace,  mesh.numEl]
+  num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f, num_nodes_el]
+
+  mesh.num_entities = num_entities
+  mesh.numNodesPerType = num_nodes_entity
+
+  println("num_entities = ", num_entities)
+  println("num_nodes_entity = ", num_nodes_entity)
+
+#  curr_dof = 1
+  curr_dof = numDof+1
+  for etype = length(num_nodes_entity) # loop over entity types
+#    println("etype = ", etype)
+    if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
+      for entity = 1:num_entities[etype]  # loop over all entities of this type
+#	println("  entity number: ", entity)
+	entity_ptr = iterators_get[etype]()  # get entity
+
+	for node = 1:num_nodes_entity[etype]
+#	  println("    node : ", node)
+	  for dof = 1:mesh.numDofPerNode
+	    numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, dof-1, curr_dof)
+#	    println("      entity ", entity_ptr, " labelled ", curr_dof)
+	    curr_dof += 1
+	  end  # end loop over dof
+	end  # end loop over node
+
+      iterators_inc[etype]()
+      end  # end loop over entitiesa
+    end  # end if 
+  end  # end loop over entity types
+
+  println("Finished initial numbering of dofs") 
+
+
+  println("Performing final numbering of dofs")
+# move all if statements out one for loop (check only first dof on each node)
+  curr_dof = 1
+  for i=1:mesh.numEl
+#    println("element number: ", i)
+    # get vertices, edges for this element
+    (verts_i, numVert) = getDownward(mesh.m_ptr, mesh.elements[i], 0)
+#    println("verts_i = ", verts_i)
+#    println("mesh.verts = ", mesh.verts)
+    (edges_i, numEdge) = getDownward(mesh.m_ptr, mesh.elements[i], 1)
+    el_i = mesh.elements[i]
+    for j=1:numVert  # loop over vertices, edges
+#      println("  vertex and edge number: ", j)
+      vert_j = verts_i[j]
+#      println("  vert_j = ", vert_j)
+#      println("  edge_j = ", edge_j)
+      for k=1:mesh.numDofPerNode # loop over vertex dofs
+#	println("    dof number: ", k)
+#	println("    vert_j = ", vert_j)
+        dofnum_k = getNumberJ(mesh.dofnums_Nptr, vert_j, 0, k-1)
+	if dofnum_k > numDof  # still has initial number
+	  # give it new (final) number
+	  numberJ(mesh.dofnums_Nptr, vert_j, 0, k-1, curr_dof)
+	  curr_dof += 1
+	end
+      end  # end loop over vertex dofs
+      
+      edge_j = edges_i[j]
+      # loop over nodes on edge
+      for k=1:num_nodes_entity[2]  # loop over nodes
+	for p=1:mesh.numDofPerNode  # loop over dofs
+	  dofnum_p = getNumberJ(mesh.dofnums_Nptr, edge_j, k-1, p-1)
+	  if dofnum_p > numDof  # still has initial number
+	    # give it new (final) number
+	    numberJ(mesh.dofnums_Nptr, edge_j, k-1, p-1, curr_dof)
+	    curr_dof += 1
+	  end
+	end
+      end
+    end  # end loop over vertices, edges
+    # label face nodes
+    for k=1:num_nodes_entity[3]  # loop over nodes on face
+      for p=1:mesh.numDofPerNode  # loop over dofs
+	dofnum_p = getNumberJ(mesh.dofnums_Nptr, el_i, k-1, p-1)
+	if dofnum_p > numDof
+	  numberJ(mesh.dofnums_Nptr, el_i, k-1, p-1, curr_dof)
+	  curr_dof += 1
+	end
+      end
+    end  # end loop over face nodes
+  end  # end loop over elements
+
+
+
+
+  println("finished performing final dof numbering")
+
+  println("number of dofs = ", curr_dof - 1)
+  if (curr_dof -1) != numDof 
+    println("Warning: number of dofs assigned is not equal to teh expected number")
+    println("number of dofs assigned = ", curr_dof-1, " ,expected number = ", numDof)
+  else
+    println("Dof numbering is sane")
+  end
+
+
+
+  resetAllIts2()
+  return nothing
+
+end
+
+function getDofNumbers(mesh::PumiMesh3)
+# populate array of dof numbers, in same shape as solution array u (or q)
+
+println("in getDofNumbers")
+println("numNodesPerElement = ", mesh.numNodesPerElement)
+
+mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
+
+for i=1:mesh.numEl
+  dofnums = getGlobalNodeNumbers(mesh, i)
+
+  for j=1:mesh.numNodesPerElement
+    for k=1:mesh.numDofPerNode  # loop over dofs on the node
+      mesh.dofs[k, j, i] = dofnums[k,j]
+    end
+  end
+end
+
+#println("mesh.dof = ", mesh.dofs)
+
+return nothing
+
+end
+function getGlobalNodeNumbers(mesh::PumiMesh3, elnum::Integer)
+# gets global node numbers of all dof on all nodes of the element
+# output formap is array [numdofpernode, nnodes]  (each column contains dof numbers for a node)
+# 2D only
+el_i = mesh.elements[elnum]
+type_i = getType(mesh.m_ptr, el_i)
+
+# calculate total number of nodes
+nnodes = 3 + 3*mesh.numNodesPerType[2] + mesh.numNodesPerType[3]
+
+numdof = nnodes*mesh.numDofPerNode
+node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
+dofnums = zeros(Int,mesh.numDofPerNode, nnodes)  # to be populated with global dof numbers
+#println("nnodes = ", nnodes)
+#println("dofpernode = ", mesh.numDofPerNode)
+
+
+
+#num_entities = [3, 3, 1] # number of vertices, edges, faces
+num_entities = mesh.num_entities
+col = 1 # current node
+for i=1:3  # loop over verts, edges, faces
+  for j=1:num_entities[i]  # loop over all entities of this type
+    for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
+      entity = node_entities[col]  # current entity
+      for p=1:mesh.numDofPerNode  # loop over all dofs
+	dofnums[p, col] = getNumberJ(mesh.dofnums_Nptr, entity, k-1, p-1)
+      end
+      col += 1
+    end  # end loop over nodes on curren entity
+  end  # end loop over entities of current type
+end  # end loop over entity types
+
+
+
+#=
+
+for i=1:nnodes
+  for j=1:mesh.numDofPerNode
+    dofnums[j, i] = getNumberJ(mesh.dofnums_Nptr, node_entities[i], 0, j-1)
+  end
+end
+=#
+
+return dofnums
+
+
+end
 
 
