@@ -314,8 +314,9 @@ void destroyNumberings(int dim)
   apf::destroyNumbering(numberings[2]);
 
   if (dim > 2)
+  {
    apf::destroyNumbering(numberings[2]);
-  end
+  }
  
 }
  
@@ -611,6 +612,15 @@ void getAdjacent(apf::MeshEntity* adjacencies_ret[])
 
 }
 
+void getAlignment(apf::Mesh* m_local, apf::MeshEntity* elem, apf::MeshEntity* boundary, int which[1], bool flip[1], int rotate[1])
+{
+  std::cout << "in getAlignment, which = " << which << " flip = " << flip << " rotate = " << rotate << std::endl;
+  apf::getAlignment(m_local, elem, boundary, which[0], flip[0], rotate[0]);
+
+  std::cout << "after apf::getAlignment, which = " << which << " flip = " << flip << " rotate = " << rotate << std::endl;
+}
+
+
 
 // apf::Fieldshape Functions
 // check whether the given field as nodes on entities of the specified dimension
@@ -725,8 +735,13 @@ void getLocalGradients(apf::EntityShape* eshape_local, double xi[3], double vals
 
 }
 
-
-
+// get the array that transforms from local element order to canonical order
+// the length of order must be the number of nodes classified on
+// apf::MeshEntity* shared
+void alignSharedNodes(apf::EntityShape* eshape_local, apf::Mesh* m_local, apf::MeshEntity* elem, apf::MeshEntity* shared, int order[])
+{
+  eshape_local->alignSharedNodes(m_local, elem, shared, order);
+}
 
 // check that global variable are persisent
 // doesn't work in 2d
@@ -1010,6 +1025,22 @@ int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
   return i;
 }
 
+// get node numbers in canonical ordering
+// n is the Numbering
+// e is the entity that contains the nodes
+void getElementNumbers(apf::Numbering* n, apf::MeshEntity*e, int num_dof, int nums[])
+{
+  static apf::NewArray<int> nums_pumi;
+  // get element numbers in canonical order
+  apf::getElementNumbers(n, e, nums_pumi); 
+
+  // copy to returned array
+  for (int i = 0; i < num_dof; ++i)
+  {
+    nums[i] = nums_pumi[i];
+  }
+}
+
 
 apf::Mesh* getMesh(apf::Numbering* n)
 {
@@ -1038,6 +1069,9 @@ void getDoubleTag(apf::Mesh2 * m_local, apf::MeshEntity* e, apf::MeshTag* tag,  
 {
   m_local->getDoubleTag( e, tag, data);
 }
+
+
+
 
 
 // mesh adapatation function

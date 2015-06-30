@@ -65,6 +65,7 @@ global const getType_name = "getType"
 global const getDownward_name = "getDownward"
 global const countAdjacent_name = "countAdjacent"
 global const getAdjacent_name = "getAdjacent"
+global const getAlignment_name = "getAlignment"
 
 global const hasNodesIn_name = "hasNodesIn"
 global const countNodesOn_name = "countNodesOn"
@@ -79,6 +80,7 @@ global const getJacobian_name = "getJacobian"
 global const countNodes_name = "countNodes"
 global const getValues_name = "getValues"
 global const getLocalGradients_name = "getLocalGradients"
+global const alignSharedNodes_name = "alignSharedNodes"
 
 global const checkVars_name = "checkVars"
 global const checkNums_name = "checkNums"
@@ -92,6 +94,7 @@ global const getElCoords_name = "getElCoords"
 global const createNumberingJ_name = "createNumberingJ"
 global const numberJ_name = "numberJ"
 global const getNumberJ_name = "getNumberJ"
+global const getElementNumbers_name = "getElementNumbers"
 global const getMesh_name = "getMesh"
 global const printNumberingName_name = "printNumberingName"
 
@@ -115,7 +118,7 @@ end
 
 
 # export low level interface functions
-export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents
+export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents
 
 @doc """
   initilize the state of the interface library
@@ -515,6 +518,26 @@ function getAdjacent(num_adjacent::Integer)
 end
 
 
+function getAlignment(m_ptr, elem, elem_boundary)
+# gets which, flip, and rotate for elem_boundary, the mesh entity shared
+# between elem and another element
+
+# create variables
+#=
+which = convert(Int32, 42)
+flip = convert(UInt8, 42)
+rotate = convert(Int32, 42)
+=#
+which = Array(Int32, 1)
+flip = Array(UInt8, 1)
+rotate = Array(Int32, 1)
+
+  ccall( (getAlignment_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}), m_ptr, elem, elem_boundary, which, flip, rotate)
+
+  return which[1], convert(Bool, flip[1]), rotate[1]
+end
+
+
 function hasNodesIn(mshape_ptr, dimension::Integer)
 # check whether this FieldShape* has nodes on entities of a given dimension
 
@@ -620,6 +643,30 @@ function getLocalGradients( eshape_ptr, coords::Array{Float64,1}, numN::Integer)
 
   return vals
 end
+
+
+function alignSharedNodes(eshape_ptr, m_ptr, elem, shared, order::Array{Int32, 1})
+# get the array that transofrms teh local element order to the canonical order
+# the length of order must be the number of nodes classified on 
+# the shared entity
+# elem is a pointer to the MeshEntity that is the element
+# shared is a poniter to the MeshEntity that is shared between elements
+
+  # bounds check
+ mshape_ptr = getMeshShapePtr()
+ shared_type = getType(m_ptr, shared)
+ numnodes = countNodesOn(mshape_ptr, shared_type)
+
+ if length(order) < numnodes
+   println("alignSharedNodes order array too short")
+   return nothing
+ end
+
+ ccall( (alignSharedNodes_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Int32}), esahpe_ptr, m_ptr, elem, shared, order)
+
+ return nothing
+end
+
 
 function checkVars()
 ccall ( (checkVars_name, pumi_libname), Void, () );
@@ -801,6 +848,26 @@ return i
 
 end
 
+
+function getElementNumbers(n_ptr, entity, num_dof::Integer, nums::Array{Int32, 1})
+# get the numbers of all dofs affecting an element in the canonical order
+# n_ptr is the numbering to use
+# entity is the entity to use
+# num_dof is the number of degrees of freedom (nnodes*ndofpernode)
+# nums is an array of Int32s long enough to hold all the numbers
+# the dofs numbers are returned in a column vector, all dofs of a node
+# are sequential
+
+  if length(nums) < num_dof
+    println("Warning: getElementNumbers nums array too short for number of nodes")
+    return nothing
+  end
+
+  ccall( (getElementNumbers_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Int32}), n_ptr, entity, num_dof, nums)
+
+  return nothing
+
+end
 
 function getMesh(n_ptr)
 # get the mesh a numbering is defined on

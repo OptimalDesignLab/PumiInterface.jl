@@ -6,11 +6,11 @@
 
 namespace apf {
 
-class SBPLinear : public FieldShape
+class SBP3Linear : public FieldShape
 {
   public:
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
-    const char* getName() const { return "SBPLinear"; }
+    const char* getName() const { return "SBP3Linear"; }
     class Vertex : public EntityShape
     // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
 	
@@ -131,7 +131,7 @@ class SBPLinear : public FieldShape
           fail("unimplimented getLocalGradients() called");
         }
     
-        int countNodes() const {return 0;}
+        int countNodes() const {return 4;}
     
     void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
     // elem is the triangle 
@@ -192,11 +192,12 @@ class SBPLinear : public FieldShape
 
 
 
-class SBPQuadratic : public FieldShape
+class SBP3Quadratic : public FieldShape
 {
   public:
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
-    const char* getName() const { return "SBPQuadratic"; }
+    const char* getName() const { return "SBP3Quadratic"; }
+	
     class Vertex : public EntityShape
     // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
 	
@@ -277,8 +278,9 @@ class SBPQuadratic : public FieldShape
           fail("unimplimented getLocalGradients() called");
         }
 		
-        int countNodes() const {return 7;}
-		
+        int countNodes() const {return 6;}
+// no nodes on face, so no need to align them		
+/*		
 		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
 		// elem is the triangle 
 		// shared is the entity (edge or vertex) being shared
@@ -293,6 +295,7 @@ class SBPQuadratic : public FieldShape
 		  // no need to consider shared vertices
 		
 		}
+*/		
     };
 
     class Tetrahedron : public EntityShape
@@ -322,7 +325,7 @@ class SBPQuadratic : public FieldShape
           fail("unimplimented getLocalGradients() called");
         }
     
-        int countNodes() const {return 0;}
+        int countNodes() const {return 11;}
     
     void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
     // elem is the triangle 
@@ -330,7 +333,11 @@ class SBPQuadratic : public FieldShape
     // order[] contains the mapping such that order[i], where i is the local node number, give
     // the position of that node in the canonical ordering
     {
-      // nothing to do here for linear element because they have no shared nodes on edges
+      // vertex does not have orientation, only one node on edge
+	  if (m->getType(shared) == Mesh::EDGE)
+	  {
+		  order[0] = 0;
+	  }
     
     }
     };	
@@ -358,7 +365,7 @@ class SBPQuadratic : public FieldShape
     }
     bool hasNodesIn(int dimension)
     {
-      if (dimension <= 2)
+      if (dimension <= 1 || dimension == 3)
         return true;
       else
         return false;
@@ -373,8 +380,11 @@ class SBPQuadratic : public FieldShape
 	    return 1;
 	  } else if ( type == Mesh::TRIANGLE)
 	  {
-	    return 1;
-	  }  else
+	    return 0;
+	  }  else if ( type == Mesh::TET)
+	  {
+		  return 1;
+	  } else
 	  {
         return 0;
 	  }
@@ -384,16 +394,16 @@ class SBPQuadratic : public FieldShape
     {
 	  // return the xi coordinates of the specified node of the specified type
 	  // *in the coordinate system of that type*
-	  // which makes this function not useful
+	  // which makes this function not useful, because the user could define the origins differently
 	  if (type == Mesh::VERTEX)
 	  {
         xi = Vector3(0,0,0);
 	  } else if (type == Mesh::EDGE)
 	  {  
 	    xi = Vector3(0,0,0);
-	  }  else if (type == Mesh::TRIANGLE)
+	  }  else if (type == Mesh::TET)
 	  {
-	    xi = Vector3(1.0/3.0, 1.0/3.0, 0);
+	    xi = Vector3(0.25, 0.25, 0.25);
 	  } else
 	  {
 	    xi = Vector3(0,0,0);
@@ -405,11 +415,12 @@ class SBPQuadratic : public FieldShape
 
 
 
-class SBPCubic : public FieldShape
+class SBP3Cubic : public FieldShape
 {
   public:
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
-    const char* getName() const { return "SBPCubic"; }
+    const char* getName() const { return "SBP3Cubic"; }
+	
     class Vertex : public EntityShape
     // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
 	
@@ -490,39 +501,8 @@ class SBPCubic : public FieldShape
           fail("unimplimented getLocalGradients() called");
         }
 		
-        int countNodes() const {return 12;}
+        int countNodes() const {return 10;}
 		
-		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
-                {
-		// elem is the triangle 
-		// shared is the entity (edge or vertex) being shared
-		// order[] contains the mapping such that order[i], where i is the local node number, gives
-		// the position of that node in the canonical ordering
-		
-		// which is the index of shared in getDownward(elm)
-		// rotate is the number of rotations required  ( a complete circle is n rotations, where n is the 
-		// number of sides of elem
-		// flip determines whether to flip the nodes
-		int which, rotate;
-		bool flip;
-		
-		getAlignment(m, elem, shared, which, flip, rotate); // populate, which, flip, rotate
-		
-		  if (m->getType(shared) == Mesh::EDGE)
-		  {
-		    if (flip)
-			{ 
-			  order[0] = 1;
-			  order[1] = 0;
-			} else   // not flipping
-			{  
-			  order[0] = 0;
-			  order[1] = 1;
-			}
-		  }
-		  
-		  // no need to consider shared vertices
-		}
     };
 	
     class Tetrahedron : public EntityShape
@@ -552,17 +532,45 @@ class SBPCubic : public FieldShape
           fail("unimplimented getLocalGradients() called");
         }
     
-        int countNodes() const {return 0;}
+        int countNodes() const {return 24;}
     
-    void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
-    // elem is the triangle 
-    // shared is the entity (edge or vertex) being shared
-    // order[] contains the mapping such that order[i], where i is the local node number, give
-    // the position of that node in the canonical ordering
-    {
-      // nothing to do here for linear element because they have no shared nodes on edges
-    
-    }
+		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
+                {
+		// elem is the triangle 
+		// shared is the entity (edge or vertex) being shared
+		// order[] contains the mapping such that order[i], where i is the local node number, gives
+		// the position of that node in the canonical ordering
+		
+		// which is the index of shared in getDownward(elm)
+		// rotate is the number of rotations required  ( a complete circle is n rotations, where n is the 
+		// number of sides of elem
+		// flip determines whether to flip the nodes
+		int which, rotate;
+		bool flip;
+		
+		getAlignment(m, elem, shared, which, flip, rotate); // populate, which, flip, rotate
+		
+		  if (m->getType(shared) == Mesh::EDGE)
+		  {
+		    if (flip)
+			{ 
+			  order[0] = 1;
+			  order[1] = 0;
+			} else   // not flipping
+			{  
+			  order[0] = 0;
+			  order[1] = 1;
+			}
+			
+			// edges cannot be rotated
+		  }
+		  
+		  if (m->getType(shared) == Mesh::TRIANGLE)
+		  {
+			  order[0] = 0;  // only one node classified on the face
+		  }
+			  
+		}
     };
 	
 	EntityShape* getEntityShape(int type)
@@ -588,7 +596,7 @@ class SBPCubic : public FieldShape
     }
     bool hasNodesIn(int dimension)
     {
-      if (dimension <= 2)
+      if (dimension <= 3)
         return true;
       else
         return false;
@@ -603,8 +611,11 @@ class SBPCubic : public FieldShape
 	    return 2;
 	  } else if ( type == Mesh::TRIANGLE)
 	  {
-	    return 3;
-	  }  else
+	    return 1;
+	  }  else if ( type == Mesh::TET)
+	  {
+		  return 4;
+	  } else
 	  {
         return 0;
 	  }
@@ -622,32 +633,41 @@ class SBPCubic : public FieldShape
 	  { 
         if (node == 0)
 	    {
-		  xi = Vector3(0.29346955590904017, 0, 0);
+		  xi = Vector3(0.30480589839889616,0.0,0.0);
 		} else if (node == 1)
 		{
-		  xi = Vector3(0.7065304440909599, 0, 0);
+		  xi = Vector3(0.6951941016011038, 0, 0);
 		} else  // default case
 		{
 		  xi = Vector3(0,0, 0);
 		}
 	  }  else if (type == Mesh::TRIANGLE)
 	  {
-	    switch(node) {
+		  if (node == 0)
+		  {
+			  xi = Vector3(1.0/3.0, 1.0/3.0, 0);
+		  } else  // default case
+		  {
+			  xi = Vector3(0.0, 0.0, 0.0);
+		  }
+	  } else if (type == Mesh::TET)
+	  {
+	     switch(node) {
 		  case 0:
-		    xi = Vector3(0.20734517566359092, 0.20734517566359092, 0);
+		    xi = Vector3(0.1524029491994481,0.1524029491994481,0.1524029491994481);
 			break;
 		  case 1:
-		    xi = Vector3 (0.5853096486728182, 0.20734517566359092, 0);
+		    xi = Vector3 (0.5427911524016557,0.1524029491994481,0.1524029491994481);
 			break;
 		  case 2: 
-		    xi = Vector3( 0.20734517566359092, 0.5853096486728182, 0);
+		    xi = Vector3( 0.1524029491994481,0.5427911524016557,0.1524029491994481);
 			break;
+		  case 3:
+		    xi = Vector3(0.1524029491994481,0.1524029491994481,0.5427911524016557);
+                    break;
 		  default:
 		    xi = Vector3(0, 0, 0);
 		  }
-	  } else
-	  {
-	    xi = Vector3(0,0,0);
 	  }
 	  
     }
@@ -655,11 +675,11 @@ class SBPCubic : public FieldShape
 
 
 
-class SBPQuartic : public FieldShape
+class SBP3Quartic : public FieldShape
 {
   public:
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
-    const char* getName() const { return "SBPQuartic"; }
+    const char* getName() const { return "SBP3Quartic"; }
 	
 	
     class Vertex : public EntityShape
@@ -741,41 +761,8 @@ class SBPQuartic : public FieldShape
           fail("unimplimented getLocalGradients() called");
         }
 		
-        int countNodes() const {return 18;}
+        int countNodes() const {return 15;}
 		
-		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
-                {
-		// elem is the triangle 
-		// shared is the entity (edge or vertex) being shared
-		// order[] contains the mapping such that order[i], where i is the local node number, gives
-		// the position of that node in the canonical ordering
-		
-		// which is the index of shared in getDownward(elm)
-		// rotate is the number of rotations required  ( a complete circle is n rotations, where n is the 
-		// number of sides of elem
-		// flip determines whether to flip the nodes
-		int which, rotate;
-		bool flip;
-		
-		getAlignment(m, elem, shared, which, flip, rotate); // populate, which, flip, rotate
-		
-		  if (m->getType(shared) == Mesh::EDGE)
-		  {
-		    if (flip)
-			{ 
-			  order[0] = 2;
-			  order[1] = 1;
-			  order[2] = 0;
-			} else   // not flipping
-			{  
-			  order[0] = 0;
-			  order[1] = 1;
-			  order[2] = 2;
-			}
-		  }
-		  
-		  // no need to consider shared vertices
-		}
     };
 	
     class Tetrahedron : public EntityShape
@@ -805,19 +792,68 @@ class SBPQuartic : public FieldShape
           fail("unimplimented getLocalGradients() called");
         }
     
-        int countNodes() const {return 0;}
+        int countNodes() const {return 45;}
     
-    void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
-    // elem is the triangle 
-    // shared is the entity (edge or vertex) being shared
-    // order[] contains the mapping such that order[i], where i is the local node number, give
-    // the position of that node in the canonical ordering
-    {
-      // nothing to do here for linear element because they have no shared nodes on edges
-    
-    }
+		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
+        {
+		// elem is the triangle 
+		// shared is the entity (edge or vertex) being shared
+		// order[] contains the mapping such that order[i], where i is the local node number, gives
+		// the position of that node in the canonical ordering
+		
+		// which is the index of shared in getDownward(elm)
+		// rotate is the number of rotations required  ( a complete circle is n rotations, where n is the 
+		// number of sides of elem
+		// flip determines whether to flip the nodes
+		int which, rotate;
+		bool flip;
+		
+		getAlignment(m, elem, shared, which, flip, rotate); // populate, which, flip, rotate
+		
+		  if (m->getType(shared) == Mesh::EDGE)
+		  {
+		    if (flip)
+			{ 
+			  order[0] = 2;
+			  order[1] = 1;
+			  order[2] = 0;
+			} else   // not flipping
+			{  
+			  order[0] = 0;
+			  order[1] = 1;
+			  order[2] = 2;
+			}
+			
+			// edges cannot be flipped
+		  }
+		  
+		  if (m->getType(shared) == Mesh::TRIANGLE)
+		  {
+			  if (flip)  // reverse order of all nodes
+			  {
+				  order[0] = 2;
+				  order[1] = 1;
+				  order[2] = 0;
+			  }
+			  
+			  if (rotate)
+			  {				  
+				  for (int i = 0; i < 3; ++i)
+				  {
+					order[i] += rotate;  // this works because therea re only 3 nodes on  a face
+					  
+					if (order[i] > 2)
+					{
+					  order[i] -= 3;
+					}
+				  }
+			  }
+		  }
+						
+		  
+		  // no need to consider shared vertices
+		}
     };
-	
 	EntityShape* getEntityShape(int type)
     {
       static Vertex vertex;
@@ -841,7 +877,7 @@ class SBPQuartic : public FieldShape
     }
     bool hasNodesIn(int dimension)
     {
-      if (dimension <= 2)
+      if (dimension <= 3)
         return true;
       else
         return false;
@@ -856,8 +892,11 @@ class SBPQuartic : public FieldShape
 	    return 3;
 	  } else if ( type == Mesh::TRIANGLE)
 	  {
-	    return 6;
-	  }  else
+	    return 3;
+	  }  else if ( type == Mesh::TET)
+	  {
+		return 11;
+	  } else
 	  {
         return 0;
 	  }
@@ -875,13 +914,13 @@ class SBPQuartic : public FieldShape
 	  { 
         if (node == 0)
 	    {
-		  xi = Vector3(0.2113248654051872, 0, 0);
+		  xi = Vector3(0.25737274681480826, 0, 0);
 		} else if (node == 1)
 		{
 		  xi = Vector3(0.5, 0, 0);
 		} else if (node == 2)
 		{
-		  xi = Vector3(0.7886751345948129, 0, 0);
+		  xi = Vector3(0.7426272531851917, 0, 0);
 		} else  // default case
 		{
 		  xi = Vector3(0,0, 0);
@@ -890,43 +929,71 @@ class SBPQuartic : public FieldShape
 	  {
 	    switch(node) {
 		  case 0:
-		    xi = Vector3(0.13079159382974495, 0.13079159382974495, 0);
+		    xi = Vector3(0.22504424155412348,0.22504424155412348,0.0);
 			break;
 		  case 1:
-		    xi = Vector3 (0.4247639617258106, 0.1504720765483788, 0);
+		    xi = Vector3 (0.549911516891753,0.22504424155412348,0.0);
 			break;
 		  case 2: 
-		    xi = Vector3( 0.7384168123405102, 0.13079159382974495, 0);
+		    xi = Vector3( 0.22504424155412348,0.549911516891753,0.0);
 			break;
-		  case 3:
-		    xi = Vector3( 0.4247639617258106, 0.4247639617258106, 0);
-			break;
-		  case 4: 
-		    xi = Vector3(0.13079159382974495, 0.7384168123405102, 0);
-			break;
-		  case 5:
-		    xi = Vector3(0.1504720765483788, 0.4247639617258106, 0);
-                    break;
 		  default:
 		    xi = Vector3(0, 0, 0);
 		  }
-	  } else
+	  } else if (type == Mesh::TET)
 	  {
-	    xi = Vector3(0,0,0);
-	  }
+		switch(node) {
+	      case 0:
+		    xi = Vector3(0.09472900091823398,0.09472900091823398,0.09472900091823398);
+		    break;
+		  case 1:
+		    xi = Vector3(0.715812997245298,0.09472900091823398,0.09472900091823398);
+			break;
+		  case 2:
+		    xi = Vector3( 0.09472900091823398,0.715812997245298,0.09472900091823398);
+			break;
+		  case 3:
+		    xi = Vector3( 0.09472900091823398,0.09472900091823398,0.715812997245298);
+			break;
+		  case 4:
+		    xi = Vector3( 0.39128583990222227,0.10871416009777772,0.10871416009777772);
+			break;
+		  case 5:
+		    xi = Vector3(0.39128583990222227,0.39128583990222227,0.10871416009777772);
+			break;
+		  case 6:
+		    xi = Vector3(0.10871416009777772,0.39128583990222227,0.10871416009777772);
+			break;
+		  case 7:
+		    xi = Vector3(0.39128583990222227,0.10871416009777772,0.39128583990222227);
+			break;
+		  case 8:
+		    xi = Vector3(0.10871416009777772,0.10871416009777772,0.39128583990222227);
+			break;
+		  case 9:
+		    xi = Vector3(0.10871416009777772,0.39128583990222227,0.39128583990222227);
+			break;
+		  case 10:
+		    xi = Vector3( 0.25, 0.25, 0.25);
+			break;
+		  default:
+		    xi = Vector3(0, 0, 0);
+
+	    }  // end switch block
+	  }  // end if type == tet
 	  
-    }
+    }  // end getNodeXi
 };  // class SBPQuartic
 
 
 
 
-FieldShape* getSBPShape(int order)
+FieldShape* getSBP3Shape(int order)
 {
-  static SBPLinear linear1;
-  static SBPQuadratic quadratic1;
-  static SBPCubic cubic1;
-  static SBPQuartic quartic1;
+  static SBP3Linear linear1;
+  static SBP3Quadratic quadratic1;
+  static SBP3Cubic cubic1;
+  static SBP3Quartic quartic1;
   // add an if statement here or something to support other orders
   switch (order) {
     case 1:
@@ -938,7 +1005,7 @@ FieldShape* getSBPShape(int order)
 	case 4:
 	  return &quartic1;
 	default:
-	  std::cout << "order " << order << " is not supported by apfSBPShape.cc" << std::endl;
+	  std::cout << "order " << order << " is not supported by apfSBP3Shape.cc" << std::endl;
 	  return NULL;
     }
 }
