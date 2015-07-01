@@ -29,6 +29,7 @@
 #include "funcs1.h"
 #include "adaptFuncsJ.h"
 #include "apfSBPShape.h"
+#include "apfSBPShape3.h"
 //#include "a2.h"
 
 //=============================================================================
@@ -64,7 +65,8 @@ AnisotropicFunctionJ anisofunc; // declare anisotropic function at global scope
 // init for 2d mesh
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
-int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh )
+// shape_type: type of shape functions, 0 =  lagrange, 1 = SBP
+int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type )
 {
   std::cout << "Entered init\n" << std::endl;
 
@@ -107,14 +109,31 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
     meshloaded = true;  // record the fact that a mesh is now loaded
     apf::reorderMdsMesh(m);
     // apply shape functions to newly loaded mesh
+    
+  apf::FieldShape* fshape; // variable to hold field shape
+  if ( shape_type == 0)
+  {
+    fshape = apf::getLagrange(order);
+  } else if ( shape_type == 1)  // use SBP shape functions
+  {
+      fshape = apf::getSBP3Shape(order);
+
+  } else  // default to lagrange shape functions
+  {
+    std::cout << "Warning: unrecognized shape_type, defaulting to Lagrange" << std::endl;
+    fshape = apf::getLagrange(order);
+  }
+
+
+
     if ( order == 1)
     {
-      apf::changeMeshShape(m, apf::getLagrange(1), false);
+      apf::changeMeshShape(m, fshape, false);
     } else
     {
-      apf::changeMeshShape(m, apf::getLagrange(order), true);
+      apf::changeMeshShape(m, fshape, true);
     }
-  
+
     std::cout << "finished loading mesh, changing shape" << std::endl;
 
   } else {  // if not loading a mesh
@@ -183,9 +202,9 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 // init for 2d mesh
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
-int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh )
+int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type )
 {
-  std::cout << "Entered init\n" << std::endl;
+  std::cout << "Entered init2\n" << std::endl;
 
   // various startup options
 
@@ -225,15 +244,31 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
 
     meshloaded = true;  // record the fact that a mesh is now loaded
     apf::reorderMdsMesh(m);
-    // apply shape functions to newly loaded mesh
+
+
+  apf::FieldShape* fshape; // variable to hold field shape
+  if ( shape_type == 0)
+  {
+    fshape = apf::getLagrange(order);
+  } else if ( shape_type == 1)  // use SBP shape functions
+  {
+      fshape = apf::getSBPShape(order);
+  } else  // default to lagrange shape functions
+  {
+    std::cout << "Warning: unrecognized shape_type, defaulting to Lagrange" << std::endl;
+    fshape = apf::getLagrange(order);
+  }
+
+
+
     if ( order == 1)
     {
-      apf::changeMeshShape(m, apf::getSBPShape(1), false);
+      apf::changeMeshShape(m, fshape, false);
     } else
     {
-      apf::changeMeshShape(m, apf::getSBPShape(order), true);
+      apf::changeMeshShape(m, fshape, true);
     }
-  
+
     std::cout << "finished loading mesh, changing shape" << std::endl;
 
   } else {  // if not loading a mesh
@@ -999,6 +1034,38 @@ int getElCoords(double coords[][3], int sx, int sy)
 
   return 0;
 }
+
+
+
+int getElCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
+{
+//  std::cout << "Entered getElCoords" << std::endl;
+
+  apf::Downward verts; // hold vertices
+  int numDownward = m->getDownward(e, 0, verts); // populate verts
+
+  if ( sx < numDownward || sy != 3)
+  {
+    std::cout << " Warning, array not right size ";
+    std::cout << " Array must be " << numDownward << " by 3, is ";
+    std::cout << sx << " by " << sy << std::endl;
+    return -1;
+  }
+
+  apf::Vector3 vec;  // vector to hold coordinates of a point
+  for ( int i = 0; i < numDownward; ++i) // loop over vertices
+  {
+    m->getPoint(verts[i], 0, vec); // populate vec with coordinates of vertex
+//    std::cout << "coordinates of vertex " << i << " = " << vec << std::endl;
+    coords[i][0] = vec[0];
+    coords[i][1] = vec[1];
+    coords[i][2] = vec[2];
+  }
+
+  return 0;
+}
+
+
 
 
 // create a generally defined numbering from julia

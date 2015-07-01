@@ -17,9 +17,15 @@ end
 
 function resetAllIts2()
  # reset all the iterationr that exist for a 2d mesh
- resetVertIt()
- resetEdgeIt()
- resetFaceIt()
+
+ m_ptr = getMeshPtr()
+ dim = getMeshDimension(m_ptr) 
+ reset_funcs = [resetVertIt, resetEdgeIt, resetFaceIt, resetElIt]
+
+ for i=1:(dim+1)
+   reset_funcs[i]()
+ end
+
 
  return nothing
 end

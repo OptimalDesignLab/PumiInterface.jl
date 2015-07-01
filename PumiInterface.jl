@@ -91,6 +91,7 @@ global const getEdgeCoords2_name = "getEdgeCoords2"
 global const getFaceCoords_name = "getFaceCoords"
 global const getFaceCoords2_name = "getFaceCoords2"
 global const getElCoords_name = "getElCoords"
+global const getElCoords2_name = "getElCoords2"
 global const createNumberingJ_name = "createNumberingJ"
 global const numberJ_name = "numberJ"
 global const getNumberJ_name = "getNumberJ"
@@ -138,7 +139,7 @@ export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapeP
     * mshape_ptr :   pointer to the apf::FieldShape of the mesh
 """
 
-function init(dmg_name::AbstractString, smb_name::AbstractString, order::Integer, load_mesh=true)
+function init(dmg_name::AbstractString, smb_name::AbstractString, order::Integer; load_mesh=true, shape_type=0 )
 # initilize mesh interface
 # initilize pointers to some value
 # this is hack-ish -- there should be a better way to do this
@@ -150,7 +151,7 @@ m_ptr_array = Array(Ptr{Void}, 1)
 mshape_ptr_array = Array(Ptr{Void}, 1)
 
 
-i = ccall( (init_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, order, load_mesh )  # call init in interface library
+i = ccall( (init_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, order, load_mesh, shape_type )  # call init in interface library
 
 
 
@@ -167,7 +168,7 @@ end
 
 
 # 2d initilization
-function init2(dmg_name::AbstractString, smb_name::AbstractString, order::Integer, load_mesh=true)
+function init2(dmg_name::AbstractString, smb_name::AbstractString, order::Integer; load_mesh=true, shape_type=0)
 # initilize mesh interface
 # initilize pointers to some value
 # order = order of shape functions to use, currently only necessary because
@@ -183,7 +184,7 @@ num_Entities = zeros(Int32, 4, 1)
 m_ptr_array = Array(Ptr{Void}, 1)
 mshape_ptr_array = Array(Ptr{Void}, 1)
 
-i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, order, load_mesh )  # call init in interface library
+i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, order, load_mesh, shape_type )  # call init in interface library
 
 if ( i != 0)
   println("init failed, exiting ...")
@@ -811,6 +812,26 @@ end
 #println("in julia, coords = ", coords)
 
 end
+
+function getElCoords(entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
+# get coordinates of points in an element, in order
+# coords is array to populate with coordinates, must by 3 by number of points
+# on a element
+# m,n = number of rows, columns in coords, respectively
+
+# reverse m and n because C is row major
+i = ccall( (getElCoords2_name, pumi_libname), Int, (Ptr{Void}, Ptr{Float64}, Int32, Int32),entity, coords, n, m);
+
+if ( i != 0)
+  println("Error in getEdgeCoords... exiting")
+  exit()
+end
+
+#println("in julia, coords = ", coords)
+
+end
+
+
 
 
 

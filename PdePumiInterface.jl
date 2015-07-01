@@ -9,11 +9,14 @@ using PDESolverCommon
 export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray
 
 #abstract AbstractMesh
+abstract PumiMesh{T1} <: AbstractMesh{T1}
 include("./PdePumiInterface3.jl")
-type PumiMesh2{T1} <: AbstractMesh{T1}   # 2d pumi mesh, triangle only
+type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
+  shape_type::Int  #  type of shape functions
+
   vert_Nptr::Ptr{Void}  # numbering of vertices
   edge_Nptr::Ptr{Void}  # numbering of edges
   el_Nptr::Ptr{Void}  # numbering of elements (faces)
@@ -49,18 +52,20 @@ type PumiMesh2{T1} <: AbstractMesh{T1}   # 2d pumi mesh, triangle only
 
 
 
- function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::SBPOperator; dofpernode=1)
+ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::SBPOperator; dofpernode=1, shape_type=1)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
   # order = order of shape functions
   # dofpernode = number of dof per node, default = 1
+  # shape_type = type of shape functions, 0 = lagrange, 1 = SBP
 
   mesh = new()
   mesh.numDofPerNode = dofpernode
   mesh.order = order
   mesh.numNodesPerElement = getNumNodes(order)
-  num_Entities, mesh.m_ptr, mesh.mshape_ptr = init2(dmg_name, smb_name, order)
+  mesh.shape_type = shape_type
+  num_Entities, mesh.m_ptr, mesh.mshape_ptr = init2(dmg_name, smb_name, order, shape_type=shape_type)
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
 
   mesh.numVert = convert(Int, num_Entities[1])
@@ -416,7 +421,7 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   dmg_name = "b"
   order = mesh.order
   dofpernode = mesh.numDofPerNode
-  tmp, num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order, false) # do not load new mesh
+  tmp, num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
   f_ptr = mesh.f_ptr  # use existing solution field
 
   numVert = convert(Int, num_Entities[1])
@@ -760,7 +765,7 @@ return face_nums
 end
 
 
-function getAdjacentEntityNums(mesh::PumiMesh2, entity_index::Integer, input_dimension::Integer, output_dimension::Integer)
+function getAdjacentEntityNums(mesh::PumiMesh, entity_index::Integer, input_dimension::Integer, output_dimension::Integer)
 # gets the numbers of the adjacent entities (upward or downward) of the given entity
 # entity_index specifies the index of the input entity
 # input_dimension specifies the dimension of the input entity (0 =vert, 1 = edge ...)
@@ -774,12 +779,23 @@ if (input_dimension == output_dimension)
 end
 
 
-array1 = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
-#array2 = [mesh.verts; mesh.edges; mesh.elements]  # array of arrays
-array2 = Array(Array{Ptr{Void},1}, 3)
-array2[1] = mesh.verts
-array2[2] = mesh.edges
-array2[3] = mesh.elements
+if typeof(mesh) <: PumiMesh2
+
+  array1 = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
+  #array2 = [mesh.verts; mesh.edges; mesh.elements]  # array of arrays
+  array2 = Array(Array{Ptr{Void},1}, 3)
+  array2[1] = mesh.verts
+  array2[2] = mesh.edges
+  array2[3] = mesh.elements
+else # 3d mesh
+   array1 = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.face_Nptr,  mesh.el_Nptr]
+  #array2 = [mesh.verts; mesh.edges; mesh.elements]  # array of arrays
+  array2 = Array(Array{Ptr{Void},1}, 4)
+  array2[1] = mesh.verts
+  array2[2] = mesh.edges
+  array2[3] = mesh.faces
+  array2[4] = mesh.elements
+end
 
 # choose which numbering to use
 numbering_ptr = array1[output_dimension + 1]

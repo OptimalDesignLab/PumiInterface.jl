@@ -13,10 +13,10 @@ extern "C" {
 //extern int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numberEntities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1]);
 
 
-int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh );
+int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type );
 
 
-int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh );
+int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type );
 
 // these functions are not user accessible
 void cleanup(apf::Mesh* m_local);
@@ -106,6 +106,7 @@ extern void getVertCoords(double coords[][3], int sx, int sy);
 extern int getEdgeCoords(double coords[2][3], int sx, int sy);
 extern int getFaceCoords(double coords[][3], int sx, int sy);
 extern int getElCoords(double coords[][3], int sx, int sy);
+extern int getElCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);
 
 // these functinos pass pointers
 extern void getVertCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);

@@ -1,9 +1,12 @@
 export PumiMesh3
 
-type PumiMesh3{T1} <: AbstractMesh{T1}   # 3d pumi mesh, tetrahedron only
+type PumiMesh3{T1} <: PumiMesh{T1}   # 3d pumi mesh, tetrahedron only
   m_ptr::Ptr{Void}  # pointer to mesh
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
+
+  shape_type::Int  # type of shape functions
+
   vert_Nptr::Ptr{Void}  # numbering of vertices
   edge_Nptr::Ptr{Void}  # numbering of edges
   face_Nptr::Ptr{Void} # numbering of faces
@@ -44,19 +47,21 @@ type PumiMesh3{T1} <: AbstractMesh{T1}   # 3d pumi mesh, tetrahedron only
 
 
 
- function PumiMesh3(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::SBPOperator; dofpernode=1)
+ function PumiMesh3(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::SBPOperator; dofpernode=1, shape_type=0)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
   # order = order of shape functions
   # dofpernode = number of dof per node, default = 1
+  # shape_type = type of shape functions to use, 0 = lagrange, 1 = SBP
 
   mesh = new()
   mesh.numDofPerNode = dofpernode
   mesh.order = order
   mesh.numNodesPerElement = getNumNodes(order)
-  mesh.numEntities, mesh.m_ptr, mesh.mshape_ptr = init(dmg_name, smb_name, order)
-  mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
+  mesh.shape_type = shape_type
+  @time mesh.numEntities, mesh.m_ptr, mesh.mshape_ptr = init(dmg_name, smb_name, order, shape_type=shape_type)
+  @time mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
 
   mesh.numVert = convert(Int, mesh.numEntities[1])
   mesh.numEdge = convert(Int,  mesh.numEntities[2])
@@ -89,7 +94,7 @@ type PumiMesh3{T1} <: AbstractMesh{T1}   # 3d pumi mesh, tetrahedron only
   mesh.face_Nptr = getFaceNumbering()
   mesh.el_Nptr = getElNumbering()
 
-  mesh.verts = Array(Ptr{Void}, mesh.numVert)
+   mesh.verts = Array(Ptr{Void}, mesh.numVert)
   mesh.edges = Array(Ptr{Void}, mesh.numEdge)
   mesh.faces = Array(Ptr{Void}, mesh.numFace)
   mesh.elements = Array(Ptr{Void}, mesh.numEl)
@@ -129,14 +134,30 @@ type PumiMesh3{T1} <: AbstractMesh{T1}   # 3d pumi mesh, tetrahedron only
   
 #  numberDofs(mesh)
 
-  countBoundaryFaces(mesh)
+  @time countBoundaryFaces(mesh)
    mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
-  getBoundaryArray(mesh)
+  @time getBoundaryArray(mesh)
 
-  numberDofs(mesh)
-  getDofNumbers(mesh)
+  @time numberDofs(mesh)
+  @time getDofNumbers(mesh)
 
-  getCoordinates(mesh, sbp)
+  @time countBoundaryFaces(mesh)
+  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
+  @time getBoundaryArray(mesh)
+
+  mesh.numInterfaces = mesh.numFace - mesh.numBoundaryFaces
+  mesh.interfaces = Array(Interface, mesh.numInterfaces)
+  @time getInterfaceArray(mesh)
+
+
+
+
+  @time getCoordinates(mesh, sbp)
+  @time mesh.dxidx = Array(T1, 3, 3, sbp.numnodes, mesh.numEl)
+  @time mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
+  @time mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+#
+
 #=
   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
   getBoundaryArray(mesh)
@@ -222,7 +243,7 @@ function countBoundaryFaces(mesh::PumiMesh3)
       elements = getAdjacent(numRegion)
       elnum = getElNumber2(elements[1]) + 1
 
-      println("face number ", i, " is part of only one element")
+#      println("face number ", i, " is part of only one element")
 
       bnd_faces_cnt += 1
       bnd_faces[bnd_faces_cnt, 1] = elnum
@@ -322,17 +343,18 @@ function numberDofs(mesh::PumiMesh3)
 
   println("num_nodes_entity = ", num_nodes_entity)
   println("num_entities = ", num_entities)
+  println("\nPerforming initial dof numbering")
   #  curr_dof = 1
   curr_dof = numDof+1
   for etype = 1:length(num_nodes_entity) # loop over entity types
     println("etype = ", etype)
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
       for entity = 1:num_entities[etype]  # loop over all entities of this type
-	println("  entity number: ", entity)
+#	println("  entity number: ", entity)
 	entity_ptr = iterators_get[etype]()  # get entity
 
 	for node = 1:num_nodes_entity[etype]
-	  println("    node : ", node)
+#	  println("    node : ", node)
 	  for dof = 1:mesh.numDofPerNode
 	    numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, dof-1, curr_dof)
 #	    println("      entity ", entity_ptr, " labelled ", curr_dof)
@@ -352,7 +374,7 @@ function numberDofs(mesh::PumiMesh3)
 # move all if statements out one for loop (check only first dof on each node)
   curr_dof = 1
   for i=1:mesh.numEl
-    println("element number: ", i)
+#    println("element number: ", i)
 
     el_i = mesh.elements[i]
     # get vertices, edges for this element
@@ -373,7 +395,7 @@ function numberDofs(mesh::PumiMesh3)
 
     # loop over vertices
     for j=1:numVert  # loop over vertices, edges
-      println("  vertex number: ", j)
+#      println("  vertex number: ", j)
       vert_j = verts_i[j]
 #      println("  vert_j = ", vert_j)
 #      println("  edge_j = ", edge_j)
@@ -384,7 +406,7 @@ function numberDofs(mesh::PumiMesh3)
 	if dofnum_k > numDof  # still has initial number
 	  # give it new (final) number
 	  numberJ(mesh.dofnums_Nptr, vert_j, 0, k-1, curr_dof)
-	  println("numbering a vertex ", curr_dof)
+#	  println("numbering a vertex ", curr_dof)
 	  curr_dof += 1
 	end
       end  # end loop over vertex dofs
@@ -392,7 +414,7 @@ function numberDofs(mesh::PumiMesh3)
 
     # now loop over edges
     for j=1:numEdge
-      println("edge number: ", j)
+#      println("edge number: ", j)
       edge_j = edges_i[j]
       # loop over nodes on edge
       for k=1:num_nodes_entity[2]  # loop over all nodes on the edge
@@ -409,11 +431,11 @@ function numberDofs(mesh::PumiMesh3)
 
     # now loop over faces
     for j=1:numFace
-      println("face number: ", j)
+#      println("face number: ", j)
       face_j = face_i[j]
       for k=1:num_nodes_entity[3]  # loop over nodes on faces
 	for p=1:mesh.numDofPerNode  # loop over dofs
-	  dofnum_p = getNumberJ(mesh.dofnums_Nptr, region_j, k-1, p-1)
+	  dofnum_p = getNumberJ(mesh.dofnums_Nptr, face_j, k-1, p-1)
 	  if dofnum_p > numDof
 	    numberJ(mesh.dofnums_Nptr, face_j, k-1, p-1, curr_dof)
 	    curr_dof += 1
@@ -424,7 +446,7 @@ function numberDofs(mesh::PumiMesh3)
 
     # now loop over region
     for j=1:numRegions
-      println("region number: ", j)
+#      println("region number: ", j)
       region_j = regions_i[j]
       for k=1:num_nodes_entity[4]
 	for p=1:mesh.numDofPerNode
@@ -522,14 +544,14 @@ for i=1:mesh.numEl  # loop over elements
   
   el_i = mesh.elements[i]
   (sizex, sizey) = size(coords_i)
-  getFaceCoords(el_i, coords_i, sizex, sizey)  # populate coords
+  getElCoords(el_i, coords_i, sizex, sizey)  # populate coords
 
-  println("coords_i = ", coords_i)
+#  println("coords_i = ", coords_i)
 
   coords_it[:,:] = coords_i.'
-  println("coords_it = ", coords_it)
+ # println("coords_it = ", coords_it)
   mesh.coords[:, :, i] = calcnodes(sbp, coords_it)
-  println("mesh.coords[:,:,i] = ", mesh.coords[:,:,i])
+#  println("mesh.coords[:,:,i] = ", mesh.coords[:,:,i])
 end
 
 return nothing
@@ -562,10 +584,10 @@ function getInterfaceArray(mesh::PumiMesh3)
   # store whether the node map has been calculated for each case
   # index = relative rotation of faces + 1
   nodemap_mask = zeros(Bool, 3)
-  nodemaps = Array(Array{Int,1}, 3)
+  nodemaps = Array(Array{Uint8,1}, 3)
   
 
-  nodemap = Array(num_edge_nodes:(-1):1)
+#  nodemap = Array(num_edge_nodes:(-1):1)
 
   pos = 1 # current position in interfaces
   for i=1:mesh.numFace
@@ -618,12 +640,12 @@ function getInterfaceArray(mesh::PumiMesh3)
       # construct nodemap if needed
       rel_rotate = calcRelRotate(mesh, elementL, elementR, i)
       if !nodemap_mask[rel_rotate + 1]  # if nodemap not yet constructed
-	constructNodemap(faceR, elementR, flip, rotate)
+	nodemaps[rel_rotate + 1] = constructNodemap(mesh, rel_rotate)
 	nodemap_mask[rel_rotate + 1] = true
       end
 
 
-      mesh.interfaces[pos] = Interface(elementL, elementR, edgeL, edgeR, nodemap)
+      mesh.interfaces[pos] = Interface(elementL, elementR, faceL, faceR, nodemaps[rel_rotate + 1])
 #       println("updating pos")
       pos += 1
 
@@ -643,6 +665,10 @@ end  # end function
 function calcRelRotate(mesh::PumiMesh3, elementL::Integer, elementR::Integer, facenum::Integer)
 # calculate the rotation of faceR relative to faceL, where faceL and faceR
 # are shared between the two element
+# this uses getAligmnet, which describes how to transform the face from
+# its current orientation to the canonical orientation as part of its parent
+# element
+# the difference in the required rotations is the relative rotation
 # elementL : global element index
 # elementR : global element index
 # faceL : local face number of shared face on elementL
@@ -650,19 +676,25 @@ function calcRelRotate(mesh::PumiMesh3, elementL::Integer, elementR::Integer, fa
 # face : global face number of the shared face
 
 eL = mesh.elements[elementL]
-eR = mesh.element[elementR]
+eR = mesh.elements[elementR]
 face = mesh.faces[facenum]
 
 # get rotations to bring faces into canonical orientation
 # for each element
 # we can ignore flip because one of the faces will always be flipped
-which, flip, rotateL = getalignment(mesh.m_ptr, eL, face)
-which, flip, rotateR = getAlignment(mesh.m_ptr, eR, face)
+which, flipL, rotateL = getAlignment(mesh.m_ptr, eL, face)
+which, flipR, rotateR = getAlignment(mesh.m_ptr, eR, face)
+
+if flipL && flipR
+  println("Warning both faces are flipped, nodemap may  be incorrect")
+end
 
 # sum rotations because they each rotate ccw in their parent
 # element's orientation, so they rotate in opposite directions
 rel_rotate = rotateR + rotateL
-rel_rotate = wrapNumber(rel_rotate, 1, 3)
+#println("rel_rotate before wrapping = ", rel_rotate)
+rel_rotate = wrapNumber(rel_rotate, 0, 2)
+#println("rel_rotate after wrapping = ", rel_rotate)
 
 return rel_rotate 
 
@@ -713,38 +745,74 @@ end
 nnodes_edge = mesh.numNodesPerType[2]
 nnodes_face = mesh.numNodesPerType[3]
 
-canonical_order = Array(1:num_nodes_face)
-nodemap = zeros(Int, num_nodes_face)
+nodemap = zeros(Uint8, num_nodes_face)
 
 for i=1:3  # loop over verts
   index_i = wrapNumber(i + rel_rotate, 1, 3)  # correct for relative rotation
-  println("after first wrap, index_i = ", index_i)
+#  println("after first wrap, index_i = ", index_i)
   index_i = 5 - index_i  # permuate because one triangle is flipped
-  println("pre wrapping, vertex index_i = ", index_i)
+#  println("pre wrapping, vertex index_i = ", index_i)
   index_i = wrapNumber(index_i, 1, 3)
-  println("post wrapping, vert index_i = ", index_i)
+#  println("post wrapping, vert index_i = ", index_i)
   nodemap[i] = index_i
 end
 
 for i=1:3  # loop over edges
   edgeR = 3 - i + 1 - rel_rotate
 
-  println("before wrap, edgeR = ", edgeR)
+#  println("before wrap, edgeR = ", edgeR)
   edgeR = wrapNumber(edgeR, 1, 3)
-  println("after wrap, edgeR = ", edgeR)
+#  println("after wrap, edgeR = ", edgeR)
   for j=1:nnodes_edge
     nodemap_index = 3 + nnodes_edge*(i-1) + j
     nodemap_val = 3 + nnodes_edge*(edgeR-1) + (nnodes_edge -j + 1)
-    println("nodemap_index = ", nodemap_index)
-    println("nodemap_val = ", nodemap_val)
+#    println("nodemap_index = ", nodemap_index)
+#    println("nodemap_val = ", nodemap_val)
     nodemap[nodemap_index] = nodemap_val
   end
 end
 
+#=
 # threshold = location of wraparound
 threshold = rel_rotate + 1
 sum1 = 2 + (mesh.order - 2)*rel_rotate  # index sum below threshold
 sum2 = 2 + (mesh.order - 2)*rel_rotate + nnodes_face  # index sum above threshold
+=#
+
+if ((rel_rotate % 2) == 0)
+  threshold = rel_rotate + 1
+  sum1 = nnodes_face - 1
+  sum2 = 2*nnodes_face - 1
+else  # rel_rotate is odd
+  threshold = 0  # always above threshold
+  sum1 = 0  # irrelevent
+  sum2 = nnodes_face + 1
+end
+
+
+if mesh.order == 3
+  threshold = 0
+  sum1 = 2  # irrelevent
+  sum2 = 2
+end
+
+if mesh.order == 4
+  if rel_rotate == 0
+    threshold = 1
+    sum1 = 2
+    sum2 = 5
+  elseif rel_rotate == 1
+    threshold == 0
+    sum1 = 4  # irrelevent
+    sum2 = 4
+  else  # rel_rotate = 2
+    threshold = 2
+    sum1 = 3
+    sum2 = 5
+  end
+end
+
+
 
 nodemap_index = 3 + 3*nnodes_edge
 for j=1:nnodes_face  # loop over interior face points
@@ -753,7 +821,8 @@ for j=1:nnodes_face  # loop over interior face points
   else
     sum = sum2
   end
-  nodemap[nodemap_index + j] = sum - j
+#  println("face loop j = ", j, " sum = ", sum)
+  nodemap[nodemap_index + j] = nodemap_index + sum - j
 end
 
 return nodemap

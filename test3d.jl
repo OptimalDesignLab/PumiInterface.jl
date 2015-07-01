@@ -6,13 +6,15 @@ using PumiInterface
 using PdePumiInterface
 
 dmg_name =  ".null"
-smb_name = "cube8l.smb"
-order = 3
+smb_name = "cube8f.smb"
+order = 4
+shape_type = 1
 
 sbp = TetSBP{Float64}(degree=order)
 
-mesh = PumiMesh3{Float64}(dmg_name, smb_name, order, sbp, dofpernode=4)
+mesh = PumiMesh3{Float64}(dmg_name, smb_name, order, sbp, dofpernode=4, shape_type=shape_type)
 
+#=
 for i=1:mesh.numBoundaryFaces
   println("Element ", mesh.boundary_nums[i,1] -1, " face ", mesh.boundary_nums[i,2])
 end
@@ -30,3 +32,4 @@ end
 =#
 
 which, flip, rotate  = getAlignment(mesh.m_ptr, el, face) 
+=#
