@@ -32,6 +32,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   numInterfaces::Int # number of internal interfaces
   numNodesPerElement::Int  # number of nodes per element
   numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
+  numBC::Int  # number of boundary conditions
 
   # hold pointers to mesh entities
   verts::Array{Ptr{Void},1}  # holds pointers to mesh vertices
@@ -39,7 +40,13 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   elements::Array{Ptr{Void},1}  # pointers to faces
 
   dofnums_Nptr::Ptr{Void}  # pointer to Numbering of dofs (result of reordering)
-  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
+#  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
+
+  bndry_funcs::Array{BCTypes, 1}  # array of boundary functors (Abstract type)
+  bndry_facenums::Array{Array{Int, 1}, 1}  # hold array of faces corresponding to each boundary condition
+  bndry_offsets::Array{Int, 1}  # location in bndryfaces where new type of BC starts
+                                # and one past the end of the last BC type
+				# array has length numBC + 1
 
   bndryfaces::Array{Boundary, 1}  # store data on external boundary of mesh
   interfaces::Array{Interface, 1}  # store data on internal edges
@@ -52,11 +59,12 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
 
 
- function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::SBPOperator; dofpernode=1, shape_type=1)
+ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::SBPOperator, opts; dofpernode=1, shape_type=1)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
   # order = order of shape functions
+  # opts: dictionary of options
   # dofpernode = number of dof per node, default = 1
   # shape_type = type of shape functions, 0 = lagrange, 1 = SBP
 
@@ -101,12 +109,31 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
     incrementFaceIt()
   end
 
+  mesh.numBC = opts["numBC"]
+
+  countBoundaryEdges(mesh)
+  # populate mesh.bndry_faces from options dictionary
+#  mesh.bndry_faces = Array(Array{Int, 1}, mesh.numBC)
+  mesh.bndry_offsets = Array(Int, mesh.numBC + 1)
+  mesh.boundary_nums = Array(Int, mesh.numBoundaryEdges, 2)
+
+  offset = 1
+  for i=1:mesh.numBC
+    key_i = string("BC", i)
+    mesh.bndry_offsets[i] = offset
+    offset = getMeshEdgesFromModel(mesh, opts[key_i], offset, mesh.boundary_nums)  # get the mesh edges on the model edge
+    # offset is incremented by getMeshEdgesFromModel
+  end
+  mesh.bndry_offset[mesh.numBC + 1] = offset # = num boundary edges
+
+  # get array of all boundary mesh edges in the same order as in mesh.bndry_faces
+#  boundary_nums = flattenArray(mesh.bndry_faces[i])
+#  boundary_edge_faces = getEdgeFaces(mesh, mesh.bndry_faces)
   # use partially constructed mesh object to populate arrays
 
   numberDofs(mesh)
 
-  countBoundaryEdges(mesh)
-
+  # get boundary information for entire mesh
   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
   getBoundaryArray(mesh)
 
@@ -174,6 +201,89 @@ function getNumNodes(order::Integer)
   return nnodes
 end
 
+function getEdgeFaces(mesh::PumiMesh2, bndry_edges::AbstractArray{Int, 1})
+# get the faces corresponding to the boundary edges
+
+bndry_faces = zeros(bndry_edges)
+
+for i=1:bndry_edges
+  edgenum_i = bndry_edges[i]
+  edge_i = mesh.edges[edgenum_i]
+  numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
+  faces = getAdjacent(numFace)
+  facenum = getFaceNumber2(faces[1]) + 1
+
+  bndry_faces[i] = facenum
+end
+
+return bndry_faces
+
+end
+
+
+
+  
+
+
+function flattenArray{T}(A::AbstractArray{AbstractArray{T}, 1})
+# copies array-of-array A into a flattened version B
+
+  n = length(A)
+  num_entries = 0
+  for i=1:n  # count number of entries total
+    num_entries += length(A[i])
+  end
+
+  B = zeros(T, num_entries)
+
+  B_index = 1
+  for i=1:n
+    for j = 1:length(A[i])
+      B[B_index] = A[i][j]
+      B_index += 1
+    end
+  end
+
+  return B
+
+end
+
+
+function getMeshEdgesFromModel(mesh::PumiMesh2, medges::AbstractArray{Integer, 1}, offset::Integer, boundary_nums::AbstractAray{T, 2})
+# get the global numbers of the mesh edges lying on the model edges in medges
+# offset is the index in boundary_nums to start with
+# this allows populating the entire array without making temporary copies
+# offset should start as 1, not zero
+
+  bndry_edges = zeros(Int, mesh.numBoundaryEdges)
+  index = 0  # relative index in bndry_edges
+  for i=1:mesh.numEdges
+    edge_i = mesh.edges[i]
+    me_i = toModel(mesh.m_ptr, edge_i)
+    me_dim = getModelType(mesh.m_ptr, me_i)
+    me_tag = getModelTag(mesh.m_ptr, me_i)
+    if me_type == 1  # edge
+      onBoundary = findfirst(medges, me_tag)
+
+      if onBoundary != 0  # if mesh edge is on model edge
+        
+	# get face number
+        numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
+        faces = getAdjacent(numFace)
+        facenum = getFaceNumber2(faces[1]) + 1
+
+	boundary_nums[offset + index, 1] = facenum
+        bndry_edges[offset + index, 2] = i
+
+	index += 1
+      end
+    end
+  end
+
+  return offset + index
+
+end  # end function
+
 
 function numberDofs(mesh::PumiMesh2)
 # assign dof numbers to entire mesh
@@ -186,6 +296,9 @@ function numberDofs(mesh::PumiMesh2)
   num_nodes_v = 1  # number of nodes on a vertex
   num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
   num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
+  println("num_nodes_v = ", num_nodes_v)
+  println("num_nodes_e = ", num_nodes_e)
+  println("num_nodes_f = ", num_nodes_f)
   numnodes = num_nodes_v*mesh.numVert + num_nodes_e*mesh.numEdge + num_nodes_f*mesh.numEl
   numDof = mesh.numDofPerNode*numnodes
   println("expected number of dofs = ", numDof)
@@ -373,7 +486,7 @@ function countBoundaryEdges(mesh::PumiMesh2)
   end
 
 
-  mesh.boundary_nums = bnd_edges[1:bnd_edges_cnt, :] # copy, bad but unavoidable
+#  mesh.boundary_nums = bnd_edges[1:bnd_edges_cnt, :] # copy, bad but unavoidable
   mesh.numBoundaryEdges = bnd_edges_cnt
 
 return nothing
@@ -516,7 +629,7 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   mesh.verts = verts  # does this need to be a deep copy?
   mesh.edges = edges
   mesh.elements = elements
-  mesh.boundary_nums = bnd_edges_small
+#  mesh.boundary_nums = bnd_edges_small
 
 #=
   println("typeof m_ptr = ", typeof(m_ptr))
@@ -558,12 +671,12 @@ for i=1:mesh.numEl  # loop over elements
   (sizex, sizey) = size(coords_i)
   getFaceCoords(el_i, coords_i, sizex, sizey)  # populate coords
 
-  println("coords_i = ", coords_i)
+#  println("coords_i = ", coords_i)
 
   coords_it[:,:] = coords_i[1:2, :].'
-  println("coords_it = ", coords_it)
+#  println("coords_it = ", coords_it)
   mesh.coords[:, :, i] = calcnodes(sbp, coords_it)
-  println("mesh.coords[:,:,i] = ", mesh.coords[:,:,i])
+#  println("mesh.coords[:,:,i] = ", mesh.coords[:,:,i])
 end
 
 return nothing
@@ -745,13 +858,14 @@ function getNumBoundaryElements(mesh::PumiMesh2)
    return length(unique(mesh.boundary_nums[:,1]))
 end
 
+#=
 function getBoundaryEdgeNums(mesh::PumiMesh2)
 # get vector of edge numbers that are on boundary
 
 edge_nums = mesh.boundary_nums
 return edge_nums
 end
-
+=#
 
 
 # this doesn't exist for a 2D mesh
@@ -885,7 +999,7 @@ function getEdgeLocalNum(mesh::PumiMesh2, edge_num::Integer, element_num::Intege
 
 end
 
-function getBoundaryArray(mesh::PumiMesh2)
+function getBoundaryArray(mesh::PumiMesh2, boundary_nums::AbstractArray{Integer, 2})
 # get an array of type Boundary for SBP
 # creating an an array of a user defined type seems like a waste of memory operations
 # bnd_array is a vector of type Boundary with length equal to the number of edges on the boundary of the mesh
@@ -893,8 +1007,8 @@ function getBoundaryArray(mesh::PumiMesh2)
 #  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
 
   for i=1:mesh.numBoundaryEdges
-    facenum = mesh.boundary_nums[i,1]
-    edgenum_global = mesh.boundary_nums[i,2]
+    facenum = boundary_nums[i, 1]
+    edgenum_global = boundary_nums[i, 2]
     edgenum_local = getBoundaryEdgeLocalNum(mesh, edgenum_global)
     mesh.bndryfaces[i] = Boundary(facenum, edgenum_local)
   end

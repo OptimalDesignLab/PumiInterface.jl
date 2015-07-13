@@ -247,29 +247,38 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
 
 
   apf::FieldShape* fshape; // variable to hold field shape
-  if ( shape_type == 0)
+  bool change_shape = false;
+  if ( shape_type == 0)  // use lagrange
   {
     fshape = apf::getLagrange(order);
+    change_shape = true;
   } else if ( shape_type == 1)  // use SBP shape functions
   {
       fshape = apf::getSBPShape(order);
+      change_shape = true;
   } else  // default to lagrange shape functions
   {
-    std::cout << "Warning: unrecognized shape_type, defaulting to Lagrange" << std::endl;
-    fshape = apf::getLagrange(order);
+    std::cout << "Warning: unrecognized shape_type, not changing mesh shape" << std::endl;
+//    fshape = apf::getLagrange(order);
   }
 
 
 
-    if ( order == 1)
+  if (change_shape)
+  {
+    if ( order == 1 )
     {
-      apf::changeMeshShape(m, fshape, false);
+      apf::changeMeshShape(m, fshape, true);
     } else
     {
       apf::changeMeshShape(m, fshape, true);
     }
 
     std::cout << "finished loading mesh, changing shape" << std::endl;
+  } else
+  {
+    std::cout << "finished loading mesh" << std::endl;
+  }
 
   } else {  // if not loading a mesh
     destroyNumberings(2);  // destroy the numberings before creating new ones
@@ -585,6 +594,28 @@ int getElNumber2(apf::MeshEntity* e)
   int i = apf::getNumber(numberings[3], e, 0 , 0);
   return i;
 }
+
+
+// get model info of a mesh element
+apf::ModelEntity* toModel(apf::Mesh* m_local, apf::MeshEntity* e)
+{
+  return m_local->toModel(e);
+}
+
+// get the *dimension* of the model entity
+// not its type like the name implies
+int getModelType(apf::Mesh* m_local, apf::ModelEntity* e)
+{
+  return m_local->getModelType(e);
+}
+
+int getModelTag(apf::Mesh* m_local, apf::ModelEntity* e)
+{
+  return m_local->getModelTag( e);
+}
+
+
+
 
 // get dimension of mesh
 int getMeshDimension(apf::Mesh2* m_local)

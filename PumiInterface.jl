@@ -60,6 +60,11 @@ global const getVertNumber2_name = "getVertNumber2"
 global const getEdgeNumber2_name = "getEdgeNumber2"
 global const getFaceNumber2_name = "getFaceNumber2"
 global const getElNumber2_name = "getElNumber2"
+
+global const toModel_name = "toModel"
+global const getModelType_name = "getModelType"
+global const getModelTag_name = "getModelTag"
+
 global const getMeshDimension_name = "getMeshDimension"
 global const getType_name = "getType"
 global const getDownward_name = "getDownward"
@@ -121,6 +126,10 @@ end
 # export low level interface functions
 export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents
 
+
+
+export toModel, getModelType, getModelTag
+
 @doc """
   initilize the state of the interface library
 
@@ -174,6 +183,7 @@ function init2(dmg_name::AbstractString, smb_name::AbstractString, order::Intege
 # order = order of shape functions to use, currently only necessary because
 #      pumi does not properly support saving shape functions to files
 # load_mesh : load mesh from file, or perform initilization functions on existing mesh (for re-initilizing after mesh adaptation)
+# shape_type: 0 = lagrange, 1 = SBP
 
 # this is hack-ish -- there should be a better way to do this
 #m_ptr = Ptr{Void}
@@ -470,6 +480,35 @@ function getElNumber2(entity)
   i = ccall( (getElNumber2_name, pumi_libname), Int32, (Ptr{Void},), entity)
   return i
 end
+
+
+function toModel(m_ptr, entity_ptr)
+# get the model entity a mesh entity is classified on
+
+  model_entity_ptr = ccall( (toModel_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Void}), m_ptr, entity_ptr)
+
+  return model_entity_ptr
+end
+
+function getModelType(m_ptr, model_entity_ptr)
+# get the model entity *dimension*
+
+  dim = ccall( (getModelType_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}), m_ptr, model_entity_ptr)
+
+  return dim
+end
+
+function getModelTag(m_ptr, model_entity_ptr)
+# get the dimension unique identifier of the model entity
+
+  tag = ccall( (getModelTag_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}), m_ptr, model_entity_ptr)
+
+  return tag
+end
+
+
+
+
 
 function getMeshDimension(m_ptr)
 # get mesh dimension

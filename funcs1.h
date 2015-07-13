@@ -70,6 +70,13 @@ extern int getEdgeNumber2(apf::MeshEntity* e);
 extern int getFaceNumber2(apf::MeshEntity* e);
 extern int getElNumber2(apf::MeshEntity* e);
 
+
+// geometric model functions
+
+apf::ModelEntity* toModel(apf::Mesh* m_local, apf::MeshEntity* e);
+int getModelType(apf::Mesh* m_local, apf::ModelEntity* e);
+int getModelTag(apf::Mesh* m_local, apf::ModelEntity* e);
+
 // these functions pass pointers
 extern int getMeshDimension(apf::Mesh2* m_local);
 extern int getType(apf::Mesh2* m_local, apf::MeshEntity* e);
