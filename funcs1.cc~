@@ -259,16 +259,24 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
   } else  // default to lagrange shape functions
   {
     std::cout << "Warning: unrecognized shape_type, not changing mesh shape" << std::endl;
-//    fshape = apf::getLagrange(order);
+    fshape = apf::getLagrange(1); // unused, but avoids compiler warning
   }
 
+
+  // check if the coordinates have been moved into tags
+  // this is a result of the mesh shape having been changed previously
+  apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
+  if (coords_tag != 0 && change_shape)  // if the tag exists
+  {
+    apf::changeMeshShape(m, apf::getLagrange(1), false);
+  }
 
 
   if (change_shape)
   {
     if ( order == 1 )
     {
-      apf::changeMeshShape(m, fshape, false);
+      apf::changeMeshShape(m, fshape, true);
     } else
     {
       apf::changeMeshShape(m, fshape, true);
@@ -304,11 +312,19 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
 
   std::cout << "counted number of mesh each type of mesh entities" << std::endl;
 
+/*
   // initilize numberings
   numberings[0] = numberOwnedDimension(m, "vertNums", 0);
   numberings[1] = numberOwnedDimension(m, "edgeNums", 1);
   numberings[2] = numberOwnedDimension(m, "faceNums", 2);
 //  numberings[3] = numberOwnedDimension(m, "elNums", 3);
+*/
+
+  // create numberings
+  numberings[0] = apf::createNumbering(m, "vertNums", apf::getConstant(0), 1);
+  numberings[1] = apf::createNumbering(m, "edgeNums", apf::getConstant(1), 1);
+  numberings[2] = apf::createNumbering(m, "faceNums", apf::getConstant(2), 1);
+
 
 
   std::cout << " finished creating tag field" << std::endl;
@@ -318,6 +334,23 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
   its[1] = m->begin(1);
   its[2] = m->begin(2);
 //  its[3] = m->begin(3);
+
+
+  for (int i = 0; i < 3; ++i)  // loop over dimensions
+  {
+    int curr_num = 0;
+    apf::MeshEntity* e_local;
+    while ( (e_local = m->iterate(its[i])) )
+    {
+      std::cout << "curr_num = " << curr_num << std::endl;
+      apf::number(numberings[0], e_local, 0, 0, curr_num);
+      ++curr_num;
+    }
+    its[i] = m->begin(i);  // reset iterator
+  }
+   
+  std::cout << "Finished numbering mesh entities" << std::endl; 
+
   for (int i = 0; i < 3; ++i)
   {
     int type = m->getType(m->deref(its[i]));

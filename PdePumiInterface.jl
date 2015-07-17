@@ -4,10 +4,11 @@ push!(LOAD_PATH, "/users/creanj/.julia/v0.4/PDESolver/src/common")
 using PumiInterface
 using SummationByParts
 using PDESolverCommon
-
+using ArrayViews
 
 export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray
 
+export PumiMesh
 #abstract AbstractMesh
 abstract PumiMesh{T1} <: AbstractMesh{T1}
 include("./PdePumiInterface3.jl")
@@ -42,14 +43,17 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   dofnums_Nptr::Ptr{Void}  # pointer to Numbering of dofs (result of reordering)
 #  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
 
-  bndry_funcs::Array{BCTypes, 1}  # array of boundary functors (Abstract type)
-  bndry_facenums::Array{Array{Int, 1}, 1}  # hold array of faces corresponding to each boundary condition
+  bndry_funcs::Array{BCType, 1}  # array of boundary functors (Abstract type)
+  bndry_normals::Array{T1, 3}  # array of normals to each face on the boundary
+#  bndry_facenums::Array{Array{Int, 1}, 1}  # hold array of faces corresponding to each boundary condition
   bndry_offsets::Array{Int, 1}  # location in bndryfaces where new type of BC starts
                                 # and one past the end of the last BC type
 				# array has length numBC + 1
 
   bndryfaces::Array{Boundary, 1}  # store data on external boundary of mesh
   interfaces::Array{Interface, 1}  # store data on internal edges
+  interface_normals::Array{T1, 4}  # array of interior face normals, 
+                                   # indexing: [norm_component, Left or right, left face node, left face element]
 
   coords::Array{T1, 3}  # store coordinates of all nodes
   dxidx::Array{T1, 4}  # store scaled mapping jacobian
@@ -111,20 +115,33 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   mesh.numBC = opts["numBC"]
 
-  countBoundaryEdges(mesh)
+  # create array of all model edges that have a boundary condition
+  bndry_edges_all = Array(Int, 0)
+  for i=1:mesh.numBC
+    key_i = string("BC", i)
+    bndry_edges_all = [ bndry_edges_all; opts[key_i]]  # ugly but easy
+  end
+
+ mesh.numBoundaryEdges, num_ext_edges =  countBoundaryEdges(mesh, bndry_edges_all)
+
   # populate mesh.bndry_faces from options dictionary
 #  mesh.bndry_faces = Array(Array{Int, 1}, mesh.numBC)
   mesh.bndry_offsets = Array(Int, mesh.numBC + 1)
-  mesh.boundary_nums = Array(Int, mesh.numBoundaryEdges, 2)
+  mesh.bndry_funcs = Array(BCType, mesh.numBC)
+  boundary_nums = Array(Int, mesh.numBoundaryEdges, 2)
 
   offset = 1
   for i=1:mesh.numBC
     key_i = string("BC", i)
+    println("opts[key_i] = ", opts[key_i])
+#    println("typeof(opts[key_i]) = ", typeof(opts[key_i]))
     mesh.bndry_offsets[i] = offset
-    offset = getMeshEdgesFromModel(mesh, opts[key_i], offset, mesh.boundary_nums)  # get the mesh edges on the model edge
+    offset = getMeshEdgesFromModel(mesh, opts[key_i], offset, boundary_nums)  # get the mesh edges on the model edge
     # offset is incremented by getMeshEdgesFromModel
   end
-  mesh.bndry_offset[mesh.numBC + 1] = offset # = num boundary edges
+
+
+  mesh.bndry_offsets[mesh.numBC + 1] = offset # = num boundary edges
 
   # get array of all boundary mesh edges in the same order as in mesh.bndry_faces
 #  boundary_nums = flattenArray(mesh.bndry_faces[i])
@@ -135,9 +152,10 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   # get boundary information for entire mesh
   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
-  getBoundaryArray(mesh)
+  getBoundaryArray(mesh, boundary_nums)
 
-  mesh.numInterfaces = mesh.numEdge - mesh.numBoundaryEdges
+  # need to count the number of internal interfaces - do this during boundary edge counting
+  mesh.numInterfaces = mesh.numEdge - num_ext_edges
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
 
@@ -147,6 +165,13 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   mesh.dxidx = Array(T1, 2, 2, sbp.numnodes, mesh.numEl)
   mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
   mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+
+  # get face normals
+  mesh.bndry_normals = Array(T1, 2, sbp.numfacenodes, mesh.numBoundaryEdges)
+  getBoundaryFaceNormals(mesh, sbp, mesh.bndryfaces, mesh.bndry_normals)
+
+  mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
+  getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 #=
   println("typeof m_ptr = ", typeof(m_ptr))
   println("typeof mshape_ptr = ", typeof(mshape_ptr))
@@ -167,6 +192,33 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   println("numEl = ", mesh.numEl)
   println("numDof = ", mesh.numDof)
   println("numNodes = ", mesh.numNodes)
+
+  # write edge and face vertex correspondence to files
+
+  # delete existing files
+  if isfile("edge_vertdofs.txt")
+    rm("edge_vertdofs.txt")
+  end
+
+  if isfile("face_vertdofs.txt")
+    rm("face_vertdofs.txt")
+  end
+
+  f = open("edge_vertdofs.txt", "a+")
+  printEdgeVertNumbers(mesh.edge_Nptr, mesh.dofnums_Nptr, fstream=f)
+  close(f)
+
+  f = open("face_vertdofs.txt", "a+")
+  printFaceVertNumbers(mesh.el_Nptr, mesh.dofnums_Nptr, fstream=f)
+  close(f)
+
+  if isfile("boundary_nums.txt")
+    rm("boundary_nums.txt")
+  end
+
+  f = open("boundary_nums.txt", "a+")
+  println(f, boundary_nums)
+  close(f)
 
 
 
@@ -249,31 +301,33 @@ function flattenArray{T}(A::AbstractArray{AbstractArray{T}, 1})
 end
 
 
-function getMeshEdgesFromModel(mesh::PumiMesh2, medges::AbstractArray{Integer, 1}, offset::Integer, boundary_nums::AbstractAray{T, 2})
+function getMeshEdgesFromModel{T}(mesh::PumiMesh2, medges::AbstractArray{Int, 1}, offset::Integer, boundary_nums::AbstractArray{T, 2})
 # get the global numbers of the mesh edges lying on the model edges in medges
 # offset is the index in boundary_nums to start with
 # this allows populating the entire array without making temporary copies
 # offset should start as 1, not zero
 
-  bndry_edges = zeros(Int, mesh.numBoundaryEdges)
+#  bndry_edges = zeros(Int, mesh.numBoundaryEdges)
   index = 0  # relative index in bndry_edges
-  for i=1:mesh.numEdges
+  for i=1:mesh.numEdge
     edge_i = mesh.edges[i]
     me_i = toModel(mesh.m_ptr, edge_i)
     me_dim = getModelType(mesh.m_ptr, me_i)
     me_tag = getModelTag(mesh.m_ptr, me_i)
-    if me_type == 1  # edge
+    if me_dim == 1  # edge
       onBoundary = findfirst(medges, me_tag)
 
       if onBoundary != 0  # if mesh edge is on model edge
         
 	# get face number
         numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
+
         faces = getAdjacent(numFace)
         facenum = getFaceNumber2(faces[1]) + 1
+        edgenum = getEdgeNumber2(edge_i)
 
 	boundary_nums[offset + index, 1] = facenum
-        bndry_edges[offset + index, 2] = i
+        boundary_nums[offset + index, 2] = i
 
 	index += 1
       end
@@ -464,32 +518,54 @@ end  # end function
 =#
 
 
-function countBoundaryEdges(mesh::PumiMesh2)
-  # count boundary edges
+function countBoundaryEdges(mesh::PumiMesh2, bndry_edges_all)
+  # count boundary edges by checking if their model edge has a BC
+  # count number of external edges by checking the number of upward adjacencies
   # store array of [element number, global edge number]
   resetEdgeIt()
   bnd_edges_cnt = 0
+  external_edges_cnt = 0
   bnd_edges = Array(Int, mesh.numEdge, 2)
   for i=1:mesh.numEdge
     edge_i = getEdge()
+
+    # get  model edge info
+    me_i = toModel(mesh.m_ptr, edge_i)
+    me_dim = getModelType(mesh.m_ptr, me_i)
+    me_tag = getModelTag(mesh.m_ptr, me_i)
+
+    # get mesh face info
     numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
-
-    if numFace == 1  # if an exterior edge
-      faces = getAdjacent(numFace)
-      facenum = getFaceNumber2(faces[1]) + 1
-
-      bnd_edges_cnt += 1
-      bnd_edges[bnd_edges_cnt, 1] = facenum
-      bnd_edges[bnd_edges_cnt, 2] = i
+    if numFace == 1  # external edges
+      external_edges_cnt += 1
     end
+
+    if me_dim == 1  # if not classified on model edge
+      index = findfirst(bndry_edges_all, me_tag)
+
+
+
+      if index != 0  # if model edge has a BC on i
+
+	faces = getAdjacent(numFace)
+	facenum = getFaceNumber2(faces[1]) + 1
+
+
+
+	bnd_edges_cnt += 1
+	bnd_edges[bnd_edges_cnt, 1] = facenum
+	bnd_edges[bnd_edges_cnt, 2] = i
+      end
+    end  # end if me_dim == 1
     incrementEdgeIt()
-  end
+
+  end  # end for loop
 
 
 #  mesh.boundary_nums = bnd_edges[1:bnd_edges_cnt, :] # copy, bad but unavoidable
-  mesh.numBoundaryEdges = bnd_edges_cnt
+#  mesh.numBoundaryEdges = bnd_edges_cnt
 
-return nothing
+return bnd_edges_cnt, external_edges_cnt
 
 end  # end function
 
@@ -999,7 +1075,7 @@ function getEdgeLocalNum(mesh::PumiMesh2, edge_num::Integer, element_num::Intege
 
 end
 
-function getBoundaryArray(mesh::PumiMesh2, boundary_nums::AbstractArray{Integer, 2})
+function getBoundaryArray(mesh::PumiMesh2, boundary_nums::AbstractArray{Int, 2})
 # get an array of type Boundary for SBP
 # creating an an array of a user defined type seems like a waste of memory operations
 # bnd_array is a vector of type Boundary with length equal to the number of edges on the boundary of the mesh
@@ -1009,6 +1085,7 @@ function getBoundaryArray(mesh::PumiMesh2, boundary_nums::AbstractArray{Integer,
   for i=1:mesh.numBoundaryEdges
     facenum = boundary_nums[i, 1]
     edgenum_global = boundary_nums[i, 2]
+#    println("edgenum_global = ", edgenum_global)
     edgenum_local = getBoundaryEdgeLocalNum(mesh, edgenum_global)
     mesh.bndryfaces[i] = Boundary(facenum, edgenum_local)
   end
@@ -1102,6 +1179,88 @@ function getInterfaceArray(mesh::PumiMesh2)
   return nothing
 
 end  # end function
+
+
+
+function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::SBPOperator, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
+
+  nfaces = length(bndry_faces)
+
+  alpha = zeros(Tmsh, 2,2)
+  dxidx = mesh.dxidx
+  jac = mesh.jac
+  for i=1:nfaces
+    element_i = bndry_faces[i].element
+    face_i = bndry_faces[i].face
+    for j=1:sbp.numfacenodes
+      node_index = sbp.facenodes[j, face_i]
+
+      # calculate the mysterious parameter alpha
+      for di1=1:2
+	for di2=1:2
+	  alpha[di1, di2] = (dxidx[di1,1, node_index, element_i].*dxidx[di2,1, node_index, element_i] + dxidx[di1,2, node_index, element_i].*dxidx[di2,2, node_index, element_i])*jac[node_index,element_i]
+	end
+      end
+
+    # call SBP function
+    getdir!(alpha, view(sbp.facenormal, :, face_i), view(face_normals, :, j, i))
+
+    end  # end loop over face nodes
+  end  # end loop over faces
+
+  return nothing
+end
+
+
+function getInternalFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::SBPOperator, internal_faces::AbstractArray{Interface, 1}, face_normals::Array{Tmsh, 4})
+
+  nfaces = length(internal_faces)
+
+  alpha = zeros(Tmsh, 2,2)
+  dxidx = mesh.dxidx
+  jac = mesh.jac
+  for i=1:nfaces
+    element_iL = internal_faces[i].elementL
+    face_iL = internal_faces[i].faceL
+    element_iR = internal_faces[i].elementR
+    face_iR = internal_faces[i].faceR
+    for j=1:sbp.numfacenodes
+
+      # calculate left face normal
+      node_index = sbp.facenodes[j, face_iL]
+
+      # calculate the mysterious parameter alpha
+      for di1=1:2
+	for di2=1:2
+	  alpha[di1, di2] = (dxidx[di1,1, node_index, element_iL].*dxidx[di2,1, node_index, element_iL] + dxidx[di1,2, node_index, element_iL].*dxidx[di2,2, node_index, element_iL])*jac[node_index,element_iL]
+	end
+      end
+
+    # call SBP function
+    getdir!(alpha, view(sbp.facenormal, :, face_iL), view(face_normals, :, 1, j, i))
+      # calculate right fae normal
+      node_index = sbp.facenodes[j, face_iR]
+
+      # calculate the mysterious parameter alpha
+      for di1=1:2
+	for di2=1:2
+	  alpha[di1, di2] = (dxidx[di1,1, node_index, element_iR].*dxidx[di2,1, node_index, element_iR] + dxidx[di1,2, node_index, element_iR].*dxidx[di2,2, node_index, element_iR])*jac[node_index,element_iR]
+	end
+      end
+
+    # call SBP function
+    getdir!(alpha, view(sbp.facenormal, :, face_iR), view(face_normals, :, 2, j, i))
+
+
+
+
+    end  # end loop over face nodes
+  end  # end loop over faces
+
+  return nothing
+end
+
+
 
 
 

@@ -70,11 +70,12 @@ function countAllNodes(mshape_ptr, entity_type::Integer)
   return i
 end
 
-function printEdgeVertNumbers(edgeN_ptr, vertN_ptr)
+function printEdgeVertNumbers(edgeN_ptr, vertN_ptr; fstream=STDOUT)
 # prints the number of the verteces on the edge
 # edgeN_ptr is a pointer to the numbering of edges
 # vertN_ptr is a pointer to the number of vertices
 # numEdges is the number of edges in the mesh
+# fstream is the stream the data is written to, default STDOUT
 # this function uses iterators
 
   resetEdgeIt();
@@ -89,14 +90,14 @@ function printEdgeVertNumbers(edgeN_ptr, vertN_ptr)
     (verts, nverts) = getDownward(m_ptr, edge_i, 0)
     n1 = getNumberJ(vertN_ptr, verts[1], 0, 0)
     n2 = getNumberJ(vertN_ptr, verts[2], 0, 0)
-    println("edge ", edge_num, " has vertices ", n1, " , ", n2 )
+    println(fstream, "edge ", edge_num, " has vertices ", n1, " , ", n2 )
     incrementEdgeIt()
   end
 
 end
 
 
-function printFaceVertNumbers(faceN_ptr, vertN_ptr)
+function printFaceVertNumbers(faceN_ptr, vertN_ptr; fstream=STDOUT)
 #print the numbers of the vertices that compose a face
 resetFaceIt();
 m_ptr = getMesh(faceN_ptr)
@@ -112,7 +113,7 @@ println("numFaces = ", m)
      vertnums[j] = getNumberJ(vertN_ptr, verts[j], 0, 0)
    end
 
-   println("face ", face_num, " has vertices $vertnums")
+   println(fstream, "face ", face_num, " has vertices $vertnums")
    incrementFaceIt()
  end
 
