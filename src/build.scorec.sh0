@@ -1,0 +1,6 @@
+#!/bin/bash -e
+module load pumi/core-sim
+set -x
+CXXFLAGS="$CXXFLAGS -g "
+mpicxx $1.cc $CXXFLAGS `pkg-config --cflags --libs libmds` -o $1
+set +x
