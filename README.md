@@ -1,4 +1,6 @@
 # PUMI.jl
+This fork has been merged into the OptimalDesignLab/PUMI.jl repo.  Use that repo for the most up to date version of this code.  Use of this repo is deprecated.
+
 this fork of PUMI.jl is for my Finite Element Programming assignment.  Hopefully
 some of these changes are useful and will be merged back into the master branch.
 
