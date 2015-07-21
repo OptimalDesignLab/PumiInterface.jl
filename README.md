@@ -6,7 +6,7 @@
 This code provides a way to use PUMI from Julia by wrapping functions in PUMIs APF API.
 The library is composed of several files.  funcs1.cc, funcs1.h form the C++ half of the
 interface, PumiInterface.jl forms the Julia half. All the functions in PumiInterface.jl,
-except for init and init2, mirror apf functions.  I refer to this as the low level interface.
+except for `init` and `init2`, mirror apf functions.  I refer to this as the low level interface.
   PumiInterface2.jl provides some higher level function by using the lower level functions.
 These functions are more convenient but potentially less efficient depending on the use case.
 The files a2.cc and a2.h contain the user supplied reordering function.  YOU MAY NOT USE THIS
