@@ -16,6 +16,7 @@ funcs1.h has some useful general comments in it.  funcs1.cc has more descriptive
 function.  
 
 ## Installation
+
 Now that the library is a Julia package, you can get is using Pkg.clone(url) followed by Pkg.build().
 The build script will check for all needed components and attempt to build them itself if it does not find
 them.
@@ -40,6 +41,7 @@ at runtime to use the library.
 Thats it, now your done.
 
 ## Scorec Installation
+
 If you are working on a SCOREC machine (with access to the SCOREC shared file system), the library
 can be built as follows:
 
@@ -54,7 +56,8 @@ actual build.  A successful build produces a file called libfuncs1.so.  The libr
 directory as libfuncs1.so when you source the script.
 
 
-Using the Library
+## Using the Library
+
 The fundemental idea behind the library is that pointers to objects can be passed to and from Julia,
  but not dereferenced by Julia (bad things would happen if your try, so please do not kick the bucket).
   Therefore, a function that in C++ would be called like this:
