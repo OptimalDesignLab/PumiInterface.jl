@@ -2,7 +2,7 @@
 
 
 What this Library Is
-This code provides a way to use PUMI from Julia by wrapping functions in PUMI's APF API.
+This code provides a way to use PUMI from Julia by wrapping functions in PUMIs APF API.
 The library is composed of several files.  funcs1.cc, funcs1.h form the C++ half of the
 interface, PumiInterface.jl forms the Julia half. All the functions in PumiInterface.jl,
 except for init and init2, mirror apf functions.  I refer to this as the low level interface.
@@ -15,27 +15,43 @@ questions about how to interface your reordering function with Julia, let me kno
 funcs1.h has some useful general comments in it.  funcs1.cc has more descriptive comments for each
 function.  
 
-Building this Library
-Currently this code is in a module, not yet a package. You must build the library, and
-import the module in your Julia code to access the functions in the module.  All the function
- names are exported.  PUMI must be available to link agains during the building of the library.
+## Installation
+Now that the library is a Julia package, you can get is using Pkg.clone(url) followed by Pkg.build().
+The build script will check for all needed components and attempt to build them itself if it does not find
+them.
 
+Building requires locating Pumi and building a shared library that links to Pumi, using `mpicxx`.  If `mpicxx` is not found,  the build script will attempt to install a Debian package of MPICH3.
+
+The build script
+attempts to locate Pumi using `pkg-config`. Pumi must also be locatable in your `LD_LIBRARY_PATH`.
+If not found, it will attempt to build Pumi locally.  Ths build requires an MPI implimentation (which
+ should be present according to the above process), and Cmake 2.8.6.  It will install to `deps/core/build/install`.  The file `deps/core/build/evars.sh`  indicates the environmental variables needed to build 
+the shared library using this installation of Pumi.
+
+At this point, MPI and Pumi should bot be present, so the library itself can be built.  The build 
+script executes `build_shared.scorec.sh7` in the `src/` directory to build the shared library, and 
+creates a file `src/evars.sh`, which exports the environmental variables needed to use the library 
+at runtime.  Note that because the library dynamically links to Pumi, Julia needs to be able to find 
+both the shared library and Pumi at runtime.  The `evars.sh` adds both the installation of Pumi used 
+to build the shared library and the shared library itself to `LD_LIBRARY_PATH`.  This script is 
+provided entirely for user convenience.  The package never uses it.  You must  `source` this script 
+at runtime to use the library.  
+
+Thats it, now your done.
+
+## Scorec Installation
 If you are working on a SCOREC machine (with access to the SCOREC shared file system), the library
 can be built as follows:
 
-cd location/of/your/repo
+Pkg.clone(url)
 source ./use_julialib.sh
-./build_shared.scorec.sh4
+./build_shared.scorec.sh6
 
-Now the library is build.  The file use_julialib.sh sets some environmental variables and loads
+Now the library is build, using the Scorec installation of Pumi, which is preferable to building Pumi locally.  The file use_julialib.sh sets some environmental variables and loads
 some modules needed to make PUMI accessible and to run Julia, and the second script performs the 
 actual build.  A successful build produces a file called libfuncs1.so.  The library must be available
  at the runtime of your code.  The use_julialib.sh will ensure this is true.  You must be in the same
 directory as libfuncs1.so when you source the script.
-
-Using Julia
-I have built Julia on catan.  Builting it was a hassle, so I recomment just using that build.  It can 
-be found here: /users/creanj/build/julia_1_29_15
 
 
 Using the Library

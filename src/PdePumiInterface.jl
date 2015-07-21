@@ -6,7 +6,7 @@ using SummationByParts
 using PDESolverCommon
 using ArrayViews
 
-export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray
+export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums
 
 export PumiMesh
 #abstract AbstractMesh
@@ -1403,5 +1403,37 @@ function retrieveNodeSolution(f_ptr, entity, u_node::AbstractVector)
   getComponents(f_ptr, entity, 0, u_node)
 
 end
+
+
+function printBoundaryEdgeNums(mesh::PumiMesh)
+
+  n = mesh.numBC
+
+  bndry = 1
+  for i=1:n
+    fname = string("boundary_edge_verts", i, ".dat")
+    println("printing ", fname)
+    f = open(fname, "a+")
+
+    start_index = mesh.bndry_offsets[i]
+    end_index = mesh.bndry_offsets[i+1] - 1
+    num_edge = end_index - start_index + 1
+    arr = Array(Ptr{Void}, num_edge)
+
+    for i=1:num_edge  # get the mesh edge pointers
+      el = mesh.bndryfaces[bndry].element
+      local_face = mesh.bndryfaces[bndry].face
+      el_ptr = mesh.elements[el]
+      edges, tmp = getDownward(mesh.m_ptr, el_ptr, 1)
+      arr[i] = edges[local_face]
+      bndry += 1
+    end
+    
+    printEdgeVertNumbers(arr, mesh.edge_Nptr, mesh.vert_Nptr; fstream=f)
+    close(f)
+  end
+
+  return nothing
+end  # end function
 
 end  # end of module
