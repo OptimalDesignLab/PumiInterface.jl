@@ -1,4 +1,7 @@
 #!/bin/bash -e
+
+# build the library without loading the pumi module first
+
 #module load pumi/core-sim
 #export LD_LIBRARY_PATH=/usr/local/pumi/core-sim/lib:$LD_LIBRARY_PATH
 set -x
