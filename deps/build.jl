@@ -64,7 +64,7 @@ if install_pumi  # did not find pumi
 
   if haskey(ENV, "PKG_CONFIG_PATH")
     pkg_path = ENV["PKG_CONFIG_PATH"]
-    pkg_path = string(str3, pkg_path)
+    pkg_path = string(str3,":", pkg_path)
     ENV["PKG_CONFIG_PATH"] = pkg_path
   else
     ENV["PKG_CONFIG_PATH"] = str3
