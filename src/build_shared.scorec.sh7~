@@ -21,5 +21,5 @@ set +x
 #mpicxx $CXXFLAGS --share -fPIC -Wl,--whole-archive -L/usr/local/pumi/core-sim/lib -lpcu -o libfuncs1.so funcs1.o
 #mpicxx $CXXFLAGS --share -fPIC -Wl,-export-dynamic -L$HOME/lib funcs1.cc -L/usr/local/pumi/core-sim/lib -lmds -lapf -lpcu -lbz2 -lgmi -o libfuncs1.so funcs1.o
 #mpicxx $CXXFLAGS --share -fPIC -Wl,-export-dynamic -L$HOME/lib funcs1.cc -o libfuncs1.so funcs1.o 
-mpicxx $CXXFLAGS --share -fPIC `pkg-config --libs-only-L --libs libmds` -lmds -lma -o libfuncs1.so funcs1.o a2.o adaptFuncsJ.o apfSBPShape.o apfSBPShape3.o
+mpicxx $CXXFLAGS --share -fPIC -Wl,--no-as-needed `pkg-config --libs-only-L --libs libmds` -lmds -lma -o libfuncs1.so funcs1.o a2.o adaptFuncsJ.o apfSBPShape.o apfSBPShape3.o
 
