@@ -342,7 +342,7 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
     apf::MeshEntity* e_local;
     while ( (e_local = m->iterate(its[i])) )
     {
-      std::cout << "curr_num = " << curr_num << std::endl;
+//      std::cout << "curr_num = " << curr_num << std::endl;
       apf::number(numberings[i], e_local, 0, 0, curr_num);
       ++curr_num;
     }

@@ -5,8 +5,9 @@ using PumiInterface
 using SummationByParts
 using PDESolverCommon
 using ArrayViews
+include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
-export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums
+export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx
 
 export PumiMesh
 #abstract AbstractMesh
@@ -193,33 +194,41 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   println("numDof = ", mesh.numDof)
   println("numNodes = ", mesh.numNodes)
 
-  # write edge and face vertex correspondence to files
 
-  # delete existing files
-  if isfile("edge_vertdofs.txt")
-    rm("edge_vertdofs.txt")
+  # write data if requested
+
+  if opts["write_edge_vertnums"]
+    rmfile("edge_vertnums.dat")
+    f = open("edge_vertnums.dat", "a+")
+    printEdgeVertNumbers(mesh.edge_Nptr, mesh.vert_Nptr, fstream=f)
+    close(f)
   end
 
-  if isfile("face_vertdofs.txt")
-    rm("face_vertdofs.txt")
+  if opts["write_face_vertnums"]
+    rmfile("face_vertnums.dat")
+    f = open("face_vertnums.dat", "a+")
+    printFaceVertNumbers(mesh.el_Nptr, mesh.vert_Nptr, fstream=f)
+    close(f)
   end
 
-  f = open("edge_vertdofs.txt", "a+")
-  printEdgeVertNumbers(mesh.edge_Nptr, mesh.dofnums_Nptr, fstream=f)
-  close(f)
-
-  f = open("face_vertdofs.txt", "a+")
-  printFaceVertNumbers(mesh.el_Nptr, mesh.dofnums_Nptr, fstream=f)
-  close(f)
-
-  if isfile("boundary_nums.txt")
-    rm("boundary_nums.txt")
+  if opts["write_boundarynums"]
+    rmfile("boundary_nums.dat")
+    f = open("boundary_nums.dat", "a+")
+    println(f, boundary_nums)
+    close(f)
   end
 
-  f = open("boundary_nums.txt", "a+")
-  println(f, boundary_nums)
-  close(f)
+  if opts["write_dxidx"]
+    rmfile("dxidx.dat")
+    printdxidx("dxidx.dat", mesh.dxidx)
+  end
 
+
+  if opts["write_coords"]
+    rmfile("coords.dat")
+    printcoords("coords.dat", mesh.coords)
+  end
+    
 
 
   writeVtkFiles("mesh_complete", mesh.m_ptr)
@@ -322,9 +331,11 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh2, medges::AbstractArray{Int, 1}
 	# get face number
         numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
 
+	@assert( numFace == 1)
+
         faces = getAdjacent(numFace)
         facenum = getFaceNumber2(faces[1]) + 1
-        edgenum = getEdgeNumber2(edge_i)
+        edgenum = getEdgeNumber2(edge_i)  # unneeded?
 
 	boundary_nums[offset + index, 1] = facenum
         boundary_nums[offset + index, 2] = i
@@ -1436,4 +1447,46 @@ function printBoundaryEdgeNums(mesh::PumiMesh)
   return nothing
 end  # end function
 
+
+function printdxidx(name::AbstractString, mat)
+# print the 4d matrix formatted like dxidx
+
+(p, p, m, n) = size(mat)
+
+f = open(name, "a+")
+
+for i=1:n  # loop over elements
+  for j=1:m  # loop over nodes on an element
+    println(f, "el ", i, " node ", j, " xi_vec = ", mat[1, :, j, i], " eta_vec = ", mat[2, :, j, i])
+  end
+end
+
+close(f)
+
+return nothing
+end
+
+
+function printcoords(name::AbstractString, coords)
+
+  f = open(name, "a+")
+
+  (d, numnodes, numel) = size(coords)
+
+  for i=1:numel  # loop over elements
+    for j=1:numnodes # loop over nodes
+      print(f, i, " ", j)
+
+      for k=1:d
+	print(f, " ",  coords[k, j, i])
+      end
+
+      print(f, "\n")
+    end
+  end
+
+  return nothing
+end
+
 end  # end of module
+
