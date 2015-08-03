@@ -29,6 +29,10 @@ end
 
 
 if install_pumi  # did not find pumi
+  if isdir("./core")
+    println("deleting existing Core repo in /deps")
+    rm("./core", recursive=true)
+  end
   run(`git clone https://github.com/SCOREC/core.git core`) 
   cd("./core")
   run(`git pull`)
