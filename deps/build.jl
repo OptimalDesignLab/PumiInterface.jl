@@ -29,6 +29,10 @@ end
 
 
 if install_pumi  # did not find pumi
+  if isdir("./core")
+    println("deleting existing Core repo in /deps")
+    rm("./core", recursive=true)
+  end
   run(`git clone https://github.com/SCOREC/core.git core`) 
   cd("./core")
   run(`git pull`)
@@ -96,4 +100,4 @@ cd(start_dir)
 
 
 
-
+#ldd ./libfuncs1.so | grep libmds.so | awk -F"=>" '{print $2}' | awk '{print $1}' |  sed 's%/[^/]*$%/%'
