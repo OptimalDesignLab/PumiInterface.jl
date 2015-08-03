@@ -100,4 +100,4 @@ cd(start_dir)
 
 
 
-
+#ldd ./libfuncs1.so | grep libmds.so | awk -F"=>" '{print $2}' | awk '{print $1}' |  sed 's%/[^/]*$%/%'
