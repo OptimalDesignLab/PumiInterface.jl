@@ -22,15 +22,18 @@ Now that the library is a Julia package, you can get is using Pkg.clone(url) fol
 The build script will check for all needed components and attempt to build them itself if it does not find
 them.
 
-Building requires locating Pumi and building a shared library that links to Pumi, using `mpicxx`.  If `mpicxx` is not found,  the build script will attempt to install a Debian package of MPICH3.
+### Install MPI (if needed)
+Building Pumi and building the shared library that links to Pumi requires `mpicxx`.  If `mpicxx` is not found,  the build script will attempt to install a Debian package of MPICH3.  It will ask for root permission to install MPICH.
 
+### Build Pumi (if needed)
 The build script
 attempts to locate Pumi using `pkg-config`. Pumi must also be locatable in your `LD_LIBRARY_PATH`.
-If not found, it will attempt to build Pumi locally.  The build requires an MPI implementation (which
+If not found by pkg-config, it will attempt to build Pumi locally.  The build requires an MPI implementation (which
  should be present according to the above process), and Cmake 2.8.6.  It will install to `deps/core/build/install`.  The file `deps/core/build/evars.sh`  indicates the environmental variables needed to build 
 the shared library using this installation of Pumi.
 
-At this point, MPI and Pumi should bot be present, so the library itself can be built.  The build 
+### Build Shared Library
+At this point, MPI and Pumi should be be present, so the library itself can be built.  The build 
 script executes `build_shared.scorec.sh7` in the `src/` directory to build the shared library, and 
 creates a file `src/evars.sh`, which exports the environmental variables needed to use the library 
 at runtime.  Note that because the library dynamically links to Pumi, Julia needs to be able to find 
@@ -40,6 +43,8 @@ provided entirely for user convenience.  The package never uses it.  You must  `
 at runtime to use the library.  
 
 Thats it, now you are done.
+
+Note Pumi is built without some of its dependencies, including zoltan, so certain features such as load balancing will not work.
 
 ## Scorec Installation
 
