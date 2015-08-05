@@ -266,6 +266,7 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
   // check if the coordinates have been moved into tags
   // this is a result of the mesh shape having been changed previously
   apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
+  std::cout << "coords_tag = " << coords_tag << std::endl;
   if (coords_tag != 0 && change_shape)  // if the tag exists
   {
     apf::changeMeshShape(m, apf::getLagrange(1), false);

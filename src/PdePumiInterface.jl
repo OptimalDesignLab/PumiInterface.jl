@@ -7,7 +7,7 @@ using PDESolverCommon
 using ArrayViews
 include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
-export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx
+export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea
 
 export PumiMesh
 #abstract AbstractMesh
@@ -1214,7 +1214,7 @@ function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::SBPOperator, bndry_f
       end
 
     # call SBP function
-    getdir!(alpha, view(sbp.facenormal, :, face_i), view(face_normals, :, j, i))
+    smallmatvec!(alpha, view(sbp.facenormal, :, face_i), view(face_normals, :, j, i))
 
     end  # end loop over face nodes
   end  # end loop over faces
@@ -1248,7 +1248,7 @@ function getInternalFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::SBPOperator, interna
       end
 
     # call SBP function
-    getdir!(alpha, view(sbp.facenormal, :, face_iL), view(face_normals, :, 1, j, i))
+    smallmatvec!(alpha, view(sbp.facenormal, :, face_iL), view(face_normals, :, 1, j, i))
       # calculate right fae normal
       node_index = sbp.facenodes[j, face_iR]
 
@@ -1260,7 +1260,7 @@ function getInternalFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::SBPOperator, interna
       end
 
     # call SBP function
-    getdir!(alpha, view(sbp.facenormal, :, face_iR), view(face_normals, :, 2, j, i))
+    smallmatvec!(alpha, view(sbp.facenormal, :, face_iR), view(face_normals, :, 2, j, i))
 
 
 
@@ -1488,5 +1488,22 @@ function printcoords(name::AbstractString, coords)
   return nothing
 end
 
+
+
+function getdiffelementarea{T, T2, T3}(nrm::AbstractArray{T,1}, dxidx::AbstractArray{T2,2},
+                               workvec::AbstractArray{T3,1})
+  fill!(workvec, zero(T3))
+  for di1 = 1:size(nrm,1)
+    for di2 = 1:size(nrm,1)
+      workvec[di2] += nrm[di1]*dxidx[di1,di2]
+    end
+  end
+  return norm(workvec)
+end
+
+
+
 end  # end of module
+
+
 
