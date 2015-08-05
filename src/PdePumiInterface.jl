@@ -5,7 +5,7 @@ using PumiInterface
 using SummationByParts
 using PDESolverCommon
 using ArrayViews
-include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
+#include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
 export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea
 
