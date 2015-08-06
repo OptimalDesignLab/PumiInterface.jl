@@ -1502,9 +1502,6 @@ function getdiffelementarea{T, T2, T3}(nrm::AbstractArray{T,1}, dxidx::AbstractA
 end
 
 
-
-end  # end of module
-
 function writeVisFiles(mesh::PumiMesh, fname::AbstractString)
   # writes vtk files 
 
@@ -1512,4 +1509,8 @@ function writeVisFiles(mesh::PumiMesh, fname::AbstractString)
 
   return nothing
 end
+
+
+end  # end of module
+
 
