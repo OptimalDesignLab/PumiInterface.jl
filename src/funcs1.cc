@@ -712,6 +712,41 @@ void getAdjacent(apf::MeshEntity* adjacencies_ret[])
 
 }
 
+
+// second order adjacencies, similar to countAdjacent/getAdjacent
+apf::DynamicArray<apf::MeshEntity*> adjacencies2;
+bool adjacent_ready2 = false;
+
+int countBridgeAdjacent(apf::Mesh* m_local, apf::MeshEntity* origin, int bridge_dimension, int target_dimension)
+{
+  apf::getBridgeAdjacent(m_local, origin, bridge_dimension, target_dimension, adjacencies2);
+
+  int num_adjacent2 = adjacencies2.getSize();
+  adjacent_ready2 = true;
+  return num_adjacent2;
+}
+
+
+void getBridgeAdjacent(apf::MeshEntity* adjacencies_ret2[])
+{
+
+  if (!adjacent_ready2)
+  {
+    std::cout << "Warning, adjacencies might not be ready" << std::endl;
+  }
+
+  int num_adjacent2 = adjacencies2.getSize();
+  for (int i = 0; i < num_adjacent2; ++i)
+  {
+    adjacencies_ret2[i] = adjacencies2[i];
+  }
+
+  adjacent_ready2 = false;
+
+}
+
+
+
 void getAlignment(apf::Mesh* m_local, apf::MeshEntity* elem, apf::MeshEntity* boundary, int which[1], bool flip[1], int rotate[1])
 {
 //  std::cout << "in getAlignment, which = " << which << " flip = " << flip << " rotate = " << rotate << std::endl;
@@ -1155,6 +1190,12 @@ int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
 {
   int i = apf::getNumber(n, e, node, component);
   return i;
+}
+
+
+void setNumberingOffset(apf::Numbering* num, int off)
+{
+  apf::SetNumberingOffset(num, off);
 }
 
 // get node numbers in canonical ordering

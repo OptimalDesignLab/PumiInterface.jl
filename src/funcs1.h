@@ -85,6 +85,8 @@ extern int countAdjacent(apf::Mesh2* m_local, apf::MeshEntity* e, int dimension)
 void getAdjacent(apf::MeshEntity* adjacencies_ret[]);
 
 
+int countBridgeAdjacent(apf::Mesh* m_local, apf::MeshEntity* origin, int bridge_dimension, int target_dimension);
+void getBridgeAdjacent(apf::MeshEntity* adjacencies_ret2[]);
 
 void getAlignment(apf::Mesh* m_local, apf::MeshEntity* elem, apf::MeshEntity* boundary, int which[1], bool flip[1], int rotate[1]);
 
@@ -127,6 +129,8 @@ int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);
 extern  apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShape* field, int components);
 extern int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number);
 extern  int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component);
+
+void setNumberingOffset(apf::Numbering* num, int off);
 
 void getElementNumbers(apf::Numbering* n, apf::MeshEntity*e, int num_nodes, int nums[]);
 extern apf::Mesh* getMesh(apf::Numbering* n);

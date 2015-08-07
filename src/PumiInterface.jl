@@ -70,6 +70,8 @@ global const getType_name = "getType"
 global const getDownward_name = "getDownward"
 global const countAdjacent_name = "countAdjacent"
 global const getAdjacent_name = "getAdjacent"
+global const countBridgeAdjacent_name = "countBridgeAdjacent"
+global const getBridgeAdjacent_name = "getBridgeAdjacent"
 global const getAlignment_name = "getAlignment"
 
 global const hasNodesIn_name = "hasNodesIn"
@@ -100,6 +102,7 @@ global const getElCoords2_name = "getElCoords2"
 global const createNumberingJ_name = "createNumberingJ"
 global const numberJ_name = "numberJ"
 global const getNumberJ_name = "getNumberJ"
+global const setNumberingOffset_name = "setNumberingOffset"
 global const getElementNumbers_name = "getElementNumbers"
 global const getMesh_name = "getMesh"
 global const printNumberingName_name = "printNumberingName"
@@ -124,7 +127,7 @@ end
 
 
 # export low level interface functions
-export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents
+export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset
 
 
 
@@ -537,6 +540,18 @@ function getDownward(m_ptr, entity, dimension::Integer)
 
 end
 
+function getDownward(m_ptr, entity, dimension::Integer, arr::AbstractArray{Ptr{Void}})
+# populate arr with the downward entiteis of the specified dimension
+# arr is not checked for size
+
+  i = ccall ( (getDownward_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Void}), m_ptr, entity, dimension, arr)
+
+  return  i
+
+end
+
+
+
 function countAdjacent(m_ptr, entity, dimension::Integer)
 # counts the number of upward adjacencies of meshentity with given dimension
 # use with getAdjacent to fetch them
@@ -552,11 +567,36 @@ function getAdjacent(num_adjacent::Integer)
 # this could be made  more efficient by taking in an array and resizing it if it is too small
   adjacencies_ret = Array(Ptr{Void}, num_adjacent)  # create the array
 
-  ccall( (getAdjacent_name, pumi_libname), Void, (Ptr{Void},), adjacencies_ret)
+#  ccall( (getAdjacent_name, pumi_libname), Void, (Ptr{Void},), adjacencies_ret)
+   getAdjacent(adjacencies_ret)
 
   return adjacencies_ret
 end
 
+function getAdjacent(arr::AbstractArray{Ptr{Void}})
+
+
+  ccall( (getAdjacent_name, pumi_libname), Void, (Ptr{Void},), arr)
+
+  return nothing
+end
+
+
+function countBridgeAdjacent(m_ptr, entity, bridge_dimension::Integer, target_dimension::Integer)
+# counts the number of entities to be retrieved
+# this is a second order adjacency
+
+  i = ccall( (countBridgeAdjacent_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Int32), m_ptr, entity, bridge_dimension, target_dimension)
+
+  return i
+end
+
+function getBridgeAdjacent(arr::AbstractArray{Ptr{Void}})
+
+  ccall( (getBridgeAdjacent_name, pumi_libname), Void, (Ptr{Void},), arr)
+
+  return nothing
+end
 
 function getAlignment(m_ptr, elem, elem_boundary)
 # gets which, flip, and rotate for elem_boundary, the mesh entity shared
@@ -907,6 +947,15 @@ i = ccall( (getNumberJ_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32,
 return i
 
 end
+
+
+function setNumberingOffset(n_ptr, offset::Integer)
+
+  ccall( (setNumberingOffset_name, pumi_libname), Void, (Ptr{Void}, Int32), n_ptr, offset)
+
+  return nothing
+end
+
 
 
 function getElementNumbers(n_ptr, entity, num_dof::Integer, nums::Array{Int32, 1})

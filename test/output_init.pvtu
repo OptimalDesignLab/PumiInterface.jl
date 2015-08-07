@@ -6,7 +6,7 @@
 <PPointData>
 </PPointData>
 <PCellData>
-<PDataArray type="Int32" Name="elNums_1" NumberOfComponents="1" format="ascii"/>
+<PDataArray type="Int32" Name="faceNums_1" NumberOfComponents="1" format="ascii"/>
 <PDataArray type="Int32" Name="apf_part" NumberOfComponents="1" format="ascii"/>
 </PCellData>
 <Piece Source="output_init0.vtu"/>
