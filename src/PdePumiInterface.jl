@@ -506,50 +506,116 @@ end
 # also construct BitArray masks
 #setNumberingOffset(mesh.coloring_Nptr, 1)  # set all values to -1 + 1 = 0
 
+#=
 # initialize masks to zero
 for i=1:length(masks)
   masks[i] = falses(mesh.numEl)
   println("masks[i] = ", masks[i])
 end
-
+=#
 
 for i=1:mesh.numEl
   numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
 end
 
+adj_size = 6  # guess number of neighboring faces
+numc = 4  # guess number of colors
+adj = Array(Ptr{Void}, adj_size)  # hold neighboring faces
+adj_color =zeros(Int32, adj_size)  # colors of neighboring faces
+cnt_colors = zeros(Int32, numc)  # count how many of each color
 
-adj = Array(Ptr{Void}, 3)  # because we only consider edge-neighbors, we know a priori an upper bound on how many there area
-adj_color =zeros(Int32, 3)
-cnt_colors = zeros(Int32, 4)
 for i=1:mesh.numEl
   el_i = mesh.elements[i]
-  # get faces that share a face with el_i
-  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
+  # get faces that share a vert with el_i
+  # this is actually more restrictive than we want because
+  # edge stabilization only causes interaction between 
+  # elements that share an edge
+  # However, this is much easier to write an algorithm for
+  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 0, 2)
+
+  if num_adj > adj_size
+    println("resizing adj")
+    println("element number = ", i)
+    resize!(adj, num_adj)
+    resize!(adj_color, num_adj)
+    adj_size = num_adj
+  end
+
 
   # need to verify this works in parallel (proper ghosting)
   getBridgeAdjacent(adj)
 
-  for i=1:num_adj
-    adj_color[i] = getNumberJ(mesh.coloring_Nptr, adj[i], 0, 0)
+  for j=1:num_adj
+    adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
   end
 
-  min_color = getMinColor2(adj_color)
+  min_color = getMinColor2(adj_color, numc)
+
+  if min_color > numc
+    resize!(cnt_colors, min_color)
+    cnt_colors[min_color] = 0  # initialize new value to zero
+    numc = min_color
+  end
 
   numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
 
   cnt_colors[min_color] += 1  # update counts
-  masks[min_color][i] = true  # update mask
+#  masks[min_color][i] = true  # update mask
 
   fill!(adj_color, 0)
 
 end
-
+println("maximum number of neighbor faces = ", adj_size)
+println("number of colors = ", numc)
 println("number of each color = ", cnt_colors)
 mesh.color_cnt = cnt_colors
 
+cnt = verifyColor1(mesh)
+@assert cnt == 0
 return nothing
 
 end
+
+
+function verifyColor1(mesh)
+# verify edge neighbor faces have different colors
+  adj = Array(Ptr{Void}, 4)   # pointers to element i + 3 neighbors
+  adj_color = Array(Int32, 4)  # element colors
+  
+
+cnt = 0
+for i=1:mesh.numEl
+  el_i = mesh.elements[i]
+
+  # check edge neighbors only
+  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
+  @assert num_adj <= 3
+  getBridgeAdjacent(adj)
+
+  adj[num_adj + 1] = el_i  # insert the current element
+  for j=1:(num_adj + 1)
+    adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
+  end
+
+  sort!(adj_color)
+
+  if adj_color != unique(adj_color)
+    println("element ", i, " has non unique colors")
+    println("adj_color = ", adj_color)
+    cnt += 1
+  end
+
+  fill!(adj_color, 0)
+end
+
+println("color-1 verification finished")
+println("cnt = ", cnt)
+return cnt
+
+end
+
+
+
 
 
 function getMinColor{T}(adj::AbstractArray{T})
@@ -586,15 +652,18 @@ end
 mask_sum = sum(mask)
 
 if mask_sum == numc  # all existing colors used, so add another
+  println("adding color ", numc + 1)
   min_color = numc + 1
 elseif mask_sum == (numc - 1)  # there is exactly 1 color remaining
+  println("exactly 1 color remaining")
   # find out which color is missing and use it
-  for i=1:4
+  for i=1:numc
     if !mask[i]  # if mask is false
       min_color = i
     end
   end
 else  # some colors are missing
+  println("getting minimum color")
   min_color = getMinColor(adj)  # get the minimum
 end
 
