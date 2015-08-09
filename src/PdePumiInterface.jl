@@ -5,6 +5,7 @@ using PumiInterface
 using SummationByParts
 using PDESolverCommon
 using ArrayViews
+using DataStructures
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
 export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles
@@ -174,7 +175,9 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   print("\n")
 
   mesh.color_masks = Array(BitArray{1}, 4)  # one array for every color
-  colorMesh1(mesh, mesh.color_masks)
+  #colorMesh1(mesh, mesh.color_masks)
+  colorMesh2(mesh, mesh.color_masks)
+#  colorMesh1RCM(mesh)
 
 
   # get boundary information for entire mesh
@@ -585,6 +588,242 @@ cnt = verifyColor1(mesh)
 return nothing
 
 end
+
+
+
+# perform distance-1 coloring of mesh 
+function colorMesh2(mesh::PumiMesh2, masks::Array{BitArray{1}})
+# each element must have a different color than its neighbors with which it 
+# shares and edge
+
+# figure out the number of colors
+# this is a lot of random memory access
+#=
+num_neigh_max = 0
+for i=1:mesh.numEl  # loop over elements
+  el_i = mesh.elements[i]
+  num_neigh_i = countBridgeAdjacent(mesh.m_ptr, element, 1, 2)
+
+  if num_neigh_i > num_neigh_max
+    num_neigh_max = num_neigh_i
+  end
+end
+=#
+
+
+# now perform the coloring
+# visit each element, get colors of its neighbors
+# give current element the lowest color possible
+# also construct BitArray masks
+#setNumberingOffset(mesh.coloring_Nptr, 1)  # set all values to -1 + 1 = 0
+
+#=
+# initialize masks to zero
+for i=1:length(masks)
+  masks[i] = falses(mesh.numEl)
+  println("masks[i] = ", masks[i])
+end
+=#
+
+for i=1:mesh.numEl
+  numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
+end
+
+#adj_size = 6  # guess number of neighboring faces
+numc = 4  # guess number of colors
+#adj = Array(Ptr{Void}, adj_size)  # hold neighboring faces
+#adj_color =zeros(Int32, adj_size)  # colors of neighboring faces
+cnt_colors = zeros(Int32, numc)  # count how many of each color
+num_neigh_max = 0
+for i=1:mesh.numEl
+  el_i = mesh.elements[i]
+  # get faces that share a vert with el_i
+  # this is actually more restrictive than we want because
+  # edge stabilization only causes interaction between 
+  # elements that share an edge
+  # However, this is much easier to write an algorithm for
+
+  # This is more restrictive than we want, but it ensure
+  # that we void assigning the same color to two elements
+  # bordering the same element
+  # ie. we must avoid vertex neighbor non uniqueness,
+  # which is not the same thing as having uniqueness because
+  # there are unassigned values remaining
+  # thus, this is a logical system where a double negative
+  # is not a positive
+ 
+  colors, num_neigh = getDistance2Colors(mesh, i)
+
+  # update max number of unique nieghbors
+  if num_neigh > num_neigh_max
+    num_neigh_max = num_neigh
+  end
+#  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 0, 2)
+
+#=
+  if num_adj > adj_size
+    println("resizing adj")
+    println("element number = ", i)
+    resize!(adj, num_adj)
+    resize!(adj_color, num_adj)
+    adj_size = num_adj
+  end
+
+
+  # need to verify this works in parallel (proper ghosting)
+  getBridgeAdjacent(adj)
+
+  for j=1:num_adj
+    adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
+  end
+=#
+  min_color = getMinColor2(colors, numc)
+
+  if min_color > numc
+    resize!(cnt_colors, min_color)
+    cnt_colors[min_color] = 0  # initialize new value to zero
+    numc = min_color
+  end
+
+  numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
+
+  cnt_colors[min_color] += 1  # update counts
+#  masks[min_color][i] = true  # update mask
+
+#  fill!(adj_color, 0)
+
+end
+println("maximum number of neighbor faces = ", num_neigh_max)
+println("number of colors = ", numc)
+println("number of each color = ", cnt_colors)
+mesh.color_cnt = cnt_colors
+
+cnt = verifyColor1(mesh)
+#@assert cnt == 0
+return nothing
+
+end
+
+
+function getDistance2Colors(mesh, elnum::Integer)
+# get the distance-2 neighbors of a given element
+# repeats included
+
+  el_i = mesh.elements[elnum]
+
+  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
+  adj = Array(Ptr{Void}, num_adj)
+  getBridgeAdjacent(adj)
+
+  adj2 = Array(Array{Ptr{Void}, 1}, num_adj)  # hold distance 2 neighbors
+  adj_cnt = zeros(Int, num_adj)
+  for j=1:num_adj
+    num_adj_j = countBridgeAdjacent(mesh.m_ptr, adj[j], 1, 2)
+    adj_cnt[j] = num_adj_j + 1
+    adj2[j] = Array(Ptr{Void}, num_adj_j + 1)
+    getBridgeAdjacent(adj2[j])
+    adj2[j][num_adj_j + 1] = adj[j]  # include the distance-1 neighbor
+  end
+
+  num_adj_total = sum(adj_cnt)  # total number of neighbors, including repeats
+
+  colors = zeros(Int32, num_adj_total)
+  adj2_flat = Array(Ptr{Void}, num_adj_total)
+
+  # get the colors of all the elements
+  # also flatten adj2 array of arrays into a single array
+  index = 1
+  for i=1:num_adj
+    for j=1:adj_cnt[i]
+      colors[index] = getNumberJ(mesh.coloring_Nptr, adj2[i][j], 0, 0)
+
+      adj2_flat[index] = adj2[i][j]
+
+      index += 1
+    end
+  end
+
+  num_unique = length(unique(adj2_flat))
+
+  return colors, num_unique
+end
+
+
+
+
+
+function colorMesh1RCM(mesh)  # use reverse Cuthill-McKee to color mesh
+
+
+for i=1:mesh.numEl
+  numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
+end
+
+
+# create queue
+q = Queue(Int32)
+
+
+enqueue!(q, Int32(1))  # put first element in queue
+
+adj_size = 6  # guess number of neighboring faces
+numc = 4  # guess number of colors
+adj = Array(Ptr{Void}, adj_size)  # hold neighboring faces
+adj_color =zeros(Int32, adj_size)  # colors of neighboring faces
+cnt_colors = zeros(Int32, numc)  # count how many of each color
+
+
+
+while (length(q) > 0)
+
+ el_i = dequeue!(q)  # get element out of q
+ println("processing element ", el_i)
+ el_i_ptr = mesh.elements[el_i]
+  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i_ptr, 1, 2)
+
+  getBridgeAdjacent(adj)
+
+  for j=1:num_adj
+    adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
+    # add neighbor element to queue if it does not have a color yet
+    if adj_color[j] == 0
+      println("adj_color[j] = ", adj_color[j])
+      tmp = getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
+      println("  adding element ", tmp, " to queue")
+      enqueue!(q, tmp)
+    end
+  end
+
+  min_color = getMinColor2(adj_color, numc)
+
+  if min_color > numc
+    resize!(cnt_colors, min_color)
+    cnt_colors[min_color] = 0  # initialize new value to zero
+    numc = min_color
+  end
+
+  println("assigned element ", el_i, " color ", min_color)
+  numberJ(mesh.coloring_Nptr, el_i_ptr, 0, 0, min_color)
+
+  cnt_colors[min_color] += 1  # update counts
+#  masks[min_color][i] = true  # update mask
+
+  fill!(adj_color, 0)
+
+end
+
+println("number of colors = ", numc)
+println("number of each color = ", cnt_colors)
+mesh.color_cnt = cnt_colors
+
+cnt = verifyColor1(mesh)
+println("cnt = ", cnt)
+#
+
+return nothing
+
+end
+
 
 
 function verifyColor1(mesh)
