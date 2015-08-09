@@ -633,9 +633,19 @@ end
 numc = 4  # guess number of colors
 #adj = Array(Ptr{Void}, adj_size)  # hold neighboring faces
 #adj_color =zeros(Int32, adj_size)  # colors of neighboring faces
+
+adj = Array(Ptr{Void}, 3)  # distance-1 edge neighbors
+adj2 = Array(Array{Ptr{Void}, 1}, 3)  # distance-2 edge neighbors + distance-1 
+
+for i=1:3
+  adj2[i] = Array(Ptr{Void}, 4)
+end
+
+colors = zeros(Int32, 3*4)
+
 cnt_colors = zeros(Int32, numc)  # count how many of each color
-num_neigh_max = 0
 for i=1:mesh.numEl
+  println("Processing element ", i)
   el_i = mesh.elements[i]
   # get faces that share a vert with el_i
   # this is actually more restrictive than we want because
@@ -652,12 +662,9 @@ for i=1:mesh.numEl
   # thus, this is a logical system where a double negative
   # is not a positive
  
-  colors, num_neigh = getDistance2Colors(mesh, i)
+  getDistance2Colors(mesh, i, adj, adj2, colors)
 
-  # update max number of unique nieghbors
-  if num_neigh > num_neigh_max
-    num_neigh_max = num_neigh
-  end
+  println("colors = \n", colors)
 #  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 0, 2)
 
 #=
@@ -690,10 +697,9 @@ for i=1:mesh.numEl
   cnt_colors[min_color] += 1  # update counts
 #  masks[min_color][i] = true  # update mask
 
-#  fill!(adj_color, 0)
+  fill!(colors, 0)
 
 end
-println("maximum number of neighbor faces = ", num_neigh_max)
 println("number of colors = ", numc)
 println("number of each color = ", cnt_colors)
 mesh.color_cnt = cnt_colors
@@ -705,30 +711,34 @@ return nothing
 end
 
 
-function getDistance2Colors(mesh, elnum::Integer)
+function getDistance2Colors(mesh, elnum::Integer, adj, adj2, colors)
 # get the distance-2 neighbors of a given element
 # repeats included
+# adj : array to be populated with distance-1 edge neighbors
+# adj2 : array to be populated with sum of distance-1 and distance-2 edge
+# neighbors
+# colors : array to be populated with colors of elements in adj2
 
   el_i = mesh.elements[elnum]
 
   num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
-  adj = Array(Ptr{Void}, num_adj)
+#  adj = Array(Ptr{Void}, 3)
   getBridgeAdjacent(adj)
 
-  adj2 = Array(Array{Ptr{Void}, 1}, num_adj)  # hold distance 2 neighbors
+#  adj2 = Array(Array{Ptr{Void}, 1}, num_adj)  # hold distance 2 neighbors
+
   adj_cnt = zeros(Int, num_adj)
   for j=1:num_adj
     num_adj_j = countBridgeAdjacent(mesh.m_ptr, adj[j], 1, 2)
     adj_cnt[j] = num_adj_j + 1
-    adj2[j] = Array(Ptr{Void}, num_adj_j + 1)
+ #   adj2[j] = Array(Ptr{Void}, num_adj_j + 1)
     getBridgeAdjacent(adj2[j])
     adj2[j][num_adj_j + 1] = adj[j]  # include the distance-1 neighbor
   end
 
   num_adj_total = sum(adj_cnt)  # total number of neighbors, including repeats
 
-  colors = zeros(Int32, num_adj_total)
-  adj2_flat = Array(Ptr{Void}, num_adj_total)
+#  colors = zeros(Int32, num_adj_total)
 
   # get the colors of all the elements
   # also flatten adj2 array of arrays into a single array
@@ -736,93 +746,14 @@ function getDistance2Colors(mesh, elnum::Integer)
   for i=1:num_adj
     for j=1:adj_cnt[i]
       colors[index] = getNumberJ(mesh.coloring_Nptr, adj2[i][j], 0, 0)
-
-      adj2_flat[index] = adj2[i][j]
-
       index += 1
     end
   end
 
-  num_unique = length(unique(adj2_flat))
 
-  return colors, num_unique
+  return nothing
 end
 
-
-
-
-
-function colorMesh1RCM(mesh)  # use reverse Cuthill-McKee to color mesh
-
-
-for i=1:mesh.numEl
-  numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
-end
-
-
-# create queue
-q = Queue(Int32)
-
-
-enqueue!(q, Int32(1))  # put first element in queue
-
-adj_size = 6  # guess number of neighboring faces
-numc = 4  # guess number of colors
-adj = Array(Ptr{Void}, adj_size)  # hold neighboring faces
-adj_color =zeros(Int32, adj_size)  # colors of neighboring faces
-cnt_colors = zeros(Int32, numc)  # count how many of each color
-
-
-
-while (length(q) > 0)
-
- el_i = dequeue!(q)  # get element out of q
- println("processing element ", el_i)
- el_i_ptr = mesh.elements[el_i]
-  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i_ptr, 1, 2)
-
-  getBridgeAdjacent(adj)
-
-  for j=1:num_adj
-    adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
-    # add neighbor element to queue if it does not have a color yet
-    if adj_color[j] == 0
-      println("adj_color[j] = ", adj_color[j])
-      tmp = getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
-      println("  adding element ", tmp, " to queue")
-      enqueue!(q, tmp)
-    end
-  end
-
-  min_color = getMinColor2(adj_color, numc)
-
-  if min_color > numc
-    resize!(cnt_colors, min_color)
-    cnt_colors[min_color] = 0  # initialize new value to zero
-    numc = min_color
-  end
-
-  println("assigned element ", el_i, " color ", min_color)
-  numberJ(mesh.coloring_Nptr, el_i_ptr, 0, 0, min_color)
-
-  cnt_colors[min_color] += 1  # update counts
-#  masks[min_color][i] = true  # update mask
-
-  fill!(adj_color, 0)
-
-end
-
-println("number of colors = ", numc)
-println("number of each color = ", cnt_colors)
-mesh.color_cnt = cnt_colors
-
-cnt = verifyColor1(mesh)
-println("cnt = ", cnt)
-#
-
-return nothing
-
-end
 
 
 
@@ -868,7 +799,7 @@ end
 
 
 function getMinColor{T}(adj::AbstractArray{T})
-
+# adj contains colors of adjacent elements
   min_color = 1
   sort!(adj)  # adj must be in increasing order for this to work
   for i=1:length(adj)
@@ -904,7 +835,7 @@ if mask_sum == numc  # all existing colors used, so add another
   println("adding color ", numc + 1)
   min_color = numc + 1
 elseif mask_sum == (numc - 1)  # there is exactly 1 color remaining
-  println("exactly 1 color remaining")
+#  println("exactly 1 color remaining")
   # find out which color is missing and use it
   for i=1:numc
     if !mask[i]  # if mask is false
@@ -912,7 +843,7 @@ elseif mask_sum == (numc - 1)  # there is exactly 1 color remaining
     end
   end
 else  # some colors are missing
-  println("getting minimum color")
+#  println("getting minimum color")
   min_color = getMinColor(adj)  # get the minimum
 end
 
