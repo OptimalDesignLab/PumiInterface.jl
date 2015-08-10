@@ -801,7 +801,7 @@ for i=1:mesh.numEl
   for j=1:(num_adj + 1)
     adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
     neighbor_colors[j, i] = adj_color[j]
-    neighbor_nums[j, i] = getNumberJ(mesh.el_Nptr, adj[j], 0, 0)
+    neighbor_nums[j, i] = getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
   end
 
   color_i = adj_color[num_adj + 1]  # color of current element
