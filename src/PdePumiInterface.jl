@@ -37,6 +37,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   numNodesPerElement::Int  # number of nodes per element
   numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
+  numColors::Int  # number of colors
   numBC::Int  # number of boundary conditions
 
   # hold pointers to mesh entities
@@ -65,7 +66,9 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   dofs::Array{Int, 3}  # store dof numbers of solution array to speed assembly
   sparsity_bnds::Array{Int32, 2}  # store max, min dofs for each dof
-  color_masks::Array{BitArray{1}, 1}  # array of bitarray masks used to control element perturbations when forming jacobian
+  color_masks::Array{BitArray{1}, 1}  # array of bitarray masks used to control element perturbations when forming jacobian, number of arrays = number of colors
+  neighbor_colors::Array{UInt8, 2}  # 4 by numEl array, holds colors of edge-neighbor elements + own color
+  neighbor_nums::Array{Int32, 2}  # 4 by numEl array, holds element numbers of neighbors + own number, in same order as neighbor_colors
   color_cnt::Array{Int32, 1}  # number of elements in each color
 
 
@@ -176,9 +179,14 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   mesh.color_masks = Array(BitArray{1}, 4)  # one array for every color
   #colorMesh1(mesh, mesh.color_masks)
-  colorMesh2(mesh, mesh.color_masks)
+  numc = colorMesh2(mesh, mesh.color_masks)
 #  colorMesh1RCM(mesh)
+  mesh.numColors = numc
 
+  mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
+  mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
+  mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
+  getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
 
   # get boundary information for entire mesh
   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
@@ -583,8 +591,6 @@ println("number of colors = ", numc)
 println("number of each color = ", cnt_colors)
 mesh.color_cnt = cnt_colors
 
-cnt = verifyColor1(mesh)
-#@assert cnt == 0
 return nothing
 
 end
@@ -645,18 +651,18 @@ colors = zeros(Int32, 3*4)
 
 cnt_colors = zeros(Int32, numc)  # count how many of each color
 for i=1:mesh.numEl
-  println("Processing element ", i)
+#  println("Processing element ", i)
   el_i = mesh.elements[i]
-  # get faces that share a vert with el_i
+  # get faces that share an edge with el_i, and all elements
+  # those elements share an edge with
   # this is actually more restrictive than we want because
-  # edge stabilization only causes interaction between 
-  # elements that share an edge
+  # a unique distance-1 coloring, not distance-2
   # However, this is much easier to write an algorithm for
 
   # This is more restrictive than we want, but it ensure
-  # that we void assigning the same color to two elements
+  # that we avoid assigning the same color to two elements
   # bordering the same element
-  # ie. we must avoid vertex neighbor non uniqueness,
+  # ie. we must avoid distance-2 neighbor non uniqueness,
   # which is not the same thing as having uniqueness because
   # there are unassigned values remaining
   # thus, this is a logical system where a double negative
@@ -664,7 +670,7 @@ for i=1:mesh.numEl
  
   getDistance2Colors(mesh, i, adj, adj2, colors)
 
-  println("colors = \n", colors)
+#  println("colors = \n", colors)
 #  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 0, 2)
 
 #=
@@ -704,9 +710,7 @@ println("number of colors = ", numc)
 println("number of each color = ", cnt_colors)
 mesh.color_cnt = cnt_colors
 
-cnt = verifyColor1(mesh)
-#@assert cnt == 0
-return nothing
+return numc
 
 end
 
@@ -757,11 +761,30 @@ end
 
 
 
-function verifyColor1(mesh)
-# verify edge neighbor faces have different colors
-  adj = Array(Ptr{Void}, 4)   # pointers to element i + 3 neighbors
-  adj_color = Array(Int32, 4)  # element colors
-  
+function getColors1{T, T2}(mesh, masks::AbstractArray{BitArray{1}, 1}, neighbor_colors::AbstractArray{T, 2}, neighbor_nums::AbstractArray{T2, 2}; verify=true )
+# verify edge neighbor faces have different colors (ie. distance-1 coloring
+# of graph where elements are the vertices connected by edges if 
+# there is a mesh edge connecting them
+# also construct the BitArray masks that describe which elements to perturb
+# for which colors, and the list of neighbor + self colors
+# masks is an array of bitarrays, number of arrays = number of colors
+# neighbor_colors is 4 by numEl array of integers holding the colors
+# of the nieghbors + own color
+# neighbor_nums is 4 by numEl array of integers holding the element numbers
+# of the neighbors + self
+
+adj = Array(Ptr{Void}, 4)   # pointers to element i + 3 neighbors
+adj_color = Array(Int32, 4)  # element colors
+
+# initialize masks to 0 (false)
+for i=1:length(masks)
+  masks[i] = falses(mesh.numEl)
+end
+
+if verify
+  println("verifying distance-1 coloring was sucessful")
+end
+
 
 cnt = 0
 for i=1:mesh.numEl
@@ -773,23 +796,34 @@ for i=1:mesh.numEl
   getBridgeAdjacent(adj)
 
   adj[num_adj + 1] = el_i  # insert the current element
+
+  # get color, element numbers
   for j=1:(num_adj + 1)
     adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
+    neighbor_colors[j, i] = adj_color[j]
+    neighbor_nums[j, i] = getNumberJ(mesh.el_Nptr, adj[j], 0, 0)
   end
 
-  sort!(adj_color)
+  color_i = adj_color[num_adj + 1]  # color of current element
+  masks[color_i][i] = true  # indicate element i gets perturbed by color_i
 
-  if adj_color != unique(adj_color)
-    println("element ", i, " has non unique colors")
-    println("adj_color = ", adj_color)
-    cnt += 1
-  end
+  if verify
+    sort!(adj_color)
 
+    if adj_color != unique(adj_color)
+      println("element ", i, " has non unique colors")
+      println("adj_color = ", adj_color)
+      cnt += 1
+    end
+  end   # end if verify
   fill!(adj_color, 0)
 end
 
-println("color-1 verification finished")
-println("cnt = ", cnt)
+if verify
+  println("color-1 verification finished")
+  println("number of element with non unique coloring = ", cnt)
+end
+
 return cnt
 
 end
