@@ -265,6 +265,9 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
     writedlm("sparsity_bnds.dat", mesh.sparsity_bnds)
   end
 
+  if opts["write_counts"]
+    writeCounts(mesh)
+  end
 
   writeVtkFiles("mesh_complete", mesh.m_ptr)
   return mesh
@@ -2115,6 +2118,40 @@ function writeVisFiles(mesh::PumiMesh, fname::AbstractString)
 end
 
 
+
+function writeCounts(mesh::PumiMesh2)
+# write values needed for memory usage estimate
+vals = Array(Int, 9)
+vals[1] = mesh.numVert
+vals[2] = mesh.numEdge
+vals[3] = mesh.numEl
+vals[4] = mesh.numBoundaryEdges
+vals[5] = mesh.numNodesPerType[1]
+vals[6] = mesh.numNodesPerType[2]
+vals[7] = mesh.numNodesPerType[3]
+vals[8] = mesh.numDofPerNode
+
+
+# estimate jacobian storage size
+acc = 0
+for i=1:mesh.numDof
+  acc += mesh.sparsity_bnds[2, i] - mesh.sparsity_bnds[1, i]
+end
+
+size_nz = 64*acc
+size_rowval = 32*acc
+size_colptr = 32*mesh.numDof
+
+vals[9] = size_nz + size_rowval + size_colptr
+
+writedlm("counts.txt", vals)
+			  
+return nothing
+end
+
+
+
 end  # end of module
+
 
 
