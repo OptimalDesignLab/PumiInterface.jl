@@ -1193,6 +1193,50 @@ int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
 }
 
 
+// this is a non elementary function, here for performance reasons only
+// gets the dof numbers for all nodes affected by the element, in order
+// n is the dof numbering
+// entities is an array of node entities that have nodes on the elements, including repeats
+// element is the element
+// dofnums is the output array
+// the output array will be seen by julia as being num_comp by length(entities)
+int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], apf::MeshEntity* element, int dofnums[])
+{
+  // get the numbers needed
+  apf::Mesh* m_local = apf::getMesh(n); 
+  int el_type = m_local->getType(element);
+  int el_dim = m_local->typeDimension[el_type];
+  int num_comp = apf::countComponents(n);
+  apf::FieldShape* fshape_local = m_local->getShape();
+  apf::MeshEntity* e = entities[0];
+
+  int col = 0;
+  int ptr = 0;  // pointer to linear address in entities
+  for (int i = 0; i <= el_dim; i++)   // loop over verts, edges, faces, regions
+  {
+    for (int j=0; j < m_local->adjacentCount[el_type][i]; j++)  // loop over all entities of this type
+    { 
+      for (int k=0; k < fshape_local->countNodesOn(i); k++)
+      {
+        e = entities[col];  // get current entity
+        for (int p = 0; p < num_comp; p++)
+        {
+          ptr = col*num_comp + p;
+          dofnums[ptr] = apf::getNumber(n, e, k, p);
+        }
+        col++;
+      }  // end loop over nodes
+    }  // end loops over entities of this type
+  } // end loop over types
+
+
+  return 0;
+}
+
+
+
+
+
 void setNumberingOffset(apf::Numbering* num, int off)
 {
   apf::SetNumberingOffset(num, off);

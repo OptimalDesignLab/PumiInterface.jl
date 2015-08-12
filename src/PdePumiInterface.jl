@@ -64,7 +64,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   dxidx::Array{T1, 4}  # store scaled mapping jacobian
   jac::Array{T1,2}  # store mapping jacobian output
 
-  dofs::Array{Int, 3}  # store dof numbers of solution array to speed assembly
+  dofs::Array{Int32, 3}  # store dof numbers of solution array to speed assembly
   sparsity_bnds::Array{Int32, 2}  # store max, min dofs for each dof
   color_masks::Array{BitArray{1}, 1}  # array of bitarray masks used to control element perturbations when forming jacobian, number of arrays = number of colors
   neighbor_colors::Array{UInt8, 2}  # 4 by numEl array, holds colors of edge-neighbor elements + own color
@@ -453,7 +453,7 @@ dofnums = zeros(Int32, mesh.numDofPerNode, mesh.numNodesPerElement, num_adj)
 
 for i=1:num_adj
   elnum_i = getNumberJ(mesh.el_Nptr, el_arr[i], 0, 0) + 1
-  getGlobalNodeNumbers(mesh, elnum_i, view(dofnums, :, :, i))
+  getGlobalNodeNumbers(mesh, elnum_i, sub(dofnums, :, :, i))
 end
 
 min, max = getMinandMax(dofnums)
@@ -1170,7 +1170,7 @@ function getDofNumbers(mesh::PumiMesh2)
 println("in getDofNumbers")
 println("numNodesPerElement = ", mesh.numNodesPerElement)
 
-mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
+mesh.dofs = Array(Int32, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
 
 for i=1:mesh.numEl
   dofnums = getGlobalNodeNumbers(mesh, i)
@@ -1329,7 +1329,7 @@ function getCoordinates(mesh::PumiMesh2, sbp::SBPOperator)
 
 mesh.coords = Array(Float64, 2, sbp.numnodes, mesh.numEl)
 
-println("entered getCoordinates")
+#println("entered getCoordinates")
 
 coords_i = zeros(3,3)
 coords_it = zeros(3,2)
@@ -1436,6 +1436,7 @@ end
 function getGlobalNodeNumbers(mesh::PumiMesh2, elnum::Integer, dofnums::AbstractArray{Int32, 2})
 # gets global node numbers of all dof on all nodes of the element
 # output formap is array [numdofpernode, nnodes]  (each column contains dof numbers for a node)
+# dofnums must be passable to C
 # 2D only
 el_i = mesh.elements[elnum]
 type_i = getType(mesh.m_ptr, el_i)
@@ -1454,6 +1455,7 @@ node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
 
 num_entities = [3, 3, 1] # number of vertices, edges, faces
 
+#=
 col = 1 # current node
 for i=1:3  # loop over verts, edges, faces
   for j=1:num_entities[i]  # loop over all entities of this type
@@ -1466,7 +1468,9 @@ for i=1:3  # loop over verts, edges, faces
     end  # end loop over nodes on curren entity
   end  # end loop over entities of current type
 end  # end loop over entity types
+=#
 
+PumiInterface.getDofNumbers(mesh.dofnums_Nptr, node_entities, el_i, dofnums)  # C implimentation
 
 
 #=

@@ -193,28 +193,31 @@ function getNodeEntities(m_ptr, mshape_ptr, entity)
   end
   
 =#  
+  retrieved_entities = Array(Ptr{Void}, 12)  # reusable storage
   if has_vert_nodes  # vertices
-    (verts, numV) = getDownward(m_ptr, entity, 0)
-    downward_entities[1:numV] = verts
+    numV = getDownward(m_ptr, entity, 0, downward_entities)
+    
+    # insert elements into downward_entities
+#    downward_entities[1:numV] = verts
 	
     if has_edge_nodes # edges
-      (edges, numEdges) = getDownward(mshape_ptr, entity, 1)
+      numEdges = getDownward(mshape_ptr, entity, 1, retrieved_entities)
           for i=1:numEdges
-	    insertN(downward_entities, edges[i], numV+num_edge_nodes*(i-1) + 1, num_edge_nodes)
+	    insertN(downward_entities, retrieved_entities[i], numV+num_edge_nodes*(i-1) + 1, num_edge_nodes)
 	  end
 #	  downward_entities[(numV+1):(numV+numEdges)] = edges
 
       if has_face_nodes
-	(faces, numFaces) = getDownward(mshape_ptr, entity, 2)
+	 numFaces = getDownward(mshape_ptr, entity, 2, retrieved_entities)
 	for i=1:numFaces
-	  insertN(downward_entities, faces[i], numV + num_edge_nodes*numEdges +num_edge_nodes*(i-1) + 1, num_face_nodes)
+	  insertN(downward_entities, retrieved_entities[i], numV + num_edge_nodes*numEdges +num_edge_nodes*(i-1) + 1, num_face_nodes)
 	end
 #	downward_entities[ (numV+numEdges+1):(numV+numEdges+numFaces)] = faces
 
 	if has_region_nodes
-	  (regions, numRegions) = getDownward(m_ptr, entity, 4)
+	   numRegions = getDownward(m_ptr, entity, 4, retrieved_entities)
 	  for i=1:numRegions
-	    insertN(downward_entities, regions[i], numV + num_edge_nodes*numEdges + num_face_nodes*numFaces + num_region_nodes*(i-1) + 1, num_region_nodes)
+	    insertN(downward_entities, retrieved_entities[i], numV + num_edge_nodes*numEdges + num_face_nodes*numFaces + num_region_nodes*(i-1) + 1, num_region_nodes)
 	  end
 #	  downward_entities[(numV+numEdges+numFaces+1):(numV+numEdges+numFaces+numRegions)] = regions
         end
