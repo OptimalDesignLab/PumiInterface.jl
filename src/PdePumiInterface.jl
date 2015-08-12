@@ -301,12 +301,12 @@ function getEdgeFaces(mesh::PumiMesh2, bndry_edges::AbstractArray{Int, 1})
 # get the faces corresponding to the boundary edges
 
 bndry_faces = zeros(bndry_edges)
-
+faces = Array(Ptr{Void}, 400)  # equivilent to apf::Up
 for i=1:bndry_edges
   edgenum_i = bndry_edges[i]
   edge_i = mesh.edges[edgenum_i]
   numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
-  faces = getAdjacent(numFace)
+  getAdjacent(faces)
   facenum = getFaceNumber2(faces[1]) + 1
 
   bndry_faces[i] = facenum
@@ -899,6 +899,7 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh2, medges::AbstractArray{Int, 1}
 
 #  bndry_edges = zeros(Int, mesh.numBoundaryEdges)
   index = 0  # relative index in bndry_edges
+  faces = Array(Ptr{Void}, 2)  # an edge can have maximum 2 faces using it
   for i=1:mesh.numEdge
     edge_i = mesh.edges[i]
     me_i = toModel(mesh.m_ptr, edge_i)
@@ -914,7 +915,7 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh2, medges::AbstractArray{Int, 1}
 
 	@assert( numFace == 1)
 
-        faces = getAdjacent(numFace)
+        getAdjacent(faces)
         facenum = getFaceNumber2(faces[1]) + 1
         edgenum = getEdgeNumber2(edge_i)  # unneeded?
 
@@ -1000,15 +1001,18 @@ function numberDofs(mesh::PumiMesh2)
 
 
   println("Performing final numbering of dofs")
+
+  verts_i = Array(Ptr{Void}, 12)
+  edges_i = Array(Ptr{Void}, 12)
 # move all if statements out one for loop (check only first dof on each node)
   curr_dof = 1
   for i=1:mesh.numEl
 #    println("element number: ", i)
     # get vertices, edges for this element
-    (verts_i, numVert) = getDownward(mesh.m_ptr, mesh.elements[i], 0)
+    numVert = getDownward(mesh.m_ptr, mesh.elements[i], 0, verts_i)
 #    println("verts_i = ", verts_i)
 #    println("mesh.verts = ", mesh.verts)
-    (edges_i, numEdge) = getDownward(mesh.m_ptr, mesh.elements[i], 1)
+    numEdge = getDownward(mesh.m_ptr, mesh.elements[i], 1, edges_i)
     el_i = mesh.elements[i]
     for j=1:3  # loop over vertices, edges
 #      println("  vertex and edge number: ", j)
@@ -1118,6 +1122,7 @@ function countBoundaryEdges(mesh::PumiMesh2, bndry_edges_all)
   bnd_edges_cnt = 0
   external_edges_cnt = 0
   bnd_edges = Array(Int, mesh.numEdge, 2)
+  faces = Array(Ptr{Void}, 2)  # edge has maximum 2 faces
   for i=1:mesh.numEdge
     edge_i = getEdge()
 
@@ -1139,7 +1144,7 @@ function countBoundaryEdges(mesh::PumiMesh2, bndry_edges_all)
 
       if index != 0  # if model edge has a BC on i
 
-	faces = getAdjacent(numFace)
+	getAdjacent(faces)
 	facenum = getFaceNumber2(faces[1]) + 1
 
 
@@ -1650,8 +1655,8 @@ function getBoundaryEdgeLocalNum(mesh::PumiMesh2, edge_num::Integer)
   face = getAdjacent(1)[1]  # get the single face (not an array)
 
   facenum_i = getFaceNumber2(face) + 1  # convert to 1 based indexing
-
-  (down_edges, numedges) = getDownward(mesh.m_ptr, face, 1)
+  down_edges = Array(Ptr{Void}, 3)
+  numedges = getDownward(mesh.m_ptr, face, 1, down_edges)
   edgenum_local = 0
   for j = 1:3  # find which local edge is edge_i
     if down_edges[j] == edge_i
@@ -1669,7 +1674,8 @@ function getEdgeLocalNum(mesh::PumiMesh2, edge_num::Integer, element_num::Intege
   edge = mesh.edges[edge_num]
   element = mesh.elements[element_num]
 
-  (down_edges, numedges) = getDownward(mesh.m_ptr, element, 1)
+  down_edges = Array(Ptr{Void}, 3)
+   numedges = getDownward(mesh.m_ptr, element, 1, down_edges)
 
   edgenum_local = 0
    for j = 1:3  # find which local edge is edge_i
@@ -2017,6 +2023,7 @@ function printBoundaryEdgeNums(mesh::PumiMesh)
   n = mesh.numBC
 
   bndry = 1
+  edges = Array(Ptr{Void}, 12)
   for i=1:n
     fname = string("boundary_edge_verts", i, ".dat")
     println("printing ", fname)
@@ -2027,11 +2034,12 @@ function printBoundaryEdgeNums(mesh::PumiMesh)
     num_edge = end_index - start_index + 1
     arr = Array(Ptr{Void}, num_edge)
 
+
     for i=1:num_edge  # get the mesh edge pointers
       el = mesh.bndryfaces[bndry].element
       local_face = mesh.bndryfaces[bndry].face
       el_ptr = mesh.elements[el]
-      edges, tmp = getDownward(mesh.m_ptr, el_ptr, 1)
+      getDownward(mesh.m_ptr, el_ptr, 1, edges)
       arr[i] = edges[local_face]
       bndry += 1
     end

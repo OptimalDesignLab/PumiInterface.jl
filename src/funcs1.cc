@@ -1202,16 +1202,28 @@ int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
 // the output array will be seen by julia as being num_comp by length(entities)
 int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], apf::MeshEntity* element, int dofnums[])
 {
-  // get the numbers needed
-  apf::Mesh* m_local = apf::getMesh(n); 
-  int el_type = m_local->getType(element);
-  int el_dim = m_local->typeDimension[el_type];
-  int num_comp = apf::countComponents(n);
-  apf::FieldShape* fshape_local = m_local->getShape();
-  apf::MeshEntity* e = entities[0];
+  // declare and initialize static variables
+  static apf::Mesh* m_local = apf::getMesh(n); 
+  static int el_type = m_local->getType(element);
+  static int el_dim = m_local->typeDimension[el_type];
+  static int num_comp = apf::countComponents(n);
+  static apf::FieldShape* fshape_local = m_local->getShape();
+  static apf::MeshEntity* e = entities[0];
 
-  int col = 0;
-  int ptr = 0;  // pointer to linear address in entities
+  static int col = 0;
+  static int ptr = 0;  // pointer to linear address in entities
+
+  // populate them
+  m_local = apf::getMesh(n); 
+  el_type = m_local->getType(element);
+  el_dim = m_local->typeDimension[el_type];
+  num_comp = apf::countComponents(n);
+  fshape_local = m_local->getShape();
+  e = entities[0];
+
+  col = 0;
+  ptr = 0;  // pointer to linear address in entities
+
   for (int i = 0; i <= el_dim; i++)   // loop over verts, edges, faces, regions
   {
     for (int j=0; j < m_local->adjacentCount[el_type][i]; j++)  // loop over all entities of this type
