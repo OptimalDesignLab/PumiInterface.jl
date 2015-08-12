@@ -171,12 +171,6 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
   getSparsityBounds(mesh, mesh.sparsity_bnds)
 
-  println("\n Printing sparsity bounds")
-  for i=1:mesh.numDof
-    println(i, " : ", mesh.sparsity_bnds[1,i], " to ", mesh.sparsity_bnds[2,i])
-  end
-  print("\n")
-
   mesh.color_masks = Array(BitArray{1}, 4)  # one array for every color
   #colorMesh1(mesh, mesh.color_masks)
   numc = colorMesh2(mesh, mesh.color_masks)
@@ -416,19 +410,19 @@ if mesh.coloringDistance >= 2
   # print the edge numbers
   for i=1:num_adj*3
     edge_num_i = getNumberJ(mesh.edge_Nptr, edge_arr[i], 0, 0)
-    println("edge ", i, " has number ", edge_num_i)
+#    println("edge ", i, " has number ", edge_num_i)
   end
   # now get the elements the edges belong to
   # count the number of elements first, then get them
   num_els = zeros(Int, length(edge_arr) + 1)  # count number of elements each edge has
 
-  println("length(num_els) = ", length(num_els))
-  println("length(edge_arr) = ", length(edge_arr))
+#  println("length(num_els) = ", length(num_els))
+#  println("length(edge_arr) = ", length(edge_arr))
   for i=1:length(edge_arr)
     num_els[i] = countAdjacent(mesh.m_ptr, edge_arr[i], 2)
   end
 
-  println("finished counting distance-2 elements")
+#  println("finished counting distance-2 elements")
 
   # now get them elements
   num_adj = sum(num_els)
