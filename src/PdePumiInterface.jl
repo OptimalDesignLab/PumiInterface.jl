@@ -166,6 +166,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   # use partially constructed mesh object to populate arrays
 
   numberDofs(mesh)
+  getDofNumbers(mesh)  # store dof numbers
 
   # get sparsing information
   mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
@@ -192,7 +193,6 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   getInterfaceArray(mesh)
 
   getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
-  getDofNumbers(mesh)  # store dof numbers
 
   mesh.dxidx = Array(T1, 2, 2, sbp.numnodes, mesh.numEl)
   mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
@@ -262,7 +262,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   if opts["write_sparsity"]
     rmfile("sparsity_bnds.dat")
-    writedlm("sparsity_bnds.dat", mesh.sparsity_bnds)
+    writedlm("sparsity_bnds.dat", mesh.sparsity_bnds.')
   end
 
   if opts["write_counts"]
