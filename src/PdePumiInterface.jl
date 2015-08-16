@@ -400,6 +400,21 @@ entity_ptr = iterators_get[etype]()
 num_adj = countAdjacent(mesh.m_ptr, entity_ptr, 2)
 el_arr = getAdjacent(num_adj)
 
+# distance-1
+#=
+dofnums = zeros(Int32, mesh.numDofPerNode, mesh.numNodesPerElement, num_adj)
+
+for i=1:num_adj
+  el_i = getNumberJ(mesh.el_Nptr, el_arr[i], 0, 0) + 1
+  sub_arr = sub(dofnums, :, :, i)
+  getGlobalNodeNumbers(mesh, el_i, sub_arr)
+end
+
+min, max = getMinandMax(dofnums)
+
+return min, max
+=#
+
 # get distance-2 elements
 if mesh.coloringDistance >= 2
   edge_arr = Array(Ptr{Void}, num_adj*3)  # enough space for all edges, including repeats
@@ -411,10 +426,12 @@ if mesh.coloringDistance >= 2
   # edge_arr now populated with all edges
 
   # print the edge numbers
+#=
   for i=1:num_adj*3
     edge_num_i = getNumberJ(mesh.edge_Nptr, edge_arr[i], 0, 0)
-#    println("edge ", i, " has number ", edge_num_i)
+    println("edge ", i, " has number ", edge_num_i)
   end
+=#
   # now get the elements the edges belong to
   # count the number of elements first, then get them
   num_els = zeros(Int, length(edge_arr) + 1)  # count number of elements each edge has
