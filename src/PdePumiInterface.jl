@@ -5,7 +5,6 @@ using PumiInterface
 using SummationByParts
 using PDESolverCommon
 using ArrayViews
-using DataStructures
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
 export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles
@@ -175,7 +174,6 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   mesh.color_masks = Array(BitArray{1}, 4)  # one array for every color
   #colorMesh1(mesh, mesh.color_masks)
   numc = colorMesh2(mesh, mesh.color_masks)
-#  colorMesh1RCM(mesh)
   mesh.numColors = numc
 
   mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
