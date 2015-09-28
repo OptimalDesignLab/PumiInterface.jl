@@ -1,8 +1,9 @@
 // this file contains the code necessary to perform the subtriangulatio of a 
 // high order mesh into a low order one
 
+#include "triangulation.h"
 
-apf::Mesh2* createSubMesh(apf::Mesh* m, int, numtriangles, int triangulation[][3], apf::Numbering* numberings[3])
+apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triangulation[][3], apf::Numbering* numberings[3])
 {
 // m is the existing (high order) mesh
 // numtriangles is the number of triangles to break each large triangle into
@@ -31,9 +32,17 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, int, numtriangles, int triangulation[][3
 
   // step 2: create elements from vertices
   
-  apf::MeshIterator* it = m->begin(0);  // iterate over vertices
+  int dim = 0;  // indicate vertices
+  apf::MeshIterator* it = m->begin(dim);  // iterate over vertices
   apf::MeshEntity* e;  // uninitilized pointer?
-//  while (ap
+  apf::Vector3 coords;
+  while ( (e = m->iterate(it)) )
+  {
+   int idx = apf::getNumber(numberings[dim], e, 0, 0);
+   m->getPoint(e, 0, coords);
+   verts[idx][0] = m_new->createVert(0);
+   m_new->setPoint(verts[idx][0], 0, coords);
+  }
 
 
   // step 3: transfer fields
@@ -41,3 +50,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, int, numtriangles, int triangulation[][3
 
 
 }
+
+
+// function to determine the orientation of an edge in the high order mesh
+int getOrientation(apf::Mesh* m, apf::MeshEntity* e 

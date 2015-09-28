@@ -3,7 +3,7 @@
 
 #include "triangulation.h"
 
-apf::Mesh2* createSubMesh(apf::Mesh* m, int, numtriangles, int triangulation[][3], apf::Numbering* numberings[3])
+apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triangulation[][3], apf::Numbering* numberings[3])
 {
 // m is the existing (high order) mesh
 // numtriangles is the number of triangles to break each large triangle into
@@ -32,9 +32,17 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, int, numtriangles, int triangulation[][3
 
   // step 2: create elements from vertices
   
-  apf::MeshIterator* it = m->begin(0);  // iterate over vertices
+  int dim = 0;  // indicate vertices
+  apf::MeshIterator* it = m->begin(dim);  // iterate over vertices
   apf::MeshEntity* e;  // uninitilized pointer?
-//  while (ap
+  apf::Vector3 coords;
+  while ( (e = m->iterate(it)) )
+  {
+   int idx = apf::getNumber(numberings[dim], e, 0, 0);
+   m->getPoint(e, 0, coords);
+   verts[idx][0] = m_new->createVert(0);
+   m_new->setPoint(verts[idx][0], 0, coords);
+  }
 
 
   // step 3: transfer fields
@@ -42,3 +50,37 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, int, numtriangles, int triangulation[][3
 
 
 }
+
+
+// function to determine the orientation of an edge in the high order mesh
+// this assumes the convention used in PdePumiInterface that the the element
+// with centroid x coordinate 
+int getOrientation(apf::Mesh* m, apf::MeshEntity* e)
+{ 
+  int e_type = m->getType(e);
+
+  // declare some static variables
+  static apf::Up up_faces;
+  static apf::Downward verts1;
+  static apf::Downward verts2;
+  static double coords1[3][3];
+  static double coords2[3][3];
+
+  if (m->typeDimenions[e_type] == 0 || m->typeDimensions[e_type] == 2)
+    return 0;
+  
+  // else this must be an edge
+
+  m->getUp(e, up_faces);
+  apf::MeshElement* e1 = e[0];
+  apf::MeshElement* e2 = e[1];
+
+  // calculate centroid of two elements
+  // get coordinates first, then calculate centroid
+  m->getDownward(e1, 0, verts1);
+  m->getDownward(e2, 0, verts2);
+
+  for (int i = 0; i < 3; ++i)
+  {
+
+
