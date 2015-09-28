@@ -24,12 +24,12 @@ class SBPLinear : public FieldShape
         {
 //          values.allocate(1);
 //          values[0] = 1.0;
-            fail("unimplimented getValues called");    
+            fail("unimplimented getValues called in SBPLinear Vertex");    
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>&) const
         {
-           fail("unimplimented getValues called");
+           fail("unimplimented getValues called SBPLinear Vertex");
         }
 		
         int countNodes() const {return 1;}
@@ -46,7 +46,7 @@ class SBPLinear : public FieldShape
           values[0] = (1.0-xi[0])/2.0;
           values[1] = (1.0+xi[0])/2.0;
           */
-          fail("unimplimented getValues() called");
+          fail("unimplimented getValues() called in SBPLinear Edge");
         }
 
         void getLocalGradients(Mesh*, MeshEntity*,
@@ -57,7 +57,7 @@ class SBPLinear : public FieldShape
           grads[0] = Vector3(-0.5,0,0);
           grads[1] = Vector3( 0.5,0,0);
           */
-          fail("unimplimented getLocaGradients() called");
+          fail("unimplimented getLocaGradients() called in SBPLinear Edge");
         }
 		
         int countNodes() const {return 2;}
@@ -77,7 +77,7 @@ class SBPLinear : public FieldShape
           values[1] = xi[0];
           values[2] = xi[1];
           */
-          fail("unimplimented getValues() called");
+          fail("unimplimented getValues() called in SBPLinear Triangle");
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>& grads) const
@@ -88,7 +88,7 @@ class SBPLinear : public FieldShape
           grads[1] = Vector3( 1, 0,0);
           grads[2] = Vector3( 0, 1,0);
           */
-          fail("unimplimented getLocalGradients() called");
+          fail("unimplimented getLocalGradients() called in SBPLinear Triangle");
         }
 		
         int countNodes() const {return 3;}
@@ -117,7 +117,7 @@ class SBPLinear : public FieldShape
           values[1] = xi[0];
           values[2] = xi[1];
           */
-          fail("unimplimented getValues() called");
+          fail("unimplimented getValues() called in SBPLinear Tetrahedron");
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>& grads) const
@@ -128,7 +128,7 @@ class SBPLinear : public FieldShape
           grads[1] = Vector3( 1, 0,0);
           grads[2] = Vector3( 0, 1,0);
           */
-          fail("unimplimented getLocalGradients() called");
+          fail("unimplimented getLocalGradients() called in SBPLinear Tetrahedron");
         }
     
         int countNodes() const {return 0;}
@@ -210,12 +210,12 @@ class SBPQuadratic : public FieldShape
         {
 //          values.allocate(1);
 //          values[0] = 1.0;
-            fail("unimplimented getValues called");    
+            fail("unimplimented getValues called in SBPQuadratic Vertex");    
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>&) const
         {
-           fail("unimplimented getValues called");
+           fail("unimplimented getLocalGradients called in SBPQuadratic Vertex");
         }
 		
         int countNodes() const {return 1;}
@@ -232,7 +232,7 @@ class SBPQuadratic : public FieldShape
           values[0] = (1.0-xi[0])/2.0;
           values[1] = (1.0+xi[0])/2.0;
           */
-          fail("unimplimented getValues() called");
+          fail("unimplimented getValues() called in SBPQuadratic Edge");
         }
 
         void getLocalGradients(Mesh*, MeshEntity*,
@@ -243,7 +243,7 @@ class SBPQuadratic : public FieldShape
           grads[0] = Vector3(-0.5,0,0);
           grads[1] = Vector3( 0.5,0,0);
           */
-          fail("unimplimented getLocaGradients() called");
+          fail("unimplimented getLocaGradients() called in SBPQuadratiac Edge");
         }
 		
         int countNodes() const {return 3;}
@@ -263,7 +263,7 @@ class SBPQuadratic : public FieldShape
           values[1] = xi[0];
           values[2] = xi[1];
           */
-          fail("unimplimented getValues() called");
+          fail("unimplimented getValues() called in SBPQuadratic Triangle");
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>& grads) const
@@ -274,7 +274,7 @@ class SBPQuadratic : public FieldShape
           grads[1] = Vector3( 1, 0,0);
           grads[2] = Vector3( 0, 1,0);
           */
-          fail("unimplimented getLocalGradients() called");
+          fail("unimplimented getLocalGradients() called in SBPQuadratic Triangle");
         }
 		
         int countNodes() const {return 7;}
@@ -308,7 +308,7 @@ class SBPQuadratic : public FieldShape
           values[1] = xi[0];
           values[2] = xi[1];
           */
-          fail("unimplimented getValues() called");
+          fail("unimplimented getValues() called in SBPQuadratic Tetrahdron");
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>& grads) const
@@ -319,7 +319,7 @@ class SBPQuadratic : public FieldShape
           grads[1] = Vector3( 1, 0,0);
           grads[2] = Vector3( 0, 1,0);
           */
-          fail("unimplimented getLocalGradients() called");
+          fail("unimplimented getLocalGradients() called in SBPQuadratic Tetrahedron");
         }
     
         int countNodes() const {return 0;}
@@ -421,14 +421,14 @@ class SBPCubic : public FieldShape
         void getValues(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<double>& values) const
         {
-//          values.allocate(1);
-//          values[0] = 1.0;
-            fail("unimplimented getValues called");    
+          values.allocate(1);
+          values[0] = 1.0;
+//            fail("unimplimented getValues called in SBPCubic Vertex");    
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>&) const
         {
-           fail("unimplimented getValues called");
+           fail("unimplimented getValues called in SBPCubic Vertex");
         }
 		
         int countNodes() const {return 1;}
@@ -440,12 +440,18 @@ class SBPCubic : public FieldShape
         void getValues(Mesh*, MeshEntity*,
             Vector3 const& xi, NewArray<double>& values) const
         {
-          /*
-          values.allocate(2);
-          values[0] = (1.0-xi[0])/2.0;
-          values[1] = (1.0+xi[0])/2.0;
-          */
-          fail("unimplimented getValues() called");
+          double xiv = xi[0];
+          const double n1 = 0.0;
+          const double n2 = 0.2934695559090417;
+          const double n3 = 0.706530440905599;
+          const double n4 = 1.0;
+          values.allocate(4);
+          values[0] = (xiv - n2)*(xiv - n3)*(xiv - n4)/(-0.20734517566347355);
+          values[1] = (xiv - n1)*(xiv - n3)*(xiv - n4)/(0.08564618241975609);
+          values[2] = (xiv - n1)*(xiv - n2)*(xiv - n4)/(-0.08564618241982433);
+          values[3] = (xiv - n1)*(xiv - n2)*(xiv - n3)/(0.2073451756638735);
+          
+  //        fail("unimplimented getValues() called in SBPCubic Edge");
         }
 
         void getLocalGradients(Mesh*, MeshEntity*,
@@ -456,7 +462,7 @@ class SBPCubic : public FieldShape
           grads[0] = Vector3(-0.5,0,0);
           grads[1] = Vector3( 0.5,0,0);
           */
-          fail("unimplimented getLocaGradients() called");
+          fail("unimplimented getLocaGradients() called in SBPCubic Edge");
         }
 		
         int countNodes() const {return 4;}
@@ -470,24 +476,43 @@ class SBPCubic : public FieldShape
         void getValues(Mesh*, MeshEntity*,
             Vector3 const& xi, NewArray<double>& values) const
         {
-          /*
-          values.allocate(3);
+          
+          values.allocate(12);
           values[0] = 1-xi[0]-xi[1];
           values[1] = xi[0];
           values[2] = xi[1];
-          */
-          fail("unimplimented getValues() called");
+          values[3] = 0.0;
+
+          values[4] = 0.0;
+          values[5] = 0.0;
+          values[6] = 0.0;
+          values[7] = 0.0;
+          values[8] = 0.0;
+          values[9] = 0.0;
+          values[10] = 0.0;
+          values[11] = 0.0;
+          
+//          fail("unimplimented getValues() called in SBPCubic Triangle");
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>& grads) const
         {
-          /*
-          grads.allocate(3);
+          
+          grads.allocate(12);
           grads[0] = Vector3(-1,-1,0);
           grads[1] = Vector3( 1, 0,0);
           grads[2] = Vector3( 0, 1,0);
-          */
-          fail("unimplimented getLocalGradients() called");
+          grads[3] = Vector3( 0, 0, 0);
+          grads[4] = Vector3( 0, 0, 0);
+          grads[5] = Vector3( 0, 0, 0);
+          grads[6] = Vector3( 0, 0, 0);
+          grads[7] = Vector3( 0, 0, 0);
+          grads[8] = Vector3( 0, 0, 0);
+          grads[9] = Vector3( 0, 0, 0);
+          grads[10] = Vector3( 0, 0, 0);
+          grads[11] = Vector3( 0, 0, 0);
+          
+//          fail("unimplimented getLocalGradients() called in SBPCubic Triangle");
         }
 		
         int countNodes() const {return 12;}
@@ -538,7 +563,7 @@ class SBPCubic : public FieldShape
           values[1] = xi[0];
           values[2] = xi[1];
           */
-          fail("unimplimented getValues() called");
+          fail("unimplimented getValues() called in SBPCubic Tetrahdron");
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>& grads) const
@@ -549,7 +574,7 @@ class SBPCubic : public FieldShape
           grads[1] = Vector3( 1, 0,0);
           grads[2] = Vector3( 0, 1,0);
           */
-          fail("unimplimented getLocalGradients() called");
+          fail("unimplimented getLocalGradients() called in SBPCubic Tetrahdron");
         }
     
         int countNodes() const {return 0;}
@@ -674,12 +699,12 @@ class SBPQuartic : public FieldShape
         {
 //          values.allocate(1);
 //          values[0] = 1.0;
-            fail("unimplimented getValues called");    
+            fail("unimplimented getValues called in SBPQuartic Vertex");    
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>&) const
         {
-           fail("unimplimented getValues called");
+           fail("unimplimented getValues called in SBPQuartic Vertex");
         }
 		
         int countNodes() const {return 1;}
@@ -696,7 +721,7 @@ class SBPQuartic : public FieldShape
           values[0] = (1.0-xi[0])/2.0;
           values[1] = (1.0+xi[0])/2.0;
           */
-          fail("unimplimented getValues() called");
+          fail("unimplimented getValues() called in SBPQuartic Edge");
         }
 
         void getLocalGradients(Mesh*, MeshEntity*,
@@ -707,7 +732,7 @@ class SBPQuartic : public FieldShape
           grads[0] = Vector3(-0.5,0,0);
           grads[1] = Vector3( 0.5,0,0);
           */
-          fail("unimplimented getLocaGradients() called");
+          fail("unimplimented getLocaGradients() called in SBPQuartic Edge");
         }
 		
         int countNodes() const {return 5;}
@@ -727,7 +752,7 @@ class SBPQuartic : public FieldShape
           values[1] = xi[0];
           values[2] = xi[1];
           */
-          fail("unimplimented getValues() called");
+          fail("unimplimented getValues() called in SBPQuartic Triangle");
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>& grads) const
@@ -738,7 +763,7 @@ class SBPQuartic : public FieldShape
           grads[1] = Vector3( 1, 0,0);
           grads[2] = Vector3( 0, 1,0);
           */
-          fail("unimplimented getLocalGradients() called");
+          fail("unimplimented getLocalGradients() called in SBPQuartic Triangle");
         }
 		
         int countNodes() const {return 18;}
@@ -791,7 +816,7 @@ class SBPQuartic : public FieldShape
           values[1] = xi[0];
           values[2] = xi[1];
           */
-          fail("unimplimented getValues() called");
+          fail("unimplimented getValues() called in SBPQuartic Tetrahdron");
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>& grads) const
@@ -802,7 +827,7 @@ class SBPQuartic : public FieldShape
           grads[1] = Vector3( 1, 0,0);
           grads[2] = Vector3( 0, 1,0);
           */
-          fail("unimplimented getLocalGradients() called");
+          fail("unimplimented getLocalGradients() called in SBPQuartic Tetrahdron");
         }
     
         int countNodes() const {return 0;}

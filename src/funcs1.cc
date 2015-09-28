@@ -21,7 +21,7 @@
 #include <apfNumbering.h>
 #include <apfShape.h>
 #include <ma.h>
-
+#include <crv.h>  // curved mesh stuff
 #include <stdlib.h>   // malloc, free, etc.
 #include <math.h>
 #include <string.h>
@@ -30,6 +30,7 @@
 #include "adaptFuncsJ.h"
 #include "apfSBPShape.h"
 #include "apfSBPShape3.h"
+#include "triangulation.h"
 //#include "a2.h"
 
 //=============================================================================
@@ -370,6 +371,14 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
 
 
   apf::writeVtkFiles("output_init", m);
+/*
+  // write curved mesh visualization file
+  apf::FieldShape* mshape = m->getShape();
+  crv::writeControlPointVtuFiles(m, "houtput");
+  crv::writeCurvedVtuFiles(m, apf::Mesh::EDGE, mshape->countNodesOn(apf::Mesh::EDGE), "houtput");
+  crv::writeCurvedVtuFiles(m, apf::Mesh::TRIANGLE, mshape->countNodesOn(apf::Mesh::TRIANGLE), "houtput");
+//  ma::writePointSet(m, 2, 21, "pointcloud");
+*/
   return 0;
 }
 
@@ -515,7 +524,22 @@ int count(apf::Mesh2* m_local, int dimension)
 
 void writeVtkFiles(char* name, apf::Mesh2* m_local)
 {
-  apf::writeVtkFiles(name, m_local);
+
+  apf::FieldShape* mshape = m->getShape();
+  int order = mshape->getOrder();
+
+  if (order <= 2)
+  {
+    apf::writeVtkFiles(name, m_local);
+  } /* else
+  {
+    apf::FieldShape* mshape = m->getShape();
+    crv::writeControlPointVtuFiles(m, name);
+    crv::writeCurvedVtuFiles(m, apf::Mesh::EDGE, mshape->countNodesOn(apf::Mesh::EDGE), name);
+    crv::writeCurvedVtuFiles(m, apf::Mesh::TRIANGLE, mshape->countNodesOn(apf::Mesh::TRIANGLE), name);
+
+  }
+  */
 }
 
 

@@ -82,6 +82,9 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   # shape_type = type of shape functions, 0 = lagrange, 1 = SBP
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
+  println("\nConstructing PumiMesh2 Object")
+  println("  sbp_name = ", smb_name)
+  println("  dmg_name = ", dmg_name)
   mesh = new()
   mesh.numDofPerNode = dofpernode
   mesh.order = order
@@ -822,9 +825,19 @@ for i=1:mesh.numEl
   if verify
     sort!(adj_color)
 
-    if adj_color != unique(adj_color)
+    # remove leading zeros
+    nnz = countnz(adj_color)
+    nz_arr = zeros(eltype(adj_color), nnz)
+    start_idx = length(adj_color) - nnz + 1
+    for i=1:nnz
+      nz_arr[i] = adj_color[start_idx]
+      start_idx += 1
+    end
+
+
+    if nz_arr != unique(nz_arr)
       println("element ", i, " has non unique colors")
-      println("adj_color = ", adj_color)
+      println("adj_color = ", nz_arr)
       cnt += 1
     end
   end   # end if verify
@@ -1731,6 +1744,8 @@ function getInterfaceArray(mesh::PumiMesh2)
 # local number of the edge within the element
 # interfaces is the array to be populated with the data, it must be 
 # number of internal edges by 1
+# the nodemap is used to determine the node ordering of elementR relative to
+# elementL
 
   # only need internal boundaries (not external)
 #  num_ext_edges = size(getBoundaryEdgeNums(mesh))[1]  # bad memory efficiency
