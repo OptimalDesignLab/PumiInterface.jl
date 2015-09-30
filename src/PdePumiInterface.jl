@@ -19,9 +19,9 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
   shape_type::Int  #  type of shape functions
 
-  vert_Nptr::Ptr{Void}  # numbering of vertices
-  edge_Nptr::Ptr{Void}  # numbering of edges
-  el_Nptr::Ptr{Void}  # numbering of elements (faces)
+  vert_Nptr::Ptr{Void}  # numbering of vertices (zero based)
+  edge_Nptr::Ptr{Void}  # numbering of edges (zero based)
+  el_Nptr::Ptr{Void}  # numbering of elements (faces)  (zero based)
   coloring_Nptr::Ptr{Void}  # coloring of mesh for sparse jacobian calculation
 
   numVert::Int  # number of vertices in the mesh
@@ -35,6 +35,8 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   numInterfaces::Int # number of internal interfaces
   numNodesPerElement::Int  # number of nodes per element
   numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
+  numEntitiesPerType::Array{Int, 1} # [numVert, numEdge, numEl]
+  numEntitiesPerElement::Array{Int, 1}  # number of verts, edges, faces per element
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
   numColors::Int  # number of colors
   numBC::Int  # number of boundary conditions
@@ -44,6 +46,9 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   edges::Array{Ptr{Void},1}  # pointers to mesh edges
   elements::Array{Ptr{Void},1}  # pointers to faces
 
+  # used for high order elements to determine the orientations of edges and 
+  # faces (and vertices, too, for consistency)
+  elementNodeOffsets::Array{Array{Int, 2}, 1} 
   dofnums_Nptr::Ptr{Void}  # pointer to Numbering of dofs (result of reordering)
 #  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
 
@@ -94,10 +99,23 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   num_Entities, mesh.m_ptr, mesh.mshape_ptr = init2(dmg_name, smb_name, order, shape_type=shape_type)
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
 
+  # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])
   mesh.numEdge =convert(Int,  num_Entities[2])
   mesh.numEl = convert(Int, num_Entities[3])
+  mesh.numEntitiesPerType = [mesh.numVert, mesh.numEdge, mesh.numEl]
+  mesh.numEntitiesPerElement = [3, 3, 1]
 
+  num_nodes_v = 1  # number of nodes on a vertex
+  num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
+  num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
+  num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f]
+  mesh.numNodesPerType = num_nodes_entity
+
+
+
+
+ 
   # get pointers to mesh entity numberings
   mesh.vert_Nptr = getVertNumbering()
   mesh.edge_Nptr = getEdgeNumbering()
@@ -167,6 +185,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 #  boundary_edge_faces = getEdgeFaces(mesh, mesh.bndry_faces)
   # use partially constructed mesh object to populate arrays
 
+  mesh.elementNodeOffsets = getEntityOrientations(mesh)
   numberDofs(mesh)
   getDofNumbers(mesh)  # store dof numbers
 
@@ -914,13 +933,92 @@ end
 
 
 
+function getEntityOrientations(mesh::PumiMesh2)
+# get the offset for node access of each mesh entity of each element
+# to read/write from a Pumi field, accessing the data stored on an edge looks like:
+# getComponents(f, e, abs(offset - node - 1), vals)
+# where f is the field, e is a mesh entity, node is the node index (one based),
+# and vals is an array of values to be written to the field
+# offset = 0 corresponds to the original ordering
+# offset = number of nodes on the entity + 1 corresponds to reversing the 
+#  ordering
+# other values of offset should corresponds to rotations in 3d
 
+  # create array of arrays
+  offsets = Array(Array{Int, 2}, 3)
+  # create the arrays
+  for i=1:3
+    offsets[i] = zeros(Int, mesh.numEntitiesPerElement[i], mesh.numEl)
+  end
 
+  # now do edges
 
+  edge_offsets = offsets[2]
+  edges_i = Array(Ptr{Void}, 12)
+  println("mesh.numEntitiesPerType = ", mesh.numEntitiesPerElement)
+  for i=1:mesh.numEl
+    getDownward(mesh.m_ptr, mesh.elements[i], 1, edges_i)
+    println("edges_i = ", edges_i)
+ 
+    for j=1:mesh.numEntitiesPerElement[2]  # loop over edges on element i
+      # get orientation of edge j on element i
+      # get global number of edge j
+      edgenum_global = getNumberJ(mesh.edge_Nptr, edges_i[j], 0, 0) + 1
 
+      orient = getEdgeOrientation(mesh, i, edgenum_global)
 
+      # write n = mesh.numNodesPerType[2] + 1 of orientation = -1, or n=0 if orientation=1
+      if orient == 1
+	edge_offsets[j, i] = 0
+      else
+	println("mesh.numNodesPerType = ", mesh.numNodesPerType)
+	edge_offsets[j, i] = mesh.numNodesPerType[2] + 1
+      end
 
+    end  # end loop over edges
+  end # end loop over elements
 
+  return offsets
+end
+
+function getEdgeOrientation(mesh::PumiMesh2, elnum::Integer, edgenum::Integer)
+# figure out what the orientation of the specified edge is relative ot the element
+# if the edge is in the same orientation as the element, return 1, otherwise -1
+
+  println("\nEntered getEdgeOrientation")
+  println("edgenum = ", edgenum)
+  # get all the vertices
+  el_verts, tmp = getDownward(mesh.m_ptr, mesh.elements[elnum], 0)
+  edge_verts, tmp = getDownward(mesh.m_ptr, mesh.edges[edgenum], 0)
+
+  pos1 = 0  # position of edge_verts[1] in el_verts
+  pos2 = 0  # position of edge_verts[2] in el_verts
+
+  println("el_verts = ", el_verts)
+  println("size(el_verts) = ", size(el_verts))
+  println("edge_verts = ", edge_verts)
+
+  for i=1:3  # loop over el_verts
+    if el_verts[i] == edge_verts[1]
+      pos1 = i
+    elseif el_verts[i] == edge_verts[2]
+      pos2 = i
+    end
+  end
+
+  @assert pos1 != 0
+  @assert pos2 != 0
+
+  if pos2 - pos1 > 0  # positively oriented
+    return 1
+  elseif pos2 - pos1 < 0  # negatively oriented
+    return -1
+  else
+    println(STDERR, "Warning, bad orientation determination in PdePumiInterface getEdgeOrientation")
+    return 0
+  end
+
+end  # end function
 
 function getMeshEdgesFromModel{T}(mesh::PumiMesh2, medges::AbstractArray{Int, 1}, offset::Integer, boundary_nums::AbstractArray{T, 2})
 # get the global numbers of the mesh edges lying on the model edges in medges
@@ -1000,7 +1098,7 @@ function numberDofs(mesh::PumiMesh2)
   num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
   num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f]
 
-  mesh.numNodesPerType = num_nodes_entity
+#  mesh.numNodesPerType = num_nodes_entity
 
   println("num_entities = ", num_entities)
   println("num_nodes_entity = ", num_nodes_entity)
