@@ -2,12 +2,12 @@
 module load pumi/core-sim
 export LD_LIBRARY_PATH=/usr/local/pumi/core-sim/lib:$LD_LIBRARY_PATH
 set -x
-CXXFLAGS="$CXXFLAGS -g -O3 "
+CXXFLAGS="$CXXFLAGS -g -O3 -std= "
 #mpicxx ./funcs1.cc $CXXFLAGS -c -Wall -fPIC `pkg-config --cflags --libs libmds`
 
 #mpicxx $CXXFLAGS -c -Wall -fPIC  -I/usr/local/pumi/core-sim/include -L$HOME/lib funcs1.cc -lmds -lapf -lpcu -lbz2 -lgmi
 
-mpicxx ./funcs1.cc ./a2.cc adaptFuncsJ.cc apfSBPShape.cc apfSBPShape3.cc $CXXFLAGS -c -Wall -fPIC `pkg-config --cflags --libs libmds libma` -lcrv -I`pwd`
+mpicxx ./funcs1.cc ./a2.cc adaptFuncsJ.cc apfSBPShape.cc apfSBPShape3.cc triangulation.cc $CXXFLAGS -c -Wall -fPIC `pkg-config --cflags --libs libmds libma` -lcrv -I`pwd`
 
 
 set +x
@@ -15,5 +15,5 @@ set +x
 #mpicxx $CXXFLAGS --share -fPIC -Wl,--whole-archive -L/usr/local/pumi/core-sim/lib -lpcu -o libfuncs1.so funcs1.o
 #mpicxx $CXXFLAGS --share -fPIC -Wl,-export-dynamic -L$HOME/lib funcs1.cc -L/usr/local/pumi/core-sim/lib -lmds -lapf -lpcu -lbz2 -lgmi -o libfuncs1.so funcs1.o
 #mpicxx $CXXFLAGS --share -fPIC -Wl,-export-dynamic -L$HOME/lib funcs1.cc -o libfuncs1.so funcs1.o 
-mpicxx $CXXFLAGS --share -fPIC -Wl,--no-as-needed -L/usr/local/pumi/core-sim/lib -lmds -lma -lcrv -o libfuncs1.so funcs1.o a2.o adaptFuncsJ.o apfSBPShape.o apfSBPShape3.o
+mpicxx $CXXFLAGS --share -fPIC -Wl,--no-as-needed -L/usr/local/pumi/core-sim/lib -lmds -lma -lcrv -o libfuncs1.so funcs1.o a2.o adaptFuncsJ.o apfSBPShape.o apfSBPShape3.o triangulation.o
 

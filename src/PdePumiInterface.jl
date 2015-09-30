@@ -1746,6 +1746,8 @@ function getInterfaceArray(mesh::PumiMesh2)
 # number of internal edges by 1
 # the nodemap is used to determine the node ordering of elementR relative to
 # elementL
+# the edge is "owned" by elementL, ie the first node on the edge is the first
+# node from the perspective of elementL
 
   # only need internal boundaries (not external)
 #  num_ext_edges = size(getBoundaryEdgeNums(mesh))[1]  # bad memory efficiency
@@ -1790,7 +1792,7 @@ function getInterfaceArray(mesh::PumiMesh2)
       centroid1 = sum(coords_1, 2)
       centroid2 = sum(coords_2, 2)
 
-      if abs(centroid1[1] - centroid2[2]) > 1e-10  # if big enough difference
+      if abs(centroid1[1] - centroid2[1]) > 1e-10  # if big enough difference
         if centroid1[1] < centroid2[1]
     elementL = element1
     elementR = element2
