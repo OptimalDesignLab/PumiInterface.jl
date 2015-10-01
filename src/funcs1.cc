@@ -1224,8 +1224,9 @@ int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
 // element is the element
 // dofnums is the output array
 // the output array will be seen by julia as being num_comp by length(entities)
-int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], apf::MeshEntity* element, int dofnums[])
+int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_offsets[],  apf::MeshEntity* element, int dofnums[])
 {
+  std::cout << "Entered getDofNumbers" << std::endl;
   // declare and initialize static variables
   static apf::Mesh* m_local = apf::getMesh(n); 
   static int el_type = m_local->getType(element);
@@ -1247,18 +1248,27 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], apf::MeshEntit
 
   col = 0;
   ptr = 0;  // pointer to linear address in entities
+  uint8_t offset = 0; // narrowing conversion error?
 
   for (int i = 0; i <= el_dim; i++)   // loop over verts, edges, faces, regions
   {
+//    std::cout << "looping over dimension " << i << std::endl;
     for (int j=0; j < m_local->adjacentCount[el_type][i]; j++)  // loop over all entities of this type
+//      std::cout << "  entity number " << j << std::endl;
     { 
       for (int k=0; k < fshape_local->countNodesOn(i); k++)
       {
+//        std::cout << "    node number " << k << std::endl;
         e = entities[col];  // get current entity
+        offset = node_offsets[col];
         for (int p = 0; p < num_comp; p++)
         {
+//          std::cout << "      component number " << p << std::endl;
           ptr = col*num_comp + p;
-          dofnums[ptr] = apf::getNumber(n, e, k, p);
+          std::cout << "      ptr = " << ptr << std::endl;
+          int new_node = abs(offset - k);
+          std::cout << "      new_node = " << new_node << std::endl;
+          dofnums[ptr] = apf::getNumber(n, e, new_node, p);
         }
         col++;
       }  // end loop over nodes

@@ -60,7 +60,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
        m_new->setPoint(verts[idx][0], 0, coords);
       }
 
-  
+      dim = 1;  
       apf::MeshIterator* it = m->begin(dim);  // iterate over vertices
       while ( (e = m->iterate(it)) )
       {

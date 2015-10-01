@@ -52,6 +52,8 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
      // about arrays
        
 //      apf::MeshEntity* arr_i[entity_counts[dim]][entity_nodes_on[dim]] = verts_all[dim];
+
+/*
       while ( (e = m->iterate(it)) )
       {
        int idx = apf::getNumber(numberings[dim], e, 0, 0);
@@ -69,7 +71,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
        arr_i[idx][0] = m_new->createVert(0); // should be 2d array
        m_new->setPoint(verts[idx][0], 0, coords);
       }
-
+*/
 
 
   // step 2: create elements from vertices

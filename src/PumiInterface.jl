@@ -950,9 +950,9 @@ return i
 end
 
 
-function getDofNumbers(n_ptr, entities::AbstractArray{Ptr{Void}}, element::Ptr{Void}, dofnums::AbstractArray{Int32})
+function getDofNumbers(n_ptr, entities::AbstractArray{Ptr{Void}}, node_offsets::AbstractArray{Uint8}, element::Ptr{Void}, dofnums::AbstractArray{Int32})
 
-  ccall( (getDofNumbers_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Int32}), n_ptr, entities, element, dofnums)
+  ccall( (getDofNumbers_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Ptr{Uint8}, Ptr{Void}, Ptr{Int32}), n_ptr, entities, node_offsets, element, dofnums)
 
   return nothing
 end

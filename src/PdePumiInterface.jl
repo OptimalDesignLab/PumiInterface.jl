@@ -9,6 +9,10 @@ using ArrayViews
 
 export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles
 
+# Element = an entire element (verts + edges + interior face)
+# Type = a vertex or edge or interior face
+# 
+
 export PumiMesh
 #abstract AbstractMesh
 abstract PumiMesh{T1} <: AbstractMesh{T1}
@@ -945,10 +949,12 @@ function getEntityOrientations(mesh::PumiMesh2)
 # other values of offset should corresponds to rotations in 3d
 
   # create array of arrays
-  offsets = Array(Array{Int, 2}, 3)
+  offsets = Array(Array{Uint8, 3}, 3)
+  flags = Array(BitArray{2}, 3)
   # create the arrays
   for i=1:3
-    offsets[i] = zeros(Int, mesh.numEntitiesPerElement[i], mesh.numEl)
+    offsets[i] = zeros(Uint8, mesh.numNodesPerType[i], mesh.numEntitiesPerElement[i], mesh.numEl)
+    println("offsets $i size = ", size(offsets[i]))
   end
 
   # now do edges
@@ -1020,6 +1026,103 @@ function getEdgeOrientation(mesh::PumiMesh2, elnum::Integer, edgenum::Integer)
 
 end  # end function
 
+function getNodeEntitiesOffsets(mesh::PumiMesh, elnum::Integer)
+# gets the offsets for meshentities that have nodes on them 
+# duplicates offsets that have multiple nodes
+# this only works for simplex elements
+# this corresponds to getNodeEntities
+# elnum is the element number to get the node offsets for
+# TODO: rewrite this in a recursive style
+
+  println("entered getNodeEntitiesOffsets")
+
+  for i=1:3
+    println("size(mesh.elementNodeOffsets[$i]) = ", size(mesh.elementNodeOffsets[i]))
+  end
+  entity = mesh.elements[elnum]
+
+  m_ptr = mesh.m_ptr
+  mshape_ptr = mesh.mshape_ptr
+  entity_type = getType(m_ptr, entity)
+  eshape_ptr = getEntityShape(mshape_ptr, entity_type)
+  nnodes = countNodes(eshape_ptr)
+  node_offsets = Array(Uint8, nnodes)  # holds mesh entities
+
+  num_vert_nodes = countNodesOn(mshape_ptr, 0)
+  num_edge_nodes = countNodesOn(mshape_ptr, 1)
+  num_face_nodes = countNodesOn(mshape_ptr, 2)
+  num_region_nodes = countNodesOn(mshape_ptr, 4) # tetrahedron
+  
+  has_vert_nodes = (num_vert_nodes != 0)
+  has_edge_nodes = (num_edge_nodes != 0)
+  has_face_nodes = (num_face_nodes != 0)
+  has_region_nodes = (num_region_nodes != 0)
+
+  numV = mesh.numEntitiesPerElement[1]
+  numEdges = mesh.numEntitiesPerElement[2]
+  numFaces = mesh.numEntitiesPerElement[3]
+#=
+
+  if entity_type == 2  # triangle
+    num_entities = 3*has_vert_nodes + 3*has_edge_nodes + has_face_nodes
+  elseif entity_type == 4 # tetrahedron
+    num_entities = 4*has_vert_nodes + 6*has_edge_nodes + 4*has_face_nodes + has_region_nodes
+  else
+    println("element type not supported by getNodeEntities")
+  end
+  
+=#  
+#  retrieved_entities = Array(Ptr{Void}, 12)  # reusable storage
+  if has_vert_nodes  # vertices
+#    numV = getDownward(m_ptr, entity, 0, downward_entities)
+     for i=1:mesh.numEntitiesPerElement[1]
+       insertN(node_offsets, mesh.elementNodeOffsets[1][i, elnum], i, num_vert_nodes)
+     end
+    
+    # insert elements into downward_entities
+#    downward_entities[1:numV] = verts
+	
+    if has_edge_nodes # edges
+#      numEdges = getDownward(mshape_ptr, entity, 1, retrieved_entities)
+          for i=1:mesh.numEntitiesPerElement[2]
+	    insertN(node_offsets, mesh.elementNodeOffsets[2][i, elnum], numV+num_edge_nodes*(i-1) + 1, num_edge_nodes)
+	  end
+#	  downward_entities[(numV+1):(numV+numEdges)] = edges
+
+      if has_face_nodes
+#	 numFaces = getDownward(mshape_ptr, entity, 2, retrieved_entities)
+	for i=1:mesh.numEntitiesPerElement[3]
+	  insertN(node_offsets, mesh.elementNodeOffsets[3][i, elnum], numV + num_edge_nodes*numEdges +num_edge_nodes*(i-1) + 1, num_face_nodes)
+	end
+#	downward_entities[ (numV+numEdges+1):(numV+numEdges+numFaces)] = faces
+
+	if has_region_nodes
+#	   numRegions = getDownward(m_ptr, entity, 4, retrieved_entities)
+	  for i=1:mesh.numEntitiesPerElement[4]
+	    insertN(node_offsets, mesh.elementNodeOffsets[4][i, elnum], numV + num_edge_nodes*numEdges + num_face_nodes*numFaces + num_region_nodes*(i-1) + 1, num_region_nodes)
+	  end
+#	  downward_entities[(numV+numEdges+numFaces+1):(numV+numEdges+numFaces+numRegions)] = regions
+        end
+      end
+    end
+  end
+  
+  return node_offsets
+end
+
+
+function insertN(vec::AbstractArray, element,  index::Integer, n::Integer)
+# insert element into the vector n times, starting at index
+
+  for i=index:(index+n-1)
+    vec[i] = element
+  end
+
+  return nothing
+end
+
+
+
 function getMeshEdgesFromModel{T}(mesh::PumiMesh2, medges::AbstractArray{Int, 1}, offset::Integer, boundary_nums::AbstractArray{T, 2})
 # get the global numbers of the mesh edges lying on the model edges in medges
 # offset is the index in boundary_nums to start with
@@ -1065,7 +1168,7 @@ function numberDofs(mesh::PumiMesh2)
 # assign dof numbers to entire mesh
 # calculates numNodes, numDof
 # assumes mesh elements have already been reordered
-
+# this works for high order elements
   println("Entered numberDofs")
 
   # calculate number of nodes, dofs
@@ -1133,7 +1236,7 @@ function numberDofs(mesh::PumiMesh2)
 
   verts_i = Array(Ptr{Void}, 12)
   edges_i = Array(Ptr{Void}, 12)
-# move all if statements out one for loop (check only first dof on each node)
+# TODO: move all if statements out one for loop (check only first dof on each node)
   curr_dof = 1
   for i=1:mesh.numEl
 #    println("element number: ", i)
@@ -1532,7 +1635,7 @@ function getShapeFunctionOrder(mesh::PumiMesh2)
 return mesh.order
 end
 
-
+#=
 function getGlobalNodeNumber(mesh::PumiMesh2, el_num::Integer, local_node_num::Integer)
 # el_num = element number
 # local_node_num = vector of dof numbers on the specified node within element
@@ -1556,7 +1659,7 @@ end
 return dofnums
 
 end
-
+=#
 
 
 function getGlobalNodeNumbers(mesh::PumiMesh2, elnum::Integer)
@@ -1581,6 +1684,11 @@ nnodes = mesh.numNodesPerElement
 numdof = nnodes*mesh.numDofPerNode
 
 node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
+node_offsets = getNodeEntitiesOffsets(mesh, elnum)
+println("node_offsets = ", [Int(i) for i in node_offsets])
+println("size(node_offsets) = ", size(node_offsets))
+println("node_entities = ", node_entities)
+println("size(node_entities) = ", size(node_entities))
 #dofnums = zeros(Int,mesh.numDofPerNode, nnodes)  # to be populated with global dof numbers
 #println("nnodes = ", nnodes)
 #println("dofpernode = ", mesh.numDofPerNode)
@@ -1604,7 +1712,7 @@ for i=1:3  # loop over verts, edges, faces
 end  # end loop over entity types
 =#
 
-PumiInterface.getDofNumbers(mesh.dofnums_Nptr, node_entities, el_i, dofnums)  # C implimentation
+PumiInterface.getDofNumbers(mesh.dofnums_Nptr, node_entities, node_offsets, el_i, dofnums)  # C implimentation
 
 
 #=
@@ -2063,7 +2171,11 @@ function getEdgeInterfaceData(i::Integer)
 
 function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
 # saves the solution in the vector u to the mesh (in preparation for mesh adaptation
-
+# it uses mesh.elementNodeOffsets to access the pumi field values in the 
+# right order of the given element
+# not that this performs a loop over elements, so some values get
+# written several times.  This is why is is necessary to write to the
+# field in the right order
  # dofnums = zeros(Int, mesh.numDofPerNode)
 #  u_vals = zeros(mesh.numDofPerNode)
 
@@ -2077,17 +2189,19 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
     node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
     col = 1 # current node of the element
     for i=1:3  # loop over verts, edges, faces
+      offset_arr_i = mesh.elementNodeOffsets[i]
       for j=1:num_entities[i]  # loop over all entities of this type
+	offset_j = offset_arr_i[j, el]  # get the offset for this entity
 	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
 	  entity = node_entities[col]  # current entity
           
           # get solution values
 	  for p=1:mesh.numDofPerNode  # loop over all dofs
-	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, k-1, p-1)
+	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, abs(offset_j - k-1), p-1)
 	    q_vals[p] = u[dofnum_p]
 	  end
           # save to mesh
-          setComponents(mesh.f_ptr, entity, k-1, q_vals)
+          setComponents(mesh.f_ptr, entity, abs(offset_j - k-1), q_vals)
 
 	  col += 1
 	end  # end loop over nodes on curren entity
@@ -2116,12 +2230,14 @@ function retrieveSolutionFromMesh(mesh::PumiMesh2, u::AbstractVector)
     node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
     col = 1 # current node of the element
     for i=1:3  # loop over verts, edges, faces
+      offset_arr_i = mesh.elementNodeOffsets[i]
       for j=1:num_entities[i]  # loop over all entities of this type
+	offset_j = offset_arr_i[j, el]
 	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
 	  entity = node_entities[col]  # current entity
          
 	  # get values from mesh
-          getComponents(mesh.f_ptr, entity, k-1, q_vals)
+          getComponents(mesh.f_ptr, entity, abs(offset_j - k-1), q_vals)
 
           # put solution values into vector u
 	  for p=1:mesh.numDofPerNode  # loop over all dofs
