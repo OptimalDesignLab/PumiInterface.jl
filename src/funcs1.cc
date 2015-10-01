@@ -1235,7 +1235,7 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
   static apf::FieldShape* fshape_local = m_local->getShape();
   static apf::MeshEntity* e = entities[0];
 
-  static int col = 0;
+  static int col = 0;  // current node
   static int ptr = 0;  // pointer to linear address in entities
 
   // populate them

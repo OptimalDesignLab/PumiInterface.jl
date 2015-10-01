@@ -41,6 +41,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
   numEntitiesPerType::Array{Int, 1} # [numVert, numEdge, numEl]
   numTypePerElement::Array{Int, 1}  # number of verts, edges, faces per element
+  typeOffsetsPerElement::Array{Int, 1} # the starting index of the vert, edge, and face nodes in an element 
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
   numColors::Int  # number of colors
   numBC::Int  # number of boundary conditions
@@ -52,9 +53,9 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   # used for high order elements to determine the orientations of edges and 
   # faces (and vertices, too, for consistency)
-  elementNodeOffsets::Array{Array{Uint8, 3}, 1}
+  elementNodeOffsets::Array{Uint8, 2}
   # truth values if the entity is oriented consistently with the element
-  elementNodeFlags::Array{BitArray{2}, 1}
+  typeNodeFlags::Array{BitArray{2}, 1}
 
   dofnums_Nptr::Ptr{Void}  # pointer to Numbering of dofs (result of reordering)
 #  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
@@ -118,7 +119,14 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
   num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f]
   mesh.numNodesPerType = num_nodes_entity
-
+  mesh.typeOffsetsPerElement = zeros(Int, 4)
+  pos = 1
+  mesh.typeOffsetsPerElement[1] = pos
+  for i=2:4
+    pos += mesh.numTypePerElement[i]*mesh.numNodesPerType[i]
+    mesh.typeOffsetsPerElement[i] = pos
+  end
+  println("mesh.typeOffsetsPerElement = ", mesh.typeOffsetsPerElement)
 
 
 
@@ -193,7 +201,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 #  boundary_edge_faces = getEdgeFaces(mesh, mesh.bndry_faces)
   # use partially constructed mesh object to populate arrays
 
-  mesh.elementNodeOffsets = getEntityOrientations(mesh)
+  mesh.elementNodeOffsets, mesh.typeNodeFlags = getEntityOrientations(mesh)
   numberDofs(mesh)
   getDofNumbers(mesh)  # store dof numbers
 
@@ -961,23 +969,22 @@ function getEntityOrientations(mesh::PumiMesh2)
 # might be different for a rotation
   # create array of arrays
   # hold an offset for every node of every entity of every element
-  offsets = Array(Array{Uint8, 3}, 3) 
+  offsets = zeros(Uint8, mesh.numNodesPerElement, mesh.numEl)
   # hold a bit telling if the entity is in the proper orientation for this element
   # ie. it is "owned" by this element, so the nodes can be accessed in order
   flags = Array(BitArray{2}, 3)
   # create the arrays
   for i=1:3
-    offsets[i] = zeros(Uint8, mesh.numNodesPerType[i], mesh.numTypePerElement[i], mesh.numEl)
     flags[i] = trues(mesh.numTypePerElement[i], mesh.numEl)
     println("offsets $i size = ", size(offsets[i]))
   end
 
   # now do edges
 
-  edge_offsets = offsets[2]
   edge_flags = offsets[2]
   edges_i = Array(Ptr{Void}, 12)
   println("mesh.numEntitiesPerType = ", mesh.numTypePerElement)
+  edgenode_range = mesh.typeOffsetsPerElement[2]:mesh.typeOffsetsPerElement[3]
   for i=1:mesh.numEl
     getDownward(mesh.m_ptr, mesh.elements[i], 1, edges_i)
     println("edges_i = ", edges_i)
@@ -993,10 +1000,10 @@ function getEntityOrientations(mesh::PumiMesh2)
       edge_flags[j, i] = div(orient + 1, 2)
       # write n = mesh.numNodesPerType[2] + 1 of orientation = -1, or n=0 if orientation=1
       if orient == 1
-	edge_offsets[:, j, i] = 0
+	edge_offsets[edgenode_range, i] = 0
       else
 	println("mesh.numNodesPerType = ", mesh.numNodesPerType)
-	edge_offsets[:, j, i] = mesh.numNodesPerType[2] + 1
+	edge_offsets[edgenode_range, i] = mesh.numNodesPerType[2] + 1
       end
 
     end  # end loop over edges
@@ -1703,7 +1710,7 @@ numdof = nnodes*mesh.numDofPerNode
 
 node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
 #node_offsets = getNodeEntitiesOffsets(mesh, elnum)
-node_offsets = view(mesh.elementNodeOffsets[:, :, elnum])
+node_offsets = view(mesh.elementNodeOffsets[:, elnum])
 println("node_offsets = ", [Int(i) for i in node_offsets])
 println("size(node_offsets) = ", size(node_offsets))
 println("node_entities = ", node_entities)
@@ -2208,11 +2215,10 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
     node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
     col = 1 # current node of the element
     for i=1:3  # loop over verts, edges, faces
-      offset_arr_i = mesh.elementNodeOffsets[i]
       for j=1:num_entities[i]  # loop over all entities of this type
 	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
 	  entity = node_entities[col]  # current entity
-	  offset_k = offset_arr_i[k, j, el] # offset for current node
+	  offset_k = mesh.elementNodeOffsets[col, el] # offset for current node
           
           # get solution values
 	  for p=1:mesh.numDofPerNode  # loop over all dofs
@@ -2249,11 +2255,10 @@ function retrieveSolutionFromMesh(mesh::PumiMesh2, u::AbstractVector)
     node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
     col = 1 # current node of the element
     for i=1:3  # loop over verts, edges, faces
-      offset_arr_i = mesh.elementNodeOffsets[i]
       for j=1:num_entities[i]  # loop over all entities of this type
 	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
 	  entity = node_entities[col]  # current entity
-	  offset_k = offset_arr_i[k, j, el]
+	  offset_k = mesh.elementNodeOffsets[col, el]
          
 	  # get values from mesh
           getComponents(mesh.f_ptr, entity, abs(offset_k - k-1), q_vals)
