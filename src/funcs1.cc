@@ -1248,7 +1248,7 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
 
   col = 0;
   ptr = 0;  // pointer to linear address in entities
-  uint8_t offset = 0; // narrowing conversion error?
+  uint8_t offset_k = 0; // narrowing conversion error?
 
   for (int i = 0; i <= el_dim; i++)   // loop over verts, edges, faces, regions
   {
@@ -1260,13 +1260,16 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
       {
 //        std::cout << "    node number " << k << std::endl;
         e = entities[col];  // get current entity
-        offset = node_offsets[col];
+        offset_k = node_offsets[col];
+        std::cout << "    offset_k = " << offset_k + 0 << std::endl;
         for (int p = 0; p < num_comp; p++)
         {
 //          std::cout << "      component number " << p << std::endl;
           ptr = col*num_comp + p;
           std::cout << "      ptr = " << ptr << std::endl;
-          int new_node = abs(offset - k);
+          // convert to 1 based indexing, do offsets, then convert back
+          // to zero based indexing
+          int new_node = abs(offset_k - (k+1)) - 1;  // move out 1 loop
           std::cout << "      new_node = " << new_node << std::endl;
           dofnums[ptr] = apf::getNumber(n, e, new_node, p);
         }

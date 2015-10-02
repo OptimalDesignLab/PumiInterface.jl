@@ -123,7 +123,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   pos = 1
   mesh.typeOffsetsPerElement[1] = pos
   for i=2:4
-    pos += mesh.numTypePerElement[i]*mesh.numNodesPerType[i]
+    pos += mesh.numTypePerElement[i-1]*mesh.numNodesPerType[i-1]
     mesh.typeOffsetsPerElement[i] = pos
   end
   println("mesh.typeOffsetsPerElement = ", mesh.typeOffsetsPerElement)
@@ -957,7 +957,7 @@ end
 function getEntityOrientations(mesh::PumiMesh2)
 # get the offset for node access of each mesh entity of each element
 # to read/write from a Pumi field, accessing the data stored on an edge looks like:
-# getComponents(f, e, abs(offset - node - 1), vals)
+# getComponents(f, e, abs(offset - node) - 1, vals)
 # where f is the field, e is a mesh entity, node is the node index (one based),
 # and vals is an array of values to be written to the field
 # offset = 0 corresponds to the original ordering
@@ -981,10 +981,10 @@ function getEntityOrientations(mesh::PumiMesh2)
 
   # now do edges
 
-  edge_flags = offsets[2]
+  edge_flags = flags[2]
   edges_i = Array(Ptr{Void}, 12)
   println("mesh.numEntitiesPerType = ", mesh.numTypePerElement)
-  edgenode_range = mesh.typeOffsetsPerElement[2]:mesh.typeOffsetsPerElement[3]
+  edgenode_range = mesh.typeOffsetsPerElement[2]:(mesh.typeOffsetsPerElement[3]-1)
   for i=1:mesh.numEl
     getDownward(mesh.m_ptr, mesh.elements[i], 1, edges_i)
     println("edges_i = ", edges_i)
@@ -1000,10 +1000,10 @@ function getEntityOrientations(mesh::PumiMesh2)
       edge_flags[j, i] = div(orient + 1, 2)
       # write n = mesh.numNodesPerType[2] + 1 of orientation = -1, or n=0 if orientation=1
       if orient == 1
-	edge_offsets[edgenode_range, i] = 0
+	offsets[edgenode_range, i] = 0
       else
 	println("mesh.numNodesPerType = ", mesh.numNodesPerType)
-	edge_offsets[edgenode_range, i] = mesh.numNodesPerType[2] + 1
+	offsets[edgenode_range, i] = mesh.numNodesPerType[2] + 1
       end
 
     end  # end loop over edges
@@ -2219,14 +2219,18 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
 	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
 	  entity = node_entities[col]  # current entity
 	  offset_k = mesh.elementNodeOffsets[col, el] # offset for current node
-          
+	  println("k = ", k)
+          println("offset_k = ", offset_k)
+
           # get solution values
 	  for p=1:mesh.numDofPerNode  # loop over all dofs
-	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, abs(offset_k - k-1), p-1)
+	    new_node = abs(offset_k - k) - 1
+	    println("new_node = ", new_node)
+	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, new_node, p-1)
 	    q_vals[p] = u[dofnum_p]
 	  end
           # save to mesh
-          setComponents(mesh.f_ptr, entity, abs(offset_k - k-1), q_vals)
+          setComponents(mesh.f_ptr, entity, abs(offset_k - k) - 1, q_vals)
 
 	  col += 1
 	end  # end loop over nodes on curren entity
@@ -2261,11 +2265,11 @@ function retrieveSolutionFromMesh(mesh::PumiMesh2, u::AbstractVector)
 	  offset_k = mesh.elementNodeOffsets[col, el]
          
 	  # get values from mesh
-          getComponents(mesh.f_ptr, entity, abs(offset_k - k-1), q_vals)
+          getComponents(mesh.f_ptr, entity, abs(offset_k - k) - 1, q_vals)
 
           # put solution values into vector u
 	  for p=1:mesh.numDofPerNode  # loop over all dofs
-	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, abs(offset_k - k-1), p-1)
+	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, abs(offset_k - k) -1, p-1)
 	    u[dofnum_p] = q_vals[p]
 	  end
 	  col += 1
