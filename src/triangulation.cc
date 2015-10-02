@@ -3,7 +3,7 @@
 
 #include "triangulation.h"
 
-apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triangulation[][3], apf::Numbering* numberings[3])
+apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3])
 {
 // m is the existing (high order) mesh
 // numtriangles is the number of triangles to break each large triangle into
@@ -15,7 +15,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
   // get number of different types of entities
   std::size_t entity_counts[3] = {m->count(0), m->count(1), m->count(2)};
 
-  // get number of n odes on different types of entities
+  // get number of nodes on different types of entities
   int entity_nodes_on[3] = {mshape->countNodesOn(0), mshape->countNodesOn(1), mshape->countNodesOn(2)};
 
   // create new mesh
@@ -26,6 +26,8 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
   // step 1: create all vertices of sub-triangles
    
   // allocate arrays to hold vertices of each order entity
+  // these array should be in the Julia ordering, 
+  // ie. getNumber(e_containing_edge) = first index
   apf::MeshEntity* verts[entity_counts[0]][entity_nodes_on[0]];
   apf::MeshEntity* edges[entity_counts[1]][entity_nodes_on[1]];
   apf::MeshEntity* faces[entity_counts[2]][entity_nodes_on[2]];
@@ -51,27 +53,43 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
      // because C is a stupid language with arbitrary and inconsistent rules 
      // about arrays
        
-//      apf::MeshEntity* arr_i[entity_counts[dim]][entity_nodes_on[dim]] = verts_all[dim];
-
-/*
+     // create verts on the new mesh, store them in arrays in the same
+     // order as the julia entities are stored
       while ( (e = m->iterate(it)) )
       {
        int idx = apf::getNumber(numberings[dim], e, 0, 0);
        m->getPoint(e, 0, coords);
-       arr_i[idx][0] = m_new->createVert(0); // should be 2d array
+       verts[idx][0] = m_new->createVert(0); // should be 2d array
        m_new->setPoint(verts[idx][0], 0, coords);
       }
 
       dim = 1;  
-      apf::MeshIterator* it = m->begin(dim);  // iterate over vertices
+      it = m->begin(dim);  // iterate over vertices
       while ( (e = m->iterate(it)) )
       {
-       int idx = apf::getNumber(numberings[dim], e, 0, 0);
-       m->getPoint(e, 0, coords);
-       arr_i[idx][0] = m_new->createVert(0); // should be 2d array
-       m_new->setPoint(verts[idx][0], 0, coords);
+        int idx = apf::getNumber(numberings[dim], e, 0, 0);
+        for (int i = 0; i < entity_nodes_on[dim]; i++)
+        {
+          m->getPoint(e, i, coords);
+          edges[idx][i] = m_new->createVert(0); // should be 2d array
+          m_new->setPoint(edges[idx][i], 0, coords);
+        }
       }
-*/
+
+      dim = 2;  
+      it = m->begin(dim);  // iterate over vertices
+      while ( (e = m->iterate(it)) )
+      {
+        int idx = apf::getNumber(numberings[dim], e, 0, 0);
+        for (int i = 0; i < entity_nodes_on[dim]; i++)
+        {
+          m->getPoint(e, i, coords);
+          edges[idx][i] = m_new->createVert(0); // should be 2d array
+          m_new->setPoint(edges[idx][i], 0, coords);
+        }
+      }
+
+
 
 
   // step 2: create elements from vertices
@@ -91,6 +109,30 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
 
   return m_new;
 }
+
+// given nodenum, the index of a node within an element (zero based), return the MeshEntity
+// pointer for the corresponding vert on the new mesh
+// elementNodeOffsets are the (1-based) indicies of the start index of the nodes
+// of each entity type on an element
+apf::MeshEntity* getVert(apf::Mesh* m, const apf::MeshEntity* verts[], const apf::MeshEntity*, const apf::MeshEntity* edges[],  const apf::MeshEntity* faces, const int elementNodeOffsets, const int nodenum)
+{
+  if (nodenum < (elementNodeOffsets[1] - 1))
+  {
+    return verts[nodenum];
+  } else if (nodenum < (elementNodeOffsets[2] - 1))
+  {
+    return edges[nodenum - elementNodeOffsets[1] - 1];
+  } else if (nodenum < (elementNodeOffsets[3] - 1))
+  {
+    return faces[ nodenum - elementNodeOffsets[2] - 1 ];
+  } else {
+    std::cerr << "Warning: in getVert,  nodenum too high, returning NULL" << std::endl;
+    return NULL;
+  }
+}
+  
+
+
 
 
 // function to determine the orientation of an edge in the high order mesh

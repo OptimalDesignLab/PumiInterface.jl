@@ -1226,7 +1226,7 @@ int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
 // the output array will be seen by julia as being num_comp by length(entities)
 int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_offsets[],  apf::MeshEntity* element, int dofnums[])
 {
-  std::cout << "Entered getDofNumbers" << std::endl;
+//  std::cout << "Entered getDofNumbers" << std::endl;
   // declare and initialize static variables
   static apf::Mesh* m_local = apf::getMesh(n); 
   static int el_type = m_local->getType(element);
@@ -1249,6 +1249,7 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
   col = 0;
   ptr = 0;  // pointer to linear address in entities
   uint8_t offset_k = 0; // narrowing conversion error?
+  int new_node;  // store new node values (calculated using offsets
 
   for (int i = 0; i <= el_dim; i++)   // loop over verts, edges, faces, regions
   {
@@ -1261,17 +1262,20 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
 //        std::cout << "    node number " << k << std::endl;
         e = entities[col];  // get current entity
         offset_k = node_offsets[col];
-        std::cout << "    offset_k = " << offset_k + 0 << std::endl;
+//        std::cout << "    offset_k = " << offset_k + 0 << std::endl;
+         
+          // calculate new node index 
+          // convert to 1 based indexing, do offsets, then convert back
+          // to zero based indexing
+          new_node = abs(offset_k - (k+1)) - 1;  // move out 1 loop
+//          std::cout << "      new_node = " << new_node << std::endl;
+ 
         for (int p = 0; p < num_comp; p++)
         {
 //          std::cout << "      component number " << p << std::endl;
           ptr = col*num_comp + p;
-          std::cout << "      ptr = " << ptr << std::endl;
-          // convert to 1 based indexing, do offsets, then convert back
-          // to zero based indexing
-          int new_node = abs(offset_k - (k+1)) - 1;  // move out 1 loop
-          std::cout << "      new_node = " << new_node << std::endl;
-          dofnums[ptr] = apf::getNumber(n, e, new_node, p);
+//          std::cout << "      ptr = " << ptr << std::endl;
+         dofnums[ptr] = apf::getNumber(n, e, new_node, p);
         }
         col++;
       }  // end loop over nodes
