@@ -14,7 +14,7 @@ export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFu
 # 
 
 # the vert, edge, face Nptrs are numberings that map a MeshEntity to its 
-# index the the arrays verts, edges, faces
+# index the the arrays verts, edges, faces, except that they are zero based indices
 export PumiMesh
 #abstract AbstractMesh
 abstract PumiMesh{T1} <: AbstractMesh{T1}

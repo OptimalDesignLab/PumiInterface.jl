@@ -3,11 +3,60 @@
 
 #include "triangulation.h"
 
+// given nodenum, the index of a node within an element (zero based), return the MeshEntity
+// pointer for the corresponding vert on the new mesh
+// typeOffsetsPerElement are the (1-based) indicies of the start index of the nodes
+// of each entity type on an element
+// el is the pointer to the element to which the node belongs
+// entity_nodes_on is the number of nodes on verts, edges, faces
+apf::MeshEntity* getVert(apf::Mesh* m, const apf::MeshEntity* verts[], const apf::MeshEntity*, const apf::MeshEntity* edges[],  const apf::MeshEntity* faces, const int typeOffsetsPerElement, const int nodenum, apf::MeshEntity* el, apf::Number* numberings, int entity_nodes_on[])
+{
+  int entity_index;  // local index of entity containing the node
+  apf::MeshEntity* e;
+  int entity_num;  // global number of entity
+  apf::Downward down;
+  if (nodenum < (typeOffsetsPerElement[1] - 1))
+  {
+    entity_index = nodenum/entity_nodes_on[0];
+    m->getDownward(el, 0, down);
+    e = down[entity_index];
+    entity_num = apf::getNumber(numberings[0], e, 0, 0);
+    return verts[nodenum][entity_num];
+
+  } else if (nodenum < (typeOffsetsPerElement[2] - 1))
+  {
+    entity_index = (nodenum - typeOffsetPerElement[1] - 1)/entity_nodes_on[1];
+    m->getDownward(el, 1, down);
+    e = down[entity_index];
+    entity_num = apf::getNumber(numberings[1], e, 0, 0);
+    return edges[nodenum - typeOffsetsPerElement[1] - 1][entity_num];
+
+  } else if (nodenum < (typeOffsetsPerElement[3] - 1))
+  {
+    entity_index = (nodenum - typeOffsetPerElement[2] - 1)/entity_nodes_on[2];
+    m->getDownward(el, 2, down);
+    e = down[entity_index];
+    entity_num = apf::getNumber(numberings[2], e, 0, 0);
+ 
+    return faces[ nodenum - typeOffsetsPerElement[2] - 1 ][entity_num];
+
+  } else {
+    std::cerr << "Warning: in getVert,  nodenum too high, returning NULL" << std::endl;
+    return NULL;
+  }
+}
+  
+
+
+
+
+
 apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3])
 {
 // m is the existing (high order) mesh
 // numtriangles is the number of triangles to break each large triangle into
-// triangulation is a numtriangles x 3 array holding the indices of the nodes
+// triangulation is a numtriangles x 3 array holding the indices of the nodes, 
+// 1-based 
 //   to use as the vertices of the sub-triangles
 //   numberings is an array holding a numbering for each entity dimension
 
@@ -34,7 +83,9 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
 //  std::vector< std::vector<apf::MeshEntity*> > verts(entity_counts[0]);
 //  std::vector< std::vector<apf::MeshEntity*> > edges(entity_counts[1]);
 //  std::vector< std::vector<apf::MeshEntity*> > faces(entity_counts[2]);
-    apf::MeshEntity* verts_all[3] = {verts[0][0], edges[0][0], faces[0][0]};
+//
+//    apf::MeshEntity* verts_all[3] = {verts[0][0], edges[0][0], faces[0][0]};
+//
 //  std::vector<std::array*> verts_all(3);
 //  std::vector<std::vector*> verts_all(3);
 //  verts_all[0] = &verts;
@@ -91,11 +142,54 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
 
 
 
-
+    
   // step 2: create elements from vertices
   // loop over elements on m, create element on m_new
   // here we use the edge orientation information
-  
+  dim = 2;
+  int elnum; // holds the element number
+  int node;  // original node number
+  int newnode; // hold post offset node number
+  int pos;  // linear address for elementNodeOffset
+  const int nnodes_per_el = typeOffsetsPerElement[dim+1] - 1;
+  apf::MeshEntity* el_verts[3]; // holds vertices of element to be created
+  it = m->begin(dim);  // iterate over elements
+  while ( (e = m->iterate(it)) )
+  {
+    elnum = apf::getNumber(numberings[dim], e, 0, 0); // zero base index
+    for (int i=0; i < numtriangles; ++i)  // loop over all subtriangles
+    {
+      // get 3 vertices
+      for (int j=0; j < 3; ++j)
+      {
+        node = triangulation[i][j]; // one based index
+        // calculate linear offset for elementNode offsets
+        pos = node - 1 + elnum*nnodes_per_el;
+        newnode = abs(elementNodeOffsets[pos] - node) - 1;
+        el_verts[j] = getVert(m, verts, edges, faces, typeOffsetsPerElement, newnode);
+      }
+     
+      // build the element 
+      apf::buildElement(m_new, 0, apf::Mesh::TRIANGLE, el_verts);
+
+    }  // end loop over subtriangles
+
+  } // end loop over elements
+   
+
+  // build, verify  mesh
+  std::cout << "deriving model" << std::endl;
+  apf::deriveMdsModel(m_new);
+  std::cout << "finished deriving model" << std::endl;
+  m_new->acceptChanges();
+  std::cout << "accepted changes" << std::endl;
+  m_new->verify();
+  std::cout << "verified" << std::endl;
+
+  // write visualization file
+  apf::writeVtkFiles("newmesh_linear", m);
+
+
 
   // step 3: transfer fields
   // loop over elements on m, transfer values to m_new
@@ -109,28 +203,6 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
 
   return m_new;
 }
-
-// given nodenum, the index of a node within an element (zero based), return the MeshEntity
-// pointer for the corresponding vert on the new mesh
-// elementNodeOffsets are the (1-based) indicies of the start index of the nodes
-// of each entity type on an element
-apf::MeshEntity* getVert(apf::Mesh* m, const apf::MeshEntity* verts[], const apf::MeshEntity*, const apf::MeshEntity* edges[],  const apf::MeshEntity* faces, const int elementNodeOffsets, const int nodenum)
-{
-  if (nodenum < (elementNodeOffsets[1] - 1))
-  {
-    return verts[nodenum];
-  } else if (nodenum < (elementNodeOffsets[2] - 1))
-  {
-    return edges[nodenum - elementNodeOffsets[1] - 1];
-  } else if (nodenum < (elementNodeOffsets[3] - 1))
-  {
-    return faces[ nodenum - elementNodeOffsets[2] - 1 ];
-  } else {
-    std::cerr << "Warning: in getVert,  nodenum too high, returning NULL" << std::endl;
-    return NULL;
-  }
-}
-  
 
 
 
