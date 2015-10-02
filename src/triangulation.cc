@@ -9,36 +9,40 @@
 // of each entity type on an element
 // el is the pointer to the element to which the node belongs
 // entity_nodes_on is the number of nodes on verts, edges, faces
-apf::MeshEntity* getVert(apf::Mesh* m, const apf::MeshEntity* verts[], const apf::MeshEntity*, const apf::MeshEntity* edges[],  const apf::MeshEntity* faces, const int typeOffsetsPerElement, const int nodenum, apf::MeshEntity* el, apf::Number* numberings, int entity_nodes_on[])
+apf::MeshEntity* getVert(apf::Mesh* m, apf::MeshEntity* verts[], apf::MeshEntity* edges[], apf::MeshEntity* faces[], int typeOffsetsPerElement[], const int nodenum, apf::MeshEntity* el, apf::Numbering* numberings[], int entity_nodes_on[])
 {
   int entity_index;  // local index of entity containing the node
   apf::MeshEntity* e;
   int entity_num;  // global number of entity
   apf::Downward down;
+  int pos;  // linear address within verts, edges, faces
   if (nodenum < (typeOffsetsPerElement[1] - 1))
   {
     entity_index = nodenum/entity_nodes_on[0];
     m->getDownward(el, 0, down);
     e = down[entity_index];
     entity_num = apf::getNumber(numberings[0], e, 0, 0);
-    return verts[nodenum][entity_num];
+
+    pos = entity_num*entity_nodes_on[0] + nodenum - typeOffsetsPerElement[0] - 1;
+    return verts[pos];
 
   } else if (nodenum < (typeOffsetsPerElement[2] - 1))
   {
-    entity_index = (nodenum - typeOffsetPerElement[1] - 1)/entity_nodes_on[1];
+    entity_index = (nodenum - typeOffsetsPerElement[1] - 1)/entity_nodes_on[1];
     m->getDownward(el, 1, down);
     e = down[entity_index];
     entity_num = apf::getNumber(numberings[1], e, 0, 0);
-    return edges[nodenum - typeOffsetsPerElement[1] - 1][entity_num];
+    pos = entity_num*entity_nodes_on[1] + nodenum - typeOffsetsPerElement[1] - 1;
+    return edges[pos];
 
   } else if (nodenum < (typeOffsetsPerElement[3] - 1))
   {
-    entity_index = (nodenum - typeOffsetPerElement[2] - 1)/entity_nodes_on[2];
+    entity_index = (nodenum - typeOffsetsPerElement[2] - 1)/entity_nodes_on[2];
     m->getDownward(el, 2, down);
     e = down[entity_index];
     entity_num = apf::getNumber(numberings[2], e, 0, 0);
- 
-    return faces[ nodenum - typeOffsetsPerElement[2] - 1 ][entity_num];
+    pos = entity_num*entity_nodes_on[2] + nodenum - typeOffsetsPerElement[2] - 1;
+    return faces[pos];
 
   } else {
     std::cerr << "Warning: in getVert,  nodenum too high, returning NULL" << std::endl;
@@ -166,7 +170,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
         // calculate linear offset for elementNode offsets
         pos = node - 1 + elnum*nnodes_per_el;
         newnode = abs(elementNodeOffsets[pos] - node) - 1;
-        el_verts[j] = getVert(m, verts, edges, faces, typeOffsetsPerElement, newnode);
+        el_verts[j] = getVert(m, verts, edges, faces, typeOffsetsPerElement, newnode, e, numberings, entity_nodes_on );
       }
      
       // build the element 
