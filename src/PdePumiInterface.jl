@@ -242,6 +242,20 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
   getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
+
+  # create subtriangulated mesh
+  triangulation = Int32[1 1 4 2 5 6; 4 7 2 5 3 7; 7 6 7 7 7 3]
+  typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
+  numberings = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
+
+  offsets_323 = [Int32(i) for i in mesh.elementNodeOffsets[:, 323]]
+  println("offsets_323 = ", offsets_323)
+  println("creating sub mesh")
+
+  flush(STDOUT)
+  createSubMesh(mesh.m_ptr, triangulation, mesh.elementNodeOffsets, typeOffsetsPerElement_, numberings)
+
+  println("finished creating sub mesh")
 #=
   println("typeof m_ptr = ", typeof(m_ptr))
   println("typeof mshape_ptr = ", typeof(mshape_ptr))

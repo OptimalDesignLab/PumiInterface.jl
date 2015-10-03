@@ -18,8 +18,9 @@
 #include <string.h>
 
 
+extern "C" {
+apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3]);
 
-apf::Mesh2* createSubMesh(apf::Mesh* m, int numtriangles, int triangulation[][3], apf::Numbering* numberings[3]);
+}
 
-int getOrientation(apf::Mesh* m, apf::MeshEntity* e);
 #endif

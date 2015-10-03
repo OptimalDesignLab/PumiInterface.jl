@@ -9,39 +9,91 @@
 // of each entity type on an element
 // el is the pointer to the element to which the node belongs
 // entity_nodes_on is the number of nodes on verts, edges, faces
-apf::MeshEntity* getVert(apf::Mesh* m, apf::MeshEntity* verts[], apf::MeshEntity*, apf::MeshEntity* edges[], apf::MeshEntity* faces[], int typeOffsetsPerElement[], const int nodenum, apf::MeshEntity* el, apf::Numbering* numberings[], int entity_nodes_on[])
+apf::MeshEntity* getVert(apf::Mesh* m, apf::MeshEntity* verts[], apf::MeshEntity* edges[], apf::MeshEntity* faces[], int typeOffsetsPerElement[], const int nodenum, uint8_t offset,  apf::MeshEntity* el, apf::Numbering* numberings[], int entity_nodes_on[])
 {
-  int entity_index;  // local index of entity containing the node
+  int entity_idx;  // local index of entity containing the node
   apf::MeshEntity* e;
   int entity_num;  // global number of entity
   apf::Downward down;
   int pos;  // linear address within verts, edges, faces
+  int entity_node_idx;  // index of node from 0 to numnodes on all entity of this type
+  int entity_node_idx_local; // index from 0 to nnodes on this entity
+  int entity_node_offset_idx_local; // offset local idx
+  int dim;  // dimension of entity containing the node
   if (nodenum < (typeOffsetsPerElement[1] - 1))
   {
-    entity_index = nodenum/entity_nodes_on[0];
-    m->getDownward(el, 0, down);
-    e = down[entity_index];
-    entity_num = apf::getNumber(numberings[0], e, 0, 0);
+    std::cout << "vertex node" << std::endl;
+    dim = 0;
+    entity_node_idx = nodenum - (typeOffsetsPerElement[dim] - 1);
+    std::cout << "entity_node_idx = " << entity_node_idx << std::endl;
+    entity_idx = entity_node_idx/entity_nodes_on[dim]; // integer division
+    std::cout << "entity_idx = " << entity_idx << std::endl;
+    entity_node_idx_local = entity_node_idx % entity_nodes_on[dim];
+    std::cout << "entity_node_idx_local = " << entity_node_idx_local << std::endl;
+    std::cout << "offset = " << (int)offset << std::endl;
+    entity_node_offset_idx_local = abs(offset - (entity_node_idx_local + 1)) - 1;
+    std::cout << "entity_node_offset_idx_local = " << entity_node_offset_idx_local << std::endl;
 
-    pos = entity_num*entity_nodes_on[0] + nodenum - typeOffsetsPerElement[0] - 1;
+    // get the entity number
+    m->getDownward(el, dim, down);
+    e = down[entity_idx];
+    entity_num = apf::getNumber(numberings[dim], e, 0, 0);
+    std::cout << "entity_num = " << entity_num << std::endl;
+
+    pos = entity_num*entity_nodes_on[dim] + entity_node_offset_idx_local;
+
     return verts[pos];
 
   } else if (nodenum < (typeOffsetsPerElement[2] - 1))
   {
-    entity_index = (nodenum - typeOffsetsPerElement[1] - 1)/entity_nodes_on[1];
-    m->getDownward(el, 1, down);
-    e = down[entity_index];
-    entity_num = apf::getNumber(numberings[1], e, 0, 0);
-    pos = entity_num*entity_nodes_on[1] + nodenum - typeOffsetsPerElement[1] - 1;
+    std::cout << "edge node" << std::endl;
+    dim = 1;
+    entity_node_idx = nodenum - (typeOffsetsPerElement[dim] - 1);
+    std::cout << "entity_node_idx = " << entity_node_idx << std::endl;
+    entity_idx = entity_node_idx/entity_nodes_on[dim]; // integer division
+    std::cout << "entity_idx = " << entity_idx << std::endl;
+    entity_node_idx_local = entity_node_idx % entity_nodes_on[dim];
+    std::cout << "entity_node_idx_local = " << entity_node_idx_local << std::endl;
+    std::cout << "offset = " << (int)offset << std::endl;
+    entity_node_offset_idx_local = abs(offset - (entity_node_idx_local + 1)) - 1;
+    std::cout << "entity_node_offset_idx_local = " << entity_node_offset_idx_local << std::endl;
+
+    // get the entity number
+    m->getDownward(el, dim, down);
+    e = down[entity_idx];
+    entity_num = apf::getNumber(numberings[dim], e, 0, 0);
+    std::cout << "entity_num = " << entity_num << std::endl;
+
+    pos = entity_num*entity_nodes_on[dim] + entity_node_offset_idx_local;
+
+
+    
     return edges[pos];
 
   } else if (nodenum < (typeOffsetsPerElement[3] - 1))
   {
-    entity_index = (nodenum - typeOffsetsPerElement[2] - 1)/entity_nodes_on[2];
-    m->getDownward(el, 2, down);
-    e = down[entity_index];
-    entity_num = apf::getNumber(numberings[2], e, 0, 0);
-    pos = entity_num*entity_nodes_on[2] + nodenum - typeOffsetsPerElement[2] - 1;
+
+    std::cout << "face node" << std::endl;
+    dim = 2;
+    entity_node_idx = nodenum - (typeOffsetsPerElement[dim] - 1);
+    std::cout << "entity_node_idx = " << entity_node_idx << std::endl;
+    entity_idx = entity_node_idx/entity_nodes_on[dim]; // integer division
+    std::cout << "entity_idx = " << entity_idx << std::endl;
+    entity_node_idx_local = entity_node_idx % entity_nodes_on[dim];
+    std::cout << "entity_node_idx_local = " << entity_node_idx_local << std::endl;
+    std::cout << "offset = " << (int)offset << std::endl;
+    entity_node_offset_idx_local = abs(offset - (entity_node_idx_local + 1)) - 1;
+    std::cout << "entity_node_offset_idx_local = " << entity_node_offset_idx_local << std::endl;
+
+    // get the entity number
+    m->getDownward(el, dim, down);
+    e = down[entity_idx];
+    entity_num = apf::getNumber(numberings[dim], e, 0, 0);
+    std::cout << "entity_num = " << entity_num << std::endl;
+
+    pos = entity_num*entity_nodes_on[dim] + entity_node_offset_idx_local;
+    std::cout << "pos = " << pos << std::endl;
+
     return faces[pos];
 
   } else {
@@ -116,6 +168,8 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
        m->getPoint(e, 0, coords);
        verts[idx][0] = m_new->createVert(0); // should be 2d array
        m_new->setPoint(verts[idx][0], 0, coords);
+
+       std::cout << "creating vertex for vertex " << idx << " at coordinates " << coords << " pointer = " << verts[idx][0] << std::endl;
       }
 
       dim = 1;  
@@ -128,6 +182,8 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
           m->getPoint(e, i, coords);
           edges[idx][i] = m_new->createVert(0); // should be 2d array
           m_new->setPoint(edges[idx][i], 0, coords);
+
+          std::cout << "creating edge vertex for edge " << idx << ", node " << i << " at coordinates " << coords << " pointer = " << edges[idx][i]<< std::endl;
         }
       }
 
@@ -139,8 +195,11 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
         for (int i = 0; i < entity_nodes_on[dim]; i++)
         {
           m->getPoint(e, i, coords);
-          edges[idx][i] = m_new->createVert(0); // should be 2d array
-          m_new->setPoint(edges[idx][i], 0, coords);
+
+          faces[idx][i] = m_new->createVert(0); // should be 2d array
+          m_new->setPoint(faces[idx][i], 0, coords);
+
+          std::cout << "creating edge vertex for face " << idx << ", node " << i << " at coordinates " << coords << " pointer = " << faces[idx][i] <<  std::endl;
         }
       }
 
@@ -153,7 +212,6 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
   dim = 2;
   int elnum; // holds the element number
   int node;  // original node number
-  int newnode; // hold post offset node number
   int pos;  // linear address for elementNodeOffset
   const int nnodes_per_el = typeOffsetsPerElement[dim+1] - 1;
   apf::MeshEntity* el_verts[3]; // holds vertices of element to be created
@@ -161,16 +219,27 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
   while ( (e = m->iterate(it)) )
   {
     elnum = apf::getNumber(numberings[dim], e, 0, 0); // zero base index
+    std::cout << "\n\nsubtriangulating element " << elnum << std::endl;
     for (int i=0; i < numtriangles; ++i)  // loop over all subtriangles
     {
+      std::cout << "\ncreating sub triangle " << i << std::endl;
       // get 3 vertices
       for (int j=0; j < 3; ++j)
       {
-        node = triangulation[i][j]; // one based index
+        node = triangulation[i][j] - 1; // one based index
+        std::cout << "node = " << node << std::endl;
         // calculate linear offset for elementNode offsets
-        pos = node - 1 + elnum*nnodes_per_el;
-        newnode = abs(elementNodeOffsets[pos] - node) - 1;
-        el_verts[j] = getVert(m, verts, edges, faces, typeOffsetsPerElement, newnode, e, numberings, entity_nodes_on );
+        pos = node + elnum*nnodes_per_el;
+        std::cout << "offset pos = " << pos << std::endl;
+        int offset_j = elementNodeOffsets[pos];
+        
+//        std::cout << "offset = " << offset_j << std::endl;
+//        newnode = abs(elementNodeOffsets[pos] - node) - 1;
+//        std::cout << "newnode = " << newnode << std::endl;
+//        el_verts[j] = getVert(m, verts, edges, faces, typeOffsetsPerElement, newnode, e, numberings, entity_nodes_on );
+
+        el_verts[j] = getVert(m, &verts[0][0], &edges[0][0], &faces[0][0], typeOffsetsPerElement, node, offset_j, e, numberings, entity_nodes_on );
+        std::cout << "  el_vert " << j << " = " << el_verts[j] << std::endl;
       }
      
       // build the element 
@@ -191,7 +260,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
   std::cout << "verified" << std::endl;
 
   // write visualization file
-  apf::writeVtkFiles("newmesh_linear", m);
+  apf::writeVtkFiles("newmesh_linear", m_new);
 
 
 

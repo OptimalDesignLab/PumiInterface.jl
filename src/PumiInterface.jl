@@ -124,11 +124,14 @@ global const runAnisoAdapt_name = "runAnisoAdapt"
 global const createPackedField_name = "createPackedField"
 global const setComponents_name = "setComponents"
 global const getComponents_name = "getComponents"
+
+
+global const createSubMesh_name = "createSubMesh"
 end
 
 
 # export low level interface functions
-export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset
+export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh
 
 
 
@@ -1108,6 +1111,57 @@ function getComponents(f_ptr, entity_ptr, node::Integer, components::AbstractVec
 
   return nothing
 end
+
+@doc """
+###PumiInterface.createSubMesh
+
+  This function takes in a (presumable high order) mesh, subtriangulates 
+  each element into a set of linear triangles, writes a vtk file with the
+  name newmesh_linear, and returns a apf::Mesh2* pointer as a Void pointer.
+  Note that Pumi is fully capabable of having multiple meshes loaded at one
+  time (although only one of them can reference geometry).  The Julia 
+  interface to Pumi does not always handle multiple meshes correctly.  In
+  general, any function that takes in a mesh pointer will work correctly,
+  but some of the ones that do not take in a mesh pointer will not.  This
+  deficiency needs to be corrected eventually.
+
+  It is useful to note that vertices of the original mesh that are also
+  vertices of the new mesh will have the same number assigned to them by
+  Pumi.  This makes it easier to compare ParaView images of the meshes
+  side-by-side.
+
+  Argument:
+    m_ptr : pointer to existing mesh
+    triangulation : n x 3 array of Int32s that tell which nodes of an existing
+                    element should be used as the vertices of each subtriangle,
+		    where n is the number of subtriangles.  These should be
+		    1-based indices, with values in the range 1 to number of
+		    nodes per element
+    elementNodeOffsets:  array of Uint8s, dimensions number of nodes per element 
+                         by number of elements in the mesh, used to figure out
+			 how each element should access the nodes of a mesh 
+			 entity.  See PdePumiInterface for details.
+    typeOffsetsPerElement: array of Int32s, of length 4, where entry i
+                           tells where the nodes on entities of dimension
+			   i start in an array of all the nodes of an element.
+			   The last element should be the number of nodes on 
+			   an element + 1
+    numberings:  array of length 3 containings numbers of all the verts, edges
+                 and faces in the mesh m_ptr.
+
+  Outputs:
+    mnew_ptr : pointer to the new mesh
+"""->
+function createSubMesh(m_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{Uint8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, numberings::AbstractArray{Ptr{Void}, 1})
+
+  # check the the triangulation array is oriented correctly
+  @assert size(triangulation, 1) == 3
+  
+ mnew_ptr =  ccall( (createSubMesh_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Int32, Ptr{Int32}, Ptr{Uint8}, Ptr{Int32}, Ptr{Ptr{Void}}), m_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings)
+
+ return mnew_ptr
+end
+
 
 declareNames()  # will this execute when module is compiled?
 
