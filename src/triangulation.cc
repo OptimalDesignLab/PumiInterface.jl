@@ -258,8 +258,8 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
   // precalculate tables needed to lookup a given node on the new mesh
   int subelements[nnodes_per_el]; // hold index (0-based) of subtriangles
   int subelement_verts[nnodes_per_el]; // holds vertex index of subtriangle
-  int el;  // store found element
-  int vert; // store found node
+  int el = 0;  // store found element
+  int vert = 0; // store found node
   bool breaknow = false;  // flag for breaking second loopa
   std::cout << "Precalculating sub-triangle lookup tables" << std::endl;
   for (int i = 0; i < nnodes_per_el; ++i)  // search for node i
@@ -441,8 +441,8 @@ void transferField(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const
   // precalculate tables needed to lookup a given node on the new mesh
   int subelements[nnodes_per_el]; // hold index (0-based) of subtriangles
   int subelement_verts[nnodes_per_el]; // holds vertex index of subtriangle
-  int el;  // store found element
-  int vert; // store found node
+  int el = 0;  // store found element
+  int vert = 0; // store found node
   bool breaknow = false;  // flag for breaking second loopa
   std::cout << "Precalculating sub-triangle lookup tables" << std::endl;
   for (int i = 0; i < nnodes_per_el; ++i)  // search for node i
