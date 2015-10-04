@@ -728,21 +728,21 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
   while ( (e = m->iterate(it)) )
   {
     elnum = apf::getNumber(numberings[dim], e, 0, 0); // zero base index
-//    std::cout << "\n\nsubtriangulating element " << elnum << std::endl;
+    std::cout << "\n\nsubtriangulating element " << elnum << std::endl;
     for (int i=0; i < numtriangles; ++i)  // loop over all subtriangles
     {
-//      std::cout << "\ncreating sub triangle " << i << std::endl;
+      std::cout << "\ncreating sub triangle " << i << std::endl;
       // get 3 vertices
       for (int j=0; j < 3; ++j)
       {
         node = triangulation[i][j] - 1; // one based index
-//        std::cout << "node = " << node << std::endl;
+        std::cout << "node = " << node << std::endl;
         // calculate linear offset for elementNode offsets
         pos = node + elnum*nnodes_per_el;
-//        std::cout << "offset pos = " << pos << std::endl;
+        std::cout << "offset pos = " << pos << std::endl;
         int offset_j = elementNodeOffsets[pos];
         
-//        std::cout << "offset = " << offset_j << std::endl;
+        std::cout << "offset = " << offset_j << std::endl;
 //        newnode = abs(elementNodeOffsets[pos] - node) - 1;
 //        std::cout << "newnode = " << newnode << std::endl;
 //        el_verts[j] = getVert(m, verts, edges, faces, typeOffsetsPerElement, newnode, e, numberings, entity_nodes_on );

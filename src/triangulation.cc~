@@ -597,8 +597,8 @@ void transferField(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const
           new_vertnum = subelement_verts[nodenum];
 //          std::cout << "    new_elnum = " << new_elnum << std::endl;
 //          std::cout << "    new_vertnum = " << new_vertnum << std::endl;
-          m_new->getDownward(subtriangles[new_elnum], 0, down);
-          new_node_entity = down[new_vertnum];
+          m_new->getDownward(subtriangles[new_elnum], 0, down_new);
+          new_node_entity = down_new[new_vertnum];
           std::cout << "    new_node_entity = " << new_node_entity << std::endl;
           std::cout << "    node_entity = " << node_entity << std::endl;
 
