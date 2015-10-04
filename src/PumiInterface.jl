@@ -127,11 +127,12 @@ global const getComponents_name = "getComponents"
 
 
 global const createSubMesh_name = "createSubMesh"
+global const transferField_name = "transferField"
 end
 
 
 # export low level interface functions
-export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh
+export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
 
 
@@ -1161,6 +1162,25 @@ function createSubMesh(m_ptr, triangulation::AbstractArray{Int32, 2}, elementNod
 
  return mnew_ptr
 end
+
+
+@doc """
+### PumiInterface.transferField
+
+  Transfers the specified field from the hold mesh to the new mesh.
+
+  See createSubMesh for the meanings of the arguments
+"""->
+function transferField(m_ptr, mnew_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{Uint8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, numberings::AbstractArray{Ptr{Void}, 1}, field_old, field_new)
+
+  # check the the triangulation array is oriented correctly
+  @assert size(triangulation, 1) == 3
+  
+ ccall( (transferField_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Int32}, Ptr{Uint8}, Ptr{Int32}, Ptr{Ptr{Void}}, Ptr{Void}, Ptr{Void}), m_ptr, mnew_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings, field_old, field_new)
+
+ return nothing
+end
+
 
 
 declareNames()  # will this execute when module is compiled?

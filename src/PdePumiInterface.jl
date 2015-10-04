@@ -21,8 +21,10 @@ abstract PumiMesh{T1} <: AbstractMesh{T1}
 include("./PdePumiInterface3.jl")
 type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
+  mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
+  fnew_ptr::Ptr{Void}  # pointer to field on mnew_ptr
   shape_type::Int  #  type of shape functions
 
   vert_Nptr::Ptr{Void}  # numbering of vertices (zero based)
@@ -44,6 +46,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   numEntitiesPerType::Array{Int, 1} # [numVert, numEdge, numEl]
   numTypePerElement::Array{Int, 1}  # number of verts, edges, faces per element
   typeOffsetsPerElement::Array{Int, 1} # the starting index of the vert, edge, and face nodes in an element 
+  typeOffsetsPerElement_::Array{Int32, 1}  # Int32 version of above
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
   numColors::Int  # number of colors
   numBC::Int  # number of boundary conditions
@@ -58,7 +61,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   elementNodeOffsets::Array{Uint8, 2}
   # truth values if the entity is oriented consistently with the element
   typeNodeFlags::Array{BitArray{2}, 1}
-
+  triangulation::Array{Int32, 2}  # sub triangulation of an element
   dofnums_Nptr::Ptr{Void}  # pointer to Numbering of dofs (result of reordering)
 #  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
 
@@ -129,7 +132,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
     mesh.typeOffsetsPerElement[i] = pos
   end
   println("mesh.typeOffsetsPerElement = ", mesh.typeOffsetsPerElement)
-
+ mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
 
  
@@ -244,16 +247,26 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   # create subtriangulated mesh
+  if order > 1
+
+    mesh.triangulation = getTriangulation(order)
+    flush(STDOUT)
+    flush(STDERR)
+    mesh.mnew_ptr = createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
+
+    mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
+  else
+    mesh.triangulation = zeros(Int32, 0, 0)
+    mesh.mnew_ptr = C_NULL
+    mesh.fnew_ptr = C_NULL
+  end
+
+  #=
   triangulation = Int32[1 1 4 2 5 6; 4 7 2 5 3 7; 7 6 7 7 7 3]
   typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
-  numberings = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
+  mesh.entityNumberings = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
+  =#
 
-  offsets_323 = [Int32(i) for i in mesh.elementNodeOffsets[:, 323]]
-  println("offsets_323 = ", offsets_323)
-  println("creating sub mesh")
-
-  flush(STDOUT)
-  createSubMesh(mesh.m_ptr, triangulation, mesh.elementNodeOffsets, typeOffsetsPerElement_, numberings)
 
   println("finished creating sub mesh")
 #=
@@ -2147,6 +2160,9 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
     end  # end loop over entity types
   end  # end loop over elements
 
+  if mesh.order > 1
+    transferField(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.fnew_ptr)
+  end
 
   return nothing
 end  # end function saveSolutionToMesh
@@ -2297,6 +2313,10 @@ function writeVisFiles(mesh::PumiMesh, fname::AbstractString)
 
   writeVtkFiles(fname, mesh.m_ptr)
 
+  if mesh.order > 1
+    writeVtkFiles(string(fname, "_linear"), mesh.mnew_ptr)
+  end
+
   return nothing
 end
 
@@ -2333,7 +2353,19 @@ return nothing
 end
 
 
+function getTriangulation(order::Int)
+# get the sub-triangulation for an element of the specified order
 
+if order == 2
+  triangulation = Int32[1 1 4 2 5 6; 4 7 2 5 3 7; 7 6 7 7 7 3]
+elseif order == 3
+  triangulation = Int32[1 1 4 5 5 2 6 7 10 12 12 10 9; 4 10 5 11 2 6 7 12 11 7 3 12 10; 10 9 10 10 11 11 11 11 12 3 8 8 8]
+else
+  println(STDERR, "Warning, unsupported triangulation requested")
+  return zeros(Int32, 0, 0)
+end
+ 
+end
 end  # end of module
 
 
