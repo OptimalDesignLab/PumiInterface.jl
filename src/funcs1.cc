@@ -525,14 +525,9 @@ int count(apf::Mesh2* m_local, int dimension)
 void writeVtkFiles(char* name, apf::Mesh2* m_local)
 {
 
-  apf::FieldShape* mshape = m->getShape();
-  int order = mshape->getOrder();
-
-//  if (order <= 2)
-//  {
-    apf::writeVtkFiles(name, m_local);
-//  } /* else
-/*  {
+   apf::writeVtkFiles(name, m_local);
+    
+/*
     apf::FieldShape* mshape = m->getShape();
     crv::writeControlPointVtuFiles(m, name);
     crv::writeCurvedVtuFiles(m, apf::Mesh::EDGE, mshape->countNodesOn(apf::Mesh::EDGE), name);

@@ -247,7 +247,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   # create subtriangulated mesh
-  if order > 1
+  if order >= 3
 
     mesh.triangulation = getTriangulation(order)
     flush(STDOUT)
@@ -261,14 +261,10 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
     mesh.fnew_ptr = C_NULL
   end
 
-  #=
-  triangulation = Int32[1 1 4 2 5 6; 4 7 2 5 3 7; 7 6 7 7 7 3]
-  typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
-  mesh.entityNumberings = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
-  =#
+  println("finished creating sub mesh\n")
 
+  println("printin main mesh statistics")
 
-  println("finished creating sub mesh")
 #=
   println("typeof m_ptr = ", typeof(m_ptr))
   println("typeof mshape_ptr = ", typeof(mshape_ptr))
@@ -1022,13 +1018,11 @@ function getEntityOrientations(mesh::PumiMesh2)
       edgenum_global = getNumberJ(mesh.edge_Nptr, edges_i[j], 0, 0) + 1
 
       orient, edge_idx = getEdgeOrientation(mesh, i, edgenum_global)
-      println("edge number (1-indexed) ", edgenum_global, " is positively oriented? ", orient)
 
       # calculate range of indices coresponding to this edge
       start_idx = edges_start + (edge_idx - 1)*nnodes_per_edge
       end_idx = start_idx + nnodes_per_edge - 1
       edgenode_range = start_idx:end_idx
-      println("edgenode_range = ", edgenode_range)
 
       # save value to flag array
       edge_flags[j, i] = div(orient + 1, 2)
@@ -1068,16 +1062,6 @@ function getEdgeOrientation(mesh::PumiMesh2, elnum::Integer, edgenum::Integer)
     end
   end
 
-  println("edge_idx = ", edge_idx)
-  for i=1:3
-    elvert1 = getNumberJ(mesh.vert_Nptr, el_verts[i], 0, 0) + 1
-    println("element vert $i number = ", elvert1)
-  end
-
-  for i=1:2
-    edgevert1 = getNumberJ(mesh.vert_Nptr, edge_verts[i], 0, 0) + 1
-    println("edge vert $i number = ", edgevert1)
-  end
   pos1 = 0  # position of edge_verts[1] in el_verts
   pos2 = 0  # position of edge_verts[2] in el_verts
 
@@ -2354,10 +2338,10 @@ end
 function writeVisFiles(mesh::PumiMesh, fname::AbstractString)
   # writes vtk files 
 
-  writeVtkFiles(fname, mesh.m_ptr)
-
-  if mesh.order > 1
-    writeVtkFiles(string(fname, "_linear"), mesh.mnew_ptr)
+  if mesh.order <= 2
+    writeVtkFiles(fname, mesh.m_ptr)
+  else
+    writeVtkFiles(fname, mesh.mnew_ptr)
   end
 
   return nothing
