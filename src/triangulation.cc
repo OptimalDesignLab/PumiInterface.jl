@@ -167,7 +167,48 @@ void printFields(apf::Mesh* m)
   }
 
   std::cout << "finished printing Numbering names" << std::endl;
-}
+}  // end function
+
+
+
+// copy a numbering defined on the elements of the old mesh to the elements
+// of the new mesh
+void transferNumberingToElements(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, apf::Numbering* numbering_old)
+{
+
+  apf::MeshIterator* itold = m->begin(2);
+  apf::MeshIterator* itnew = m_new->begin(2);
+  apf::FieldShape* fshape_new = apf::getConstant(2);
+  int numcomp = apf::countComponents(numbering_old);
+  const char* name_old = apf::getName(numbering_old);
+  std::cout << "name_old = " << name_old << std::endl;
+  std::size_t name_length = strlen(name_old) + 1; // string lenth, including \0
+  std::cout << "name_length = " << name_length << std::endl;
+  char name_new[name_length + 4]; // add space for "_old"
+  strcpy(name_new, name_old);
+  std::cout << "after first strcat, name_new = " << name_new << std::endl;
+  strcat(name_new, "_old");
+  std::cout << "name_new = " << name_new << std::endl;
+  apf::Numbering* numbering_new = apf::createNumbering(m_new, name_new, fshape_new, numcomp);
+
+  apf::MeshEntity* e;
+  apf::MeshEntity* e_new;
+  int val;
+  while ( (e = m->iterate(itold)) )  // loop over old mesh elements
+  {
+      for (int i = 0; i < numtriangles; ++i)
+      {
+        for (int n = 0; n < numcomp; ++n)
+        {
+          val = apf::getNumber(numbering_old, e, 0, n);
+          e_new = m_new->iterate(itnew);
+          apf::number(numbering_new, e_new, 0, n, val);
+        }
+      }
+  }
+
+}  // end function
+
 
 void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3])
 {
@@ -274,11 +315,19 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
     apf::Numbering* numbering_i = m->getNumbering(i);
     int numcomp = apf::countComponents(numbering_i);
     const char* name_i = apf::getName(numbering_i);
+    std::cout << "Numbering name is " << name_i << std::endl;
     apf::Field* field_i = apf::getField(numbering_i);
     if (field_i != NULL)
     {
       std::cerr << "Warning:  Numbering with an underling Field detected.  Numbering will not be copied" << std::endl;
       continue;
+    }
+
+    // if Numbering is the element numbering, copy it specially too
+    if ( strcmp(name_i, "faceNums") == 0)
+    {
+      std::cout << "Copying numbering " << name_i << " to elements of new mesh" << std::endl;
+      transferNumberingToElements(m, m_new, numtriangles, numbering_i);
     }
 
     // create new field and populate it
