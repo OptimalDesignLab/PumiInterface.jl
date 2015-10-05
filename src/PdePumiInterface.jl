@@ -1976,7 +1976,7 @@ function getInterfaceArray(mesh::PumiMesh2)
       centroid1 = sum(coords_1, 2)
       centroid2 = sum(coords_2, 2)
 
-      if abs(centroid1[1] - centroid2[1]) > 1e-10  # if big enough difference
+      if abs(centroid1[1] - centroid2[1]) < 1e-10  # if big enough difference
         if centroid1[1] < centroid2[1]
     elementL = element1
     elementR = element2
