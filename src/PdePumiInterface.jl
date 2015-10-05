@@ -1011,7 +1011,8 @@ function getEntityOrientations(mesh::PumiMesh2)
 
   edge_flags = flags[2]
   edges_i = Array(Ptr{Void}, 12)
-  edgenode_range = mesh.typeOffsetsPerElement[2]:(mesh.typeOffsetsPerElement[3]-1)
+  edges_start = mesh.typeOffsetsPerElement[2]
+  nnodes_per_edge = mesh.numNodesPerType[2]
   for i=1:mesh.numEl
     getDownward(mesh.m_ptr, mesh.elements[i], 1, edges_i)
  
@@ -1020,10 +1021,18 @@ function getEntityOrientations(mesh::PumiMesh2)
       # get global number of edge j
       edgenum_global = getNumberJ(mesh.edge_Nptr, edges_i[j], 0, 0) + 1
 
-      orient = getEdgeOrientation(mesh, i, edgenum_global)
+      orient, edge_idx = getEdgeOrientation(mesh, i, edgenum_global)
+      println("edge number (1-indexed) ", edgenum_global, " is positively oriented? ", orient)
+
+      # calculate range of indices coresponding to this edge
+      start_idx = edges_start + (edge_idx - 1)*nnodes_per_edge
+      end_idx = start_idx + nnodes_per_edge - 1
+      edgenode_range = start_idx:end_idx
+      println("edgenode_range = ", edgenode_range)
 
       # save value to flag array
       edge_flags[j, i] = div(orient + 1, 2)
+
       # write n = mesh.numNodesPerType[2] + 1 of orientation = -1, or n=0 if orientation=1
       if orient == 1
 	offsets[edgenode_range, i] = 0
@@ -1040,15 +1049,37 @@ end
 function getEdgeOrientation(mesh::PumiMesh2, elnum::Integer, edgenum::Integer)
 # figure out what the orientation of the specified edge is relative ot the element
 # if the edge is in the same orientation as the element, return 1, otherwise -1
+# because we are dealing with simplex elements, the third edge has to be 
+# handled specially
 
 #  println("\nEntered getEdgeOrientation")
   # get all the vertices
   el_verts, tmp = getDownward(mesh.m_ptr, mesh.elements[elnum], 0)
   edge_verts, tmp = getDownward(mesh.m_ptr, mesh.edges[edgenum], 0)
+  el_edges, tmp = getDownward(mesh.m_ptr, mesh.elements[elnum], 1)
 
+  # find out which edge this is
+  edge_idx = 0
+  for i=1:3
+    edgenum_ret = getNumberJ(mesh.edge_Nptr, el_edges[i], 0, 0) + 1
+    if edgenum_ret == edgenum
+      edge_idx = i
+      break
+    end
+  end
+
+  println("edge_idx = ", edge_idx)
+  for i=1:3
+    elvert1 = getNumberJ(mesh.vert_Nptr, el_verts[i], 0, 0) + 1
+    println("element vert $i number = ", elvert1)
+  end
+
+  for i=1:2
+    edgevert1 = getNumberJ(mesh.vert_Nptr, edge_verts[i], 0, 0) + 1
+    println("edge vert $i number = ", edgevert1)
+  end
   pos1 = 0  # position of edge_verts[1] in el_verts
   pos2 = 0  # position of edge_verts[2] in el_verts
-
 
   for i=1:3  # loop over el_verts
     if el_verts[i] == edge_verts[1]
@@ -1060,16 +1091,28 @@ function getEdgeOrientation(mesh::PumiMesh2, elnum::Integer, edgenum::Integer)
 
   @assert pos1 != 0
   @assert pos2 != 0
-
-  if pos2 - pos1 > 0  # positively oriented
-    return 1
-  elseif pos2 - pos1 < 0  # negatively oriented
-    return -1
+  if edge_idx <= 2
+    if pos2 - pos1 > 0  # positively oriented
+      return 1, edge_idx
+    elseif pos2 - pos1 < 0  # negatively oriented
+      return -1, edge_idx
+    else
+      println(STDERR, "Warning, bad orientation determination in PdePumiInterface getEdgeOrientation")
+      return 0, edge_idx
+    end
+  elseif edge_idx == 3  # ordering is reversed for 3rd edge
+    if -(pos2 - pos1) > 0  # positively oriented
+      return 1, edge_idx
+    elseif -(pos2 - pos1) < 0  # negatively oriented
+      return -1, edge_idx
+    else
+      println(STDERR, "Warning, bad orientation determination in PdePumiInterface getEdgeOrientation")
+      return 0, edge_idx
+    end
   else
-    println(STDERR, "Warning, bad orientation determination in PdePumiInterface getEdgeOrientation")
-    return 0
+    println(STDERR, "Warning, bad edge index determination inf PdePumiInterface getEdgeOrientation")
   end
-
+ 
 end  # end function
 
 
