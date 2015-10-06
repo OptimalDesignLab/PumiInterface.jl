@@ -647,10 +647,10 @@ class SBPCubic : public FieldShape
 	  { 
         if (node == 0)
 	    {
-		  xi = Vector3(0.29346955590904017, 0, 0);
+		  xi = Vector3(-0.4130608881811966, 0, 0);
 		} else if (node == 1)
 		{
-		  xi = Vector3(0.7065304440909599, 0, 0);
+		  xi = Vector3(0.41306088818191977, 0, 0);
 		} else  // default case
 		{
 		  xi = Vector3(0,0, 0);
