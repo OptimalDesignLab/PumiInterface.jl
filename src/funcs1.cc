@@ -1248,26 +1248,28 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
 
   for (int i = 0; i <= el_dim; i++)   // loop over verts, edges, faces, regions
   {
-//    std::cout << "looping over dimension " << i << std::endl;
+    std::cout << "looping over dimension " << i << std::endl;
     for (int j=0; j < m_local->adjacentCount[el_type][i]; j++)  // loop over all entities of this type
-//      std::cout << "  entity number " << j << std::endl;
-    { 
+    {
+      std::cout << "  entity number " << j << std::endl;
+      std::cout << "  this entity has " << fshape_local->countNodesOn(i) << " nodes " << std::endl;
+
       for (int k=0; k < fshape_local->countNodesOn(i); k++)
       {
-//        std::cout << "    node number " << k << std::endl;
+        std::cout << "    node number " << k << std::endl;
         e = entities[col];  // get current entity
         offset_k = node_offsets[col];
-//        std::cout << "    offset_k = " << offset_k + 0 << std::endl;
+        std::cout << "    offset_k = " << offset_k + 0 << std::endl;
          
           // calculate new node index 
           // convert to 1 based indexing, do offsets, then convert back
           // to zero based indexing
           new_node = abs(offset_k - (k+1)) - 1;  // move out 1 loop
-//          std::cout << "      new_node = " << new_node << std::endl;
+          std::cout << "      new_node = " << new_node << std::endl;
  
         for (int p = 0; p < num_comp; p++)
         {
-//          std::cout << "      component number " << p << std::endl;
+          std::cout << "      component number " << p << std::endl;
           ptr = col*num_comp + p;
 //          std::cout << "      ptr = " << ptr << std::endl;
          dofnums[ptr] = apf::getNumber(n, e, new_node, p);

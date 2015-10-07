@@ -1039,8 +1039,40 @@ function getEntityOrientations(mesh::PumiMesh2)
     end  # end loop over edges
   end # end loop over elements
 
+  # now do faces
+  getFaceOffsets(mesh, offsets, flags)
+
   return offsets, flags
 end
+
+function getFaceOffsets(mesh::PumiMesh2, offsets::AbstractArray{Uint8, 2}, flags::Array{BitArray{2}, 1})
+# figure out the face node offsets for each element
+# for 2D, face offsets only matter for mapping from the SBP ordering to 
+# Pumi, so we apply the same offsets to all nodes
+# its unclear whether or not to set the flag to true, so I'm leaving it 
+# as false for now
+
+  if mesh.order == 3
+    vals = Uint8[4, 3, 2]
+  elseif mesh.oder == 4 
+    vals = Uint8[6, 3, 0, 2, 1, 0]
+  else
+    println(STDERR, "Unsupported element order requestion in getFaceOffsets")
+    return nothing
+  end
+
+  face_start = mesh.typeOffsetsPerElement[3]
+  face_end = mesh.typeOffsetsPerElement[4] - 1
+  for i=1:mesh.numEl
+    for j=face_start:face_end
+      offsets[j, i] = vals[j - face_start + 1 ]
+    end
+    println("offsets for element ", i, " = ", offsets[:, i])
+  end
+
+  return nothing
+end  # end getFaceOffsets
+
 
 function getEdgeOrientation(mesh::PumiMesh2, elnum::Integer, edgenum::Integer)
 # figure out what the orientation of the specified edge is relative ot the element
@@ -1658,6 +1690,7 @@ function getGlobalNodeNumbers(mesh::PumiMesh2, elnum::Integer, dofnums::Abstract
 el_i = mesh.elements[elnum]
 type_i = getType(mesh.m_ptr, el_i)
 
+println("elnum = ", elnum)
 # calculate total number of nodes
 #nnodes = 3 + 3*mesh.numNodesPerType[2] + mesh.numNodesPerType[3]
 nnodes = mesh.numNodesPerElement
@@ -1665,8 +1698,8 @@ numdof = nnodes*mesh.numDofPerNode
 
 node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
 node_offsets = view(mesh.elementNodeOffsets[:, elnum])
-#println("node_offsets = ", [Int(i) for i in node_offsets])
-#println("size(node_offsets) = ", size(node_offsets))
+println("node_offsets = ", [Int(i) for i in node_offsets])
+println("size(node_offsets) = ", size(node_offsets))
 #println("node_entities = ", node_entities)
 #println("size(node_entities) = ", size(node_entities))
 #dofnums = zeros(Int,mesh.numDofPerNode, nnodes)  # to be populated with global dof numbers
