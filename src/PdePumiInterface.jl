@@ -868,17 +868,14 @@ end
 
 cnt = 0
 for i=1:mesh.numEl
-  println("checking element ", i)
   el_i = mesh.elements[i]
 
   # check edge neighbors only
   num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
-  println("num_adj = ", num_adj)
   @assert num_adj <= 3
   getBridgeAdjacent(adj)
 
   adj[num_adj + 1] = el_i  # insert the current element
-  println("adj = ", adj)
   # get color, element numbers
   for j=1:(num_adj + 1)
     adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
@@ -886,7 +883,6 @@ for i=1:mesh.numEl
     neighbor_nums[j, i] = getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
   end
 
-  println("adj_color = ", adj_color)
   color_i = adj_color[num_adj + 1]  # color of current element
   masks[color_i][i] = true  # indicate element i gets perturbed by color_i
 
