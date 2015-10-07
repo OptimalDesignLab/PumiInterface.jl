@@ -106,22 +106,22 @@ apf::MeshEntity* getVert(apf::Mesh* m, apf::MeshEntity* verts[], apf::MeshEntity
 // copy all of the Numbering values at a particular node from an old Numbering to a new one.
 int copyNumberingNode(apf::Numbering* n_old, apf::Numbering* n_new, apf::MeshEntity* e_old, apf::MeshEntity* e_new, const int node_old, const int node_new, int ncomp)
 {
-  apf::Mesh* m = getMesh(n_old);
-  int type = m->getType(e_old);
-  std::cout << "type of old entity = " << type << std::endl;
+//  apf::Mesh* m = getMesh(n_old);
+//  int type = m->getType(e_old);
+//  std::cout << "type of old entity = " << type << std::endl;
   bool flag = false;
   int val;
   for (int i = 0; i < ncomp; ++i)
   {
     if (apf::isNumbered(n_old, e_old, node_old, i))
     {
-      std::cout << "copying value" << std::endl;
+//      std::cout << "copying value" << std::endl;
       val = apf::getNumber(n_old, e_old, node_old, i);
       apf::number(n_new, e_new, node_new, i, val);
       flag = true;
     } else
     {
-      std::cout << "skipping node" << std::endl;
+//      std::cout << "skipping node" << std::endl;
       flag = false;
     }
   }
@@ -191,14 +191,14 @@ void transferNumberingToElements(apf::Mesh* m, apf::Mesh* m_new, const int numtr
   apf::FieldShape* fshape_new = apf::getConstant(2);
   int numcomp = apf::countComponents(numbering_old);
   const char* name_old = apf::getName(numbering_old);
-  std::cout << "name_old = " << name_old << std::endl;
+//  std::cout << "name_old = " << name_old << std::endl;
   std::size_t name_length = strlen(name_old) + 1; // string lenth, including \0
-  std::cout << "name_length = " << name_length << std::endl;
+//  std::cout << "name_length = " << name_length << std::endl;
   char name_new[name_length + 4]; // add space for "_old"
   strcpy(name_new, name_old);
-  std::cout << "after first strcat, name_new = " << name_new << std::endl;
+//  std::cout << "after first strcat, name_new = " << name_new << std::endl;
   strcat(name_new, "_old");
-  std::cout << "name_new = " << name_new << std::endl;
+//  std::cout << "name_new = " << name_new << std::endl;
   apf::Numbering* numbering_new = apf::createNumbering(m_new, name_new, fshape_new, numcomp);
 
   apf::MeshEntity* e;
@@ -275,7 +275,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
         {
           el = j;
           vert = k;
-          std::cout << "node " << i << " is part of sub-triangle " << el << " node " << vert << std::endl;
+//          std::cout << "node " << i << " is part of sub-triangle " << el << " node " << vert << std::endl;
           breaknow = true;
           break;
         }
@@ -289,7 +289,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
     }
 
     // break statements will end up here
-    std::cout << "node " << i << " is part of sub-triangle " << el << " node " << vert << std::endl;
+//    std::cout << "node " << i << " is part of sub-triangle " << el << " node " << vert << std::endl;
     subelements[i] = el;
     subelement_verts[i] = vert;
   }
@@ -339,7 +339,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
     }
 
     // if Numbering is the element numbering, copy it specially too
-    if ( strcmp(name_i, "faceNums") == 0)
+    if ( strcmp(name_i, "faceNums") == 0 || strcmp(name_i, "coloring") == 0)
     {
       std::cout << "Copying numbering " << name_i << " to elements of new mesh" << std::endl;
       transferNumberingToElements(m, m_new, numtriangles, numbering_i);
@@ -355,7 +355,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
 
       elnum = getNumber(numberings[2], e, 0, 0);
 
-      std::cout << "  processing old mesh element number " << elnum << std::endl;
+//      std::cout << "  processing old mesh element number " << elnum << std::endl;
       // get all the subtriangles of the current element
       for (int i = 0; i < numtriangles; ++i)
       {
@@ -372,7 +372,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
         m->getDownward(e, dim, down);
         for (int j = 0; j < num_entities_per_dim[dim]*entity_nodes_on[dim]; ++j) // loop over nodes of this dimension
         {
-          std::cout << "    processing node " << nodenum << std::endl;
+//          std::cout << "    processing node " << nodenum << std::endl;
 //          std::cout << "    processing node " << j << std::endl;
           // get entity on old mesh containing the node
           entity_node_idx = nodenum - (typeOffsetsPerElement[dim] - 1);

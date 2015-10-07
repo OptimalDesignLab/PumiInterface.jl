@@ -854,7 +854,7 @@ function getColors1{T, T2}(mesh, masks::AbstractArray{BitArray{1}, 1}, neighbor_
 # of the neighbors + self
 
 adj = Array(Ptr{Void}, 4)   # pointers to element i + 3 neighbors
-adj_color = Array(Int32, 4)  # element colors
+adj_color = zeros(Int32, 4)  # element colors
 
 # initialize masks to 0 (false)
 for i=1:length(masks)
@@ -862,21 +862,23 @@ for i=1:length(masks)
 end
 
 if verify
-  println("verifying distance-1 coloring was sucessful")
+  println("verifying distance-1 coloring")
 end
 
 
 cnt = 0
 for i=1:mesh.numEl
+  println("checking element ", i)
   el_i = mesh.elements[i]
 
   # check edge neighbors only
- num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
+  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
+  println("num_adj = ", num_adj)
   @assert num_adj <= 3
   getBridgeAdjacent(adj)
 
   adj[num_adj + 1] = el_i  # insert the current element
-
+  println("adj = ", adj)
   # get color, element numbers
   for j=1:(num_adj + 1)
     adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
@@ -884,6 +886,7 @@ for i=1:mesh.numEl
     neighbor_nums[j, i] = getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
   end
 
+  println("adj_color = ", adj_color)
   color_i = adj_color[num_adj + 1]  # color of current element
   masks[color_i][i] = true  # indicate element i gets perturbed by color_i
 
@@ -894,8 +897,8 @@ for i=1:mesh.numEl
     nnz = countnz(adj_color)
     nz_arr = zeros(eltype(adj_color), nnz)
     start_idx = length(adj_color) - nnz + 1
-    for i=1:nnz
-      nz_arr[i] = adj_color[start_idx]
+    for k=1:nnz
+      nz_arr[k] = adj_color[start_idx]
       start_idx += 1
     end
 
@@ -911,6 +914,9 @@ end
 
 if verify
   println("color-1 verification finished")
+  if cnt != 0
+    println(STDERR, "Warning: non unique element coloring")
+  end
   println("number of element with non unique coloring = ", cnt)
 end
 
