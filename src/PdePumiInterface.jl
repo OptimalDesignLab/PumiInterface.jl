@@ -47,6 +47,9 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   numTypePerElement::Array{Int, 1}  # number of verts, edges, faces per element
   typeOffsetsPerElement::Array{Int, 1} # the starting index of the vert, edge, and face nodes in an element 
   typeOffsetsPerElement_::Array{Int32, 1}  # Int32 version of above
+  nodemapSbpToPumi::Array{Uint8, 1}  # maps nodes of SBP to Pumi order
+  nodemapPumiToSbp::Array{Uint8, 1}  # maps nodes of Pumi to SBP order
+
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
   numColors::Int  # number of colors
   numBC::Int  # number of boundary conditions
@@ -123,6 +126,8 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
   num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
   num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f]
+  # count numbers of different things per other thing
+  # use for bookkeeping
   mesh.numNodesPerType = num_nodes_entity
   mesh.typeOffsetsPerElement = zeros(Int, 4)
   pos = 1
@@ -134,6 +139,8 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   println("mesh.typeOffsetsPerElement = ", mesh.typeOffsetsPerElement)
  mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
+  # get nodemaps
+  mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(mesh)
 
  
   # get pointers to mesh entity numberings
@@ -999,6 +1006,10 @@ function getEntityOrientations(mesh::PumiMesh2)
   offsets = zeros(Uint8, mesh.numNodesPerElement, mesh.numEl)
   # hold a bit telling if the entity is in the proper orientation for this element
   # ie. it is "owned" by this element, so the nodes can be accessed in order
+
+# this should use the offsets_sbp_to_pumi to figure out where to put the 
+# offset for a given node in the offsets array, because they are stored
+# in SBP order, not Pumi order
   flags = Array(BitArray{2}, 3)
   # create the arrays
   for i=1:3
@@ -1020,58 +1031,36 @@ function getEntityOrientations(mesh::PumiMesh2)
       edgenum_global = getNumberJ(mesh.edge_Nptr, edges_i[j], 0, 0) + 1
 
       orient, edge_idx = getEdgeOrientation(mesh, i, edgenum_global)
+      
+      # figure out offset value
+      # write n = mesh.numNodesPerType[2] + 1 of orientation = -1, or n=0 if orientation=1
+      if orient == 1
+	offset_val = 0
+      else
+        offset_val = mesh.numNodesPerType[2] + 1
+      end
 
-      # calculate range of indices coresponding to this edge
+      # starting index for nodes on this edge in Pumi ordering
       start_idx = edges_start + (edge_idx - 1)*nnodes_per_edge
-      end_idx = start_idx + nnodes_per_edge - 1
-      edgenode_range = start_idx:end_idx
+
+      # take into account Pumi to SBP mapping
+      for k=1:mesh.numNodesPerType[2]  # loop over nodes on the edge
+	# figure out the SBP index of this node
+	node_idx = start_idx + k - 1  # pumi node_idx
+        offsets[node_idx, i] = offset_val
+      end
 
       # save value to flag array
       edge_flags[j, i] = div(orient + 1, 2)
-
-      # write n = mesh.numNodesPerType[2] + 1 of orientation = -1, or n=0 if orientation=1
-      if orient == 1
-	offsets[edgenode_range, i] = 0
-      else
-	offsets[edgenode_range, i] = mesh.numNodesPerType[2] + 1
-      end
 
     end  # end loop over edges
   end # end loop over elements
 
   # now do faces
-  getFaceOffsets(mesh, offsets, flags)
+#  getFaceOffsets(mesh, offsets, flags)
 
   return offsets, flags
 end
-
-function getFaceOffsets(mesh::PumiMesh2, offsets::AbstractArray{Uint8, 2}, flags::Array{BitArray{2}, 1})
-# figure out the face node offsets for each element
-# for 2D, face offsets only matter for mapping from the SBP ordering to 
-# Pumi, so we apply the same offsets to all nodes
-# its unclear whether or not to set the flag to true, so I'm leaving it 
-# as false for now
-
-  if mesh.order == 3
-    vals = Uint8[4, 3, 2]
-  elseif mesh.oder == 4 
-    vals = Uint8[6, 3, 0, 2, 1, 0]
-  else
-    println(STDERR, "Unsupported element order requestion in getFaceOffsets")
-    return nothing
-  end
-
-  face_start = mesh.typeOffsetsPerElement[3]
-  face_end = mesh.typeOffsetsPerElement[4] - 1
-  for i=1:mesh.numEl
-    for j=face_start:face_end
-      offsets[j, i] = vals[j - face_start + 1 ]
-    end
-    println("offsets for element ", i, " = ", offsets[:, i])
-  end
-
-  return nothing
-end  # end getFaceOffsets
 
 
 function getEdgeOrientation(mesh::PumiMesh2, elnum::Integer, edgenum::Integer)
@@ -1696,7 +1685,10 @@ println("elnum = ", elnum)
 nnodes = mesh.numNodesPerElement
 numdof = nnodes*mesh.numDofPerNode
 
+# get entities in the Pumi order
 node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
+
+# get node offsets in the SBP order
 node_offsets = view(mesh.elementNodeOffsets[:, elnum])
 println("node_offsets = ", [Int(i) for i in node_offsets])
 println("size(node_offsets) = ", size(node_offsets))
@@ -2186,9 +2178,13 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
 # saves the solution in the vector u to the mesh (in preparation for mesh adaptation
 # it uses mesh.elementNodeOffsets to access the pumi field values in the 
 # right order of the given element
-# not that this performs a loop over elements, so some values get
+# note that this performs a loop over elements, so some values get
 # written several times.  This is why is is necessary to write to the
 # field in the right order
+# because this function used getNumberJ to get dof numbers, and set 
+# values, it doesn't really need to use the offsets because values
+# are set/get *consistently*, even if not in the same order for every
+# element depending on the orientation
  # dofnums = zeros(Int, mesh.numDofPerNode)
 #  u_vals = zeros(mesh.numDofPerNode)
 
@@ -2229,6 +2225,18 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
   return nothing
 end  # end function saveSolutionToMesh
 
+
+function calcNewNode(i, offset_pumi, offset_orient)
+# this function calculates the new node index on the entity
+# using offset_pumi, the offset
+# that maps the SBP node index i to the pumi node index, and offset_orient,
+# which maps the pumi node index to the pumi node index that takes into account
+# the orientation of the mesh entity
+# the returned node 
+  tmp = abs(offset_pumi - i)
+  tmp2 = abs(offset_orient - tmp) - 1
+  return tmp2
+end
 
 function retrieveSolutionFromMesh(mesh::PumiMesh2, u::AbstractVector)
 # retrieve solution from mesh (after mesh adaptation)
@@ -2430,6 +2438,39 @@ else
 end
  
 end
+
+
+function getNodeMaps(mesh::PumiMesh2)
+# get the mappings between the SBP and Pumi node orderings
+# having to do the mapping at all is inelegent to say the least
+# store mappings in both directions in case they are needed
+# use Uint8s to save cache space during loops
+
+  if mesh.order == 1
+    sbpToPumi = Uint8[1,2,3]
+    pumiToSbp = Uint8[1,2,3]
+  elseif mesh.order == 2
+    sbpToPumi = Uint8[1,2,3,4,5,6,7]
+    pumiToSbp = Uint8[1,2,3,4,5,6,7]
+  elseif mesh.order == 3
+    sbpToPumi = Uint8[1,2,3,4,5,6,7,8,9,12,10,11]
+    pumiToSbp= Uint8[1,2,3,4,5,6,7,8,9,11,12,10]
+  elseif mesh.order == 4 
+    sbpToPumi = Uint8[1,2,3,4,5,6,7,8,9,10,11,12,17,13,15,14,16,18]
+    pumiToSbp = Uint8[1,2,3,4,5,6,7,8,9,10,11,12,14,16,15,17,13,18]
+  else
+    println(STDERR, "Warning: Unsupported element order requestion in getFaceOffsets")
+    # default to 1:1 mapping
+    sbpToPumi = Uint8[1:mesh.numNodesPerElement]
+    pumiToSbp = Uint8[1:mesh.numNodesPerElement]
+  end
+
+  return sbpToPumi, pumiToSbp
+end  # end getNodeMaps
+
+
+
+
 end  # end of module
 
 

@@ -1215,11 +1215,14 @@ int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
 // this is a non elementary function, here for performance reasons only
 // gets the dof numbers for all nodes affected by the element, in order
 // n is the dof numbering
-// entities is an array of node entities that have nodes on the elements, including repeats
+// entities is an array of node entities that have nodes on the elements, including repeats, in the Pumi order
 // element is the element
-// dofnums is the output array
+// dofnums is the output array, in the SBP order
 // the output array will be seen by julia as being num_comp by length(entities)
-int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_offsets[],  apf::MeshEntity* element, int dofnums[])
+// nodemap is typically the map from the Pumi node order to the desired
+// ordering, 1 based indexing
+// collect dofs in Pumi ordering, write them to array in SBP order
+int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_offsets[], uint8_t nodemap[],  apf::MeshEntity* element, int dofnums[])
 {
 //  std::cout << "Entered getDofNumbers" << std::endl;
   // declare and initialize static variables
@@ -1229,7 +1232,6 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
   static int num_comp = apf::countComponents(n);
   static apf::FieldShape* fshape_local = m_local->getShape();
   static apf::MeshEntity* e = entities[0];
-
   static int col = 0;  // current node
   static int ptr = 0;  // pointer to linear address in entities
 
@@ -1264,13 +1266,13 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
           // calculate new node index 
           // convert to 1 based indexing, do offsets, then convert back
           // to zero based indexing
-          new_node = abs(offset_k - (k+1)) - 1;  // move out 1 loop
+          new_node = abs(offset_k - (k+1)) - 1;
           std::cout << "      new_node = " << new_node << std::endl;
  
         for (int p = 0; p < num_comp; p++)
         {
           std::cout << "      component number " << p << std::endl;
-          ptr = col*num_comp + p;
+          ptr = (nodemap[col] - 1)*num_comp + p;
 //          std::cout << "      ptr = " << ptr << std::endl;
          dofnums[ptr] = apf::getNumber(n, e, new_node, p);
         }
