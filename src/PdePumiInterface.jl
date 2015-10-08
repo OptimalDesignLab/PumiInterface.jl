@@ -1717,7 +1717,7 @@ for i=1:3  # loop over verts, edges, faces
 end  # end loop over entity types
 =#
 
-PumiInterface.getDofNumbers(mesh.dofnums_Nptr, node_entities, node_offsets, el_i, dofnums)  # C implimentation
+PumiInterface.getDofNumbers(mesh.dofnums_Nptr, node_entities, node_offsets, mesh.nodemapPumiToSbp, el_i, dofnums)  # C implimentation
 
 
 #=
