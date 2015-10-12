@@ -15,6 +15,20 @@ export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFu
 
 # the vert, edge, face Nptrs are numberings that map a MeshEntity to its 
 # index the the arrays verts, edges, faces, except that they are zero based indices
+
+# internally, all operations and loops are done by looping over nodes 
+# in the Pumi order (ie. vertex nodes counter clockwise, edge nodes
+# counterclockwise, the face nodes counterclockwise starting in with the
+# node nearest the first vertex).
+# The external interface uses remaps the nodes into an order specified
+# by the nodemaps nodemapSbptoPumi and nodemapPumitoSbp.
+# for SBP elements, this amounts to changing the order of the face nodes.
+# The external interface is compreised of the arrays:
+# dofs, coords, dxidx, jac, sparsity_bnds 
+# Care must be taken with the visualization files to map back to the Pumi
+# order
+
+
 export PumiMesh
 #abstract AbstractMesh
 abstract PumiMesh{T1} <: AbstractMesh{T1}
@@ -87,7 +101,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   dofs::Array{Int32, 3}  # store dof numbers of solution array to speed assembly
   sparsity_bnds::Array{Int32, 2}  # store max, min dofs for each dof
   color_masks::Array{BitArray{1}, 1}  # array of bitarray masks used to control element perturbations when forming jacobian, number of arrays = number of colors
-  neighbor_colors::Array{UInt8, 2}  # 4 by numEl array, holds colors of edge-neighbor elements + own color
+  neighbor_colors::Array{Uint8, 2}  # 4 by numEl array, holds colors of edge-neighbor elements + own color
   neighbor_nums::Array{Int32, 2}  # 4 by numEl array, holds element numbers of neighbors + own number, in same order as neighbor_colors
   color_cnt::Array{Int32, 1}  # number of elements in each color
 
@@ -1679,7 +1693,7 @@ function getGlobalNodeNumbers(mesh::PumiMesh2, elnum::Integer, dofnums::Abstract
 el_i = mesh.elements[elnum]
 type_i = getType(mesh.m_ptr, el_i)
 
-println("elnum = ", elnum)
+#println("elnum = ", elnum)
 # calculate total number of nodes
 #nnodes = 3 + 3*mesh.numNodesPerType[2] + mesh.numNodesPerType[3]
 nnodes = mesh.numNodesPerElement
@@ -1690,8 +1704,8 @@ node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
 
 # get node offsets in the SBP order
 node_offsets = view(mesh.elementNodeOffsets[:, elnum])
-println("node_offsets = ", [Int(i) for i in node_offsets])
-println("size(node_offsets) = ", size(node_offsets))
+#println("node_offsets = ", [Int(i) for i in node_offsets])
+#println("size(node_offsets) = ", size(node_offsets))
 #println("node_entities = ", node_entities)
 #println("size(node_entities) = ", size(node_entities))
 #dofnums = zeros(Int,mesh.numDofPerNode, nnodes)  # to be populated with global dof numbers
@@ -2003,7 +2017,7 @@ function getInterfaceArray(mesh::PumiMesh2)
       centroid1 = sum(coords_1, 2)
       centroid2 = sum(coords_2, 2)
 
-      if abs(centroid1[1] - centroid2[1]) < 1e-10  # if big enough difference
+      if abs(centroid1[1] - centroid2[1]) > 1e-10  # if big enough difference
         if centroid1[1] < centroid2[1]
     elementL = element1
     elementR = element2
