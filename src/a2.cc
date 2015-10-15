@@ -134,14 +134,14 @@ void printType(apf::Mesh* m_local, apf::MeshEntity* e)
 // initially number all dofs with number greater than number of nodes, to show
 // they have not received final number yet
 
-void numberdofs(apf::Mesh2* m_local, apf::Numbering* nodeNums, int numN, int comp)
+void numberdofs(apf::Mesh2* m_local, apf::Numbering* nodeNums, int ndof, int comp)
 {
 //  apf::FieldShape* fieldshape = m_local->getShape();
   apf::MeshIterator* it;
   apf::MeshEntity* e;
   int numNodes_typei;
 //  int numNodes_j;
-  int k = numN + 1;
+  int k = ndof + 1;
 
   for (int i = 0; i < 4; ++i) // loop over entity types
   {
@@ -253,18 +253,15 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
     return;
   }
 
-  const int numN = nnodes;
   const int numEl = m_local->count(m_local->getDimension());  // counts the number of elements
 
-  std::cout << "numN = " << numN << " , numEl = " << numEl << std::endl;
-  
 
   // create empty numberings of the proper shape
 //  apf::Numbering* elNums = apf::createNumbering(m, "elementNumbers", apf::getConstant(2), 1);
   numberElements(m_local, elNums, numEl);
   std::cout << "finished initial numbering of elements" << std::endl;
 //  apf::Numbering* nodeNums = createNumbering(m, "nodeNumbers", m_local->getShape(), 1);
-  numberdofs(m_local, nodeNums, numN, comp);
+  numberdofs(m_local, nodeNums, ndof, comp);
   std::cout << "finished initial numbering of nodes" << std::endl;
 
 
@@ -376,7 +373,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
           {
             // get number of node on face
             nodeNum_j = apf::getNumber(nodeNums, face_j, k, 0); 
-            if ( (nodeNum_j > numN) && (nodeNum_j <= 2*numN)) // node not labelled) and not in queue
+            if ( (nodeNum_j > ndof) && (nodeNum_j <= 2*ndof)) // node not labelled) and not in queue
             {
 //              faceNum_j = apf::getNumber( elNums, face_j, 0, 0); // get new face number
 //              std::cout << "adding face " << faceNum_j << " to que" << std::endl; 
@@ -393,8 +390,8 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
         // look at other vertex on edge
         apf::MeshEntity* otherVertex = apf::getEdgeVertOppositeVert(m_local, edge_i, e);
         int otherVertex_num = getNumber(nodeNums, otherVertex, 0,0);
-        bool labeled = (otherVertex_num <= numN);
-        bool queued = (otherVertex_num > 2*numN);  // vertex already queued
+        bool labeled = (otherVertex_num <= ndof);
+        bool queued = (otherVertex_num > 2*ndof);  // vertex already queued
 
 //        std::cout << " other vertex number = " << otherVertex_num << std::endl;
 
@@ -402,7 +399,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
         {
 //          std::cout << "edge has node " << std::endl;
           int edgeNode_num = getNumber(nodeNums, edge_i,0,0); // get number of first node on edge
-          bool edgeNotLabeled = ( (edgeNode_num > numN) && ( edgeNode_num <= 2*numN) ); // edge not labeled nor in que
+          bool edgeNotLabeled = ( (edgeNode_num > ndof) && ( edgeNode_num <= 2*ndof) ); // edge not labeled nor in que
 //          std::cout << "  other vertexlabeled? = " << labeled << " , queued ? = " << queued << " edge nodes not labeled? = " << edgeNotLabeled << std::endl;
           if ((labeled || queued) && edgeNotLabeled)
           {
