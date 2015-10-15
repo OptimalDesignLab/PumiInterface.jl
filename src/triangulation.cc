@@ -452,7 +452,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
 // this function transferes the specified field to the new mesh
 void transferField(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3], apf::Field* field_old, apf::Field* field_new)
 {
-
+  return;
 
   // compute some quantities
   int nnodes_per_el = typeOffsetsPerElement[3] - 1;
@@ -642,6 +642,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
 //   to use as the vertices of the sub-triangles
 //   numberings is an array holding a numbering for each entity dimension
 
+  return NULL;
   std::cout << "\ncreating sub-triangulated mesh" << std::endl;
 
   apf::FieldShape* mshape = m->getShape();

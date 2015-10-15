@@ -275,7 +275,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
     flush(STDERR)
     mesh.mnew_ptr = createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
 
-    mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
+#    mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
   else
     mesh.triangulation = zeros(Int32, 0, 0)
     mesh.mnew_ptr = C_NULL
@@ -2398,7 +2398,7 @@ function writeVisFiles(mesh::PumiMesh, fname::AbstractString)
   if mesh.order <= 2
     writeVtkFiles(fname, mesh.m_ptr)
   else
-    writeVtkFiles(fname, mesh.mnew_ptr)
+#    writeVtkFiles(fname, mesh.mnew_ptr)
   end
 
   return nothing

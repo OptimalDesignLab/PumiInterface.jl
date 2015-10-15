@@ -35,14 +35,16 @@ void addQueues(std::queue<apf::MeshEntity*> & q1, std::queue<apf::MeshEntity*> &
 }
 
 // get starting entity for node reordering
-// search for node vertex classified on geometric vertex that has minimum
-// connectivity
-apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local)
+// search for node vertex classified on geometric vertex that is closest to 
+// the point (x,y) and has minimum connectivity
+//
+apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const double y)
 {
   apf::MeshEntity* e_min; // minimum degree meshentity
   apf::MeshEntity* e_i; // current meshentity
-  int numEdges_min; // number of edges minimum vertex bounds
-  int numEdges_i;   // number of edges current vertex bounds
+  apf::Vector3 coords; // coordinates of current point
+  double dist;  // distance from coords to (x,y)
+  double min_dist; // minimum distance to (x,y)
   apf::ModelEntity* me_i;
   int me_dimension;
 
@@ -51,10 +53,16 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local)
 
   // initilize
   e_i = m_local->deref(it);
-  numEdges_i = m_local->countUpward(e_i);
 
-  e_min = e_i;
-  numEdges_min = numEdges_i;
+  e_min = e_i;  // ensure we return a value if conditions are never
+                // satisfied
+
+  // calculate distance to (x,y)
+  m_local-> getPoint(e_i, 0, coords);
+  // no need to take square root if we are only interested in relative
+  // distance
+  min_dist = (coords[0] - x)*(coords[0] - x) + (coords[1] - y)*(coords[1] - y);
+
 
 
   while ( (e_i = m_local->iterate(it)) )
@@ -63,12 +71,17 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local)
     me_dimension = m_local->getModelType(me_i);
     if ( !me_dimension ) // if me_dimension == 0
     {
-      numEdges_i = m_local->countUpward(e_i);
-//      std::cout << "this entity has " << numEdges_i << " upward edges" << std::endl;
-      if (numEdges_i < numEdges_min)
+
+      // calculate distance to (x,y)
+      m_local-> getPoint(e_i, 0, coords);
+      // no need to take square root if we are only interested in relative
+      // distance
+      dist = (coords[0] - x)*(coords[0] - x) + (coords[1] - y)*(coords[1] - y);
+
+      if (dist < min_dist)
       {
         e_min = e_i;
-        numEdges_min = numEdges_i;
+        min_dist = dist;
         std::cout << "choosing this vertex" << std::endl;
       }
     }
@@ -254,12 +267,12 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
   std::queue < apf::MeshEntity*> tmpQue;
 
 //  apf::MeshIterator* it = m_local->begin(m_local->getDimension());
-  apf::MeshIterator* nodeIt = m_local->begin(0);
+//  apf::MeshIterator* nodeIt = m_local->begin(0);
 
   apf::MeshEntity* e;
 
   // get starting entity
-  e = m_local->iterate(nodeIt);
+//  e = m_local->iterate(nodeIt);
 
   int nodelabel_i = ndof + 1;
   int elementLabel_i = numEl + 1;
@@ -279,7 +292,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
 
     numNodes_i = nodeCount(m_local,e); // get number of nodes on this entity
 
-    std::cout << std::endl;
+//    std::cout << std::endl;
 //    std::cout << "at beginning of while loop" << std::endl;
 //    std::cout << "type of current entity = ";
     printType(m_local, e);
@@ -359,7 +372,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
 //            // double node number to show is has been added to queue
               apf::number(nodeNums, face_j, 0, 0, nodeNum_j*2);
               que1.push(face_j); // add face to que
-              break;
+              break; // only add face to que once
             }
           }
 

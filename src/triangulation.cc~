@@ -296,7 +296,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
     }
 
     // break statements will end up here
-    std::cout << "node " << i << " is part of sub-triangle " << el << " node " << vert << std::endl;
+//    std::cout << "node " << i << " is part of sub-triangle " << el << " node " << vert << std::endl;
     subelements[i] = el;
     subelement_verts[i] = vert;
   }
