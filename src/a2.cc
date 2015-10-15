@@ -1,3 +1,4 @@
+#include <climits>
 #include <apf.h>
 #include <gmi_mesh.h>
 #include <apfMDS.h>
@@ -210,14 +211,18 @@ void printElNumbers(apf::Mesh2*& m_local, apf::Numbering*& elNums)
 // dofs would be difficult
 // return numberings of each, and array of element pointers 
 // (so they can be iterated over in order)
-// dof_statusNumbering tells whether a dof is fixed (=3) or not
+// node_statusNumbering tells whether a dof is fixed (=3) or not
 // ndof is the number of actual degrees of freedom in the mesh
 // comp is the number of dofs per node (the number of components in the dof numberings)
 // nodeNums is a numbering over the dofs to be populated with global node numbers
 // elNums is numbering over elements (faces) to be populated
 // els_reordered is array of pointers to the faces in the new order
-void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, apf::Numbering* dof_statusNumbering, apf::Numbering* nodeNums, apf::Numbering* elNums, apf::MeshEntity* els_reordered[])
+// x, y are the coordinates of the point used to deterimine the starting node
+//   the mesh vertex classified on a model vertex closest to (x,y) is chosen
+void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, apf::Numbering* node_statusNumbering, apf::Numbering* nodeNums, apf::Numbering* elNums, const double x, const double y)
 {
+// TODO: move node_statusNumbering checks out one loop level because 
+//       it is node status now, not dof status
 /*
   if (argc != 3) {
     printf("usage: %s reorder_?.dmg reorder_?.smb\n", argv[0]);
@@ -240,8 +245,16 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
   // use temporary numbering to count number of nodes
 //  apf::Numbering* tmp = apf::numberOwnedNodes(m, "tmpnumber");
 //  const int numN = apf::countNodes(tmp);
+
+  // check that we won't overflow integers
+  if (ndof > INT_MAX/4)
+  {
+    std::cerr << "Error: Cannot number this many dofs using C integers" << std::endl;
+    return;
+  }
+
   const int numN = nnodes;
-  const int numEl = m_local->count(m_local->getDimension());  // counts the number of numbered entitites
+  const int numEl = m_local->count(m_local->getDimension());  // counts the number of elements
 
   std::cout << "numN = " << numN << " , numEl = " << numEl << std::endl;
   
@@ -274,14 +287,14 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
   // get starting entity
 //  e = m_local->iterate(nodeIt);
 
-  int nodelabel_i = ndof + 1;
-  int elementLabel_i = numEl + 1;
+  int nodeLabel_i = ndof + 1;  // one-based indexing
+  int elementLabel_i = numEl;  // zero-based indexing
   int numNodes_i;
 
-  std::cout << "starting nodelabel+1 = " << nodelabel_i << std::endl;
+  std::cout << "starting nodelabel+1 = " << nodeLabel_i << std::endl;
   std::cout << "starting elementlabel_i = " << elementLabel_i << std::endl;
 
-  e = getStartEntity(m_local); // get starting node
+  e = getStartEntity(m_local, x, y); // get starting node
   // queue initial entity
   que1.push(e);
   
@@ -310,13 +323,13 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
       for ( int c = 0; c < comp; ++c) // loop over dof of the node
       {
 //        int nodenum_i = apf::getNumber(nodeNums, e, i, c);
-        int dof_status = apf::getNumber(dof_statusNumbering, e, i, c);
+        int dof_status = apf::getNumber(node_statusNumbering, e, i, c);
         if (dof_status >= 2) // if node is free for loaded
         {
 //          int nodenum_i = apf::getNumber(nodeNums, e, i, c);
-          nodelabel_i -= 1;  // decrement nodelabel
-          number(nodeNums, e, i, c, nodelabel_i);
-//          std::cout << "relabeling node " << nodenum_i << " to " << nodelabel_i << std::endl;
+          nodeLabel_i -= 1;  // decrement nodelabel
+          number(nodeNums, e, i, c, nodeLabel_i);
+//          std::cout << "relabeling node " << nodenum_i << " to " << nodeLabel_i << std::endl;
         } else {
 //           std::cout << "found non free node " << nodenum_i << " , status = " << dof_status << std::endl;
            apf::number(nodeNums, e, i, c, 0);
@@ -355,8 +368,6 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
             elementLabel_i -= 1;  // decrement element label
 //            std::cout << "    renumbering face " << faceNum_j << " to " << elementLabel_i << std::endl;
             apf::number(elNums, face_j, 0, 0, elementLabel_i); // number element
-            els_reordered[elementLabel_i-1] = face_j; // store element in returned array
-                                                      // include -1 offset for 0 based indexing
           }
 
           // check if face has nodes that need labelling
@@ -403,12 +414,12 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
               for (int c = 0; c < comp; ++c) // loop over dofs of node
               {
 //                int nodeNum_j = apf::getNumber(nodeNums, edge_i, j, c);
-                int dof_status = apf::getNumber(dof_statusNumbering, edge_i, j, c);
+                int dof_status = apf::getNumber(node_statusNumbering, edge_i, j, c);
                 if (dof_status >= 2) // if node is free or loaded
                 {
-                  nodelabel_i -= 1;
-//                  std::cout << " relabelling node " << nodeNum_j << " to " << nodelabel_i << std::endl;
-                  apf::number(nodeNums, edge_i, j, c, nodelabel_i);
+                  nodeLabel_i -= 1;
+//                  std::cout << " relabelling node " << nodeNum_j << " to " << nodeLabel_i << std::endl;
+                  apf::number(nodeNums, edge_i, j, c, nodeLabel_i);
                 } else {
 //                  std::cout << " found non free node " << nodeNum_j << " , status = " << dof_status << std::endl;
                   apf::number(nodeNums, edge_i, j, c, 0);
@@ -454,6 +465,19 @@ void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, ap
 
       }  // end if (vertex)
     } // end while loop over que    
+
+
+  if (elementLabel_i != 0)
+  {
+    std::cerr << "Warning: element numbering not sane" << std::endl;
+    std::cerr << "final elementLabel_i = " << elementLabel_i << std::endl;
+  }
+
+  if (nodeLabel_i != 1)
+  {
+    std::cerr << "Warning: node numbering not sane" << std::endl;
+    std::cerr << "final nodeLabel_i = " << nodeLabel_i << std::endl;
+  }
 
 
   apf::writeVtkFiles("number", m_local);

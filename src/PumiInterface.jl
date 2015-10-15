@@ -1031,12 +1031,11 @@ end
 
 
 # these functions are not to be used meshes that are either large or 3d
-function reorder(m_ptr, ndof::Integer, nnodes::Integer, dof_statusN_ptr, nodeNums, elNums, els_reordered)
+function reorder(m_ptr, ndof::Integer, nnodes::Integer, ncomp::Integer, node_statusN_ptr, nodeNums, elNums, x::Float64, y::Float64 )
 
-  nodeN_array = [nodeNums] # pass by reference, holds numbering of dofs
-  elN_array = [elNums] # pass by reference, hold numbering of elements
-
-  ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}),  m_ptr, ndof, nnodes,  2, dof_statusN_ptr, nodeNums, elNums, els_reordered)
+  flush(STDOUT)
+  flush(STDERR)
+  ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}, Cdouble, Cdouble),  m_ptr, ndof, nnodes,  ncomp, dof_statusN_ptr, nodeNums, elNums, x, y)
 
   flush_cstdio()
   return nothing
