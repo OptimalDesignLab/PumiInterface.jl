@@ -79,6 +79,10 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   # truth values if the entity is oriented consistently with the element
   typeNodeFlags::Array{BitArray{2}, 1}
   triangulation::Array{Int32, 2}  # sub triangulation of an element
+
+  nodestatus_Nptr::Ptr{Void}  # node status pointer, status >= 2 -> give it a
+                              # node number
+  nodenums_Nptr::Ptr{Void}    # node numbering itself
   dofnums_Nptr::Ptr{Void}  # pointer to Numbering of dofs (result of reordering)
 #  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
 
@@ -167,30 +171,30 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   el_mshape = getConstantShapePtr(2)
   mesh.coloring_Nptr = createNumberingJ(mesh.m_ptr, "coloring", el_mshape, 1)
 
+  # create node status numbering (node, not dof)
+  mesh.nodestatus_Nptr = createNumberingJ(mesh.m_ptr, "dof status", 
+                         mesh.mshape_ptr, 1)   
+  # create node numbering
+  mesh.nodenums_Nptr = createNumberingJ(mesh.m_ptr, "reordered node numbers",
+                       mesh.mshape_ptr, 1)
 
-  mesh.verts = Array(Ptr{Void}, mesh.numVert)
-  mesh.edges = Array(Ptr{Void}, mesh.numEdge)
-  mesh.elements = Array(Ptr{Void}, mesh.numEl)
-  mesh.dofnums_Nptr = createNumberingJ(mesh.m_ptr, "reordered dof numbers", mesh.mshape_ptr, dofpernode)  # 1 dof per node
+  # create dof numbering
+  mesh.dofnums_Nptr = createNumberingJ(mesh.m_ptr, "reordered dof numbers", mesh.mshape_ptr, dofpernode)
 
-  # get pointers to all MeshEntities
-  # also initilize the field to zero
-  resetAllIts2()
-#  comps = zeros(dofpernode)
-  for i=1:mesh.numVert
-    mesh.verts[i] = getVert()
-    incrementVertIt()
-  end
+  # populate node status numbering
+  populateNodeStatus(mesh)
 
-  for i=1:mesh.numEdge
-    mesh.edges[i] = getEdge()
-    incrementEdgeIt()
-  end
+  # do node numbering
+  start_coords = opts["reordering_start_coords"]
+  reorder(mesh.m-Ptr, mesh.numnodes, mesh.numNodes, mesh.numNodes, 1, 
+          mesh.nodestatus_Nptr, mesh.nodenums_Nptr, mesh.el_Nptr, 
+	  start_coords[1], start_coords[2])
 
-  for i=1:mesh.numEl
-    mesh.elements[i] = getFace()
-    incrementFaceIt()
-  end
+  # do dof numbering
+
+  # get entity pointers
+  mesh.verts, mesh.edges, mesh.elements = getEntityPointers(mesh)
+
 
   mesh.numBC = opts["numBC"]
 
@@ -428,6 +432,92 @@ function flattenArray{T}(A::AbstractArray{AbstractArray{T}, 1})
   return B
 
 end
+
+
+
+function populateNodeStatus(mesh::PumiMesh)
+# populate the nodestatus_Nptr with values
+# currently we set all nodes to status 3 (free)
+
+ resetAllIts2()
+  # mesh iterator increment, retreval functions
+  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
+  iterators_get = [getVert, getEdge, getFace]
+  num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
+  num_nodes_entity = mesh.numNodesPerEntity
+
+#  mesh.numNodesPerType = num_nodes_entity
+
+  println("num_entities = ", num_entities)
+  println("num_nodes_entity = ", num_nodes_entity)
+
+#  curr_dof = 1
+  curr_dof = numDof+1
+  for etype = 1:3 # loop over entity types
+#    println("etype = ", etype)
+    if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
+      for entity = 1:num_entities[etype]  # loop over all entities of this type
+#	println("  entity number: ", entity)
+	entity_ptr = iterators_get[etype]()  # get entity
+
+	for node = 1:num_nodes_entity[etype]
+#	  println("    node : ", node)
+	  numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, 0, 3)
+	end  # end loop over node
+
+      iterators_inc[etype]()
+      end  # end loop over entitiesa
+    end  # end if 
+  end  # end loop over entity types
+
+  return nothing
+end
+
+
+
+function getEntityPointers(mesh::PumiMesh)
+# get the pointers to all the apf::MeshEntities and put them in arrays
+# uses the Numberings to determine what the index in the array of each
+# entity
+
+
+  verts = Array(Ptr{Void}, mesh.numVert)
+  edges = Array(Ptr{Void}, mesh.numEdge)
+  elements = Array(Ptr{Void}, mesh.numEl)
+  entity = Ptr{Void}(0)
+  idx = 0
+  # get pointers to all MeshEntities
+  # also initilize the field to zero
+  resetAllIts2()
+#  comps = zeros(dofpernode)
+  for i=1:mesh.numVert
+    entity = getVert()
+    idx = getNumberJ(mesh.vert_Nptr, entity, 0, 0) + 1
+    verts[idx] = entity
+    incrementVertIt()
+  end
+
+  for i=1:mesh.numEdge
+    entity = getEdge()
+    idx = getNumberJ(mesh.edge_Nptr, entity, 0, 0) + 1
+    edges[idx] = entity
+    incrementEdgeIt()
+  end
+
+  for i=1:mesh.numEl
+    entity = getFace()
+    idx = getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
+    elements[idx] = entity
+    incrementFaceIt()
+  end
+
+  resetAllIts2()
+
+  return verts, edges, elements
+
+end  # end getEntityPointers
+
+
 
 
 
