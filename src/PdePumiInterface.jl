@@ -3,7 +3,7 @@ push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
 push!(LOAD_PATH, "/users/creanj/.julia/v0.4/PDESolver/src/common")
 using PumiInterface
 using SummationByParts
-using PDESolverCommon
+using ODLCommonTools
 using ArrayViews
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 

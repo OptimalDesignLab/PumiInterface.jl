@@ -1031,8 +1031,23 @@ end
 
 
 # these functions are not to be used meshes that are either large or 3d
+@doc """
+### PumiInterface.reorder
+
+  This function performs node reordering according to the algorithm in 
+  "Adjacency-based Data Reordering Algoirthm for Acceleration of Finite 
+   Element Computations" by Zhou, Sahni, Shephard, Carothers, Jansen
+
+   Arguments:
+   m_ptr: mesh pointer
+   ndof: total number of degrees of freedom to be labelled (exlucding any
+         fixed dofs not to be given a number)
+   nnodes: total number of nodes in the mesh (does *not* exclude 
+
+"""->
 function reorder(m_ptr, ndof::Integer, nnodes::Integer, ncomp::Integer, node_statusN_ptr, nodeNums, elNums, x::Float64, y::Float64 )
 
+ 
   flush(STDOUT)
   flush(STDERR)
   ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}, Cdouble, Cdouble),  m_ptr, ndof, nnodes,  ncomp, dof_statusN_ptr, nodeNums, elNums, x, y)
