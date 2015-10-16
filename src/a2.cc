@@ -219,20 +219,10 @@ void printElNumbers(apf::Mesh2*& m_local, apf::Numbering*& elNums)
 // els_reordered is array of pointers to the faces in the new order
 // x, y are the coordinates of the point used to deterimine the starting node
 //   the mesh vertex classified on a model vertex closest to (x,y) is chosen
-void reorder(apf::Mesh2* m_local, int ndof, const int nnodes, const int comp, apf::Numbering* node_statusNumbering, apf::Numbering* nodeNums, apf::Numbering* elNums, const double x, const double y)
+void reorder(apf::Mesh2* m_local, int ndof, const int comp, apf::Numbering* node_statusNumbering, apf::Numbering* nodeNums, apf::Numbering* elNums, const double x, const double y)
 {
 // TODO: move node_statusNumbering checks out one loop level because 
 //       it is node status now, not dof status
-/*
-  if (argc != 3) {
-    printf("usage: %s reorder_?.dmg reorder_?.smb\n", argv[0]);
-//    return 0;
-  }
-  MPI_Init(&argc,&argv);
-  PCU_Comm_Init();
-  gmi_register_mesh();
-  apf::Mesh2* m = apf::loadMdsMesh(argv[1], argv[2]);
-*/
 
   std::cout << "Entered reorder" << std::endl;
   apf::FieldShape* fieldshape = m_local->getShape();

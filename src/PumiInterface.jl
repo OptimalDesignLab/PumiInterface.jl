@@ -1042,10 +1042,24 @@ end
    m_ptr: mesh pointer
    ndof: total number of degrees of freedom to be labelled (exlucding any
          fixed dofs not to be given a number)
-   nnodes: total number of nodes in the mesh (does *not* exclude 
+   comp: number of dofs per node
+   node_statusNumbering: apf::Numbering* that tells what the status of a dof
+                         is.  If the value for a dof >= 2, then it gets 
+			 labelled.  Must have ncomp components per node.
+  nodeNums:  an already created apf::Numbering* that the dof numbers are
+             written to. Its apf::Fieldshape must be the same as the mesh.
+	     The numbering is 1-based.  Any dof with status < 2 will be given
+	     the number zero.
+
+  elNums: an already created apf::Numbering* that the element numbers are 
+          written to.
+  x, y : x-y coordinates of a point.  The mesh vertex classified on a model
+         vertex closest to this point is used as the starting entity for the 
+	 reordering.  Note that the reordering algorithm assigns dof numbers
+	 in reverse order (ie. high to low rather than low to high).
 
 """->
-function reorder(m_ptr, ndof::Integer, nnodes::Integer, ncomp::Integer, node_statusN_ptr, nodeNums, elNums, x::Float64, y::Float64 )
+function reorder(m_ptr, ndof::Integer, nnodes::Integer, ncomp::Integer, node_statusN_ptr, nodeNums, elNums, x::FloatingPoint, y::FloatingPoint )
 
  
   flush(STDOUT)

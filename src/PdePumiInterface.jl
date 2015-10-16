@@ -1251,15 +1251,19 @@ function numberDofs(mesh::PumiMesh2)
 
   verts_i = Array(Ptr{Void}, 12)
   edges_i = Array(Ptr{Void}, 12)
+  resetAllIts2()
+  el_i_ptr = Ptr{Void}(0)  # hold current element
 # TODO: move all if statements out one for loop (check only first dof on each node)
   curr_dof = 1
   for i=1:mesh.numEl
 #    println("element number: ", i)
+    el_i_ptr = getFace()
+    incrementFaceIt()
     # get vertices, edges for this element
-    numVert = getDownward(mesh.m_ptr, mesh.elements[i], 0, verts_i)
+    numVert = getDownward(mesh.m_ptr, el_i_ptr, 0, verts_i)
 #    println("verts_i = ", verts_i)
 #    println("mesh.verts = ", mesh.verts)
-    numEdge = getDownward(mesh.m_ptr, mesh.elements[i], 1, edges_i)
+    numEdge = getDownward(mesh.m_ptr, el_i_ptr, 1, edges_i)
     el_i = mesh.elements[i]
     for j=1:3  # loop over vertices, edges
 #      println("  vertex and edge number: ", j)
@@ -1302,7 +1306,7 @@ function numberDofs(mesh::PumiMesh2)
     end  # end loop over face nodes
   end  # end loop over elements
 
-
+  resetAllIts2()
 
 
   println("finished performing final dof numbering")
