@@ -211,8 +211,6 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   # get dof numbers
 #  numberDofs(mesh)
-  getDofNumbers(mesh)  # store dof numbers
-
 
 
   mesh.numBC = opts["numBC"]
@@ -251,6 +249,11 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   # use partially constructed mesh object to populate arrays
 
   mesh.elementNodeOffsets, mesh.typeNodeFlags = getEntityOrientations(mesh)
+
+  getDofNumbers(mesh)  # store dof numbers
+
+
+
   # get sparsing information
   mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
   getSparsityBounds(mesh, mesh.sparsity_bnds)
@@ -476,11 +479,13 @@ function populateDofNumbers(mesh::PumiMesh)
 
 	for node = 1:num_nodes_entity[etype]
 #	  println("    node : ", node)
-          nodenum = getNumberJ(mesh.nodestatus_Nptr, entity_ptr, node-1, 0)
+          nodenum = getNumberJ(mesh.nodenums_Nptr, entity_ptr, node-1, 0)
 	  if nodenum != 0
+	    println("assigning dof numbers for node ", nodenum)
 	    for i=1:mesh.numDofPerNode
 	      dofnum_i = (nodenum -1)*mesh.numDofPerNode + i
-  	      numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, i, dofnum_i)
+	      println("  dofnum = ", dofnum_i)
+  	      numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, i-1, dofnum_i)
 	    end  # end loop over dofsPerNode
 	  end   # end if nodenum != 0
 	end  # end loop over node
@@ -491,6 +496,8 @@ function populateDofNumbers(mesh::PumiMesh)
   end  # end loop over entity types
 
   resetAllIts2()
+
+  writeVtkFiles("dofs_numbered", mesh.m_ptr)
   return nothing
 end
 
