@@ -157,6 +157,15 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   println("mesh.typeOffsetsPerElement = ", mesh.typeOffsetsPerElement)
  mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
+  numnodes = 0
+  for i=1:3
+    numnodes += mesh.numNodesPerType[i]*mesh.numEntitiesPerType[i]
+  end
+  println("numnodes = ", numnodes)
+  println("numdof = ", numnodes*dofpernode)
+  mesh.numNodes = numnodes      # we assume there are no non-free nodes/dofs
+  mesh.numDof = numnodes*dofpernode
+
   # get nodemaps
   mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(mesh)
 
@@ -179,21 +188,31 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
                        mesh.mshape_ptr, 1)
 
   # create dof numbering
-  mesh.dofnums_Nptr = createNumberingJ(mesh.m_ptr, "reordered dof numbers", mesh.mshape_ptr, dofpernode)
+  mesh.dofnums_Nptr = createNumberingJ(mesh.m_ptr, "reordered dof numbers", 
+                      mesh.mshape_ptr, dofpernode)
 
   # populate node status numbering
   populateNodeStatus(mesh)
 
   # do node numbering
+  # tell the algorithm there is only 1 dof per node because we only
+  # want to label nodes
   start_coords = opts["reordering_start_coords"]
-  reorder(mesh.m-Ptr, mesh.numnodes, mesh.numNodes, mesh.numNodes, 1, 
+  reorder(mesh.m_ptr, mesh.numNodes, 1, 
           mesh.nodestatus_Nptr, mesh.nodenums_Nptr, mesh.el_Nptr, 
 	  start_coords[1], start_coords[2])
 
   # do dof numbering
+  populateDofNumbers(mesh)
 
   # get entity pointers
   mesh.verts, mesh.edges, mesh.elements = getEntityPointers(mesh)
+
+
+  # get dof numbers
+#  numberDofs(mesh)
+  getDofNumbers(mesh)  # store dof numbers
+
 
 
   mesh.numBC = opts["numBC"]
@@ -232,9 +251,6 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   # use partially constructed mesh object to populate arrays
 
   mesh.elementNodeOffsets, mesh.typeNodeFlags = getEntityOrientations(mesh)
-  numberDofs(mesh)
-  getDofNumbers(mesh)  # store dof numbers
-
   # get sparsing information
   mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
   getSparsityBounds(mesh, mesh.sparsity_bnds)
@@ -433,26 +449,24 @@ function flattenArray{T}(A::AbstractArray{AbstractArray{T}, 1})
 
 end
 
-
-
-function populateNodeStatus(mesh::PumiMesh)
-# populate the nodestatus_Nptr with values
+function populateDofNumbers(mesh::PumiMesh)
+# populate the dofnums_Nptr with values calculated from
+# nodenums_Nptr
 # currently we set all nodes to status 3 (free)
 
- resetAllIts2()
+  resetAllIts2()
   # mesh iterator increment, retreval functions
+  # TODO: checks if using mutable arrays is causing dynamic dispatch
   iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
   iterators_get = [getVert, getEdge, getFace]
   num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
-  num_nodes_entity = mesh.numNodesPerEntity
+  num_nodes_entity = mesh.numNodesPerType
 
 #  mesh.numNodesPerType = num_nodes_entity
 
   println("num_entities = ", num_entities)
   println("num_nodes_entity = ", num_nodes_entity)
 
-#  curr_dof = 1
-  curr_dof = numDof+1
   for etype = 1:3 # loop over entity types
 #    println("etype = ", etype)
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
@@ -462,7 +476,13 @@ function populateNodeStatus(mesh::PumiMesh)
 
 	for node = 1:num_nodes_entity[etype]
 #	  println("    node : ", node)
-	  numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, 0, 3)
+          nodenum = getNumberJ(mesh.nodestatus_Nptr, entity_ptr, node-1, 0)
+	  if nodenum != 0
+	    for i=1:mesh.numDofPerNode
+	      dofnum_i = (nodenum -1)*mesh.numDofPerNode + i
+  	      numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, i, dofnum_i)
+	    end  # end loop over dofsPerNode
+	  end   # end if nodenum != 0
 	end  # end loop over node
 
       iterators_inc[etype]()
@@ -470,6 +490,47 @@ function populateNodeStatus(mesh::PumiMesh)
     end  # end if 
   end  # end loop over entity types
 
+  resetAllIts2()
+  return nothing
+end
+
+
+
+function populateNodeStatus(mesh::PumiMesh)
+# populate the nodestatus_Nptr with values
+# currently we set all nodes to status 3 (free)
+
+  resetAllIts2()
+  # mesh iterator increment, retreval functions
+  # TODO: checks if using mutable arrays is causing dynamic dispatch
+  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
+  iterators_get = [getVert, getEdge, getFace]
+  num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
+  num_nodes_entity = mesh.numNodesPerType
+
+#  mesh.numNodesPerType = num_nodes_entity
+
+  println("num_entities = ", num_entities)
+  println("num_nodes_entity = ", num_nodes_entity)
+
+  for etype = 1:3 # loop over entity types
+#    println("etype = ", etype)
+    if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
+      for entity = 1:num_entities[etype]  # loop over all entities of this type
+#	println("  entity number: ", entity)
+	entity_ptr = iterators_get[etype]()  # get entity
+
+	for node = 1:num_nodes_entity[etype]
+#	  println("    node : ", node)
+	  numberJ(mesh.nodestatus_Nptr, entity_ptr, node-1, 0, 3)
+	end  # end loop over node
+
+      iterators_inc[etype]()
+      end  # end loop over entitiesa
+    end  # end if 
+  end  # end loop over entity types
+
+  resetAllIts2()
   return nothing
 end
 

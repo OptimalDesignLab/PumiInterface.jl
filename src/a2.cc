@@ -175,16 +175,17 @@ void numberdofs(apf::Mesh2* m_local, apf::Numbering* nodeNums, int ndof, int com
 
 // number elements with numbers greater than number of elements to show they 
 // have not yet received their final number
-void numberElements(apf::Mesh2*& m_local, apf::Numbering*& elNums, int numEl)
+void numberElements(apf::Mesh2* m_local, apf::Numbering* elNums, int numEl)
 {
   apf::MeshIterator* it = m_local->begin(2);
   apf::MeshEntity* e;
   int k = numEl + 1;
 
-  
+  std::cout << "elNums = " << elNums << std::endl; 
   while ( (e = m_local->iterate(it) ) )
   {
-//    std::cout << "labelling element " << k - numEl << " as " << k << std::endl;
+    std::cout << "labelling element " << k - numEl << " as " << k << std::endl;
+    std::cout << " e = " << e << std::endl;
     apf::number(elNums, e, 0, 0, k);
     ++k;
   }

@@ -1059,12 +1059,14 @@ end
 	 in reverse order (ie. high to low rather than low to high).
 
 """->
-function reorder(m_ptr, ndof::Integer, nnodes::Integer, ncomp::Integer, node_statusN_ptr, nodeNums, elNums, x::FloatingPoint, y::FloatingPoint )
+function reorder(m_ptr, ndof::Integer, ncomp::Integer, node_statusN_ptr, nodeNums, elNums, x::FloatingPoint, y::FloatingPoint )
 
+  println("ndof = ", ndof)
+  println("ncomp = ", ncomp)
  
   flush(STDOUT)
   flush(STDERR)
-  ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}, Cdouble, Cdouble),  m_ptr, ndof, nnodes,  ncomp, dof_statusN_ptr, nodeNums, elNums, x, y)
+  ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}, Cdouble, Cdouble),  m_ptr, ndof,  ncomp, node_statusN_ptr, nodeNums, elNums, x, y)
 
   flush_cstdio()
   return nothing
