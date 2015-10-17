@@ -53,7 +53,13 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const dou
 
   apf::MeshIterator* it = m_local->begin(0); // iterator over verticies
 
-
+  gmi_model* g = m_local->getModel();
+  std::cout << "g = " << g << std::endl;
+  std::cout << "g.n[0] = " << g->n[0] << std::endl;
+  std::cout << "g.n[1] = " << g->n[1] << std::endl;
+  std::cout << "g.n[2] = " << g->n[2] << std::endl;
+  std::cout << "g.n[3] = " << g->n[3] << std::endl;
+  bool is_null = g->n[0] == 0;
   // initilize
   e_i = m_local->deref(it);
 
@@ -75,8 +81,8 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const dou
     me_dimension = m_local->getModelType(me_i);
     std::cout << "e_i = " << e_i << std::endl;
     std::cout << "me_dimension = " << me_dimension << std::endl;
-//    if ( !me_dimension ) // if me_dimension == 0
-//    {
+    if ( !me_dimension || is_null ) // if me_dimension == 0
+    {
 
       // calculate distance to (x,y)
       m_local-> getPoint(e_i, 0, coords);
@@ -92,7 +98,7 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const dou
         min_dist = dist;
         std::cout << "choosing this vertex" << std::endl;
       }
-//    }
+    }
   }
 
   m_local->getPoint(e_min, 0, coords);

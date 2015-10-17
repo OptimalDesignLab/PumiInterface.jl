@@ -196,7 +196,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
 
   # do node reordering
- if opts["reordering_algorithm"] == "Adjacency"
+ if opts["reordering_algorithm"] == "adjacency"
     start_coords = opts["reordering_start_coords"]
     # tell the algorithm there is only 1 dof per node because we only
     # want to label nodes
