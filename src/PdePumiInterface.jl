@@ -487,10 +487,8 @@ function populateDofNumbers(mesh::PumiMesh)
 #	  println("    node : ", node)
           nodenum = getNumberJ(mesh.nodenums_Nptr, entity_ptr, node-1, 0)
 	  if nodenum != 0
-	    println("assigning dof numbers for node ", nodenum)
 	    for i=1:mesh.numDofPerNode
 	      dofnum_i = (nodenum -1)*mesh.numDofPerNode + i
-	      println("  dofnum = ", dofnum_i)
   	      numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, i-1, dofnum_i)
 	    end  # end loop over dofsPerNode
 	  end   # end if nodenum != 0

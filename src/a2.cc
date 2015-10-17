@@ -54,11 +54,13 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const dou
   apf::MeshIterator* it = m_local->begin(0); // iterator over verticies
 
   gmi_model* g = m_local->getModel();
+/*
   std::cout << "g = " << g << std::endl;
   std::cout << "g.n[0] = " << g->n[0] << std::endl;
   std::cout << "g.n[1] = " << g->n[1] << std::endl;
   std::cout << "g.n[2] = " << g->n[2] << std::endl;
   std::cout << "g.n[3] = " << g->n[3] << std::endl;
+*/
   bool is_null = g->n[0] == 0;
   // initilize
   e_i = m_local->deref(it);
@@ -72,37 +74,32 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const dou
   // distance
   min_dist = (coords[0] - x)*(coords[0] - x) + (coords[1] - y)*(coords[1] - y);
 
-  std::cout << "min_dist = " << min_dist << std::endl;
 
 
   while ( (e_i = m_local->iterate(it)) )
   {
     me_i = m_local->toModel(e_i);
     me_dimension = m_local->getModelType(me_i);
-    std::cout << "e_i = " << e_i << std::endl;
-    std::cout << "me_dimension = " << me_dimension << std::endl;
     if ( !me_dimension || is_null ) // if me_dimension == 0
     {
 
       // calculate distance to (x,y)
       m_local-> getPoint(e_i, 0, coords);
-      std::cout << "coords = " << coords << std::endl;
       // no need to take square root if we are only interested in relative
       // distance
       dist = (coords[0] - x)*(coords[0] - x) + (coords[1] - y)*(coords[1] - y);
-      std::cout << "dist = " << dist << std::endl;
 
       if (dist < min_dist)
       {
         e_min = e_i;
         min_dist = dist;
-        std::cout << "choosing this vertex" << std::endl;
+//        std::cout << "choosing this vertex" << std::endl;
       }
     }
   }
 
   m_local->getPoint(e_min, 0, coords);
-  std::cout << "e_min coordinates = " << coords << std::endl;
+  std::cout << "starting entity coordinates = " << coords << std::endl;
 
   return e_min;
 
@@ -197,11 +194,9 @@ void numberElements(apf::Mesh2* m_local, apf::Numbering* elNums, int numEl)
   apf::MeshEntity* e;
   int k = numEl + 1;
 
-  std::cout << "elNums = " << elNums << std::endl; 
   while ( (e = m_local->iterate(it) ) )
   {
-    std::cout << "labelling element " << k - numEl << " as " << k << std::endl;
-    std::cout << " e = " << e << std::endl;
+//    std::cout << "labelling element " << k - numEl << " as " << k << std::endl;
     apf::number(elNums, e, 0, 0, k);
     ++k;
   }
@@ -241,14 +236,14 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp, apf::Numbering* node
 // TODO: move node_statusNumbering checks out one loop level because 
 //       it is node status now, not dof status
 
-  std::cout << "Entered reorder" << std::endl;
+  std::cout << "\nEntered reorder" << std::endl;
+/*
   apf::FieldShape* fieldshape = m_local->getShape();
-  
   std::cout << " field has nodes in dimension: 0 => " << fieldshape->hasNodesIn(0) << std::endl;
   std::cout << " 1 => " << fieldshape->hasNodesIn(1) << std::endl;
   std::cout << " 2 => " << fieldshape->hasNodesIn(2) << std::endl;
   std::cout << " 3 => " << fieldshape->hasNodesIn(3) << std::endl;
- 
+*/
   // use temporary numbering to count number of nodes
 //  apf::Numbering* tmp = apf::numberOwnedNodes(m, "tmpnumber");
 //  const int numN = apf::countNodes(tmp);
@@ -274,7 +269,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp, apf::Numbering* node
 
 
   //print initial numberings
-  apf::writeVtkFiles("number_orig", m_local);
+//  apf::writeVtkFiles("number_orig", m_local);
 
 
   printElNumbers( m_local, elNums);
@@ -312,7 +307,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp, apf::Numbering* node
 //    std::cout << std::endl;
 //    std::cout << "at beginning of while loop" << std::endl;
 //    std::cout << "type of current entity = ";
-    printType(m_local, e);
+//    printType(m_local, e);
 
     int type_enum_e = m_local->getType(e);
 
@@ -484,10 +479,11 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp, apf::Numbering* node
   }
 
 
-  apf::writeVtkFiles("number", m_local);
 //  m_local->destroyNative();
 //  apf::destroyMesh(m);
 //  PCU_Comm_Free();
 // MPI_Finalize();
+
+  std::cout << std::endl;
 }
 
