@@ -194,32 +194,29 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   # populate node status numbering
   populateNodeStatus(mesh)
 
+
+  # do node reordering
  if opts["reordering_algorithm"] == "Adjacency"
     start_coords = opts["reordering_start_coords"]
-    # do node numbering
     # tell the algorithm there is only 1 dof per node because we only
     # want to label nodes
     reorder(mesh.m_ptr, mesh.numNodes, 1, 
             mesh.nodestatus_Nptr, mesh.nodenums_Nptr, mesh.el_Nptr, 
 	    start_coords[1], start_coords[2])
 
-    # do dof numbering
-    populateDofNumbers(mesh)
-  elseif opts["reordering_algoirhtm"] == "default"
-
+ elseif opts["reordering_algorithm"] == "default"
+    numberNodes(mesh)
 
   else
     println(STDERR, "Error: invalid dof reordering algorithm requested")
   end
 
-
+  # do dof numbering
+  populateDofNumbers(mesh)
+ 
 
   # get entity pointers
   mesh.verts, mesh.edges, mesh.elements = getEntityPointers(mesh)
-
-
-  # get dof numbers
-#  numberDofs(mesh)
 
 
   mesh.numBC = opts["numBC"]
@@ -1346,9 +1343,9 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh2, medges::AbstractArray{Int, 1}
 end  # end function
 
 
-function numberNodes(mesh::PumiMesh2)
-# assign dof numbers to entire mesh
-# calculates numNodes, numDof
+function numberNodes(mesh::PumiMesh2, number_dofs=false)
+# assign node numbers to entire mesh, or dof numbers if number_dofs=true,
+# using the correct Numbering pointer
 # assumes mesh elements have already been reordered
 # this works for high order elements
   println("Entered numberDofs")
@@ -1369,9 +1366,6 @@ function numberNodes(mesh::PumiMesh2)
     println("Warning: too many dofs, renumbering will fail")
   end
 
-  # save numbers to mesh
-  mesh.numNodes = numnodes
-  mesh.numDof = numDof
 
   # initally number all dofs as numDof+1 to 2*numDof
   # this allows quick check to see if somthing is labelled or not
@@ -1384,6 +1378,16 @@ function numberNodes(mesh::PumiMesh2)
   num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f]
 
 #  mesh.numNodesPerType = num_nodes_entity
+
+  if number_dofs
+    numbering_ptr = mesh.dofnums_Nptr
+    curr_dof = mesh.numDof + 1
+    dofpernode = mesh.numDofPerNode
+  else  # do node numbering
+    numbering_ptr = mesh.nodenums_Nptr
+    curr_dof = mesh.numNodes + 1
+    dofpernode = 1
+  end
 
   println("num_entities = ", num_entities)
   println("num_nodes_entity = ", num_nodes_entity)
@@ -1399,8 +1403,8 @@ function numberNodes(mesh::PumiMesh2)
 
 	for node = 1:num_nodes_entity[etype]
 #	  println("    node : ", node)
-	  for dof = 1:mesh.numDofPerNode
-	    numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, dof-1, curr_dof)
+	  for dof = 1:dofpernode
+	    numberJ(numbering_ptr, entity_ptr, node-1, dof-1, curr_dof)
 #	    println("      entity ", entity_ptr, " labelled ", curr_dof)
 	    curr_dof += 1
 	  end  # end loop over dof
@@ -1431,31 +1435,30 @@ function numberNodes(mesh::PumiMesh2)
 #    println("verts_i = ", verts_i)
 #    println("mesh.verts = ", mesh.verts)
     numEdge = getDownward(mesh.m_ptr, el_i_ptr, 1, edges_i)
-    el_i = mesh.elements[i]
     for j=1:3  # loop over vertices, edges
 #      println("  vertex and edge number: ", j)
       vert_j = verts_i[j]
       edge_j = edges_i[j]
 #      println("  vert_j = ", vert_j)
 #      println("  edge_j = ", edge_j)
-      for k=1:mesh.numDofPerNode # loop over vertex dofs
+      for k=1:dofpernode # loop over vertex dofs
 #	println("    dof number: ", k)
 #	println("    vert_j = ", vert_j)
-        dofnum_k = getNumberJ(mesh.dofnums_Nptr, vert_j, 0, k-1)
+        dofnum_k = getNumberJ(numbering_ptr, vert_j, 0, k-1)
 	if dofnum_k > numDof  # still has initial number
 	  # give it new (final) number
-	  numberJ(mesh.dofnums_Nptr, vert_j, 0, k-1, curr_dof)
+	  numberJ(numbering_ptr, vert_j, 0, k-1, curr_dof)
 	  curr_dof += 1
 	end
       end  # end loop over vertex dofs
       
       # loop over nodes on edge
       for k=1:num_nodes_entity[2]  # loop over nodes
-	for p=1:mesh.numDofPerNode  # loop over dofs
-	  dofnum_p = getNumberJ(mesh.dofnums_Nptr, edge_j, k-1, p-1)
+	for p=1:dofpernode  # loop over dofs
+	  dofnum_p = getNumberJ(numbering_ptr, edge_j, k-1, p-1)
 	  if dofnum_p > numDof  # still has initial number
 	    # give it new (final) number
-	    numberJ(mesh.dofnums_Nptr, edge_j, k-1, p-1, curr_dof)
+	    numberJ(numbering_ptr, edge_j, k-1, p-1, curr_dof)
 	    curr_dof += 1
 	  end
 	end
@@ -1463,10 +1466,10 @@ function numberNodes(mesh::PumiMesh2)
     end  # end loop over vertices, edges
     # label face nodes
     for k=1:num_nodes_entity[3]  # loop over nodes on face
-      for p=1:mesh.numDofPerNode  # loop over dofs
-	dofnum_p = getNumberJ(mesh.dofnums_Nptr, el_i, k-1, p-1)
+      for p=1:dofpernode  # loop over dofs
+	dofnum_p = getNumberJ(numbering_ptr, el_i, k-1, p-1)
 	if dofnum_p > numDof
-	  numberJ(mesh.dofnums_Nptr, el_i, k-1, p-1, curr_dof)
+	  numberJ(numbering_ptr, el_i, k-1, p-1, curr_dof)
 	  curr_dof += 1
 	end
       end
