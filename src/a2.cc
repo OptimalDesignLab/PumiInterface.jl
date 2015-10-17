@@ -41,6 +41,8 @@ void addQueues(std::queue<apf::MeshEntity*> & q1, std::queue<apf::MeshEntity*> &
 //
 apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const double y)
 {
+
+  std::cout << "requested starting coordinates = " << x << ", " << y <<std::endl;
   apf::MeshEntity* e_min; // minimum degree meshentity
   apf::MeshEntity* e_i; // current meshentity
   apf::Vector3 coords; // coordinates of current point
@@ -64,20 +66,25 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const dou
   // distance
   min_dist = (coords[0] - x)*(coords[0] - x) + (coords[1] - y)*(coords[1] - y);
 
+  std::cout << "min_dist = " << min_dist << std::endl;
 
 
   while ( (e_i = m_local->iterate(it)) )
   {
     me_i = m_local->toModel(e_i);
     me_dimension = m_local->getModelType(me_i);
-    if ( !me_dimension ) // if me_dimension == 0
-    {
+    std::cout << "e_i = " << e_i << std::endl;
+    std::cout << "me_dimension = " << me_dimension << std::endl;
+//    if ( !me_dimension ) // if me_dimension == 0
+//    {
 
       // calculate distance to (x,y)
       m_local-> getPoint(e_i, 0, coords);
+      std::cout << "coords = " << coords << std::endl;
       // no need to take square root if we are only interested in relative
       // distance
       dist = (coords[0] - x)*(coords[0] - x) + (coords[1] - y)*(coords[1] - y);
+      std::cout << "dist = " << dist << std::endl;
 
       if (dist < min_dist)
       {
@@ -85,8 +92,11 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const dou
         min_dist = dist;
         std::cout << "choosing this vertex" << std::endl;
       }
-    }
+//    }
   }
+
+  m_local->getPoint(e_min, 0, coords);
+  std::cout << "e_min coordinates = " << coords << std::endl;
 
   return e_min;
 
