@@ -194,16 +194,25 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   # populate node status numbering
   populateNodeStatus(mesh)
 
-  # do node numbering
-  # tell the algorithm there is only 1 dof per node because we only
-  # want to label nodes
-  start_coords = opts["reordering_start_coords"]
-  reorder(mesh.m_ptr, mesh.numNodes, 1, 
-          mesh.nodestatus_Nptr, mesh.nodenums_Nptr, mesh.el_Nptr, 
-	  start_coords[1], start_coords[2])
+ if opts["reordering_algorithm"] == "Adjacency"
+    start_coords = opts["reordering_start_coords"]
+    # do node numbering
+    # tell the algorithm there is only 1 dof per node because we only
+    # want to label nodes
+    reorder(mesh.m_ptr, mesh.numNodes, 1, 
+            mesh.nodestatus_Nptr, mesh.nodenums_Nptr, mesh.el_Nptr, 
+	    start_coords[1], start_coords[2])
 
-  # do dof numbering
-  populateDofNumbers(mesh)
+    # do dof numbering
+    populateDofNumbers(mesh)
+  elseif opts["reordering_algoirhtm"] == "default"
+
+
+  else
+    println(STDERR, "Error: invalid dof reordering algorithm requested")
+  end
+
+
 
   # get entity pointers
   mesh.verts, mesh.edges, mesh.elements = getEntityPointers(mesh)
@@ -1337,7 +1346,7 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh2, medges::AbstractArray{Int, 1}
 end  # end function
 
 
-function numberDofs(mesh::PumiMesh2)
+function numberNodes(mesh::PumiMesh2)
 # assign dof numbers to entire mesh
 # calculates numNodes, numDof
 # assumes mesh elements have already been reordered
