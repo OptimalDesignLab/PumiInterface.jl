@@ -1356,13 +1356,7 @@ function numberNodes(mesh::PumiMesh2, number_dofs=false)
   println("num_nodes_e = ", num_nodes_e)
   println("num_nodes_f = ", num_nodes_f)
   numnodes = num_nodes_v*mesh.numVert + num_nodes_e*mesh.numEdge + num_nodes_f*mesh.numEl
-  numDof = mesh.numDofPerNode*numnodes
-  println("expected number of dofs = ", numDof)
 
-
-  if (numDof > 2^30)
-    println("Warning: too many dofs, renumbering will fail")
-  end
 
 
   # initally number all dofs as numDof+1 to 2*numDof
@@ -1378,14 +1372,24 @@ function numberNodes(mesh::PumiMesh2, number_dofs=false)
 #  mesh.numNodesPerType = num_nodes_entity
 
   if number_dofs
+    println("numbering degrees of freedom")
     numbering_ptr = mesh.dofnums_Nptr
     curr_dof = mesh.numDof + 1
     dofpernode = mesh.numDofPerNode
+    numDof = mesh.numDofPerNode*numnodes
   else  # do node numbering
+    println("numbering nodes")
     numbering_ptr = mesh.nodenums_Nptr
     curr_dof = mesh.numNodes + 1
     dofpernode = 1
+    numDof = numnodes
   end
+
+  println("expected number of dofs = ", numDof)
+  if (numDof > 2^30 || numDof < 0)
+    println("Warning: too many dofs, renumbering will fail")
+  end
+
 
   println("num_entities = ", num_entities)
   println("num_nodes_entity = ", num_nodes_entity)
