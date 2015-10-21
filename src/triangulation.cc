@@ -110,7 +110,7 @@ int copyNumberingNode(apf::Numbering* n_old, apf::Numbering* n_new, apf::MeshEnt
   apf::FieldShape* nshape = apf::getShape(n_old);
   int type = m->getType(e_old);
   int dim = m->typeDimension[type];
-//  std::cout << "dimension of old entity = " << dim << std::endl;
+  std::cout << "dimension of old entity = " << dim << std::endl;
 //  std::cout << "type of old entity = " << type << std::endl;
 //  std::cout << "has nodes in this dimension = " << mshape->hasNodesIn(dim) << std::endl;
 //  bool isnumbered = apf::isNumbered(n_old, e_old, node_old, 0);
@@ -119,9 +119,13 @@ int copyNumberingNode(apf::Numbering* n_old, apf::Numbering* n_new, apf::MeshEnt
   int val;
   for (int i = 0; i < ncomp; ++i)
   {
-    if (apf::isNumbered(n_old, e_old, node_old, i) && nshape->hasNodesIn(dim) )
+    bool node_numbered = apf::isNumbered(n_old, e_old, node_old, i);
+    bool has_nodes = nshape->hasNodesIn(dim);
+    std::cout << "node_numbered = " << node_numbered << std::endl;
+    std::cout << "has_nodes = " << has_nodes << std::endl;
+    if (node_numbered && has_nodes)
     {
-//      std::cout << "copying value" << std::endl;
+      std::cout << "copying value" << std::endl;
       val = apf::getNumber(n_old, e_old, node_old, i);
       apf::number(n_new, e_new, node_new, i, val);
       flag = true;
@@ -642,7 +646,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
 //   to use as the vertices of the sub-triangles
 //   numberings is an array holding a numbering for each entity dimension
 
-  return NULL;
+//  return NULL;
   std::cout << "\ncreating sub-triangulated mesh" << std::endl;
 
   apf::FieldShape* mshape = m->getShape();

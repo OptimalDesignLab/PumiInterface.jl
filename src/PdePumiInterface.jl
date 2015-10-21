@@ -104,6 +104,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   dofs::Array{Int32, 3}  # store dof numbers of solution array to speed assembly
   sparsity_bnds::Array{Int32, 2}  # store max, min dofs for each dof
+  sparsity_nodebnds::Array{Int32, 2}  # store min, max nodes for each node
   color_masks::Array{BitArray{1}, 1}  # array of bitarray masks used to control element perturbations when forming jacobian, number of arrays = number of colors
   neighbor_colors::Array{Uint8, 2}  # 4 by numEl array, holds colors of edge-neighbor elements + own color
   neighbor_nums::Array{Int32, 2}  # 4 by numEl array, holds element numbers of neighbors + own number, in same order as neighbor_colors
@@ -263,6 +264,8 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   # get sparsing information
   mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
   getSparsityBounds(mesh, mesh.sparsity_bnds)
+  mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
+  getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
 
   mesh.color_masks = Array(BitArray{1}, 4)  # one array for every color
   #colorMesh1(mesh, mesh.color_masks)
@@ -593,9 +596,10 @@ end  # end getEntityPointers
 
 
 
-function getSparsityBounds(mesh::PumiMesh2, sparse_bnds::AbstractArray{Int32, 2})
+function getSparsityBounds(mesh::PumiMesh2, sparse_bnds::AbstractArray{Int32, 2}; getdofs=true)
 # sparse_bnds : 2 by numDof array of the minimum, maximum dofs connected to 
 # a dof in the Jacobian
+# or node numbers, if getdofs=false
 # this works for high order elements despite not using mesh.elementNodeOffsets 
 # because it does not reference what element a particular entity belongs to
 # getDofBounds also does not need it because only the minimum and maximum
@@ -609,6 +613,16 @@ num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
 num_nodes_entity = mesh.numNodesPerType  # number of nodes on each type
                                          # of mesh entity
 
+if getdofs
+  numbering_Nptr = mesh.dofnums_Nptr
+  numDofPerNode = mesh.numDofPerNode
+  @assert size(sparse_bnds, 2) == mesh.numDof
+else
+  numbering_Nptr = mesh.nodenums_Nptr
+  numDofPerNode = 1
+  @assert size(sparse_bnds, 2) == mesh.numNodes
+end
+
 for etype=1:3  # loop over mesh entity types
 
   
@@ -618,10 +632,10 @@ for etype=1:3  # loop over mesh entity types
 
       for node = 1:num_nodes_entity[etype]  # loop over nodes on each entity
 	# get the minimum, maximum related dof numbers
-        min, max = getDofBounds(mesh, etype)
+        min, max = getDofBounds(mesh, etype, getdofs=getdofs)
 	# use the same min, max for all dofs on this node
-	for dof = 1:mesh.numDofPerNode
-	  dofnum = getNumberJ(mesh.dofnums_Nptr, entity_ptr, node - 1, dof-1)
+	for dof = 1:numDofPerNode
+	  dofnum = getNumberJ(numbering_Nptr, entity_ptr, node - 1, dof-1)
           sparse_bnds[1, dofnum] = min
 	  sparse_bnds[2, dofnum] = max
 
@@ -637,9 +651,10 @@ return nothing
 end
 
 # this could be generalized 3d?
-function getDofBounds(mesh::PumiMesh2, etype::Integer) 
+function getDofBounds(mesh::PumiMesh2, etype::Integer; getdofs=true) 
 # gets the maximum, minimum dofs associated with the entity currently
 # pointed to by the iterator specified by etype
+# getDofs = true -> get dof numbers, false -> get node numbers
 
 
 iterators_get = [getVert, getEdge, getFace]
@@ -664,70 +679,75 @@ min, max = getMinandMax(dofnums)
 return min, max
 =#
 
-# get distance-2 elements
-if mesh.coloringDistance >= 2
-  edge_arr = Array(Ptr{Void}, num_adj*3)  # enough space for all edges, including repeats
-  for i=1:num_adj  # get the edges
-    sub_arr = sub(edge_arr, (3*(i-1) + 1):(3*i))
-    getDownward(mesh.m_ptr, el_arr[i], 1, sub_arr)
-  end
+  # get distance-2 elements
+  # this is really distance-1 
+  if mesh.coloringDistance >= 2
+    edge_arr = Array(Ptr{Void}, num_adj*3)  # enough space for all edges, including repeats
+    for i=1:num_adj  # get the edges
+      sub_arr = sub(edge_arr, (3*(i-1) + 1):(3*i))
+      getDownward(mesh.m_ptr, el_arr[i], 1, sub_arr)
+    end
 
-  # edge_arr now populated with all edges
+    # edge_arr now populated with all edges
 
-  # print the edge numbers
-#=
-  for i=1:num_adj*3
-    edge_num_i = getNumberJ(mesh.edge_Nptr, edge_arr[i], 0, 0)
-    println("edge ", i, " has number ", edge_num_i)
-  end
-=#
-  # now get the elements the edges belong to
-  # count the number of elements first, then get them
-  num_els = zeros(Int, length(edge_arr) + 1)  # count number of elements each edge has
+    # print the edge numbers
+  #=
+    for i=1:num_adj*3
+      edge_num_i = getNumberJ(mesh.edge_Nptr, edge_arr[i], 0, 0)
+      println("edge ", i, " has number ", edge_num_i)
+    end
+  =#
+    # now get the elements the edges belong to
+    # count the number of elements first, then get them
+    num_els = zeros(Int, length(edge_arr) + 1)  # count number of elements each edge has
 
-#  println("length(num_els) = ", length(num_els))
-#  println("length(edge_arr) = ", length(edge_arr))
-  for i=1:length(edge_arr)
-    num_els[i] = countAdjacent(mesh.m_ptr, edge_arr[i], 2)
-  end
+  #  println("length(num_els) = ", length(num_els))
+  #  println("length(edge_arr) = ", length(edge_arr))
+    for i=1:length(edge_arr)
+      num_els[i] = countAdjacent(mesh.m_ptr, edge_arr[i], 2)
+    end
 
-#  println("finished counting distance-2 elements")
+    # now get the elements
+    num_adj = sum(num_els)
+    el_arr = Array(Ptr{Void}, num_adj)  # rebind el_arr to new array
+    start_idx = 1
+    end_idx = num_els[1]
+    for i=1:length(edge_arr)
+      edge_i = edge_arr[i]
+      sub_arr = sub(el_arr, start_idx:end_idx)
+      countAdjacent(mesh.m_ptr, edge_i, 2)
+      getAdjacent(sub_arr)
 
-  # now get them elements
-  num_adj = sum(num_els)
-  el_arr = Array(Ptr{Void}, num_adj)  # rebind el_arr to new array
-  start_idx = 1
-  end_idx = num_els[1]
-  for i=1:length(edge_arr)
-    edge_i = edge_arr[i]
-    sub_arr = sub(el_arr, start_idx:end_idx)
-    countAdjacent(mesh.m_ptr, edge_i, 2)
-    getAdjacent(sub_arr)
+      # update indices
+      start_idx = end_idx + 1
+      end_idx += num_els[i+1]
+    end
 
-    # update indices
-    start_idx = end_idx + 1
-    end_idx += num_els[i+1]
-  end
+    # now el_arr has all the elements, including repeats
+    # num_adj = legnth(el_arr)
 
-  # now el_arr has all the elements, including repeats
-  # num_adj = legnth(el_arr)
-
-end  # end if distance-2
+  end  # end if distance-2
 
 
 
     
-# get dofnums for the elements
-dofnums = zeros(Int32, mesh.numDofPerNode, mesh.numNodesPerElement, num_adj)
+  # get dofnums for the elements
+  if getdofs
+    numDofPerNode = mesh.numDofPerNode
+  else  # get node numbers
+    numDofPerNode = 1 
+  end
 
-for i=1:num_adj
-  elnum_i = getNumberJ(mesh.el_Nptr, el_arr[i], 0, 0) + 1
-  getGlobalNodeNumbers(mesh, elnum_i, sub(dofnums, :, :, i))
-end
+  dofnums = zeros(Int32, numDofPerNode, mesh.numNodesPerElement, num_adj)
 
-min, max = getMinandMax(dofnums)
+  for i=1:num_adj
+    elnum_i = getNumberJ(mesh.el_Nptr, el_arr[i], 0, 0) + 1
+    getGlobalNodeNumbers(mesh, elnum_i, sub(dofnums, :, :, i), getdofs=getdofs)
+  end
 
-return min, max
+  min, max = getMinandMax(dofnums)
+
+  return min, max
 
 end
 
@@ -1469,9 +1489,9 @@ function numberNodes(mesh::PumiMesh2, number_dofs=false)
     # label face nodes
     for k=1:num_nodes_entity[3]  # loop over nodes on face
       for p=1:dofpernode  # loop over dofs
-	dofnum_p = getNumberJ(numbering_ptr, el_i, k-1, p-1)
+	dofnum_p = getNumberJ(numbering_ptr, el_i_ptr, k-1, p-1)
 	if dofnum_p > numDof
-	  numberJ(numbering_ptr, el_i, k-1, p-1, curr_dof)
+	  numberJ(numbering_ptr, el_i_ptr, k-1, p-1, curr_dof)
 	  curr_dof += 1
 	end
       end
@@ -1853,27 +1873,43 @@ end
 =#
 
 
-function getGlobalNodeNumbers(mesh::PumiMesh2, elnum::Integer)
+function getGlobalNodeNumbers(mesh::PumiMesh2, elnum::Integer; getdofs=true)
 
-  dofnums = zeros(Int32, mesh.numDofPerNode, mesh.numNodesPerElement)
+  if getdofs
+    numDofPerNode = mesh.numDofPerNode
+  else
+    numDofPerNode = 1
+  end
+  dofnums = zeros(Int32, numDofPerNode, mesh.numNodesPerElement)
   getGlobalNodeNumbers(mesh, elnum, dofnums)
 
   return dofnums
 end
 
-function getGlobalNodeNumbers(mesh::PumiMesh2, elnum::Integer, dofnums::AbstractArray{Int32, 2})
+function getGlobalNodeNumbers(mesh::PumiMesh2, elnum::Integer, dofnums::AbstractArray{Int32}; getdofs=true)
 # gets global node numbers of all dof on all nodes of the element
 # output formap is array [numdofpernode, nnodes]  (each column contains dof numbers for a node)
+# if getdofs=false, then dofnums need only have 1 column, or can be a vector
 # dofnums must be passable to C
 # 2D only
+# getdofs specifies whether to get dof numbers or node numbers
+# 
+
 el_i = mesh.elements[elnum]
-type_i = getType(mesh.m_ptr, el_i)
+type_i = getType(mesh.m_ptr, el_i)  # what is this used for?
 
 #println("elnum = ", elnum)
 # calculate total number of nodes
 #nnodes = 3 + 3*mesh.numNodesPerType[2] + mesh.numNodesPerType[3]
 nnodes = mesh.numNodesPerElement
-numdof = nnodes*mesh.numDofPerNode
+
+if getdofs
+  numdof = nnodes*mesh.numDofPerNode  # what is this used for?
+  numbering_ptr = mesh.dofnums_Nptr
+else
+  numdof = nnodes
+  numbering_ptr = mesh.nodenums_Nptr
+end
 
 # get entities in the Pumi order
 node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
@@ -1907,7 +1943,7 @@ for i=1:3  # loop over verts, edges, faces
 end  # end loop over entity types
 =#
 
-PumiInterface.getDofNumbers(mesh.dofnums_Nptr, node_entities, node_offsets, mesh.nodemapPumiToSbp, el_i, dofnums)  # C implimentation
+PumiInterface.getDofNumbers(numbering_ptr, node_entities, node_offsets, mesh.nodemapPumiToSbp, el_i, dofnums)  # C implimentation
 
 
 #=
@@ -2574,7 +2610,7 @@ function writeVisFiles(mesh::PumiMesh, fname::AbstractString)
   if mesh.order <= 2
     writeVtkFiles(fname, mesh.m_ptr)
   else
-#    writeVtkFiles(fname, mesh.mnew_ptr)
+    writeVtkFiles(fname, mesh.mnew_ptr)
   end
 
   return nothing
