@@ -108,6 +108,10 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   color_masks::Array{BitArray{1}, 1}  # array of bitarray masks used to control element perturbations when forming jacobian, number of arrays = number of colors
   neighbor_colors::Array{Uint8, 2}  # 4 by numEl array, holds colors of edge-neighbor elements + own color
   neighbor_nums::Array{Int32, 2}  # 4 by numEl array, holds element numbers of neighbors + own number, in same order as neighbor_colors
+  pertNeighborEls::Array{Int32, 2}  # numEl by numcolors array, for each color,
+                                    # stores the element number of the element
+				    # whose perturbation is affecting the 
+				    # current element
   color_cnt::Array{Int32, 1}  # number of elements in each color
 
 
@@ -267,15 +271,29 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
   getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
 
-  mesh.color_masks = Array(BitArray{1}, 4)  # one array for every color
-  #colorMesh1(mesh, mesh.color_masks)
-  numc = colorMesh2(mesh, mesh.color_masks)
-  mesh.numColors = numc
+  if coloring_distance == 2
+    numc = colorMesh2(mesh)
+    mesh.numColors = numc
 
-  mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
-  mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
-  mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
-  getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
+    mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
+    mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
+    mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
+    getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
+    mesh.pertNeighborEls = getPertNeighbors1(mesh)
+
+  elseif coloring_distance == 0  # do a distance-0 coloring
+    numc = colorMesh0(mesh)
+    @assert numc == 1
+    mesh.numColors = numc
+    mesh.color_masks = Array(BitArray{1}, numc)
+    mesh.neighbor_colors = zeros(Uint8, 0, 0)  # unneeded array for distance-0
+    mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
+    getColors0(mesh, mesh.color_masks)
+    mesh.pertNeighborEls = getPertNeighbors0(mesh)
+
+  else
+    println(STDERR, "Error: unsupported coloring distance requested")
+  end
 
   # get boundary information for entire mesh
   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
@@ -391,6 +409,27 @@ end
 
  
   
+end
+
+
+
+function PumiMesh2Preconditioning(mesh::PumiMesh2, sbp::SBPOperator, opts; 
+                                  coloring_distance=2)
+# construct pumi mesh for preconditioner residual evaluations
+# this operates by copying an existing mesh object (hence not loading a new
+#  pumi mesh), and updateing a few of its fields
+# once there big picture of preconditioning is more clear, there should be 
+# options to control these steps.
+
+  newmesh = deepcopy(mesh)  # create new PumiMesh object
+
+  # create the coloring_Nptr
+  el_mshape = getConstantShapePtr(2)
+  mesh.coloring_Nptr = createNumberingJ(mesh.m_ptr, "preconditioning coloring", el_mshape, 1)
+
+
+  return newmesh
+
 end
 
 
@@ -655,7 +694,7 @@ function getDofBounds(mesh::PumiMesh2, etype::Integer; getdofs=true)
 # gets the maximum, minimum dofs associated with the entity currently
 # pointed to by the iterator specified by etype
 # getDofs = true -> get dof numbers, false -> get node numbers
-
+# this works for distance-0 and 1 colorings
 
 iterators_get = [getVert, getEdge, getFace]
 entity_ptr = iterators_get[etype]()
@@ -774,7 +813,24 @@ return min_entry, max_entry
 
 end
 
+
+
+
+# perform a distance-0 coloring of the mesh (ie. all elements same color)
+function colorMesh0(mesh::PumiMesh2)
+
+  # make every element color 1
+  for i=1:mesh.numEl
+    numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 1)
+  end
+
+  return 1  # return number of colors
+end
+
+
+
 # perform distance-1 coloring of mesh 
+# not sure if this works correctly
 function colorMesh1(mesh::PumiMesh2, masks::Array{BitArray{1}})
 # each element must have a different color than its neighbors with which it 
 # shares and edge
@@ -880,8 +936,10 @@ end
 
 
 
+
+
 # perform distance-1 coloring of mesh 
-function colorMesh2(mesh::PumiMesh2, masks::Array{BitArray{1}})
+function colorMesh2(mesh::PumiMesh2)
 # each element must have a different color than its neighbors with which it 
 # shares and edge
 
@@ -984,7 +1042,6 @@ for i=1:mesh.numEl
   numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
 
   cnt_colors[min_color] += 1  # update counts
-#  masks[min_color][i] = true  # update mask
 
   fill!(colors, 0)
 
@@ -1041,7 +1098,15 @@ function getDistance2Colors(mesh, elnum::Integer, adj, adj2, colors)
   return nothing
 end
 
+function getColors0(mesh, masks::AbstractArray{BitArray{1}, 1})
+# populate the masks that indicate which elements are perturbed by which
+# colors
+# for a distance-0 coloring, every element is perturbed and there is only
+# 1 color
 
+  masks[1] = trues(mesh.numEl)
+  return nothing
+end
 
 
 function getColors1{T, T2}(mesh, masks::AbstractArray{BitArray{1}, 1}, neighbor_colors::AbstractArray{T, 2}, neighbor_nums::AbstractArray{T2, 2}; verify=true )
@@ -1181,6 +1246,59 @@ end
 return min_color
 
 end
+
+
+function getPertNeighbors0(mesh::PumiMesh2)
+# get the element that is perturbed for each element for each color
+# of a distance-0 coloring
+# for a distance-0 coloring, each element is only perturbed by 
+# other dofs on the element
+
+  pertNeighborEls = zeros(Int32, mesh.numEl, mesh.numColors)
+
+  for i=1:mesh.numEl
+    pertNeighborEls[i, 1] = i
+  end
+
+  return pertNeighborEls
+end
+
+
+function getPertNeighbors1(mesh::PumiMesh2)
+# populate the array with the element that is perturbed for each element 
+# for each color for a distance-1 coloring
+# element number == 0 if no perturbation
+
+#  println("getting neighbor list")
+  pertNeighborEls = zeros(Int32, mesh.numEl, mesh.numColors)
+
+for color = 1:mesh.numColors
+  num_neigh = size(mesh.neighbor_colors, 1)
+#  fill!(arr, 0)
+  for i=1:mesh.numEl
+    # find out if current element or its neighbors have the current color
+    pos = 0
+    for j=1:num_neigh
+      if color == mesh.neighbor_colors[j, i]
+	pos = j
+	break
+      end
+    end
+
+    if pos != 0
+      pertNeighborEls[i, color] = mesh.neighbor_nums[pos, i]
+    else
+       pertNeighborEls[i, color] = 0
+     end
+
+   end  # end loop over elements
+
+end  # end loop over colors
+
+  return pertNeighborEls
+end
+
+
 
 
 
@@ -2444,7 +2562,7 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
     end  # end loop over entity types
   end  # end loop over elements
 
-  if mesh.order > 1
+  if mesh.order >= 3
     transferField(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.fnew_ptr)
   end
 
