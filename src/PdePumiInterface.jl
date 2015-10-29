@@ -7,7 +7,7 @@ using ODLCommonTools
 using ArrayViews
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
-export AbstractMesh,PumiMesh2, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles
+export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles
 
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
@@ -112,6 +112,11 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
                                     # stores the element number of the element
 				    # whose perturbation is affecting the 
 				    # current element
+  pertNeighborEls_edge::Array{Int32, 2}  # numEl by 3 (number of edges per element)
+                                         # stores the element number of the 
+					 # neighboring element that shares 
+					 #  edge, where edge is the local edge
+					 # index (ie. edge 1,2, or 3)
   color_cnt::Array{Int32, 1}  # number of elements in each color
 
 
@@ -265,12 +270,6 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
 
 
-  # get sparsing information
-  mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
-  getSparsityBounds(mesh, mesh.sparsity_bnds)
-  mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
-  getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
-
   if coloring_distance == 2
     numc = colorMesh2(mesh)
     mesh.numColors = numc
@@ -293,6 +292,21 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   else
     println(STDERR, "Error: unsupported coloring distance requested")
+  end
+
+  # get sparsity information
+  # this takes into account the coloring distance
+  mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
+  getSparsityBounds(mesh, mesh.sparsity_bnds)
+  mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
+  getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
+
+
+
+  # TODO: make this a separate option from use_edge_res, make decision
+  #       in read_input.jl
+  if opts["use_edge_res"]  # if using edge based residual
+    mesh.pertNeighborEls_edge = getPertEdgeNeighbors(mesh)
   end
 
   # get boundary information for entire mesh
@@ -413,22 +427,60 @@ end
 
 
 
-function PumiMesh2Preconditioning(mesh::PumiMesh2, sbp::SBPOperator, opts; 
-                                  coloring_distance=2)
+function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::SBPOperator, opts; 
+                                  coloring_distance=0)
 # construct pumi mesh for preconditioner residual evaluations
 # this operates by copying an existing mesh object (hence not loading a new
-#  pumi mesh), and updateing a few of its fields
+#  pumi mesh), and updating a few of its fields
 # once there big picture of preconditioning is more clear, there should be 
 # options to control these steps.
 
-  newmesh = deepcopy(mesh)  # create new PumiMesh object
+  println("Creating Pumi mesh for preconditioning")
+  mesh = deepcopy(mesh_old)  # create new PumiMesh object, sharing all
+                        # mutable fields (like arrays)
 
+  mesh.coloringDistance = coloring_distance
   # create the coloring_Nptr
   el_mshape = getConstantShapePtr(2)
   mesh.coloring_Nptr = createNumberingJ(mesh.m_ptr, "preconditioning coloring", el_mshape, 1)
 
+  if coloring_distance == 2
+    numc = colorMesh2(mesh)
+    mesh.numColors = numc
 
-  return newmesh
+    mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
+    mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
+    mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
+    getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
+    mesh.pertNeighborEls = getPertNeighbors1(mesh)
+
+  elseif coloring_distance == 0  # do a distance-0 coloring
+    numc = colorMesh0(mesh)
+    @assert numc == 1
+    mesh.numColors = numc
+    mesh.color_masks = Array(BitArray{1}, numc)
+    mesh.neighbor_colors = zeros(Uint8, 0, 0)  # unneeded array for distance-0
+    mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
+    getColors0(mesh, mesh.color_masks)
+    mesh.pertNeighborEls = getPertNeighbors0(mesh)
+
+  else
+    println(STDERR, "Error: unsupported coloring distance requested")
+  end
+
+  # get sparsity information
+  # this takes into account the coloring distance
+  mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
+  getSparsityBounds(mesh, mesh.sparsity_bnds)
+  mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
+  getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
+
+  if opts["write_counts"]
+    writeCounts(mesh, fname="countsp.txt")
+  end
+
+
+  return mesh
 
 end
 
@@ -699,7 +751,7 @@ function getDofBounds(mesh::PumiMesh2, etype::Integer; getdofs=true)
 iterators_get = [getVert, getEdge, getFace]
 entity_ptr = iterators_get[etype]()
 
-# get associated elements (distance-1 elements)
+# get associated elements (distance-0 elements)
 num_adj = countAdjacent(mesh.m_ptr, entity_ptr, 2)
 el_arr = getAdjacent(num_adj)
 
@@ -1097,6 +1149,84 @@ function getDistance2Colors(mesh, elnum::Integer, adj, adj2, colors)
 
   return nothing
 end
+
+function getPertEdgeNeighbors(mesh::PumiMesh2)
+
+  neighbor_nums = zeros(Int32, mesh.numEl, 3)
+
+  edges = Array(Ptr{Void}, 3)  # hold element edges
+  adj = Array(Ptr{Void}, 2)  # hold adjacent elements
+
+  for i=1:mesh.numEl
+    el_i = mesh.elements[i]
+
+    getDownward(mesh.m_ptr, el_i, 1, edges)
+
+
+    #=
+    # check edge neighbors only
+    num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
+    @assert num_adj <= 3
+    getBridgeAdjacent(adj)
+    =#
+
+    # get color, element numbers
+    for j=1:3 # loop over edges
+      # in use, this array is traveres by numEl first, so we have to 
+      # populate it by rows here
+      num_adj = countAdjacent(mesh.m_ptr, edges[j], 2)
+      @assert num_adj <= 2
+      if num_adj == 2  # if there is another adjacnet element
+	getAdjacent(adj)
+
+	# figure out which adjacent element is the *other* one
+	if adj[1] == el_i
+	  other_el = adj[2]
+	else
+	  other_el = adj[1]
+	end
+
+        neighbor_nums[i, j] = getNumberJ(mesh.el_Nptr, other_el, 0, 0) + 1
+      end  # end if num_adj == 2
+    end  # end loop j=1:3
+  end  # end i=1:mesh.numEl
+
+  return neighbor_nums
+
+end  # end getPertEdgeNeighbors
+
+
+function common(A::AbstractArray, B::AbstractArray)
+# find common element in the two sets
+
+  # get the larger array
+  if length(A) > length(B)
+    arr1 = A
+    arr2 = B
+  else
+    arr1 = B
+    arr2 = A
+  end
+
+  # the output array is no larger than the smaller array
+  arr_ret = zeros(eltype(arr2), size(arr2))
+  num_found = 0
+  for i=1:length(arr1)  # loop over larger array
+    # check every entry in arr2 for the current entry in arr1
+    el_i = arr1[i]
+    for j=1:length(arr2)
+      if el_i == arr2[j]
+	num_found += 1
+	arr_ret[num_found] = el_i
+	break
+      end
+    end
+  end
+
+    return arr_ret, num_found
+end
+
+
 
 function getColors0(mesh, masks::AbstractArray{BitArray{1}, 1})
 # populate the masks that indicate which elements are perturbed by which
@@ -2736,7 +2866,7 @@ end
 
 
 
-function writeCounts(mesh::PumiMesh2)
+function writeCounts(mesh::PumiMesh2; fname="counts.txt")
 # write values needed for memory usage estimate
 vals = Array(Int, 9)
 vals[1] = mesh.numVert
@@ -2761,7 +2891,7 @@ size_colptr = 32*mesh.numDof
 
 vals[9] = size_nz + size_rowval + size_colptr
 
-writedlm("counts.txt", vals)
+writedlm(fname, vals)
 			  
 return nothing
 end
