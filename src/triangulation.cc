@@ -397,6 +397,10 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
 //          std::cout << "down[" << tmp << "] = " << down[tmp] << std::endl;
         }
 
+        //TODO: change to loop over entities of current dim, then 
+        //      loop over nodes on each entity
+        //      at start of entity loop, set nodenum to right value
+        //      from precompuated values
         for (int j = 0; j < num_entities_per_dim[dim]*entity_nodes_on[dim]; ++j) // loop over nodes of this dimension
         {
 //          std::cout << "    processing node " << nodenum << std::endl;
