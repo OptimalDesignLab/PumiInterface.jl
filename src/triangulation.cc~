@@ -110,7 +110,7 @@ int copyNumberingNode(apf::Numbering* n_old, apf::Numbering* n_new, apf::MeshEnt
   apf::FieldShape* nshape = apf::getShape(n_old);
   int type = m->getType(e_old);
   int dim = m->typeDimension[type];
-  std::cout << "dimension of old entity = " << dim << std::endl;
+  std::cout << "    dimension of old entity = " << dim << std::endl;
 //  std::cout << "type of old entity = " << type << std::endl;
 //  std::cout << "has nodes in this dimension = " << mshape->hasNodesIn(dim) << std::endl;
 //  bool isnumbered = apf::isNumbered(n_old, e_old, node_old, 0);
@@ -121,11 +121,11 @@ int copyNumberingNode(apf::Numbering* n_old, apf::Numbering* n_new, apf::MeshEnt
   {
     bool node_numbered = apf::isNumbered(n_old, e_old, node_old, i);
     bool has_nodes = nshape->hasNodesIn(dim);
-    std::cout << "node_numbered = " << node_numbered << std::endl;
-    std::cout << "has_nodes = " << has_nodes << std::endl;
+    std::cout << "    node_numbered = " << node_numbered << std::endl;
+    std::cout << "    has_nodes = " << has_nodes << std::endl;
     if (node_numbered && has_nodes)
     {
-      std::cout << "copying value" << std::endl;
+      std::cout << "    copying value" << std::endl;
       val = apf::getNumber(n_old, e_old, node_old, i);
       apf::number(n_new, e_new, node_new, i, val);
       flag = true;
@@ -244,6 +244,30 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
   // get number of nodes on different types of entities
   int entity_nodes_on[3] = {mshape->countNodesOn(0), mshape->countNodesOn(1), mshape->countNodesOn(2)};
 
+  const int dimensionTypes[3] = {apf::Mesh::VERTEX, apf::Mesh::EDGE, apf::Mesh::TRIANGLE};
+
+  int node_start[3][3]; // dim x max entities per dim (so 3 edges for triangle)
+  int idx = 0; // current index, 
+
+  for (int dim = 0; dim < 3; ++dim)
+  {
+    // get number of nodes on entities of this type 
+    int num_nodes_d = mshape->countNodesOn(dimensionTypes[dim]);
+    // loop over entities in this dimension
+    std::cout << "dim = " << dim << ", adjacentCount = " << m->adjacentCount[apf::Mesh::TRIANGLE][dim] << std::endl;
+    for (int i = 0; i < m->adjacentCount[apf::Mesh::TRIANGLE][dim]; ++i)
+    { 
+      std::cout << "idx = " << idx << std::endl;
+      node_start[dim][i] = idx;
+      std::cout << "node_start[" << dim << "][" << i << "] = " << node_start[dim][i] << std::endl;
+      idx = idx + num_nodes_d;
+    }
+  }
+
+
+
+  // calculate the starting node index for every entity on the element
+
 
   // step 3: transfer Numberings
   // loop over elements on m, transfer values to m_new
@@ -328,7 +352,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
   apf::Downward down; // hold downward adjacent verts of old mesh
   apf::Downward down2; // hold downwarda adjacent verts of new mesh
   apf::MeshEntity* new_node_entity;
-  int num_entities_per_dim[3] = { 3, 3, 1};
+//  int num_entities_per_dim[3] = { 3, 3, 1};
 //apf::MeshEntity* getEntityFromNode(apf::Mesh* m, int typeOffsetsPerElement[], const int nodenum,  apf::MeshEntity* el, int entity_nodes_on[])
 
   for (int i = 0; i < numnumberings; ++i)
@@ -389,16 +413,40 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
       for (int dim = 0; dim < 3; ++dim)  // loop all dimensions
       {
 
-//        std::cout << "  looping over nodes of dimension " << dim << std::endl;
+        std::cout << "  looping over dimension " << dim << std::endl;
         m->getDownward(e, dim, down);
         
-        for (int tmp = 0; tmp < 12; ++tmp)
-        {
+//        for (int tmp = 0; tmp < 12; ++tmp)
+//        {
 //          std::cout << "down[" << tmp << "] = " << down[tmp] << std::endl;
-        }
+//        }
 
-        for (int j = 0; j < num_entities_per_dim[dim]*entity_nodes_on[dim]; ++j) // loop over nodes of this dimension
-        {
+        //TODO: change to loop over entities of current dim, then 
+        //      loop over nodes on each entity
+        //      at start of entity loop, set nodenum to right value
+        //      from precompuated values
+          // loop over entities on this dimension
+//          int nume = m -> adjacentCount[apf::Mesh::TRIANGLE][dim];
+//          std::cout << "  number of entities on this dimension = " << nume << std::endl;
+          for (int entity_d = 0; entity_d < m -> adjacentCount[apf::Mesh::TRIANGLE][dim]; ++entity_d)
+          {
+            std::cout << "  on entity " << entity_d << std::endl;
+            // get the starting node number for this entity
+            nodenum = node_start[dim][entity_d];
+
+            // get the type of the current entity
+
+            // loop over nodes on this entity, in the fieldshape of
+            // the numbering, not the mesh
+            int numnodes_e = numbering_i_shape->countNodesOn(dimensionTypes[dim]);
+//            std::cout << "number of nodes on this entity = " << numnodes_e << std::endl;
+            for (int node_e = 0; node_e < numbering_i_shape->countNodesOn(dimensionTypes[dim]); ++node_e)
+            {
+
+              std::cout << "    on node " << node_e << std::endl;
+
+//        for (int j = 0; j < num_entities_per_dim[dim]*entity_nodes_on[dim]; ++j) // loop over nodes of this dimension
+//        {
 //          std::cout << "    processing node " << nodenum << std::endl;
 //          std::cout << "    processing node " << j << std::endl;
           // get entity on old mesh containing the node
@@ -429,8 +477,9 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
           numbered_count += copyNumberingNode(numbering_i, n_new, node_entity, new_node_entity, offset_node_idx, 0, numcomp);
 
           ++nodenum;
-        }
-      }
+            }  // end loop over nodes on this entity
+           } // end loop over entities on this dimension
+         } // end loop over dimensions
 
     } // end loop over old mesh elements
    
