@@ -900,13 +900,13 @@ class SBPQuartic : public FieldShape
 	  { 
         if (node == 0)
 	    {
-		  xi = Vector3(0.2113248654051872, 0, 0);
+		  xi = Vector3(-0.5773502691896256, 0, 0);
 		} else if (node == 1)
 		{
-		  xi = Vector3(0.5, 0, 0);
+		  xi = Vector3(0.0, 0, 0);
 		} else if (node == 2)
 		{
-		  xi = Vector3(0.7886751345948129, 0, 0);
+		  xi = Vector3(0.5773502691896257, 0, 0);
 		} else  // default case
 		{
 		  xi = Vector3(0,0, 0);

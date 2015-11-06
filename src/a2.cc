@@ -305,34 +305,35 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp, apf::Numbering* node
     numNodes_i = nodeCount(m_local,e); // get number of nodes on this entity
 
 //    std::cout << std::endl;
-    std::cout << "at beginning of while loop" << std::endl;
-    std::cout << "type of current entity = ";
-    printType(m_local, e);
+//    std::cout << "at beginning of while loop" << std::endl;
+//    std::cout << "type of current entity = ";
+//    printType(m_local, e);
 
-    int type_enum_e = m_local->getType(e);
 
-    if ( type_enum_e == apf::Mesh::VERTEX)
-    {
-      int num_e = apf::getNumber(nodeNums, e, 0, 0);
-      std::cout << "current entity node number = " << num_e << std::endl;
-    } 
+//    int type_enum_e = m_local->getType(e);
+
+//    if ( type_enum_e == apf::Mesh::VERTEX)
+//    {
+//      int num_e = apf::getNumber(nodeNums, e, 0, 0);
+//      std::cout << "current entity node number = " << num_e << std::endl;
+//    } 
 
     for ( int i = 0; i < numNodes_i; ++i) // label all nodes on this entity
     {
-      std::cout << "  labeling entity node " << i << std::endl;
+//      std::cout << "  labeling entity node " << i << std::endl;
       for ( int c = 0; c < comp; ++c) // loop over dof of the node
       {
-        std::cout << "  labeling component " << c << std::endl;
-        int nodenum_i = apf::getNumber(nodeNums, e, i, c);
+//        std::cout << "  labeling component " << c << std::endl;
+//        int nodenum_i = apf::getNumber(nodeNums, e, i, c);
         int dof_status = apf::getNumber(node_statusNumbering, e, i, c);
         if (dof_status >= 2) // if node is free for loaded
         {
-          int nodenum_i = apf::getNumber(nodeNums, e, i, c);
+//          int nodenum_i = apf::getNumber(nodeNums, e, i, c);
           nodeLabel_i -= 1;  // decrement nodelabel
           number(nodeNums, e, i, c, nodeLabel_i);
-          std::cout << "relabeling node " << nodenum_i << " to " << nodeLabel_i << std::endl;
+//          std::cout << "relabeling node " << nodenum_i << " to " << nodeLabel_i << std::endl;
         } else {
-           std::cout << "found non free node " << nodenum_i << " , status = " << dof_status << std::endl;
+//           std::cout << "found non free node " << nodenum_i << " , status = " << dof_status << std::endl;
            apf::number(nodeNums, e, i, c, 0);
           }
 
@@ -342,55 +343,55 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp, apf::Numbering* node
     // if e is a vertex, find adjacencies, look for unlabeled nodes
     if (m_local->getType(e) == apf::Mesh::VERTEX)
     {
-      std::cout << "  this is a vertex, looking for adjacent edges" << std::endl;
+//      std::cout << "  this is a vertex, looking for adjacent edges" << std::endl;
       // count number of edges that contain vertex e
       int numEdges_w = m_local->countUpward(e);
       for (int i = 0; i < numEdges_w; ++i)  // loop over edges
       {
-        std::cout << "  on edge " << i << std::endl;
+//        std::cout << "  on edge " << i << std::endl;
         apf::MeshEntity* edge_i = m_local->getUpward(e, i); // get the edge
-        std::cout << " edge has type";
-        printType(m_local, edge_i);
+//        std::cout << " edge has type";
+//        printType(m_local, edge_i);
         int numFaces_i = m_local->countUpward(edge_i); // get number of faces on the edge
-        std::cout << "  looking for edge faces" << std::endl;
-        std::cout << "  numFaces_i = " << numFaces_i << std::endl;
+//        std::cout << "  looking for edge faces" << std::endl;
+//        std::cout << "  numFaces_i = " << numFaces_i << std::endl;
 
         for (int j = 0; j < numFaces_i; ++j)  // loop over faces
         {
-          std::cout << "    on face " << j << std::endl;
+//          std::cout << "    on face " << j << std::endl;
           apf::MeshEntity* face_j = m_local->getUpward(edge_i, j);  // get face
 //          int type_j = m_local->getType(face_j);
-          std::cout << " face has type";
-          printType(m_local, face_j);
+//          std::cout << " face has type";
+//          printType(m_local, face_j);
           int faceNum_j = apf::getNumber(elNums, face_j, 0, 0); // get face number
 //          int numNodes_j = nodeCount(m_local, face_j); // get number of nodes on face
 
 
-          std::cout << "    face number = " << faceNum_j << std::endl;
+//          std::cout << "    face number = " << faceNum_j << std::endl;
           // label face if it is not yet labelled
 //          std::cout << "  checking if face is labelled" << std::endl;
           if (faceNum_j > numEl) // if face not labelled
           {
             elementLabel_i -= 1;  // decrement element label
-            std::cout << "    renumbering face " << faceNum_j << " to " << elementLabel_i << std::endl;
+//            std::cout << "    renumbering face " << faceNum_j << " to " << elementLabel_i << std::endl;
             apf::number(elNums, face_j, 0, 0, elementLabel_i); // number element
           }
 
           // check if face has nodes that need labelling
           int nodeNum_j;
-          std::cout << "  checking if nodes on face are unlabelled" << std::endl;
+//          std::cout << "  checking if nodes on face are unlabelled" << std::endl;
           for (int k = 0; k < 1; ++k)  // only check first node
                                        // this works because we don't actually
                                        // label any nodes here
           {
-            std::cout << "  checking face node " << k << std::endl;
+//            std::cout << "  checking face node " << k << std::endl;
             // get number of node on face
             nodeNum_j = apf::getNumber(nodeNums, face_j, k, 0); 
             if ( (nodeNum_j > ndof) && (nodeNum_j <= 2*ndof)) // node not labelled) and not in queue
             {
               faceNum_j = apf::getNumber( elNums, face_j, 0, 0); // get new face number
-              std::cout << "adding face " << faceNum_j << " to que" << std::endl; 
-              std::cout << "doubling face's first node number from " << nodeNum_j << " to " << 2*nodeNum_j << std::endl;
+//              std::cout << "adding face " << faceNum_j << " to que" << std::endl; 
+//              std::cout << "doubling face's first node number from " << nodeNum_j << " to " << 2*nodeNum_j << std::endl;
 //            // double node number to show is has been added to queue
               apf::number(nodeNums, face_j, 0, 0, nodeNum_j*2);
               que1.push(face_j); // add face to que
@@ -401,7 +402,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp, apf::Numbering* node
 
         }  // end face loop
 
-        std::cout << "  checking other vertex on the edge and edge itself" << std::endl;
+//        std::cout << "  checking other vertex on the edge and edge itself" << std::endl;
         // look at other vertex on edge
         apf::MeshEntity* otherVertex = apf::getEdgeVertOppositeVert(m_local, edge_i, e);
         int otherVertex_num = getNumber(nodeNums, otherVertex, 0,0);
@@ -414,44 +415,44 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp, apf::Numbering* node
         if (hasNode(m_local, edge_i))
         {
 //          std::cout << "  checking if edge is labelled or in que" << std::endl;
-          std::cout << "edge has node " << std::endl;
+//          std::cout << "edge has node " << std::endl;
           int edgeNode_num = getNumber(nodeNums, edge_i,0,0); // get number of first node on edge
           bool edgeNotLabeled = ( (edgeNode_num > ndof) && ( edgeNode_num <= 2*ndof) ); // edge not labeled nor in que
-          std::cout << "  other vertexlabeled? = " << labeled << " , queued ? = " << queued << " edge nodes not labeled? = " << edgeNotLabeled << std::endl;
+//          std::cout << "  other vertexlabeled? = " << labeled << " , queued ? = " << queued << " edge nodes not labeled? = " << edgeNotLabeled << std::endl;
           if ((labeled || queued) && edgeNotLabeled)
           {
             // label all nodes on edge
             int numEdgeNodes = nodeCount(m_local, edge_i);
-            std::cout << "  numEdgeNodes = " << numEdgeNodes << std::endl;
+//            std::cout << "  numEdgeNodes = " << numEdgeNodes << std::endl;
             for (int j = 0; j < numEdgeNodes; ++j)
             {
-                std::cout << "  labelling edge node " << j << std::endl;
+//                std::cout << "  labelling edge node " << j << std::endl;
 //              int nodeNum_j = apf::getNumber(nodeNums, edge_i, j, c);
               int dof_status = apf::getNumber(node_statusNumbering, edge_i, j, 0);
-              std::cout << "  finished checking dof status" << std::endl;
-              std::cout << "  dof status = " << dof_status << std::endl;
+//              std::cout << "  finished checking dof status" << std::endl;
+//              std::cout << "  dof status = " << dof_status << std::endl;
  
               for (int c = 0; c < comp; ++c) // loop over dofs of node
               {
 //                std::cout << "  comp = " << c << std::endl;
 
-               int nodeNum_j = apf::getNumber(nodeNums, edge_i, j, c);
+//               int nodeNum_j = apf::getNumber(nodeNums, edge_i, j, c);
                if (dof_status >= 2) // if node is free or loaded
                 {
-                  std::cout << "in dof_status >= 2" << std::endl;
+//                  std::cout << "in dof_status >= 2" << std::endl;
                   nodeLabel_i -= 1;
-                  std::cout << "nodeLabel_i = " << nodeLabel_i << std::endl;
-                  std::cout << " relabelling node " << nodeNum_j << " to " << nodeLabel_i << std::endl;
+//                  std::cout << "nodeLabel_i = " << nodeLabel_i << std::endl;
+//                  std::cout << " relabelling node " << nodeNum_j << " to " << nodeLabel_i << std::endl;
                   apf::number(nodeNums, edge_i, j, c, nodeLabel_i);
                 } else {
-                  std::cout << " found non free node " << nodeNum_j << " , status = " << dof_status << std::endl;
+//                  std::cout << " found non free node " << nodeNum_j << " , status = " << dof_status << std::endl;
                   apf::number(nodeNums, edge_i, j, c, 0);
                 }
               }
             }
           } else { // add edge to queue first, othervertex second (via list)   
           
-              std::cout << "  adding other vertex to list" << std::endl;
+//              std::cout << "  adding other vertex to list" << std::endl;
               if (edgeNotLabeled) 
               {
 //                std::cout << " adding edge to que" << std::endl;
@@ -462,20 +463,20 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp, apf::Numbering* node
               {
                 // double node number to signal this node is queued
                 apf::number(nodeNums, otherVertex, 0, 0, 2*otherVertex_num);
-                std::cout << " adding vertex " << otherVertex_num << " to tmpque, doubling number to " << 2*otherVertex_num << std::endl;
+//                std::cout << " adding vertex " << otherVertex_num << " to tmpque, doubling number to " << 2*otherVertex_num << std::endl;
                 tmpQue.push(otherVertex);
               }
           }          
 
         } else {  // if edge does not have node, deal with otherVertex
 //            if ( (!labeled) )
-            std::cout << "in else" << std::endl;
+//            std::cout << "in else" << std::endl;
             if ( (!labeled) && (!queued))  // if otherVertex not labelled
             {
-              std::cout << " edge does not have node" << std::endl;
+//              std::cout << " edge does not have node" << std::endl;
               // double node number to signal this node queued
               apf::number(nodeNums,otherVertex, 0,0, 2*otherVertex_num);
-              std::cout << " adding vertex " << otherVertex_num << " to tmpque, doubling number to " << 2*otherVertex_num << std::endl;
+//              std::cout << " adding vertex " << otherVertex_num << " to tmpque, doubling number to " << 2*otherVertex_num << std::endl;
   
               tmpQue.push(otherVertex);
             }
@@ -485,7 +486,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp, apf::Numbering* node
       }  // end edge loop
 
       // copy tmpQue into que1, empty tmpQue
-      std::cout << "  adding queues" << std::endl;
+//      std::cout << "  adding queues" << std::endl;
       addQueues(que1, tmpQue);
 
 

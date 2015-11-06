@@ -339,7 +339,8 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
     flush(STDERR)
     mesh.mnew_ptr = createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
 
-#    mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
+    println("creating solution field on new mesh")
+    mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
   else
     mesh.triangulation = zeros(Int32, 0, 0)
     mesh.mnew_ptr = C_NULL
@@ -2693,6 +2694,7 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
   end  # end loop over elements
 
   if mesh.order >= 3
+    println("transfering field to sub mesh")
     transferField(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.fnew_ptr)
   end
 
