@@ -138,6 +138,10 @@ export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapeP
 
 export toModel, getModelType, getModelTag
 
+# iterator functors
+export VertIterator, EdgeIterator, FaceIterator
+export VertGetter, EdgeGetter, FaceGetter
+
 @doc """
   initilize the state of the interface library
 
@@ -298,6 +302,14 @@ return nothing
 
 end
 
+
+type VertIterator
+end
+
+function call(obj::VertIterator)
+  incrementVertIt()
+end
+
 function incrementVertIt()
 # increment it vertex iterator
 
@@ -315,6 +327,13 @@ return nothing
 
 end
 
+
+type EdgeIterator
+end
+
+function call(obj::EdgeIterator)
+  incrementEdgeIt()
+end
 
 
 
@@ -334,6 +353,13 @@ return nothing
 
 end
 
+
+type FaceIterator
+end
+
+function call(obj::FaceIterator)
+  incrementFaceIt()
+end
 
 
 
@@ -431,6 +457,16 @@ function getElNumber()
 end
 
 
+
+type VertGetter
+end
+
+function call(obj::VertGetter)
+  getVert()
+end
+
+
+
 function getVert()
 # get pointer to current vertex
   entity = ccall( (getVert_name, pumi_libname), Ptr{Void}, () )
@@ -438,12 +474,31 @@ function getVert()
   return entity
 end
 
+
+type EdgeGetter
+end
+
+function call(obj::EdgeGetter)
+  getEdge()
+end
+
+
 function getEdge()
 # get pointer to current Edge
   entity = ccall( (getEdge_name, pumi_libname), Ptr{Void}, () )
 
   return entity
 end
+
+
+type FaceGetter
+end
+
+function call(obj::FaceGetter)
+  getFace()
+end
+
+
 
 function getFace()
 # get pointer to current face

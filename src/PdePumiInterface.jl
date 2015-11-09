@@ -131,6 +131,10 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   # shape_type = type of shape functions, 0 = lagrange, 1 = SBP
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
+  ### Temporary Hack for Git Bisect ###
+  get!(opts, "use_edge_res", false)
+  ####################################
+
   println("\nConstructing PumiMesh2 Object")
   println("  sbp_name = ", smb_name)
   println("  dmg_name = ", dmg_name)
@@ -206,6 +210,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
 
   # do node reordering
+#=
  if opts["reordering_algorithm"] == "adjacency"
     start_coords = opts["reordering_start_coords"]
     # tell the algorithm there is only 1 dof per node because we only
@@ -213,13 +218,13 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
     reorder(mesh.m_ptr, mesh.numNodes, 1, 
             mesh.nodestatus_Nptr, mesh.nodenums_Nptr, mesh.el_Nptr, 
 	    start_coords[1], start_coords[2])
-
- elseif opts["reordering_algorithm"] == "default"
+=#
+# elseif opts["reordering_algorithm"] == "default"
     numberNodes(mesh)
 
-  else
-    println(STDERR, "Error: invalid dof reordering algorithm requested")
-  end
+#  else
+#    println(STDERR, "Error: invalid dof reordering algorithm requested")
+#  end
 
   # do dof numbering
   populateDofNumbers(mesh)
@@ -278,6 +283,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
     getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
+    println("getting perturbed neighbors")
     mesh.pertNeighborEls = getPertNeighbors1(mesh)
 
   elseif coloring_distance == 0  # do a distance-0 coloring
@@ -296,11 +302,12 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   # get sparsity information
   # this takes into account the coloring distance
+  println("getting sparsity bounds")
   mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
   getSparsityBounds(mesh, mesh.sparsity_bnds)
   mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
   getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
-
+  println("finished getting sparsity bounds")
 
 
   # TODO: make this a separate option from use_edge_res, make decision
@@ -310,10 +317,12 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   end
 
   # get boundary information for entire mesh
+  println("getting boundary info")
   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
   getBoundaryArray(mesh, boundary_nums)
 
   # need to count the number of internal interfaces - do this during boundary edge counting
+  println("getting interface info")
   mesh.numInterfaces = mesh.numEdge - num_ext_edges
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
@@ -699,8 +708,11 @@ function getSparsityBounds(mesh::PumiMesh2, sparse_bnds::AbstractArray{Int32, 2}
 
 resetAllIts2()
 # mesh iterator increment, retreval functions
-iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
-iterators_get = [getVert, getEdge, getFace]
+#iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
+iterators_inc = (VertIterator(), EdgeIterator(), FaceIterator())
+
+#iterators_get = [getVert, getEdge, getFace]
+iterators_get = (VertGetter(), EdgeGetter(), FaceGetter())
 num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
 num_nodes_entity = mesh.numNodesPerType  # number of nodes on each type
                                          # of mesh entity
