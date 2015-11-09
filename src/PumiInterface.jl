@@ -604,7 +604,7 @@ function getDownward(m_ptr, entity, dimension::Integer, arr::AbstractArray{Ptr{V
 # populate arr with the downward entiteis of the specified dimension
 # arr is not checked for size
 
-  i = ccall ( (getDownward_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Void}), m_ptr, entity, dimension, arr)
+  i = ccall ( (getDownward_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Ptr{Void}}), m_ptr, entity, dimension, arr)
 
   return  i
 
@@ -636,7 +636,7 @@ end
 function getAdjacent(arr::AbstractArray{Ptr{Void}})
 
 
-  ccall( (getAdjacent_name, pumi_libname), Void, (Ptr{Void},), arr)
+  ccall( (getAdjacent_name, pumi_libname), Void, (Ptr{Ptr{Void}},), arr)
 
   return nothing
 end

@@ -302,12 +302,14 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   # get sparsity information
   # this takes into account the coloring distance
-  println("getting sparsity bounds")
-  mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
-  getSparsityBounds(mesh, mesh.sparsity_bnds)
-  mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
-  getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
-  println("finished getting sparsity bounds")
+  if opts["run_type"] != 1  # no a rk4 run
+    println("getting sparsity bounds")
+    mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
+    @time getSparsityBounds(mesh, mesh.sparsity_bnds)
+    mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
+    @time getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
+    println("finished getting sparsity bounds")
+  end
 
 
   # TODO: make this a separate option from use_edge_res, make decision
@@ -479,7 +481,7 @@ function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::SBPOperator, opts;
   end
 
   # get sparsity information
-  # this takes into account the coloring distance
+  # this takes into account the coloring distanc
   mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
   getSparsityBounds(mesh, mesh.sparsity_bnds)
   mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
@@ -788,7 +790,7 @@ return min, max
   if mesh.coloringDistance >= 2
     edge_arr = Array(Ptr{Void}, num_adj*3)  # enough space for all edges, including repeats
     for i=1:num_adj  # get the edges
-      sub_arr = sub(edge_arr, (3*(i-1) + 1):(3*i))
+      sub_arr = view(edge_arr, (3*(i-1) + 1):(3*i))
       getDownward(mesh.m_ptr, el_arr[i], 1, sub_arr)
     end
 
@@ -818,7 +820,7 @@ return min, max
     end_idx = num_els[1]
     for i=1:length(edge_arr)
       edge_i = edge_arr[i]
-      sub_arr = sub(el_arr, start_idx:end_idx)
+      sub_arr = view(el_arr, start_idx:end_idx)
       countAdjacent(mesh.m_ptr, edge_i, 2)
       getAdjacent(sub_arr)
 
@@ -846,7 +848,7 @@ return min, max
 
   for i=1:num_adj
     elnum_i = getNumberJ(mesh.el_Nptr, el_arr[i], 0, 0) + 1
-    getGlobalNodeNumbers(mesh, elnum_i, sub(dofnums, :, :, i), getdofs=getdofs)
+    getGlobalNodeNumbers(mesh, elnum_i, view(dofnums, :, :, i), getdofs=getdofs)
   end
 
   min, max = getMinandMax(dofnums)
