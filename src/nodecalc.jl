@@ -1,24 +1,52 @@
 using SummationByParts
 
-vtx = [0.0 0; 1 0; 0 1]
-r1 = vtx[1, :]
-r2 = vtx[2, :]
-r3 = vtx[3, :]
+function nodecalc(p)
+  vtx = [0.0 0; 1 0; 0 1]
+  r1 = vtx[1, :]
+  r2 = vtx[2, :]
+  r3 = vtx[3, :]
 
-T = zeros(2,2)
-T[:, 1] = r2 - r1
-T[:, 2] = r3 - r1
+  T = zeros(2,2)
+  T[:, 1] = r2 - r1
+  T[:, 2] = r3 - r1
 
-# create operator
-sbp1 = TriSBP{Float64}(degree=4)
+  # create operator
+  sbp1 = TriSBP{Float64}(degree=p)
 
-coords = calcnodes(sbp1, vtx)
+  coords = calcnodes(sbp1, vtx)
 
-xi = zeros(coords)
+  xi = zeros(coords)
 
-for i=1:size(coords,2)
-  xi[:, i] = T\(coords[:, i] - r1.')
+  for i=1:size(coords,2)
+    xi[:, i] = T\(coords[:, i] - r1.')
+  end
+
+  return xi, coords
 end
 
-xi
+function minNodeDist()
 
+
+  for p=1:4
+    xi, coords = nodecalc(p)
+    min_dist = typemax(Float64)
+#    println("coords = ", coords)
+    for i=1:size(coords, 2)
+      for j=(i+1):size(coords, 2)
+	# calculate distance between node i and node j
+	dist_j = norm(coords[:, i] - coords[:, j])
+
+	if dist_j < min_dist
+	  min_dist = dist_j
+	end
+
+      end  # end loop j
+    end  # end loop i
+
+    println("for p=$p elements, min node distance = ", min_dist)
+  end  # end loop over p
+
+  return nothing
+end
+
+minNodeDist()

@@ -23,10 +23,14 @@ int main ()
   std::cout << "loading null geometric model" << std::endl;
   gmi_model* g = gmi_load(".null");
   std::cout << "finished loading geometric model" << std::endl;
-  apf::Mesh2* m = apf::loadMdsMesh(g, ".smb");
+  // using the mesh vortex3_1.smb works fine
+  apf::Mesh2* m = apf::loadMdsMesh(g,"/users/creanj/.julia/v0.4/PDESolver/src/mesh_files/tri2l.smb" );
 
+  std::cout << "finished loading mesh" << std::endl;
+//  apf::writeASCIIVtkFiles("output_check", m);
   apf::writeVtkFiles("output_check", m);
 
+  std::cout << "finished writing paraview files" << std::endl;
   return 0;
 }
      

@@ -143,7 +143,7 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
   }
 
   // this should have a new filename everytime
-  apf::writeVtkFiles("output_check", m);
+  apf::writeASCIIVtkFiles("output_check", m);
 
 
   m_ptr_array[0] = m;
@@ -191,7 +191,7 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 
 
 
-  apf::writeVtkFiles("output_init", m);
+  apf::writeASCIIVtkFiles("output_init", m);
   return 0;
 }
 
@@ -296,7 +296,7 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
   }
 
   // this should have a new filename everytime
-  apf::writeVtkFiles("output_check", m);
+  apf::writeASCIIVtkFiles("output_check", m);
 
 
   m_ptr_array[0] = m;
@@ -370,7 +370,7 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
 
 
 
-  apf::writeVtkFiles("output_init", m);
+  apf::writeASCIIVtkFiles("output_init", m);
 /*
   // write curved mesh visualization file
   apf::FieldShape* mshape = m->getShape();
@@ -525,7 +525,7 @@ int count(apf::Mesh2* m_local, int dimension)
 void writeVtkFiles(char* name, apf::Mesh2* m_local)
 {
 
-   apf::writeVtkFiles(name, m_local);
+   apf::writeASCIIVtkFiles(name, m_local);
     
 /*
     apf::FieldShape* mshape = m->getShape();
