@@ -302,6 +302,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   # get sparsity information
   # this takes into account the coloring distance
+  #TODO: make getting sparsity bounds faster
   if opts["run_type"] != 1  # no a rk4 run
     println("getting sparsity bounds")
     mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
@@ -2035,6 +2036,7 @@ function reinitPumiMesh2(mesh::PumiMesh2)
 end
 
 
+#TODO: stop using slice notation
 function getCoordinates(mesh::PumiMesh2, sbp::SBPOperator)
 # populate the coords array of the mesh object
 
@@ -2854,18 +2856,6 @@ function printcoords(name::AbstractString, coords)
   return nothing
 end
 
-
-
-function getdiffelementarea{T, T2, T3}(nrm::AbstractArray{T,1}, dxidx::AbstractArray{T2,2},
-                               workvec::AbstractArray{T3,1})
-  fill!(workvec, zero(T3))
-  for di1 = 1:size(nrm,1)
-    for di2 = 1:size(nrm,1)
-      workvec[di2] += nrm[di1]*dxidx[di1,di2]
-    end
-  end
-  return norm(workvec)
-end
 
 
 function writeVisFiles(mesh::PumiMesh, fname::AbstractString)
