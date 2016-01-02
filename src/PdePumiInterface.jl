@@ -2515,7 +2515,9 @@ function getInterfaceArray(mesh::PumiMesh2)
       edgeL = getEdgeLocalNum(mesh, i, elementL)
       edgeR = getEdgeLocalNum(mesh, i, elementR)
 
-      mesh.interfaces[pos] = Interface(elementL, elementR, edgeL, edgeR, nodemap)
+      # here we set the orientation flag to 2 for all edges, because in 2D
+      # the edges always have opposite orientation
+      mesh.interfaces[pos] = Interface(elementL, elementR, edgeL, edgeR, Uint8(2))
 #       println("updating pos")
       pos += 1
 
@@ -2525,6 +2527,11 @@ function getInterfaceArray(mesh::PumiMesh2)
 
 #     print("\n")
   end  # end loop over edges
+
+  #TODO: sort the interfaces to be in order of increasing element number
+  #      for cache efficiency in accessing the data associated with the
+  #      edges
+
 
   return nothing
 
