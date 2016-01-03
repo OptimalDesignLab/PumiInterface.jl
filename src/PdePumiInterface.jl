@@ -608,7 +608,7 @@ function populateDofNumbers(mesh::PumiMesh)
 
   resetAllIts2()
 
-  writeVtkFiles("dofs_numbered", mesh.m_ptr)
+#  writeVtkFiles("dofs_numbered", mesh.m_ptr)
   return nothing
 end
 

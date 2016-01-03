@@ -370,7 +370,7 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
 
 
 
-  apf::writeASCIIVtkFiles("output_init", m);
+//  apf::writeASCIIVtkFiles("output_init", m);
 /*
   // write curved mesh visualization file
   apf::FieldShape* mshape = m->getShape();
