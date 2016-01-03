@@ -31,8 +31,68 @@ export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getEle
 
 export PumiMesh
 #abstract AbstractMesh
+@doc """
+### PumiInterface.PumiMesh
+
+  This abstract type is the supertype of all Pumi mesh object"
+
+  The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
+  jac).
+"""->
 abstract PumiMesh{T1} <: AbstractMesh{T1}
 include("./PdePumiInterface3.jl")
+
+@doc """
+### PumiInterface.PumiMesh2
+
+  This is an implementation of AbstractMesh for a 2 dimensional equation.  
+  The constructor for this type extracts all the needed information from Pumi,
+  so the solver never needs access to Pumi.
+
+  Fields:
+    m_ptr: a Ptr{Void} to the Pumi mesh
+    mnew_ptr: a Ptr{Void} to the subtriangulated mesh used for high
+              order visualization, null pointer if not needed
+
+    f_ptr:  a Ptr{Void} to the Pumi apf::Field holding the solution
+    vert_NPtr: a pointer to the apf::Numbering object that numbers the 
+               vertices (0-based numbering)
+    edge_Nptr: a pointer to the Pumi apf::Numbering that numbers the mesh 
+               edges (0-based numbering)
+    el_Nptr:  a pointer to the Pumi apf::Numbering that numbers the mesh
+              elements
+
+    numVert: number of vertices in the mesh
+    numEdge: number of edges in the mesh
+    numEl: number of elements in the mesh
+    order: degree of the shape functions
+    numDof: total number of degrees of freedom
+    numNodes: number of nodes in the mesh
+    numDofPerNode: number of degrees of freedom on each node
+    numBoundaryEdges: number of edges on the boundary of the domain
+    numInterfaces: number of internal edges (edges not on boundary)
+    numNodesPerElements: number of nodes on an element
+    numNodesPerType: array of length 3 that tells how many nodes are on a mesh
+                     vertex, edge, and element
+    numEntitiesPertype: [numVert, numEdges, numEl]
+    numTypesPerElement: array of length 3 telling how many vertices, edges
+                         and faces in each element 
+    
+    typeOffsetsPerElement: array of length 3 telling the starting index of the 
+                           vertices, edges, and faces in an array where
+                           all quantities for the vertices are stored, then
+                           the edges, then the faces
+
+    typeOffsetsPerElement_: Int32 version of the above
+    nodemapSBPtoPumi: array of Uint8s that maps the SBP ordering of nodes to 
+                      the Pumi ordering of nodes 
+    nodemapPumiToSBP: array of Uint8s that maps the Pumi node ordering to the
+                      SBP one.
+
+    coloringDistance: the distance k of the distance-k graph coloring used to
+                      color the elements (graph vertices are elements and graph
+                      edges exist where elements share an edge)
+"""->
 type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
