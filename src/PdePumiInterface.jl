@@ -5,6 +5,7 @@ using PumiInterface
 using SummationByParts
 using ODLCommonTools
 using ArrayViews
+include("nodecalc.jl")
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
 export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles
@@ -100,6 +101,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
   fnew_ptr::Ptr{Void}  # pointer to field on mnew_ptr
   shape_type::Int  #  type of shape functions
+  min_node_dist::Float64  # minimum distance between nodes
 
   vert_Nptr::Ptr{Void}  # numbering of vertices (zero based)
   edge_Nptr::Ptr{Void}  # numbering of edges (zero based)
@@ -206,6 +208,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   mesh.coloringDistance = coloring_distance
   num_Entities, mesh.m_ptr, mesh.mshape_ptr = init2(dmg_name, smb_name, order, shape_type=shape_type)
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
+  mesh.min_node_dist = minNodeDist(order)
 
   # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])

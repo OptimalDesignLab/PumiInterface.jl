@@ -24,10 +24,9 @@ function nodecalc(p)
   return xi, coords
 end
 
-function minNodeDist()
+function minNodeDist(p)
+# get the minimum distance between nodes on a reference element of degree p
 
-
-  for p=1:4
     xi, coords = nodecalc(p)
     min_dist = typemax(Float64)
 #    println("coords = ", coords)
@@ -43,10 +42,9 @@ function minNodeDist()
       end  # end loop j
     end  # end loop i
 
-    println("for p=$p elements, min node distance = ", min_dist)
-  end  # end loop over p
-
-  return nothing
+#    println("for p=$p elements, min node distance = ", min_dist)
+  
+  return min_dist
 end
 
-minNodeDist()
+#minNodeDist(2)
