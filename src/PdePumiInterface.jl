@@ -85,9 +85,9 @@ include("./PdePumiInterface3.jl")
                            the edges, then the faces
 
     typeOffsetsPerElement_: Int32 version of the above
-    nodemapSBPtoPumi: array of Uint8s that maps the SBP ordering of nodes to 
+    nodemapSBPtoPumi: array of UInt8s that maps the SBP ordering of nodes to 
                       the Pumi ordering of nodes 
-    nodemapPumiToSBP: array of Uint8s that maps the Pumi node ordering to the
+    nodemapPumiToSBP: array of UInt8s that maps the Pumi node ordering to the
                       SBP one.
 
     coloringDistance: the distance k of the distance-k graph coloring used to
@@ -123,8 +123,8 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   numTypePerElement::Array{Int, 1}  # number of verts, edges, faces per element
   typeOffsetsPerElement::Array{Int, 1} # the starting index of the vert, edge, and face nodes in an element 
   typeOffsetsPerElement_::Array{Int32, 1}  # Int32 version of above
-  nodemapSbpToPumi::Array{Uint8, 1}  # maps nodes of SBP to Pumi order
-  nodemapPumiToSbp::Array{Uint8, 1}  # maps nodes of Pumi to SBP order
+  nodemapSbpToPumi::Array{UInt8, 1}  # maps nodes of SBP to Pumi order
+  nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
 
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
   numColors::Int  # number of colors
@@ -137,7 +137,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   # used for high order elements to determine the orientations of edges and 
   # faces (and vertices, too, for consistency)
-  elementNodeOffsets::Array{Uint8, 2}
+  elementNodeOffsets::Array{UInt8, 2}
   # truth values if the entity is oriented consistently with the element
   typeNodeFlags::Array{BitArray{2}, 1}
   triangulation::Array{Int32, 2}  # sub triangulation of an element
@@ -168,7 +168,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   sparsity_bnds::Array{Int32, 2}  # store max, min dofs for each dof
   sparsity_nodebnds::Array{Int32, 2}  # store min, max nodes for each node
   color_masks::Array{BitArray{1}, 1}  # array of bitarray masks used to control element perturbations when forming jacobian, number of arrays = number of colors
-  neighbor_colors::Array{Uint8, 2}  # 4 by numEl array, holds colors of edge-neighbor elements + own color
+  neighbor_colors::Array{UInt8, 2}  # 4 by numEl array, holds colors of edge-neighbor elements + own color
   neighbor_nums::Array{Int32, 2}  # 4 by numEl array, holds element numbers of neighbors + own number, in same order as neighbor_colors
   pertNeighborEls::Array{Int32, 2}  # numEl by numcolors array, for each color,
                                     # stores the element number of the element
@@ -356,7 +356,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
     @assert numc == 1
     mesh.numColors = numc
     mesh.color_masks = Array(BitArray{1}, numc)
-    mesh.neighbor_colors = zeros(Uint8, 0, 0)  # unneeded array for distance-0
+    mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
     getColors0(mesh, mesh.color_masks)
     mesh.pertNeighborEls = getPertNeighbors0(mesh)
@@ -548,7 +548,7 @@ function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::SBPOperator, opts;
     @assert numc == 1
     mesh.numColors = numc
     mesh.color_masks = Array(BitArray{1}, numc)
-    mesh.neighbor_colors = zeros(Uint8, 0, 0)  # unneeded array for distance-0
+    mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
     getColors0(mesh, mesh.color_masks)
     mesh.pertNeighborEls = getPertNeighbors0(mesh)
@@ -1539,7 +1539,7 @@ function getEntityOrientations(mesh::PumiMesh2)
 # might be different for a rotation
   # create array of arrays
   # hold an offset for every node of every entity of every element
-  offsets = zeros(Uint8, mesh.numNodesPerElement, mesh.numEl)
+  offsets = zeros(UInt8, mesh.numNodesPerElement, mesh.numEl)
   # hold a bit telling if the entity is in the proper orientation for this element
   # ie. it is "owned" by this element, so the nodes can be accessed in order
 
@@ -2603,7 +2603,7 @@ function getInterfaceArray(mesh::PumiMesh2)
 
       # here we set the orientation flag to 2 for all edges, because in 2D
       # the edges always have opposite orientation
-      mesh.interfaces[pos] = Interface(elementL, elementR, edgeL, edgeR, Uint8(2))
+      mesh.interfaces[pos] = Interface(elementL, elementR, edgeL, edgeR, UInt8(2))
 #       println("updating pos")
       pos += 1
 
@@ -3017,25 +3017,25 @@ function getNodeMaps(mesh::PumiMesh2)
 # get the mappings between the SBP and Pumi node orderings
 # having to do the mapping at all is inelegent to say the least
 # store mappings in both directions in case they are needed
-# use Uint8s to save cache space during loops
+# use UInt8s to save cache space during loops
 
   if mesh.order == 1
-    sbpToPumi = Uint8[1,2,3]
-    pumiToSbp = Uint8[1,2,3]
+    sbpToPumi = UInt8[1,2,3]
+    pumiToSbp = UInt8[1,2,3]
   elseif mesh.order == 2
-    sbpToPumi = Uint8[1,2,3,4,5,6,7]
-    pumiToSbp = Uint8[1,2,3,4,5,6,7]
+    sbpToPumi = UInt8[1,2,3,4,5,6,7]
+    pumiToSbp = UInt8[1,2,3,4,5,6,7]
   elseif mesh.order == 3
-    sbpToPumi = Uint8[1,2,3,4,5,6,7,8,9,12,10,11]
-    pumiToSbp= Uint8[1,2,3,4,5,6,7,8,9,11,12,10]
+    sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,10,11]
+    pumiToSbp= UInt8[1,2,3,4,5,6,7,8,9,11,12,10]
   elseif mesh.order == 4 
-    sbpToPumi = Uint8[1,2,3,4,5,6,7,8,9,10,11,12,17,13,15,14,16,18]
-    pumiToSbp = Uint8[1,2,3,4,5,6,7,8,9,10,11,12,14,16,15,17,13,18]
+    sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,17,13,15,14,16,18]
+    pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,14,16,15,17,13,18]
   else
     println(STDERR, "Warning: Unsupported element order requestion in getFaceOffsets")
     # default to 1:1 mapping
-    sbpToPumi = Uint8[1:mesh.numNodesPerElement]
-    pumiToSbp = Uint8[1:mesh.numNodesPerElement]
+    sbpToPumi = UInt8[1:mesh.numNodesPerElement]
+    pumiToSbp = UInt8[1:mesh.numNodesPerElement]
   end
 
   return sbpToPumi, pumiToSbp

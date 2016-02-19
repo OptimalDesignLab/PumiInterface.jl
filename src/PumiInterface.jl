@@ -1009,9 +1009,9 @@ return i
 end
 
 
-function getDofNumbers(n_ptr, entities::AbstractArray{Ptr{Void}}, node_offsets::AbstractArray{Uint8}, nodemap::AbstractArray{Uint8}, element::Ptr{Void}, dofnums::AbstractArray{Int32})
+function getDofNumbers(n_ptr, entities::AbstractArray{Ptr{Void}}, node_offsets::AbstractArray{UInt8}, nodemap::AbstractArray{UInt8}, element::Ptr{Void}, dofnums::AbstractArray{Int32})
 
-  ccall( (getDofNumbers_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Ptr{Uint8}, Ptr{Uint8}, Ptr{Void}, Ptr{Int32}), n_ptr, entities, node_offsets, nodemap, element, dofnums)
+  ccall( (getDofNumbers_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Ptr{UInt8}, Ptr{UInt8}, Ptr{Void}, Ptr{Int32}), n_ptr, entities, node_offsets, nodemap, element, dofnums)
 
   return nothing
 end
@@ -1114,7 +1114,7 @@ end
 	 in reverse order (ie. high to low rather than low to high).
 
 """->
-function reorder(m_ptr, ndof::Integer, ncomp::Integer, node_statusN_ptr, nodeNums, elNums, x::FloatingPoint, y::FloatingPoint )
+function reorder(m_ptr, ndof::Integer, ncomp::Integer, node_statusN_ptr, nodeNums, elNums, x::AbstractFloat, y::AbstractFloat )
 
   println("ndof = ", ndof)
   println("ncomp = ", ncomp)
@@ -1223,7 +1223,7 @@ end
 		    where n is the number of subtriangles.  These should be
 		    1-based indices, with values in the range 1 to number of
 		    nodes per element
-    elementNodeOffsets:  array of Uint8s, dimensions number of nodes per element 
+    elementNodeOffsets:  array of UInt8s, dimensions number of nodes per element 
                          by number of elements in the mesh, used to figure out
 			 how each element should access the nodes of a mesh 
 			 entity.  See PdePumiInterface for details.
@@ -1238,12 +1238,12 @@ end
   Outputs:
     mnew_ptr : pointer to the new mesh
 """->
-function createSubMesh(m_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{Uint8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, numberings::AbstractArray{Ptr{Void}, 1})
+function createSubMesh(m_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{UInt8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, numberings::AbstractArray{Ptr{Void}, 1})
 
   # check the the triangulation array is oriented correctly
   @assert size(triangulation, 1) == 3
   
- mnew_ptr =  ccall( (createSubMesh_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Int32, Ptr{Int32}, Ptr{Uint8}, Ptr{Int32}, Ptr{Ptr{Void}}), m_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings)
+ mnew_ptr =  ccall( (createSubMesh_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Int32, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}, Ptr{Ptr{Void}}), m_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings)
 
  return mnew_ptr
 end
@@ -1256,12 +1256,12 @@ end
 
   See createSubMesh for the meanings of the arguments
 """->
-function transferField(m_ptr, mnew_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{Uint8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, numberings::AbstractArray{Ptr{Void}, 1}, field_old, field_new)
+function transferField(m_ptr, mnew_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{UInt8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, numberings::AbstractArray{Ptr{Void}, 1}, field_old, field_new)
 
   # check the the triangulation array is oriented correctly
   @assert size(triangulation, 1) == 3
   
- ccall( (transferField_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Int32}, Ptr{Uint8}, Ptr{Int32}, Ptr{Ptr{Void}}, Ptr{Void}, Ptr{Void}), m_ptr, mnew_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings, field_old, field_new)
+ ccall( (transferField_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}, Ptr{Ptr{Void}}, Ptr{Void}, Ptr{Void}), m_ptr, mnew_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings, field_old, field_new)
 
  return nothing
 end
