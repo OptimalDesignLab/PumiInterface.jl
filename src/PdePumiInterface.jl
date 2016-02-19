@@ -429,6 +429,17 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
     writedlm("sparsity_bnds.dat", mesh.sparsity_bnds.')
   end
 
+  if opts["write_sparsity_nodebnds"]
+    println("writing sparsiy node bounds")
+    rmfile("sparsity_nodebnds.dat")
+    writedlm("sparsity_nodebnds.dat", mesh.sparsity_nodebnds)
+  end
+
+  if opts["write_offsets"]
+    rmfile("entity_offsets.dat")
+    writedlm("entity_offsets.dat", mesh.elementNodeOffsets)
+  end
+
   if opts["write_counts"]
     writeCounts(mesh)
   end
@@ -1498,7 +1509,7 @@ function getEntityOrientations(mesh::PumiMesh2)
       orient, edge_idx = getEdgeOrientation(mesh, i, edgenum_global)
       
       # figure out offset value
-      # write n = mesh.numNodesPerType[2] + 1 of orientation = -1, or n=0 if orientation=1
+      # write n = mesh.numNodesPerType[2] + 1 if orientation = -1, or n=0 if orientation=1
       if orient == 1
 	offset_val = 0
       else
@@ -1529,7 +1540,8 @@ end
 
 
 function getEdgeOrientation(mesh::PumiMesh2, elnum::Integer, edgenum::Integer)
-# figure out what the orientation of the specified edge is relative ot the element
+# figure out what the orientation of the specified edge is relative ot the 
+# element by looking at the order of the vertices that define the edge
 # if the edge is in the same orientation as the element, return 1, otherwise -1
 # because we are dealing with simplex elements, the third edge has to be 
 # handled specially
@@ -1540,7 +1552,7 @@ function getEdgeOrientation(mesh::PumiMesh2, elnum::Integer, edgenum::Integer)
   edge_verts, tmp = getDownward(mesh.m_ptr, mesh.edges[edgenum], 0)
   el_edges, tmp = getDownward(mesh.m_ptr, mesh.elements[elnum], 1)
 
-  # find out which edge this is
+  # find out which edge of the face it is
   edge_idx = 0
   for i=1:3
     edgenum_ret = getNumberJ(mesh.edge_Nptr, el_edges[i], 0, 0) + 1
@@ -1550,9 +1562,16 @@ function getEdgeOrientation(mesh::PumiMesh2, elnum::Integer, edgenum::Integer)
     end
   end
 
+  # an edge is defined by its two vertices
+  # therefore, if the vertices are in the same order on the edge as on
+  # the element, then the edge is in the same orientation as the element,
+  # otherwise opposite orientation.
+  # For simpleces, the 3rd edge has to be special cased because it uses
+  # vertices 3 and 1
   pos1 = 0  # position of edge_verts[1] in el_verts
   pos2 = 0  # position of edge_verts[2] in el_verts
 
+  # find the positions of the edge vertices on the element
   for i=1:3  # loop over el_verts
     if el_verts[i] == edge_verts[1]
       pos1 = i
@@ -1563,6 +1582,8 @@ function getEdgeOrientation(mesh::PumiMesh2, elnum::Integer, edgenum::Integer)
 
   @assert pos1 != 0
   @assert pos2 != 0
+
+  # use the vertex positions to determine oridentation
   if edge_idx <= 2
     if pos2 - pos1 > 0  # positively oriented
       return 1, edge_idx
