@@ -19,7 +19,7 @@ facts("--- Testing PdePumiInterface --- ") do
     )
 
     # names of output files
-    fnames = ["boundary_nums", "face_vertnums", "edge_vertnums", "dxidx", "coords", "sparsity_bnds", "sparsity_bnds", "sparsity_nodebnds"]
+    fnames = ["boundary_nums", "face_vertnums", "edge_vertnums", "sparsity_bnds", "sparsity_bnds", "sparsity_nodebnds"]
 
     smb_name = "tri2l.smb"
     dmg_name = ".null"
@@ -155,6 +155,8 @@ facts("--- Testing PdePumiInterface --- ") do
 
       for i=1:length(data_code)
         data_i = data_code[i]
+        println("data_i = ", data_i)
+        println("data_ref[i] = ", data_ref[i])
         if typeof(data_i) <: Number
           @fact data_i => roughly(data_ref[i], atol=1e-13)
         else
