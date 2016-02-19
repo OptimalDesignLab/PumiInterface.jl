@@ -178,6 +178,8 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   for i=1:3
     numnodes += mesh.numNodesPerType[i]*mesh.numEntitiesPerType[i]
   end
+  println("numNodesPerType = ", mesh.numNodesPerType)
+  println("numEntitesPerType = ", mesh.numEntitiesPerType)
   println("numnodes = ", numnodes)
   println("numdof = ", numnodes*dofpernode)
   mesh.numNodes = numnodes      # we assume there are no non-free nodes/dofs
