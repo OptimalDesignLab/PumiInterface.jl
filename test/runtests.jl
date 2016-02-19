@@ -9,6 +9,14 @@ using SummationByParts
 using PdePumiInterface
 
 
+import Base.isapprox
+
+# generic fallback
+function isapprox(a, b)
+  return a == b
+end
+
+
 
 # create mesh
 dmg_name = ".null"
@@ -371,3 +379,4 @@ facts("Testing PdePumiInterface3.jl") do
 end
 =#
 
+include("pdepumiinterface.jl")
