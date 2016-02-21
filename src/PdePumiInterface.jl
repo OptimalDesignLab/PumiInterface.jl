@@ -2985,8 +2985,8 @@ for i=1:mesh.numDof
 end
 
 size_nz = 64*acc
-size_rowval = 32*acc
-size_colptr = 32*mesh.numDof
+size_rowval = 64*acc
+size_colptr = 64*mesh.numDof
 
 vals[9] = size_nz + size_rowval + size_colptr
 
