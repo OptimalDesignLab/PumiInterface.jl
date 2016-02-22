@@ -32,18 +32,18 @@ facts("Testing PUMIInterface.jl") do
 
   order = 1  # linear elements
   num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
-  @fact num_Entities[1] => 9
-  @fact num_Entities[2] => 16
-  @fact num_Entities[3] => 8
-  @fact num_Entities[4] => 0
-  @fact m_ptr => truthy
-  @fact mshape_ptr => truthy 
+  @fact num_Entities[1] --> 9
+  @fact num_Entities[2] --> 16
+  @fact num_Entities[3] --> 8
+  @fact num_Entities[4] --> 0
+  @fact m_ptr --> not(C_NULL)
+  @fact mshape_ptr --> not(C_NULL) 
 
   # check the countJ() function
-  @fact countJ(m_ptr, 0) => 9
-  @fact countJ(m_ptr, 1) => 16
-  @fact countJ(m_ptr, 2) => 8
-  @fact countJ(m_ptr, 3) => 0
+  @fact countJ(m_ptr, 0) --> 9
+  @fact countJ(m_ptr, 1) --> 16
+  @fact countJ(m_ptr, 2) --> 8
+  @fact countJ(m_ptr, 3) --> 0
 
   # check numberings
   vertN_ptr = getVertNumbering()
@@ -72,25 +72,25 @@ facts("Testing PUMIInterface.jl") do
   facenum = getNumberJ(faceN_ptr, face, 0, 0) 
   println("facenum = ", facenum)
 
-  @fact getNumberJ(vertN_ptr, vert, 0, 0) => 0
-  @fact getNumberJ(edgeN_ptr, edge, 0, 0) => 0
-  @fact getNumberJ(faceN_ptr, face, 0, 0) => 0
+  @fact getNumberJ(vertN_ptr, vert, 0, 0) --> 0
+  @fact getNumberJ(edgeN_ptr, edge, 0, 0) --> 0
+  @fact getNumberJ(faceN_ptr, face, 0, 0) --> 0
 
 
   for i=1:num_Entities[1]  # loop over verts
     entity = getVert()
-    @fact getNumberJ(vertN_ptr, entity, 0, 0) => i-1
-    @fact getVertNumber() => i-1
-    @fact getVertNumber2(entity) => i-1
+    @fact getNumberJ(vertN_ptr, entity, 0, 0) --> i-1
+    @fact getVertNumber() --> i-1
+    @fact getVertNumber2(entity) --> i-1
     incrementVertIt()
   end
   resetVertIt()
 
   for i=1:num_Entities[2]  # loop over edges
     entity = getEdge()
-    @fact getNumberJ(edgeN_ptr, entity, 0, 0) => i-1
-    @fact getEdgeNumber() => i-1
-    @fact getEdgeNumber2(entity) => i-1
+    @fact getNumberJ(edgeN_ptr, entity, 0, 0) --> i-1
+    @fact getEdgeNumber() --> i-1
+    @fact getEdgeNumber2(entity) --> i-1
     incrementEdgeIt()
   end
   resetEdgeIt()
@@ -98,9 +98,9 @@ facts("Testing PUMIInterface.jl") do
 
   for i=1:num_Entities[3]  # loop over faces
     entity = getFace()
-    @fact getNumberJ(faceN_ptr, entity, 0, 0) => i-1
-    @fact getFaceNumber() => i-1
-    @fact getFaceNumber2(entity) => i-1
+    @fact getNumberJ(faceN_ptr, entity, 0, 0) --> i-1
+    @fact getFaceNumber() --> i-1
+    @fact getFaceNumber2(entity) --> i-1
     incrementFaceIt()
   end
   resetFaceIt()
@@ -108,10 +108,10 @@ facts("Testing PUMIInterface.jl") do
 
 
 
-  @fact getMeshDimension(m_ptr) => 2
-  @fact getType(m_ptr, vert) => 0
-  @fact getType(m_ptr, edge) => 1
-  @fact getType(m_ptr, face) => 2
+  @fact getMeshDimension(m_ptr) --> 2
+  @fact getType(m_ptr, vert) --> 0
+  @fact getType(m_ptr, edge) --> 1
+  @fact getType(m_ptr, face) --> 2
 
 
   printEdgeVertNumbers(edgeN_ptr, vertN_ptr)
@@ -125,21 +125,21 @@ facts("Testing PUMIInterface.jl") do
     down_nums[i] = getNumberJ(edgeN_ptr, down_entities[i], 0, 0)
   end
 #  println("down_nums = ", down_nums)
-   @fact down_nums => [4, 0, 5]
+   @fact down_nums --> [4, 0, 5]
 
   down_entities, num_down = getDownward(m_ptr, face, 0) # face -> verts
   down_nums = zeros(Int, num_down)
   for i=1:num_down
     down_nums[i] = getNumberJ(vertN_ptr, down_entities[i], 0, 0)
   end
-   @fact down_nums => [5, 0, 1]
+   @fact down_nums --> [5, 0, 1]
 
   down_entities, num_down = getDownward(m_ptr, edge, 0) # edge -> verts
   down_nums = zeros(Int, num_down)
   for i=1:num_down
     down_nums[i] = getNumberJ(vertN_ptr, down_entities[i], 0, 0)
   end
-   @fact down_nums => [0, 1]
+   @fact down_nums --> [0, 1]
 
 
   # check upward adjacency function
@@ -152,7 +152,7 @@ facts("Testing PUMIInterface.jl") do
   end
 
 #  println("up_nums = ", up_nums)
-  @fact up_nums => [4, 0]
+  @fact up_nums --> [4, 0]
 
  num_up = countAdjacent(m_ptr, vert, 2)  # vert -> face
   up_entities = getAdjacent( num_up)
@@ -162,7 +162,7 @@ facts("Testing PUMIInterface.jl") do
   end
 
 #  println("up_nums = ", up_nums)
-  @fact up_nums => [0]
+  @fact up_nums --> [0]
 
 
   num_up = countAdjacent(m_ptr, edge, 2)  # edge -> face
@@ -173,20 +173,20 @@ facts("Testing PUMIInterface.jl") do
   end
 
 #  println("up_nums = ", up_nums)
-  @fact up_nums => [0]
+  @fact up_nums --> [0]
 
 
   # check second order adjacencies
 
 
   # check FieldShape and EntityShape functions
-  @fact hasNodesIn(mshape_ptr, 0) => true
-  @fact hasNodesIn(mshape_ptr, 1) => false
-  @fact hasNodesIn(mshape_ptr, 2) => false
+  @fact hasNodesIn(mshape_ptr, 0) --> true
+  @fact hasNodesIn(mshape_ptr, 1) --> false
+  @fact hasNodesIn(mshape_ptr, 2) --> false
   
-  @fact countNodesOn(mshape_ptr, 0) => 1
-  @fact countNodesOn(mshape_ptr, 1) => 0
-  @fact countNodesOn(mshape_ptr, 2) => 0
+  @fact countNodesOn(mshape_ptr, 0) --> 1
+  @fact countNodesOn(mshape_ptr, 1) --> 0
+  @fact countNodesOn(mshape_ptr, 2) --> 0
 
   # check shape functions, jacobians, integration points here?
 
@@ -203,7 +203,7 @@ facts("Testing PUMIInterface.jl") do
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
   end
   sort!(adj_num)
-  @fact adj_num => [1, 5]
+  @fact adj_num --> [1, 5]
 
   # target_dimension = bridge dimension not defined
   in_dim = 1
@@ -216,7 +216,7 @@ facts("Testing PUMIInterface.jl") do
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
   end
   sort!(adj_num)
-  @fact adj_num => [0]
+  @fact adj_num --> [0]
 
   # edge connected to vertices by edges
   in_dim = 0
@@ -229,7 +229,7 @@ facts("Testing PUMIInterface.jl") do
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
   end
   sort!(adj_num)
-  @fact adj_num => sort!([4, 5, 1, 7])
+  @fact adj_num --> sort!([4, 5, 1, 7])
 
   # edge connected to edges by faces
   in_dim = 2
@@ -242,7 +242,7 @@ facts("Testing PUMIInterface.jl") do
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
   end
   sort!(adj_num)
-  @fact adj_num => [4, 5]
+  @fact adj_num --> [4, 5]
 
   # face connected to edges by vertex
   in_dim = 0
@@ -258,7 +258,7 @@ facts("Testing PUMIInterface.jl") do
   ans = sort([4, 0, 5, 6, 13, 7, 1])
   println("ans = ", ans)
 
-  @fact adj_num => ans
+  @fact adj_num --> ans
 
   # face connected to faces by vert
   in_dim = 0
@@ -271,7 +271,7 @@ facts("Testing PUMIInterface.jl") do
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
   end
   sort!(adj_num)
-  @fact adj_num => sort!([1, 2, 6])
+  @fact adj_num --> sort!([1, 2, 6])
 
   # face connected to faces by edge
   in_dim = 1
@@ -284,7 +284,7 @@ facts("Testing PUMIInterface.jl") do
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
   end
   sort!(adj_num)
-  @fact adj_num => [1]
+  @fact adj_num --> [1]
 
 
 
@@ -303,25 +303,25 @@ facts("Testing PUMIInterface.jl") do
   coords_vert = zeros(3,1)
   getVertCoords(vert, coords_vert, 3, 1)
   coords = coords_vert[:,1]
-  @fact coords => roughly([-1.0, -1.0, 0])
+  @fact coords --> roughly([-1.0, -1.0, 0])
   getVertCoords(coords_vert, 3, 1)
   coords = coords_vert[:,1]
-  @fact coords => roughly([-1.0, -1.0, 0])
+  @fact coords --> roughly([-1.0, -1.0, 0])
 
 
   coords_edge = zeros(3,2)
   getEdgeCoords(edge, coords_edge, 3, 2)
-  @fact coords_edge => roughly([-1.0 0; -1 -1; 0 0])
+  @fact coords_edge --> roughly([-1.0 0; -1 -1; 0 0])
   getEdgeCoords(coords_edge, 3, 2)
-  @fact coords_edge => roughly([-1.0 0; -1 -1; 0 0])
+  @fact coords_edge --> roughly([-1.0 0; -1 -1; 0 0])
 
 
 
   coords_el = zeros(3,3)
   getFaceCoords(face, coords_el, 3, 3)
-  @fact coords_el => roughly([-1.0 0 0; -1 -1 0; 0 0 0])
+  @fact coords_el --> roughly([-1.0 0 0; -1 -1 0; 0 0 0])
   getFaceCoords(coords_el, 3, 3)
- @fact coords_el => roughly([-1.0 0 0; -1 -1 0; 0 0 0])
+ @fact coords_el --> roughly([-1.0 0 0; -1 -1 0; 0 0 0])
 
 =#
 
@@ -329,7 +329,7 @@ facts("Testing PUMIInterface.jl") do
  n_ptr = createNumberingJ(m_ptr, "testnumbering", mshape_ptr, 1)
 
  numberJ(n_ptr, vert, 0, 0, 1)
- @fact getNumberJ(n_ptr, vert, 0, 0) => 1
+ @fact getNumberJ(n_ptr, vert, 0, 0) --> 1
 
 
   end
@@ -348,30 +348,30 @@ facts("Testing PdePumiInterface3.jl") do
 
   mesh = PumiMesh3{Float64}(dmg_name, smb_name, order, sbp, dofpernode=4)
 
-  @fact PdePumiInterface.constructNodemap(mesh, 0) => [1, 3, 2]
-  @fact PdePumiInterface.constructNodemap(mesh, 1) => [3, 2, 1]
-  @fact PdePumiInterface.constructNodemap(mesh, 2) => [2, 1, 3]
+  @fact PdePumiInterface.constructNodemap(mesh, 0) --> [1, 3, 2]
+  @fact PdePumiInterface.constructNodemap(mesh, 1) --> [3, 2, 1]
+  @fact PdePumiInterface.constructNodemap(mesh, 2) --> [2, 1, 3]
 
   order = 2
   mesh = PumiMesh3{Float64}(dmg_name, smb_name, order, sbp, dofpernode=4)
 
-  @fact PdePumiInterface.constructNodemap(mesh, 0) => [1, 3, 2, 6, 5, 4]
-  @fact PdePumiInterface.constructNodemap(mesh, 1) => [3, 2, 1, 5, 4, 6]
-  @fact PdePumiInterface.constructNodemap(mesh, 2) => [2, 1, 3, 4, 6, 5]
+  @fact PdePumiInterface.constructNodemap(mesh, 0) --> [1, 3, 2, 6, 5, 4]
+  @fact PdePumiInterface.constructNodemap(mesh, 1) --> [3, 2, 1, 5, 4, 6]
+  @fact PdePumiInterface.constructNodemap(mesh, 2) --> [2, 1, 3, 4, 6, 5]
 
   order = 3
   mesh = PumiMesh3{Float64}(dmg_name, smb_name, order, sbp, dofpernode=4)
 
-  @fact PdePumiInterface.constructNodemap(mesh, 0) => [1, 3, 2, 9, 8, 7, 6, 5, 4, 10]
-  @fact PdePumiInterface.constructNodemap(mesh, 1) => [3, 2, 1, 7, 6, 5, 4, 9, 8, 10]
-  @fact PdePumiInterface.constructNodemap(mesh, 2) => [2, 1, 3, 5, 4, 9, 8, 7, 6, 10]
+  @fact PdePumiInterface.constructNodemap(mesh, 0) --> [1, 3, 2, 9, 8, 7, 6, 5, 4, 10]
+  @fact PdePumiInterface.constructNodemap(mesh, 1) --> [3, 2, 1, 7, 6, 5, 4, 9, 8, 10]
+  @fact PdePumiInterface.constructNodemap(mesh, 2) --> [2, 1, 3, 5, 4, 9, 8, 7, 6, 10]
 
   order = 4
   mesh = PumiMesh3{Float64}(dmg_name, smb_name, order, sbp, dofpernode=4)
 
-  @fact PdePumiInterface.constructNodemap(mesh, 0) => [1, 3, 2, 12, 11, 10, 9, 8, 7, 6, 5, 4, 13, 15, 14]
-  @fact PdePumiInterface.constructNodemap(mesh, 1) => [3, 2, 1, 9, 8, 7, 6, 5, 4, 12, 11, 10, 15, 14, 13]
-  @fact PdePumiInterface.constructNodemap(mesh, 2) => [2, 1, 3, 6, 5, 4, 12, 11, 10, 9, 8, 7, 14, 13, 15]
+  @fact PdePumiInterface.constructNodemap(mesh, 0) --> [1, 3, 2, 12, 11, 10, 9, 8, 7, 6, 5, 4, 13, 15, 14]
+  @fact PdePumiInterface.constructNodemap(mesh, 1) --> [3, 2, 1, 9, 8, 7, 6, 5, 4, 12, 11, 10, 15, 14, 13]
+  @fact PdePumiInterface.constructNodemap(mesh, 2) --> [2, 1, 3, 6, 5, 4, 12, 11, 10, 9, 8, 7, 14, 13, 15]
 
 
   end
