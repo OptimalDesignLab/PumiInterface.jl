@@ -1,6 +1,7 @@
 #ifndef FUNCS1_H
 #define FUNCS1_H
 
+#include <stdint.h>
 // header file for funcs1
 
 

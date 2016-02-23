@@ -16,7 +16,7 @@
 #include <stdlib.h>   // malloc, free, etc.
 #include <math.h>
 #include <string.h>
-
+#include <stdint.h>
 
 extern "C" {
 apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3]);

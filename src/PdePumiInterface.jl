@@ -481,7 +481,9 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
   if opts["write_coords"]
     rmfile("coords.dat")
-    printcoords("coords.dat", mesh.coords)
+    println("size(coords) = ", size(mesh.coords))
+    writedlm("coords.dat", mesh.coords)
+#    printcoords("coords.dat", mesh.coords)
   end
 
   if opts["write_sparsity"]
@@ -498,6 +500,12 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   if opts["write_offsets"]
     rmfile("entity_offsets.dat")
     writedlm("entity_offsets.dat", mesh.elementNodeOffsets)
+  end
+
+  if opts["write_dofs"]
+    rmfile("dofs.dat")
+    println("size(mesh.dofs) = ", size(mesh.dofs))
+    writedlm("dofs.dat", mesh.dofs)
   end
 
   if opts["write_counts"]

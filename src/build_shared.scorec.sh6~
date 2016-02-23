@@ -2,7 +2,9 @@
 module load pumi/core-sim
 export LD_LIBRARY_PATH=/usr/local/pumi/core-sim/lib:$LD_LIBRARY_PATH
 set -x
-CXXFLAGS="$CXXFLAGS -g -std=c++11 "
+#CXXFLAGS="$CXXFLAGS -g -std=c++11 -fno-omit-frame-pointer"
+
+CXXFLAGS="$CXXFLAGS -g -fno-omit-frame-pointer"
 #mpicxx ./funcs1.cc $CXXFLAGS -c -Wall -fPIC `pkg-config --cflags --libs libmds`
 
 #mpicxx $CXXFLAGS -c -Wall -fPIC  -I/usr/local/pumi/core-sim/include -L$HOME/lib funcs1.cc -lmds -lapf -lpcu -lbz2 -lgmi
