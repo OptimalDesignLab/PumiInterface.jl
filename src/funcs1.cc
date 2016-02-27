@@ -258,6 +258,10 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
   {
       fshape = apf::getSBPShape(order);
       change_shape = true;
+  } else if ( shape_type == 2)  // use SBP DG1 shape functions
+  {
+    shape = apf::getDG1SBPShape(order);
+    change_shape = true;
   } else  // default to lagrange shape functions
   {
     std::cout << "Warning: unrecognized shape_type, not changing mesh shape" << std::endl;
