@@ -30,6 +30,7 @@
 #include "adaptFuncsJ.h"
 #include "apfSBPShape.h"
 #include "apfSBPShape3.h"
+#include "dgSBPShape1.h"
 #include "triangulation.h"
 //#include "a2.h"
 

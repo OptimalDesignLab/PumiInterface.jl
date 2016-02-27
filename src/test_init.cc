@@ -8,6 +8,33 @@
 #include <apfNumbering.h>
 #include <apfShape.h>
 
+void printModelClassification(apf::Mesh * m)
+{
+  apf::MeshEntity* e;
+  apf::ModelEntity* me;
+  int model_dim;
+  int model_tag;
+  int cnt = 0;
+  char const* entity_names[4] = { "vertex ", "edge ", "face ", "region "};
+
+  for (int i = 0; i < 4; ++ i)
+  {
+    apf::MeshIterator* it = m->begin(i);
+    cnt = 0;
+    while (e = m->iterate(it))
+    {
+      me = m->toModel(e);
+      model_dim = m->getModelType(me);
+      model_tag = m->getModelTag(me);
+      std::cout << entity_names[i] << cnt << " is classified on model entity ";
+      std::cout << model_tag << " of dimension " << model_dim << std::endl;
+      ++cnt;
+    }
+    std::cout << std::endl;
+  }
+        
+
+}  // end function
 
 int main ()
 {
@@ -24,13 +51,16 @@ int main ()
   gmi_model* g = gmi_load(".null");
   std::cout << "finished loading geometric model" << std::endl;
   // using the mesh vortex3_1.smb works fine
-  apf::Mesh2* m = apf::loadMdsMesh(g,"/users/creanj/.julia/v0.4/PDESolver/src/mesh_files/tri2l.smb" );
+  apf::Mesh2* m = apf::loadMdsMesh(g,"/users/creanj/meshcreate/meshfiles/.smb" );
 
   std::cout << "finished loading mesh" << std::endl;
 //  apf::writeASCIIVtkFiles("output_check", m);
   apf::writeVtkFiles("output_check", m);
 
   std::cout << "finished writing paraview files" << std::endl;
+
+  printModelClassification(m);
+
   return 0;
 }
      
