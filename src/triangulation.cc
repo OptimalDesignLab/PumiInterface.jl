@@ -736,7 +736,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
       }
 
       dim = 1;  
-      it = m->begin(dim);  // iterate over vertices
+      it = m->begin(dim);  // iterate over edges
       while ( (e = m->iterate(it)) )
       {
         int idx = apf::getNumber(numberings[dim], e, 0, 0);
@@ -751,7 +751,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
       }
 
       dim = 2;  
-      it = m->begin(dim);  // iterate over vertices
+      it = m->begin(dim);  // iterate over faces
       while ( (e = m->iterate(it)) )
       {
         int idx = apf::getNumber(numberings[dim], e, 0, 0);

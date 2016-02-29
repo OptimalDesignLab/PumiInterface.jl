@@ -126,6 +126,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   nodemapSbpToPumi::Array{UInt8, 1}  # maps nodes of SBP to Pumi order
   nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
 
+  isDG::Bool  # is this a DG mesh (always false)
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
   numColors::Int  # number of colors
   numBC::Int  # number of boundary conditions
@@ -193,14 +194,11 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   # shape_type = type of shape functions, 0 = lagrange, 1 = SBP
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
-  ### Temporary Hack for Git Bisect ###
-  get!(opts, "use_edge_res", false)
-  ####################################
-
   println("\nConstructing PumiMesh2 Object")
   println("  sbp_name = ", smb_name)
   println("  dmg_name = ", dmg_name)
   mesh = new()
+  mesh.isDG = false
   mesh.numDofPerNode = dofpernode
   mesh.order = order
   mesh.numNodesPerElement = getNumNodes(order)
@@ -232,7 +230,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
     mesh.typeOffsetsPerElement[i] = pos
   end
   println("mesh.typeOffsetsPerElement = ", mesh.typeOffsetsPerElement)
- mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
+  mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
   numnodes = 0
   for i=1:3
@@ -449,6 +447,11 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   println("numDof = ", mesh.numDof)
   println("numNodes = ", mesh.numNodes)
 
+
+ dofnums = getGlobalNodeNumbers(mesh, 1; getdofs=true)
+ println("\n\n DEBUGGING OUTPUT: \n\n")
+ println("dofnums for element 1 = \n", dofnums)
+ println("mesh.dofs for element 1 = \n", mesh.dofs[:, :, 1])
 
   # write data if requested
 
@@ -3031,12 +3034,15 @@ function getNodeMaps(mesh::PumiMesh2)
     sbpToPumi = UInt8[1,2,3]
     pumiToSbp = UInt8[1,2,3]
   elseif mesh.order == 2
+    println(STDERR, "Warning: using bad node maps")
     sbpToPumi = UInt8[1,2,3,4,5,6,7]
     pumiToSbp = UInt8[1,2,3,4,5,6,7]
   elseif mesh.order == 3
+    println(STDERR, "Warning: using bad node maps")
     sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,10,11]
     pumiToSbp= UInt8[1,2,3,4,5,6,7,8,9,11,12,10]
   elseif mesh.order == 4 
+    println(STDERR, "Warning: using bad node maps")
     sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,17,13,15,14,16,18]
     pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,14,16,15,17,13,18]
   else
