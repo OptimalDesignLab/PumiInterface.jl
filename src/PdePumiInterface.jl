@@ -179,7 +179,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
 
 
- function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::SBPOperator, opts; dofpernode=1, shape_type=1, coloring_distance=2)
+ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts; dofpernode=1, shape_type=1, coloring_distance=2)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -521,7 +521,7 @@ end
 
 
 
-function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::SBPOperator, opts; 
+function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)
 # construct pumi mesh for preconditioner residual evaluations
 # this operates by copying an existing mesh object (hence not loading a new
@@ -2128,7 +2128,7 @@ end
 
 
 #TODO: stop using slice notation
-function getCoordinates(mesh::PumiMesh2, sbp::SBPOperator)
+function getCoordinates(mesh::PumiMesh2, sbp::AbstractSBP)
 # populate the coords array of the mesh object
 
 mesh.coords = Array(Float64, 2, sbp.numnodes, mesh.numEl)
@@ -2630,7 +2630,7 @@ end  # end function
 
 
 
-function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::SBPOperator, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
+function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::AbstractSBP, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
 
   nfaces = length(bndry_faces)
 
@@ -2660,7 +2660,7 @@ function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::SBPOperator, bndry_f
 end
 
 
-function getInternalFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::SBPOperator, internal_faces::AbstractArray{Interface, 1}, face_normals::Array{Tmsh, 4})
+function getInternalFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::AbstractSBP, internal_faces::AbstractArray{Interface, 1}, face_normals::Array{Tmsh, 4})
 
   nfaces = length(internal_faces)
 

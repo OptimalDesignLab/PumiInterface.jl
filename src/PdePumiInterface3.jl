@@ -47,7 +47,7 @@ type PumiMesh3{T1} <: PumiMesh{T1}   # 3d pumi mesh, tetrahedron only
 
 
 
- function PumiMesh3(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::SBPOperator; dofpernode=1, shape_type=0)
+ function PumiMesh3(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP; dofpernode=1, shape_type=0)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -531,7 +531,7 @@ return dofnums_reshaped
 
 end
 
-function getCoordinates(mesh::PumiMesh3, sbp::SBPOperator)
+function getCoordinates(mesh::PumiMesh3, sbp::AbstractSBP)
 # populate the coords array of the mesh object
 
 mesh.coords = Array(Float64, 3, sbp.numnodes, mesh.numEl)
