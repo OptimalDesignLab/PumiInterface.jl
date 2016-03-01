@@ -119,8 +119,8 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   numTypePerElement::Array{Int, 1}  # number of verts, edges, faces per element
   typeOffsetsPerElement::Array{Int, 1} # the starting index of the vert, edge, and face nodes in an element 
   typeOffsetsPerElement_::Array{Int32, 1}  # Int32 version of above
-#  nodemapSbpToPumi::Array{UInt8, 1}  # maps nodes of SBP to Pumi order
-#  nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
+  nodemapSbpToPumi::Array{UInt8, 1}  # maps nodes of SBP to Pumi order
+  nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
 
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
   numColors::Int  # number of colors
@@ -242,7 +242,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   mesh.numDof = numnodes*dofpernode
 
   # get nodemaps
-#  mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(mesh)
+  mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(mesh)
 
  
   # get pointers to mesh entity numberings
@@ -447,6 +447,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
 
   println("dofnums for element 1 =\n", mesh.dofs[:, :, 1])
+  println("coords for element 1 = \n", mesh.coords[:, :, 1])
   # write data if requested
 
   if opts["write_edge_vertnums"]
@@ -2299,7 +2300,7 @@ for i=1:3  # loop over verts, edges, faces
 end  # end loop over entity types
 =#
 
-PumiInterface.getDofNumbers(numbering_ptr, node_entities, node_offsets, el_i, dofnums)  # C implimentation
+PumiInterface.getDofNumbers(numbering_ptr, node_entities, node_offsets, mesh.nodemapPumiToSbp, el_i, dofnums)  # C implimentation
 
 
 #=
@@ -2792,9 +2793,9 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
 	  entity = node_entities[col]  # current entity
 	  offset_k = mesh.elementNodeOffsets[col, el] # offset for current node
 
+	  new_node = abs(offset_k - k) - 1
           # get solution values
 	  for p=1:mesh.numDofPerNode  # loop over all dofs
-	    new_node = abs(offset_k - k) - 1
 	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, new_node, p-1)
 	    q_vals[p] = u[dofnum_p]
 	  end
@@ -3024,7 +3025,7 @@ function getNodeMaps(mesh::PumiMesh2)
 # store mappings in both directions in case they are needed
 # use UInt8s to save cache space during loops
 
-#=
+
   if mesh.order == 1
     sbpToPumi = UInt8[1,2,3]
     pumiToSbp = UInt8[1,2,3]
@@ -3033,20 +3034,20 @@ function getNodeMaps(mesh::PumiMesh2)
     pumiToSbp = UInt8[1,2,3,4,5,6,7]
   elseif mesh.order == 3
     sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,10,11]
-#    pumiToSbp= UInt8[1,2,3,4,5,6,7,8,9,11,12,10]
+    pumiToSbp= UInt8[1,2,3,4,5,6,7,8,9,11,12,10]
 
-    pumiToSbp= UInt8[1,2,3,4,5,6,7,8,9, 10, 11,12]
+#    pumiToSbp= UInt8[1,2,3,4,5,6,7,8,9, 10, 11,12]
   elseif mesh.order == 4 
     sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,17,13,15,14,16,18]
-#    pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,14,16,15,17,13,18]
+    pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,14,16,15,17,13,18]
     
   else
     println(STDERR, "Warning: Unsupported element order requestion in getFaceOffsets")
-=#
+
     # default to 1:1 mapping
     sbpToPumi = UInt8[1:mesh.numNodesPerElement]
     pumiToSbp = UInt8[1:mesh.numNodesPerElement]
-#  end
+  end
 
   return sbpToPumi, pumiToSbp
 end  # end getNodeMaps

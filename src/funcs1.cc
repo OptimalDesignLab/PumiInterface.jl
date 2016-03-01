@@ -1222,7 +1222,7 @@ int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
 // nodemap is typically the map from the Pumi node order to the desired
 // ordering, 1 based indexing
 // collect dofs in Pumi ordering, write them to array in SBP order
-int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_offsets[],  apf::MeshEntity* element, int dofnums[])
+int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_offsets[], uint8_t nodemap[], apf::MeshEntity* element, int dofnums[])
 {
 //  std::cout << "Entered getDofNumbers" << std::endl;
   // declare and initialize static variables
@@ -1273,7 +1273,7 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
         {
 //          std::cout << "      component number " << p << std::endl;
 //          std::cout << "      ptr = " << ptr << std::endl;
-         ptr = col*num_comp + p;
+         ptr = (nodemap[col] - 1)*num_comp + p;
          dofnums[ptr] = apf::getNumber(n, e, new_node, p);
         }
         col++;
