@@ -1009,9 +1009,9 @@ return i
 end
 
 
-function getDofNumbers(n_ptr, entities::AbstractArray{Ptr{Void}}, node_offsets::AbstractArray{UInt8}, nodemap::AbstractArray{UInt8}, element::Ptr{Void}, dofnums::AbstractArray{Int32})
+function getDofNumbers(n_ptr, entities::AbstractArray{Ptr{Void}}, node_offsets::AbstractArray{UInt8}, element::Ptr{Void}, dofnums::AbstractArray{Int32})
 
-  ccall( (getDofNumbers_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Ptr{UInt8}, Ptr{UInt8}, Ptr{Void}, Ptr{Int32}), n_ptr, entities, node_offsets, nodemap, element, dofnums)
+  ccall( (getDofNumbers_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Ptr{UInt8}, Ptr{Void}, Ptr{Int32}), n_ptr, entities, node_offsets, element, dofnums)
 
   return nothing
 end
@@ -1256,10 +1256,13 @@ end
 
   See createSubMesh for the meanings of the arguments
 """->
-function transferField(m_ptr, mnew_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{UInt8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, numberings::AbstractArray{Ptr{Void}, 1}, field_old, field_new)
+function transferField(m_ptr, mnew_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{UInt8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, numberings::AbstractArray{Ptr{Void}, 1}, interp_op::AbstractArray{Float64, 2}, field_old, field_new)
 
   # check the the triangulation array is oriented correctly
   @assert size(triangulation, 1) == 3
+  @assert size(interp_op, 2) == 3  # the interpolation operator must be 
+                                   # 3 x numnodesperlement in row major land
+                                   # so, make sure it is numnodesperelement x 3
   
  ccall( (transferField_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}, Ptr{Ptr{Void}}, Ptr{Void}, Ptr{Void}), m_ptr, mnew_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings, field_old, field_new)
 

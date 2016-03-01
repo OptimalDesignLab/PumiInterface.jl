@@ -15,7 +15,8 @@ facts("--- Testing PdePumiInterface --- ") do
     "write_sparsity" => true,
     "write_offsets" => true,
     "write_counts" => true,
-    "write_sparsity_nodebnds" => true
+    "write_sparsity_nodebnds" => true,
+    "write_dofs" => false
     )
 
     # names of output files
@@ -188,7 +189,8 @@ facts("--- Testing PdePumiInterface --- ") do
     "write_sparsity" => true,
     "write_offsets" => true,
     "write_counts" => true,
-    "write_sparsity_nodebnds" => true
+    "write_sparsity_nodebnds" => true,
+    "write_dofs" => false
     )
 
 
