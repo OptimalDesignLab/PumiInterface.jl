@@ -1,5 +1,5 @@
-#ifndef APFSBPSHAPE_H
-#define APFSBPSHAPE_H
+#ifndef APFDG1SBPSHAPE_H
+#define APFDG1SBPSHAPE_H
 
 #include"apf.h"
 #include "apfNew.h"
