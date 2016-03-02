@@ -85,10 +85,6 @@ include("./PdePumiInterface3.jl")
                            the edges, then the faces
 
     typeOffsetsPerElement_: Int32 version of the above
-    nodemapSBPtoPumi: array of UInt8s that maps the SBP ordering of nodes to 
-                      the Pumi ordering of nodes 
-    nodemapPumiToSBP: array of UInt8s that maps the Pumi node ordering to the
-                      SBP one.
 
     coloringDistance: the distance k of the distance-k graph coloring used to
                       color the elements (graph vertices are elements and graph
@@ -184,7 +180,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
 
 
 
- function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::SBPOperator, opts; dofpernode=1, shape_type=1, coloring_distance=2)
+ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts; dofpernode=1, shape_type=1, coloring_distance=2)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -448,11 +444,6 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   println("numNodes = ", mesh.numNodes)
 
 
- dofnums = getGlobalNodeNumbers(mesh, 1; getdofs=true)
- println("\n\n DEBUGGING OUTPUT: \n\n")
- println("dofnums for element 1 = \n", dofnums)
- println("mesh.dofs for element 1 = \n", mesh.dofs[:, :, 1])
-
   # write data if requested
 
   if opts["write_edge_vertnums"]
@@ -527,7 +518,7 @@ end
 
 
 
-function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::SBPOperator, opts; 
+function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)
 # construct pumi mesh for preconditioner residual evaluations
 # this operates by copying an existing mesh object (hence not loading a new
@@ -2134,7 +2125,7 @@ end
 
 
 #TODO: stop using slice notation
-function getCoordinates(mesh::PumiMesh2, sbp::SBPOperator)
+function getCoordinates(mesh::PumiMesh2, sbp::AbstractSBP)
 # populate the coords array of the mesh object
 
 mesh.coords = Array(Float64, 2, sbp.numnodes, mesh.numEl)
@@ -2636,7 +2627,7 @@ end  # end function
 
 
 
-function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::SBPOperator, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
+function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::AbstractSBP, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
 
   nfaces = length(bndry_faces)
 
@@ -2666,7 +2657,7 @@ function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::SBPOperator, bndry_f
 end
 
 
-function getInternalFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::SBPOperator, internal_faces::AbstractArray{Interface, 1}, face_normals::Array{Tmsh, 4})
+function getInternalFaceNormals{Tmsh}(mesh::PumiMesh2, sbp::AbstractSBP, internal_faces::AbstractArray{Interface, 1}, face_normals::Array{Tmsh, 4})
 
   nfaces = length(internal_faces)
 
@@ -2777,7 +2768,7 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
 # written several times.  This is why is is necessary to write to the
 # field in the right order
 # because this function used getNumberJ to get dof numbers, and set 
-# values, it doesn't really need to use the offsets because values
+# values, it doesn't really need to use the nodemap because values
 # are set/get *consistently*, even if not in the same order for every
 # element depending on the orientation
  # dofnums = zeros(Int, mesh.numDofPerNode)
@@ -2797,10 +2788,10 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
 	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
 	  entity = node_entities[col]  # current entity
 	  offset_k = mesh.elementNodeOffsets[col, el] # offset for current node
+	  new_node = abs(offset_k - k) - 1
 
           # get solution values
 	  for p=1:mesh.numDofPerNode  # loop over all dofs
-	    new_node = abs(offset_k - k) - 1
 	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, new_node, p-1)
 	    q_vals[p] = u[dofnum_p]
 	  end
@@ -3009,7 +3000,7 @@ end
 
 function getTriangulation(order::Int)
 # get the sub-triangulation for an element of the specified order
-
+# Pumi node ordering
 if order == 2
   triangulation = Int32[1 1 4 2 5 6; 4 7 2 5 3 7; 7 6 7 7 7 3]
 elseif order == 3
@@ -3030,6 +3021,7 @@ function getNodeMaps(mesh::PumiMesh2)
 # store mappings in both directions in case they are needed
 # use UInt8s to save cache space during loops
 
+
   if mesh.order == 1
     sbpToPumi = UInt8[1,2,3]
     pumiToSbp = UInt8[1,2,3]
@@ -3039,14 +3031,15 @@ function getNodeMaps(mesh::PumiMesh2)
     pumiToSbp = UInt8[1,2,3,4,5,6,7]
   elseif mesh.order == 3
     println(STDERR, "Warning: using bad node maps")
-    sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,10,11]
-    pumiToSbp= UInt8[1,2,3,4,5,6,7,8,9,11,12,10]
+    sbpToPumi = UInt8[1,2,3,4,5,6,7,9,8,12,10,11]
+    pumiToSbp= UInt8[1,2,3,4,5,6,7,9,8,11,12,10]
   elseif mesh.order == 4 
     println(STDERR, "Warning: using bad node maps")
-    sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,17,13,15,14,16,18]
-    pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,14,16,15,17,13,18]
+    sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,17,13,15,14,16,18]
+    pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,14,16,15,17,13,18]
   else
-    println(STDERR, "Warning: Unsupported element order requestion in getFaceOffsets")
+    println(STDERR, "Warning: Unsupported element order requestion in getNodeMaps")
+
     # default to 1:1 mapping
     sbpToPumi = UInt8[1:mesh.numNodesPerElement]
     pumiToSbp = UInt8[1:mesh.numNodesPerElement]

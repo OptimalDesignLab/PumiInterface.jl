@@ -15,7 +15,8 @@ facts("--- Testing PdePumiInterface --- ") do
     "write_sparsity" => true,
     "write_offsets" => true,
     "write_counts" => true,
-    "write_sparsity_nodebnds" => true
+    "write_sparsity_nodebnds" => true,
+    "write_dofs" => false
     )
 
     # names of output files
@@ -127,12 +128,18 @@ facts("--- Testing PdePumiInterface --- ") do
       @fact mesh.numNodesPerElement --> 12
       @fact mesh.numNodesPerType --> [1, 2, 3]
       @fact mesh.typeOffsetsPerElement --> [1, 4, 10, 13]
+      # check orientation of 3rd edge
+      println("mesh.dofs = ", mesh.dofs)
+      @fact reshape(mesh.dofs[1, 8:9, 1], 2) --> reshape(mesh.dofs[1, 4:5, 2], 2)
     elseif order == 4
       @fact mesh.numNodes --> 31
       @fact mesh.numDof --> 124
       @fact mesh.numNodesPerElement --> 18
       @fact mesh.numNodesPerType --> [1, 3, 6]
       @fact mesh.typeOffsetsPerElement --> [1, 4, 13, 19]
+      println("mesh.dofs = ", mesh.dofs)
+      # check orientation of 3rd edge
+      @fact reshape(mesh.dofs[1, 10:12, 1], 3) -->reshape(mesh.dofs[1, 4:6, 2], 3)
     end
 
     @fact mesh.typeOffsetsPerElement_ --> mesh.typeOffsetsPerElement
@@ -188,7 +195,8 @@ facts("--- Testing PdePumiInterface --- ") do
     "write_sparsity" => true,
     "write_offsets" => true,
     "write_counts" => true,
-    "write_sparsity_nodebnds" => true
+    "write_sparsity_nodebnds" => true,
+    "write_dofs" => false
     )
 
 
