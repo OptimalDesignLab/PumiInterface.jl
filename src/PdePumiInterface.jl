@@ -2772,7 +2772,7 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
 # written several times.  This is why is is necessary to write to the
 # field in the right order
 # because this function used getNumberJ to get dof numbers, and set 
-# values, it doesn't really need to use the offsets because values
+# values, it doesn't really need to use the nodemap because values
 # are set/get *consistently*, even if not in the same order for every
 # element depending on the orientation
  # dofnums = zeros(Int, mesh.numDofPerNode)
@@ -2792,8 +2792,8 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
 	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
 	  entity = node_entities[col]  # current entity
 	  offset_k = mesh.elementNodeOffsets[col, el] # offset for current node
-
 	  new_node = abs(offset_k - k) - 1
+
           # get solution values
 	  for p=1:mesh.numDofPerNode  # loop over all dofs
 	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, new_node, p-1)
@@ -3004,7 +3004,7 @@ end
 
 function getTriangulation(order::Int)
 # get the sub-triangulation for an element of the specified order
-
+# Pumi node ordering
 if order == 2
   triangulation = Int32[1 1 4 2 5 6; 4 7 2 5 3 7; 7 6 7 7 7 3]
 elseif order == 3
@@ -3033,13 +3033,13 @@ function getNodeMaps(mesh::PumiMesh2)
     sbpToPumi = UInt8[1,2,3,4,5,6,7]
     pumiToSbp = UInt8[1,2,3,4,5,6,7]
   elseif mesh.order == 3
-    sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,10,11]
-    pumiToSbp= UInt8[1,2,3,4,5,6,7,8,9,11,12,10]
+    sbpToPumi = UInt8[1,2,3,4,5,6,7,9,8,12,10,11]
+    pumiToSbp= UInt8[1,2,3,4,5,6,7,9,8,11,12,10]
 
 #    pumiToSbp= UInt8[1,2,3,4,5,6,7,8,9, 10, 11,12]
   elseif mesh.order == 4 
-    sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,17,13,15,14,16,18]
-    pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,14,16,15,17,13,18]
+    sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,17,13,15,14,16,18]
+    pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,14,16,15,17,13,18]
     
   else
     println(STDERR, "Warning: Unsupported element order requestion in getFaceOffsets")
