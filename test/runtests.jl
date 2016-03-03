@@ -125,21 +125,21 @@ facts("Testing PUMIInterface.jl") do
     down_nums[i] = getNumberJ(edgeN_ptr, down_entities[i], 0, 0)
   end
 #  println("down_nums = ", down_nums)
-   @fact down_nums --> [4, 0, 5]
+   @fact down_nums --> [1, 5, 0]
 
   down_entities, num_down = getDownward(m_ptr, face, 0) # face -> verts
   down_nums = zeros(Int, num_down)
   for i=1:num_down
     down_nums[i] = getNumberJ(vertN_ptr, down_entities[i], 0, 0)
   end
-   @fact down_nums --> [5, 0, 1]
+   @fact down_nums --> [0, 2, 1]
 
   down_entities, num_down = getDownward(m_ptr, edge, 0) # edge -> verts
   down_nums = zeros(Int, num_down)
   for i=1:num_down
     down_nums[i] = getNumberJ(vertN_ptr, down_entities[i], 0, 0)
   end
-   @fact down_nums --> [0, 1]
+   @fact down_nums --> [1, 0]
 
 
   # check upward adjacency function
@@ -152,7 +152,7 @@ facts("Testing PUMIInterface.jl") do
   end
 
 #  println("up_nums = ", up_nums)
-  @fact up_nums --> [4, 0]
+  @fact up_nums --> [2, 1, 0]
 
  num_up = countAdjacent(m_ptr, vert, 2)  # vert -> face
   up_entities = getAdjacent( num_up)
@@ -162,7 +162,7 @@ facts("Testing PUMIInterface.jl") do
   end
 
 #  println("up_nums = ", up_nums)
-  @fact up_nums --> [0]
+  @fact up_nums --> [1, 0]
 
 
   num_up = countAdjacent(m_ptr, edge, 2)  # edge -> face
@@ -203,7 +203,7 @@ facts("Testing PUMIInterface.jl") do
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
   end
   sort!(adj_num)
-  @fact adj_num --> [1, 5]
+  @fact adj_num --> [1,2,3]
 
   # target_dimension = bridge dimension not defined
   in_dim = 1
@@ -216,7 +216,7 @@ facts("Testing PUMIInterface.jl") do
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
   end
   sort!(adj_num)
-  @fact adj_num --> [0]
+  @fact adj_num --> [0,1]
 
   # edge connected to vertices by edges
   in_dim = 0
@@ -229,7 +229,7 @@ facts("Testing PUMIInterface.jl") do
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
   end
   sort!(adj_num)
-  @fact adj_num --> sort!([4, 5, 1, 7])
+  @fact adj_num --> sort!([1,2,3,4,5])
 
   # edge connected to edges by faces
   in_dim = 2
@@ -242,7 +242,7 @@ facts("Testing PUMIInterface.jl") do
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
   end
   sort!(adj_num)
-  @fact adj_num --> [4, 5]
+  @fact adj_num --> [1, 5]
 
   # face connected to edges by vertex
   in_dim = 0
@@ -255,7 +255,7 @@ facts("Testing PUMIInterface.jl") do
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
   end
   sort!(adj_num)
-  ans = sort([4, 0, 5, 6, 13, 7, 1])
+  ans = [0,1,2,3,4,5,6,7,8,9]
   println("ans = ", ans)
 
   @fact adj_num --> ans
@@ -271,7 +271,7 @@ facts("Testing PUMIInterface.jl") do
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
   end
   sort!(adj_num)
-  @fact adj_num --> sort!([1, 2, 6])
+  @fact adj_num --> sort!([1, 2,3,4,5,6])
 
   # face connected to faces by edge
   in_dim = 1
@@ -284,7 +284,7 @@ facts("Testing PUMIInterface.jl") do
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
   end
   sort!(adj_num)
-  @fact adj_num --> [1]
+  @fact adj_num --> [1, 3]
 
 
 

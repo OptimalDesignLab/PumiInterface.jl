@@ -39,16 +39,17 @@ facts("--- Testing PdePumiInterface --- ") do
     @fact mesh.numInterfaces --> 1
 
     @fact mesh.bndryfaces[1].element --> 1
-    @fact mesh.bndryfaces[1].face --> 2
+    @fact mesh.bndryfaces[1].face --> 3
     @fact mesh.bndryfaces[2].element --> 2
-    @fact mesh.bndryfaces[2].face --> 2
+    @fact mesh.bndryfaces[2].face --> 1
     @fact mesh.bndryfaces[3].element --> 1
-    @fact mesh.bndryfaces[3].face --> 1
+    @fact mesh.bndryfaces[3].face --> 2
     @fact mesh.bndryfaces[4].element --> 2
-    @fact mesh.bndryfaces[4].face --> 3
+    @fact mesh.bndryfaces[4].face --> 2
 
-    @fact mesh.interfaces[1].elementL --> 2
-    @fact mesh.interfaces[1].elementR --> 1
+  #  println("mesh.interfaces = ",  mesh.interfaces)
+    @fact mesh.interfaces[1].elementL --> 1
+    @fact mesh.interfaces[1].elementR --> 2
     @fact mesh.interfaces[1].faceL --> 1
     @fact mesh.interfaces[1].faceR --> 3
 
@@ -59,13 +60,13 @@ facts("--- Testing PdePumiInterface --- ") do
     for i=1:mesh.numBoundaryEdges
       for j=1:(sum(mesh.numNodesPerType[1:2]))
         if i == 1
-          @fact mesh.bndry_normals[:, j, i] --> roughly([1.0, 0.0], atol=1e-13)
-        elseif i == 2
-          @fact mesh.bndry_normals[:, j, i] --> roughly([0.0, 1.0], atol=1e-13)
-        elseif i == 3
-          @fact mesh.bndry_normals[:, j, i] --> roughly([1.0, -1.0], atol=1e-13)
-        elseif i == 4
           @fact mesh.bndry_normals[:, j, i] --> roughly([-1.0, 1.0], atol=1e-13)
+        elseif i == 2
+          @fact mesh.bndry_normals[:, j, i] --> roughly([1.0, -1.0], atol=1e-13)
+        elseif i == 3
+          @fact mesh.bndry_normals[:, j, i] --> roughly([0.0, 1.0], atol=1e-13)
+        elseif i == 4
+          @fact mesh.bndry_normals[:, j, i] --> roughly([1.0, 0.0], atol=1e-13)
         end
       end
     end
@@ -130,7 +131,7 @@ facts("--- Testing PdePumiInterface --- ") do
       @fact mesh.typeOffsetsPerElement --> [1, 4, 10, 13]
       # check orientation of 3rd edge
       println("mesh.dofs = ", mesh.dofs)
-      @fact reshape(mesh.dofs[1, 8:9, 1], 2) --> reshape(mesh.dofs[1, 4:5, 2], 2)
+      @fact reshape(mesh.dofs[1, 4:5, 1], 2) --> reshape(mesh.dofs[1, 8:9, 2], 2)
     elseif order == 4
       @fact mesh.numNodes --> 31
       @fact mesh.numDof --> 124
@@ -139,7 +140,7 @@ facts("--- Testing PdePumiInterface --- ") do
       @fact mesh.typeOffsetsPerElement --> [1, 4, 13, 19]
       println("mesh.dofs = ", mesh.dofs)
       # check orientation of 3rd edge
-      @fact reshape(mesh.dofs[1, 10:12, 1], 3) -->reshape(mesh.dofs[1, 4:6, 2], 3)
+      @fact reshape(mesh.dofs[1, 10:12, 2], 3) -->reshape(mesh.dofs[1, 4:6, 1], 3)
     end
 
     @fact mesh.typeOffsetsPerElement_ --> mesh.typeOffsetsPerElement
@@ -212,6 +213,7 @@ facts("--- Testing PdePumiInterface --- ") do
       name_code = string(name, ".dat")
       name_ref = string(name, "vortex", "_p", order, "true.dat")
       println("checking file ", name_code)
+      println("against reference file ", name_ref)
       data_code = readdlm(name_code)
       data_ref = readdlm(name_ref)
 
