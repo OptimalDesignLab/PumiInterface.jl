@@ -1,5 +1,5 @@
-edge 0 has vertices 0 , 1
-edge 1 has vertices 1 , 2
-edge 2 has vertices 3 , 0
-edge 3 has vertices 1 , 3
-edge 4 has vertices 2 , 3
+edge 0 has vertices 1 , 0
+edge 1 has vertices 2 , 0
+edge 2 has vertices 0 , 3
+edge 3 has vertices 2 , 1
+edge 4 has vertices 3 , 2

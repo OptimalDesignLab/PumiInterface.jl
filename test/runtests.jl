@@ -379,4 +379,4 @@ facts("Testing PdePumiInterface3.jl") do
 end
 =#
 
-#include("pdepumiinterface.jl")
+include("pdepumiinterface.jl")
