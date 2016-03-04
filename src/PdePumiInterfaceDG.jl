@@ -196,7 +196,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   coord_shape_type = 0 # integer to indicate the FieldShape of the coordinates
   field_shape_type = 0 # integer to indicate the FieldShape of the nodes
   if shape_type == 2
-    coord_shape_type = 0
+    coord_shape_type = 0  # lagrange
     field_shape_type = shape_type
   else  # same coordinate, field shape
     coord_shape_type = shape_type
@@ -206,7 +206,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   num_Entities, mesh.m_ptr, mesh.coordshape_ptr = init2(dmg_name, smb_name, order, shape_type=coord_shape_type)
 
   # create the solution field
-  mesh.mshape_ptr = getSBPShape(field_shape_type)
+  mesh.mshape_ptr = getSBPShapes(field_shape_type, order)
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
   mesh.min_node_dist = minNodeDist(order)
 
@@ -283,20 +283,27 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 	    start_coords[1], start_coords[2])
 =#
 # elseif opts["reordering_algorithm"] == "default"
+    println("about to number nodes")
     numberNodes(mesh)
 
 #  else
 #    println(STDERR, "Error: invalid dof reordering algorithm requested")
 #  end
 
+  println("finished numbering nodes")
+
+  println("about to number dofs")
   # do dof numbering
   populateDofNumbers(mesh)
+  println("finished numbering dofs")
  
 
   # get entity pointers
+  println("about to get entity pointers")
   mesh.verts, mesh.edges, mesh.elements = getEntityPointers(mesh)
+  println("finished getting entity pointers")
 
-
+  println("about to get boundary edge list")
   mesh.numBC = opts["numBC"]
 
   # create array of all model edges that have a boundary condition
@@ -306,10 +313,15 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
     bndry_edges_all = [ bndry_edges_all; opts[key_i]]  # ugly but easy
   end
 
+  println("finished getting boundary edge list")
+
+  println("about to count boundary edges")
  mesh.numBoundaryEdges, num_ext_edges =  countBoundaryEdges(mesh, bndry_edges_all)
+  println("finished counting boundary edges")
 
   # populate mesh.bndry_faces from options dictionary
 #  mesh.bndry_faces = Array(Array{Int, 1}, mesh.numBC)
+  println("about to get boudnary offets")
   mesh.bndry_offsets = Array(Int, mesh.numBC + 1)
   mesh.bndry_funcs = Array(BCType, mesh.numBC)
   boundary_nums = Array(Int, mesh.numBoundaryEdges, 2)
@@ -326,15 +338,20 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 
 
   mesh.bndry_offsets[mesh.numBC + 1] = offset # = num boundary edges
+  println("finished getting boundary offsets")
 
   # get array of all boundary mesh edges in the same order as in mesh.bndry_faces
 #  boundary_nums = flattenArray(mesh.bndry_faces[i])
 #  boundary_edge_faces = getEdgeFaces(mesh, mesh.bndry_faces)
   # use partially constructed mesh object to populate arrays
 
+  println("about to get entity orientations")
   mesh.elementNodeOffsets, mesh.typeNodeFlags = getEntityOrientations(mesh)
+  println("finished getting entity orientations")
 
+  println("about to get degree of freedom numbers")
   getDofNumbers(mesh)  # store dof numbers
+  printlin("finished getting degree of freedom numbers")
 
 
 
@@ -580,19 +597,6 @@ function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
 
 end
 
-# get one of the SBP shape types
-function getSBPShape(field_shape_type::Integer, order)
-
-  if field_shape_type == 1
-    return getSBPShape(order)
-  elseif field_shape_type == 2
-    return getDG1SBPShape(order)
-  else
-    println(STDERR, "Warning: unsupported SBPShape requested")
-    return C_NULL
-  end
-
-end
 
 function getNumNodes(order::Integer)
 # get the number of nodes on an element
@@ -661,10 +665,11 @@ function flattenArray{T}(A::AbstractArray{AbstractArray{T}, 1})
 
 end
 
-function populateDofNumbers(mesh::PumiMesh)
+function populateDofNumbers(mesh::PumiMeshDG2)
 # populate the dofnums_Nptr with values calculated from
 # nodenums_Nptr
-# currently we set all nodes to status 3 (free)
+
+  println("Assigning dof numbers from node numbers")
 
   resetAllIts2()
   # mesh iterator increment, retreval functions
@@ -692,6 +697,7 @@ function populateDofNumbers(mesh::PumiMesh)
 	  if nodenum != 0
 	    for i=1:mesh.numDofPerNode
 	      dofnum_i = (nodenum -1)*mesh.numDofPerNode + i
+              println("entity type ", etype, ", entity number ", entity, ", node ", node, ", dof ", i, " is getting number ", dofnum_i)
   	      numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, i-1, dofnum_i)
 	    end  # end loop over dofsPerNode
 	  end   # end if nodenum != 0
@@ -1736,7 +1742,7 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
 # using the correct Numbering pointer
 # assumes mesh elements have already been reordered
 # this works for high order elements
-  println("Entered numberDofs")
+  println("Entered numberNodes")
 
   # calculate number of nodes, dofs
   num_nodes_v = countNodesOn(mesh.mshape_ptr, 0) # on vert
@@ -1822,6 +1828,7 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
   for i=1:mesh.numEl
     println("element number: ", i)
     el_i_ptr = getFace()
+    println("element pointer = ", el_i_ptr)
     incrementFaceIt()
     # get vertices, edges for this element
     numVert = getDownward(mesh.m_ptr, el_i_ptr, 0, verts_i)
@@ -1862,6 +1869,7 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
       for p=1:dofpernode  # loop over dofs
 	dofnum_p = getNumberJ(numbering_ptr, el_i_ptr, k-1, p-1)
 	if dofnum_p > numDof
+          println("assigning number ", curr_dof, " to face node ", k, ", dof ", p)
 	  numberJ(numbering_ptr, el_i_ptr, k-1, p-1, curr_dof)
 	  curr_dof += 1
 	end
@@ -1992,6 +2000,7 @@ println("numNodesPerElement = ", mesh.numNodesPerElement)
 mesh.dofs = Array(Int32, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
 
 for i=1:mesh.numEl
+  println("element ", i)
   dofnums = getGlobalNodeNumbers(mesh, i)
 
   for j=1:mesh.numNodesPerElement
@@ -2021,7 +2030,7 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
   dmg_name = "b"
   order = mesh.order
   dofpernode = mesh.numDofPerNode
-  tmp, num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
+  tmp, num_Entities, m_ptr, coordshape_ptr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
   f_ptr = mesh.f_ptr  # use existing solution field
 
   numVert = convert(Int, num_Entities[1])
@@ -2268,6 +2277,7 @@ function getGlobalNodeNumbers(mesh::PumiMeshDG2, elnum::Integer, dofnums::Abstra
 # 
 
 el_i = mesh.elements[elnum]
+println("getting dof numbers for element ", elnum, ", with pointer ", el_i)
 type_i = getType(mesh.m_ptr, el_i)  # what is this used for?
 
 #println("elnum = ", elnum)
@@ -2574,6 +2584,7 @@ function getInterfaceArray(mesh::PumiMeshDG2)
   # get number of nodes affecting an edge
   num_edge_nodes = countAllNodes(mesh.mshape_ptr, 1)
 
+  # unused variable?
   nodemap = Array(num_edge_nodes:(-1):1)
 
   pos = 1 # current position in interfaces

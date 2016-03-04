@@ -672,7 +672,7 @@ function flattenArray{T}(A::AbstractArray{AbstractArray{T}, 1})
 
 end
 
-function populateDofNumbers(mesh::PumiMesh)
+function populateDofNumbers(mesh::PumiMesh2)
 # populate the dofnums_Nptr with values calculated from
 # nodenums_Nptr
 # currently we set all nodes to status 3 (free)

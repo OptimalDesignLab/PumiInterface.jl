@@ -1234,7 +1234,7 @@ int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
 // collect dofs in Pumi ordering, write them to array in SBP order
 int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_offsets[], uint8_t nodemap[], apf::MeshEntity* element, int dofnums[])
 {
-//  std::cout << "Entered getDofNumbers" << std::endl;
+  std::cout << "Entered getDofNumbers" << std::endl;
   // declare and initialize static variables
   static apf::Mesh* m_local = apf::getMesh(n); 
   static int el_type = m_local->getType(element);
@@ -1260,31 +1260,33 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
 
   for (int i = 0; i <= el_dim; i++)   // loop over verts, edges, faces, regions
   {
-//    std::cout << "looping over dimension " << i << std::endl;
+    std::cout << "looping over dimension " << i << std::endl;
     for (int j=0; j < m_local->adjacentCount[el_type][i]; j++)  // loop over all entities of this type
     {
-//      std::cout << "  entity number " << j << std::endl;
-//      std::cout << "  this entity has " << fshape_local->countNodesOn(i) << " nodes " << std::endl;
+      std::cout << "  entity number " << j << std::endl;
+      std::cout << "  this entity has " << fshape_local->countNodesOn(i) << " nodes " << std::endl;
 
       for (int k=0; k < fshape_local->countNodesOn(i); k++)
       {
-//        std::cout << "    node number " << k << std::endl;
+        std::cout << "    node number " << k << std::endl;
         e = entities[col];  // get current entity
         offset_k = node_offsets[col];
-//        std::cout << "    offset_k = " << offset_k + 0 << std::endl;
+        std::cout << "    offset_k = " << offset_k + 0 << std::endl;
          
           // calculate new node index 
           // convert to 1 based indexing, do offsets, then convert back
           // to zero based indexing
           new_node = abs(offset_k - (k+1)) - 1;
-//          std::cout << "      new_node = " << new_node << std::endl;
+          std::cout << "      new_node = " << new_node << std::endl;
  
         for (int p = 0; p < num_comp; p++)
         {
-//          std::cout << "      component number " << p << std::endl;
-//          std::cout << "      ptr = " << ptr << std::endl;
-         ptr = (nodemap[col] - 1)*num_comp + p;
-         dofnums[ptr] = apf::getNumber(n, e, new_node, p);
+          ptr = (nodemap[col] - 1)*num_comp + p;
+
+          std::cout << "      component number " << p << std::endl;
+          std::cout << "      ptr = " << ptr << std::endl;
+
+          dofnums[ptr] = apf::getNumber(n, e, new_node, p);
         }
         col++;
       }  // end loop over nodes
@@ -1403,3 +1405,23 @@ void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components
 {
   apf::getComponents(f, e, node, components);
 }
+
+
+// get the SBP FieldShapes
+// type = 1 => regular (CG) SBP
+// type = 2 => DG1SBP
+apf::FieldShape* getSBPShapes(int type, int order)
+{
+  switch (type)
+  {
+    case 1: { return apf::getSBPShape(order); }
+    case 2: { return apf::getDG1SBPShape(order); }
+    default: 
+      { 
+        std::cerr << "Warning: unsupported SBP FieldShape requested" << std::endl;
+        return NULL;
+      }
+
+  }
+}  // end function
+
