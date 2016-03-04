@@ -1179,11 +1179,11 @@ end
 
 # apf::Field related function
 # needed for automagical solution transfer
-function createPackedField(m_ptr, fieldname::AbstractString, numcomponents::Integer)
+function createPackedField(m_ptr, fieldname::AbstractString, numcomponents::Integer, fshape=C_NULL)
 # create a field with the specified number of componenets per node
 # returns a pointer to the field
 
-  f_ptr = ccall((createPackedField_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{UInt8}, Int32), m_ptr, fieldname, numcomponents)
+  f_ptr = ccall((createPackedField_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{UInt8}, Int32, Ptr{Void}), m_ptr, fieldname, numcomponents, fshape)
 
   return f_ptr
 end

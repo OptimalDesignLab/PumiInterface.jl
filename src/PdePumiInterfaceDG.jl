@@ -80,7 +80,9 @@ export PumiMeshDG2, PumiMeshDG
 type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
-  mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
+  mshape_ptr::Ptr{Void} # pointer to the FieldShape of the node field
+  coordshape_ptr::Ptr{Void}  # pointer to FieldShape of the coordinate 
+                             # field
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
   fnew_ptr::Ptr{Void}  # pointer to field on mnew_ptr
   shape_type::Int  #  type of shape functions
@@ -189,8 +191,23 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.order = order
   mesh.shape_type = shape_type
   mesh.coloringDistance = coloring_distance
-  num_Entities, mesh.m_ptr, mesh.mshape_ptr = init2(dmg_name, smb_name, order, shape_type=shape_type)
-  mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
+
+  # figure out coordinate FieldShape, node FieldShape
+  coord_shape_type = 0 # integer to indicate the FieldShape of the coordinates
+  field_shape_type = 0 # integer to indicate the FieldShape of the nodes
+  if shape_type == 2
+    coord_shape_type = 0
+    field_shape_type = shape_type
+  else  # same coordinate, field shape
+    coord_shape_type = shape_type
+    field_shape_type = shape_type
+  end
+
+  num_Entities, mesh.m_ptr, mesh.coordshape_ptr = init2(dmg_name, smb_name, order, shape_type=coord_shape_type)
+
+  # create the solution field
+  mesh.mshape_ptr = getSBPShape(field_shape_type)
+  mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
   mesh.min_node_dist = minNodeDist(order)
 
   # count the number of all the different mesh attributes
@@ -563,6 +580,19 @@ function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
 
 end
 
+# get one of the SBP shape types
+function getSBPShape(field_shape_type::Integer, order)
+
+  if field_shape_type == 1
+    return getSBPShape(order)
+  elseif field_shape_type == 2
+    return getDG1SBPShape(order)
+  else
+    println(STDERR, "Warning: unsupported SBPShape requested")
+    return C_NULL
+  end
+
+end
 
 function getNumNodes(order::Integer)
 # get the number of nodes on an element

@@ -118,7 +118,8 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
-  f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
+  coordshape_ptr::Ptr{Void}  # pointer to FieldShape of coordinate field
+  f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation  (FieldShape = mshape_ptr)
   fnew_ptr::Ptr{Void}  # pointer to field on mnew_ptr
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
@@ -227,6 +228,8 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   mesh.shape_type = shape_type
   mesh.coloringDistance = coloring_distance
   num_Entities, mesh.m_ptr, mesh.mshape_ptr = init2(dmg_name, smb_name, order, shape_type=shape_type)
+  mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
+                                         # field shape for CG
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
   mesh.min_node_dist = minNodeDist(order)
 

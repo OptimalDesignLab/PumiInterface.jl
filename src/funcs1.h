@@ -154,7 +154,7 @@ void runAnisoAdapt(apf::Mesh2* m_local);
 
 
 // apf::Field functions (needed for automagical solution transfer)
-apf::Field* createPackedField(apf::Mesh* m, char* fieldname, int numcomponents);
+apf::Field* createPackedField(apf::Mesh* m, char* fieldname, int numcomponents, apf::FieldShape* fshape);
 
 void setComponents(apf::Field* f, apf::MeshEntity* e, int node,  double const components[]);
 

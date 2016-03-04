@@ -1386,9 +1386,9 @@ void runAnisoAdapt(apf::Mesh2* m_local)
 
 
 // apf::Field functions (needed for automagical solution transfer)
-apf::Field* createPackedField(apf::Mesh* m, char* fieldname, int numcomponents)
+apf::Field* createPackedField(apf::Mesh* m, char* fieldname, int numcomponents,  apf::FieldShape* fshape)
 {
-  return apf::createPackedField(m, fieldname, numcomponents);
+  return apf::createPackedField(m, fieldname, numcomponents, fshape);
 }
 
 // set the values of all components on a node

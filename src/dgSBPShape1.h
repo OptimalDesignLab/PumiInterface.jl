@@ -8,7 +8,9 @@
 #include "apfShape.h"
 
 namespace apf {
-  FieldShape* getDG1SBPShape(int order);
+  extern "C" {
+    FieldShape* getDG1SBPShape(int order);
+  }
 }
 
 #endif
