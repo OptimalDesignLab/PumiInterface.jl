@@ -35,16 +35,40 @@ export PumiMesh
 @doc """
 ### PumiInterface.PumiMesh
 
-  This abstract type is the supertype of all Pumi mesh object"
+  This abstract type is the supertype of all Pumi mesh objects
 
   The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
   jac).
 """->
 abstract PumiMesh{T1} <: AbstractMesh{T1}
-include("./PdePumiInterface3.jl")
 
 @doc """
+### PdePumiInterface.PumiMeshCG
+
+  This is the abstract supertype for all pumi continuous galerkin type meshes
+
+  The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
+  jac).
+"""->
+abstract PumiMeshCG{T1} <: PumiMesh{T1}
+
+@doc """
+### PdePumiInterface.PumiMeshDG
+
+  This abstract type is the supertype of all Pumi mesh objects for
+  discontinuous Galerkin type meshes
+
+  The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
+  jac).
+"""->
+abstract PumiMeshDG{T1} <: PumiMesh{T1}
+
+
+include("./PdePumiInterface3.jl")
+include("PdePumiInterfaceDG.jl")
+@doc """
 ### PumiInterface.PumiMesh2
+
 
   This is an implementation of AbstractMesh for a 2 dimensional equation.  
   The constructor for this type extracts all the needed information from Pumi,
@@ -122,6 +146,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   nodemapSbpToPumi::Array{UInt8, 1}  # maps nodes of SBP to Pumi order
   nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
 
+  dim::Int  # dimension of mesh (2D or 3D)
   isDG::Bool  # is this a DG mesh (always false)
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
   numColors::Int  # number of colors
@@ -195,6 +220,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   println("  dmg_name = ", dmg_name)
   mesh = new()
   mesh.isDG = false
+  mesh.dim = 2
   mesh.numDofPerNode = dofpernode
   mesh.order = order
   mesh.numNodesPerElement = getNumNodes(order)
@@ -211,7 +237,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   mesh.numEntitiesPerType = [mesh.numVert, mesh.numEdge, mesh.numEl]
   mesh.numTypePerElement = [3, 3, 1]
 
-  num_nodes_v = 1  # number of nodes on a vertex
+  num_nodes_v = countNodesOn(mesh.mshape_ptr, 0) # on vert
   num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
   num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
   num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f]
@@ -1721,7 +1747,8 @@ function numberNodes(mesh::PumiMesh2, number_dofs=false)
   println("Entered numberDofs")
 
   # calculate number of nodes, dofs
-  num_nodes_v = 1  # number of nodes on a vertex
+  num_nodes_v = countNodesOn(mesh.mshape_ptr, 0) # on vert
+  # number of nodes on a vertex
   num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
   num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
   println("num_nodes_v = ", num_nodes_v)
@@ -2402,7 +2429,7 @@ if (input_dimension == output_dimension)
 end
 
 
-if typeof(mesh) <: PumiMesh2
+if mesh.dim == 2
 
   array1 = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
   #array2 = [mesh.verts; mesh.edges; mesh.elements]  # array of arrays

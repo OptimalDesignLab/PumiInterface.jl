@@ -33,7 +33,7 @@ extern "C" {
  * Outputs:
  *   m_new: the new Mesh*
 */
-apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3]);
+apf::Mesh2* createSubMeshDG(apf::Mesh* m, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3]);
 
 
 /* Copies a Field from the old mesh to the new mesh
@@ -54,7 +54,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
  *  field_old: the Field* on the old mesh
  *  field_new: the field* on the new mesh (must already have been created)
 */
-void transferField(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3], double* interp_op, apf::Field* field_old, apf::Field* field_new);
+void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3], double* interp_op, apf::Field* field_old, apf::Field* field_new);
 }
 
 #endif

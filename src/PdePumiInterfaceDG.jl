@@ -27,17 +27,6 @@ export AbstractMesh,PumiMeshDG2, PumiMeshDG2Preconditioning, reinitPumiMeshDG2, 
 export PumiMeshDG2, PumiMeshDG
 #abstract AbstractMesh
 @doc """
-### PumiInterface.PumiMesh
-
-  This abstract type is the supertype of all Pumi mesh object"
-
-  The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
-  jac).
-"""->
-abstract PumiMeshDG{T1} <: AbstractMesh{T1}
-include("./PdePumiInterface3.jl")
-
-@doc """
 ### PumiInterface.PumiMeshDG2
 
   This is an implementation of AbstractMesh for a 2 dimensional equation.  
@@ -88,7 +77,7 @@ include("./PdePumiInterface3.jl")
                       color the elements (graph vertices are elements and graph
                       edges exist where elements share an edge)
 """->
-type PumiMeshDG2{T1} <: PumiMeshDG2{T1}   # 2d pumi mesh, triangle only
+type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
@@ -120,6 +109,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG2{T1}   # 2d pumi mesh, triangle only
   nodemapSbpToPumi::Array{UInt8, 1}  # maps nodes of SBP to Pumi order
   nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
 
+  dim::Int  # dimension of mesh (2 or 3D)
   isDG::Bool  # is this a DG mesh (always true)
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
   numColors::Int  # number of colors
@@ -178,14 +168,14 @@ type PumiMeshDG2{T1} <: PumiMeshDG2{T1}   # 2d pumi mesh, triangle only
 
 
 
- function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::SBPOperator, opts; dofpernode=1, shape_type=1, coloring_distance=2)
+ function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts; dofpernode=1, shape_type=2, coloring_distance=2)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
   # order = order of shape functions
   # opts: dictionary of options
   # dofpernode = number of dof per node, default = 1
-  # shape_type = type of shape functions, 0 = lagrange, 1 = SBP 2 = SBP DG1
+  # shape_type = type of shape functions, 0 = lagrange, 1 = SBP, 2 = SBP DG1
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
 
@@ -194,6 +184,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG2{T1}   # 2d pumi mesh, triangle only
   println("  dmg_name = ", dmg_name)
   mesh = new()
   mesh.isDG = true
+  mesh.dim = 2
   mesh.numDofPerNode = dofpernode
   mesh.order = order
   mesh.shape_type = shape_type
@@ -226,7 +217,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG2{T1}   # 2d pumi mesh, triangle only
   println("mesh.typeOffsetsPerElement = ", mesh.typeOffsetsPerElement)
   mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
-  mesh. numNodesPerElement = mesh.typeOffsetsPerElement[i] - 1
+  mesh. numNodesPerElement = mesh.typeOffsetsPerElement[end] - 1
   numnodes = mesh.numNodesPerElement*dofpernode
   println("numNodesPerType = ", mesh.numNodesPerType)
   println("numEntitesPerType = ", mesh.numEntitiesPerType)
@@ -399,7 +390,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG2{T1}   # 2d pumi mesh, triangle only
   getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   # create subtriangulated mesh
-  if order >= 3
+  if order >= 1
 
     mesh.triangulation = getTriangulation(order)
     flush(STDOUT)
@@ -503,6 +494,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG2{T1}   # 2d pumi mesh, triangle only
   end
 
   writeVtkFiles("mesh_complete", mesh.m_ptr)
+
   return mesh
   # could use incomplete initilization to avoid copying arrays
 #  return PumiMeshDG2(m_ptr, mshape_ptr, f_ptr, vert_Nptr, edge_Nptr, el_Nptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
@@ -514,7 +506,7 @@ end
 
 
 
-function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::SBPOperator, opts; 
+function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)
 # construct pumi mesh for preconditioner residual evaluations
 # this operates by copying an existing mesh object (hence not loading a new
@@ -1717,7 +1709,8 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
   println("Entered numberDofs")
 
   # calculate number of nodes, dofs
-  num_nodes_v = 1  # number of nodes on a vertex
+  num_nodes_v = countNodesOn(mesh.mshape_ptr, 0) # on vert
+  # number of nodes on a vertex
   num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
   num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
   println("num_nodes_v = ", num_nodes_v)
@@ -1797,7 +1790,7 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
 # TODO: move all if statements out one for loop (check only first dof on each node)
   curr_dof = 1
   for i=1:mesh.numEl
-#    println("element number: ", i)
+    println("element number: ", i)
     el_i_ptr = getFace()
     incrementFaceIt()
     # get vertices, edges for this element
@@ -1806,12 +1799,12 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
 #    println("mesh.verts = ", mesh.verts)
     numEdge = getDownward(mesh.m_ptr, el_i_ptr, 1, edges_i)
     for j=1:3  # loop over vertices, edges
-#      println("  vertex and edge number: ", j)
+      println("  vertex and edge number: ", j)
       vert_j = verts_i[j]
       edge_j = edges_i[j]
 #      println("  vert_j = ", vert_j)
 #      println("  edge_j = ", edge_j)
-      for k=1:dofpernode # loop over vertex dofs
+      for k=1:num_nodes_entity[1] # loop over vertex dofs
 #	println("    dof number: ", k)
 #	println("    vert_j = ", vert_j)
         dofnum_k = getNumberJ(numbering_ptr, vert_j, 0, k-1)
@@ -2121,7 +2114,7 @@ end
 
 
 #TODO: stop using slice notation
-function getCoordinates(mesh::PumiMeshDG2, sbp::SBPOperator)
+function getCoordinates(mesh::PumiMeshDG2, sbp::AbstractSBP)
 # populate the coords array of the mesh object
 
 mesh.coords = Array(Float64, 2, sbp.numnodes, mesh.numEl)
@@ -2555,7 +2548,7 @@ function getInterfaceArray(mesh::PumiMeshDG2)
 
   pos = 1 # current position in interfaces
   for i=1:getNumEdges(mesh)
-#     println("i = ", i)
+     println("edge = ", i)
 #     println("pos = ", pos)
     # get number of elements using the edge
     adjacent_nums, num_adjacent = getAdjacentEntityNums(mesh, i, 1, 2)
@@ -2571,6 +2564,7 @@ function getInterfaceArray(mesh::PumiMeshDG2)
 
       coords_1 = zeros(3,3)
       coords_2 = zeros(3,3)
+      println("getting face vertex coordinates")
       getFaceCoords(mesh.elements[element1], coords_1, 3, 3)
       getFaceCoords(mesh.elements[element2], coords_2, 3, 3)
 
@@ -2623,7 +2617,7 @@ end  # end function
 
 
 
-function getBoundaryFaceNormals{Tmsh}(mesh::PumiMeshDG2, sbp::SBPOperator, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
+function getBoundaryFaceNormals{Tmsh}(mesh::PumiMeshDG2, sbp::AbstractSBP, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
 
   nfaces = length(bndry_faces)
 
@@ -2653,7 +2647,7 @@ function getBoundaryFaceNormals{Tmsh}(mesh::PumiMeshDG2, sbp::SBPOperator, bndry
 end
 
 
-function getInternalFaceNormals{Tmsh}(mesh::PumiMeshDG2, sbp::SBPOperator, internal_faces::AbstractArray{Interface, 1}, face_normals::Array{Tmsh, 4})
+function getInternalFaceNormals{Tmsh}(mesh::PumiMeshDG2, sbp::AbstractSBP, internal_faces::AbstractArray{Interface, 1}, face_normals::Array{Tmsh, 4})
 
   nfaces = length(internal_faces)
 
@@ -2952,11 +2946,7 @@ end
 function writeVisFiles(mesh::PumiMesh, fname::AbstractString)
   # writes vtk files 
 
-  if mesh.order <= 2
-    writeVtkFiles(fname, mesh.m_ptr)
-  else
     writeVtkFiles(fname, mesh.mnew_ptr)
-  end
 
   return nothing
 end
@@ -2995,13 +2985,17 @@ end
 
 
 function getTriangulation(order::Int)
-# get the sub-triangulation for an element of the specified order
-
-if order == 2
-  triangulation = Int32[1 1 4 2 5 6; 4 7 2 5 3 7; 7 6 7 7 7 3]
+# get the sub-triangulation for an element of the specified order element
+# the first 3 values indicate the verticies, later values refer to the nodes
+# triangulation must be a 3 x n array of Int32s, so when it gets transposed
+# by passing it to C, it becomes a n x 3 array of ints
+if order == 1
+  triangulation = Int32[1 1 4 2 4 4 4 ; 4 4 5 5 3 6 5; 3 2 2 3 6 3 6]
 elseif order == 3
+  println(STDERR, "Warning: bat triangulation used")
   triangulation = Int32[1 1 4 5 5 2 6 7 10 12 12 10 9; 4 10 5 11 2 6 7 12 11 7 3 12 10; 10 9 10 10 11 11 11 11 12 3 8 8 8]
 elseif order == 4
+  println(STDERR, "Warning: bat triangulation used")
   triangulation = Int32[1 1 4 5 5 6 6 2 7 7 15 14 14 8 8 9 17 11 18 13 13 18; 4 13 5 14 6 15 2 7 8 16 16 16 18 17 9 3 3 17 17 18 11 16; 13 12 13 13 14 14 15 15 16 15 14 18 13 16 17 17 10 10 11 11 12 17]
 else
   println(STDERR, "Warning, unsupported triangulation requested")
@@ -3016,7 +3010,7 @@ function getNodeMaps(mesh::PumiMeshDG2)
 # having to do the mapping at all is inelegent to say the least
 # store mappings in both directions in case they are needed
 # use UInt8s to save cache space during loops
-
+#=
   if mesh.order == 1
     sbpToPumi = UInt8[1,2,3]
     pumiToSbp = UInt8[1,2,3]
@@ -3030,11 +3024,13 @@ function getNodeMaps(mesh::PumiMeshDG2)
     sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,17,13,15,14,16,18]
     pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,14,16,15,17,13,18]
   else
+
     println(STDERR, "Warning: Unsupported element order requestion in getFaceOffsets")
+=#
     # default to 1:1 mapping
-    sbpToPumi = UInt8[1:mesh.numNodesPerElement]
-    pumiToSbp = UInt8[1:mesh.numNodesPerElement]
-  end
+    sbpToPumi = UInt8[1:mesh.numNodesPerElement;]
+    pumiToSbp = UInt8[1:mesh.numNodesPerElement;]
+#  end
 
   return sbpToPumi, pumiToSbp
 end  # end getNodeMaps

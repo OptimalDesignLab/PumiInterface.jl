@@ -128,13 +128,16 @@ global const getComponents_name = "getComponents"
 
 global const createSubMesh_name = "createSubMesh"
 global const transferField_name = "transferField"
+global const createSubMeshDG_name = "createSubMeshDG"
+global const transferFieldDG_name = "transferFieldDG"
+
 end
 
 
 # export low level interface functions
 export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
-
+export createSubMeshDG, transferFieldDG
 
 export toModel, getModelType, getModelTag
 
@@ -1246,6 +1249,55 @@ function createSubMesh(m_ptr, triangulation::AbstractArray{Int32, 2}, elementNod
  mnew_ptr =  ccall( (createSubMesh_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Int32, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}, Ptr{Ptr{Void}}), m_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings)
 
  return mnew_ptr
+end
+
+
+@doc """
+### PumiInterface.transferField
+
+  Transfers the specified field from the hold mesh to the new mesh.
+
+  See createSubMesh for the meanings of the arguments
+"""->
+function transferField(m_ptr, mnew_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{UInt8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, numberings::AbstractArray{Ptr{Void}, 1}, field_old, field_new)
+
+  # check the the triangulation array is oriented correctly
+  @assert size(triangulation, 1) == 3
+#  @assert size(interp_op, 2) == 3  # the interpolation operator must be 
+                                   # 3 x numnodesperlement in row major land
+                                   # so, make sure it is numnodesperelement x 3
+  
+ ccall( (transferField_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}, Ptr{Ptr{Void}}, Ptr{Void}, Ptr{Void}), m_ptr, mnew_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings, field_old, field_new)
+
+ return nothing
+end
+
+
+# DG version of the above functions
+
+function createSubMeshDG(m_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{UInt8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, numberings::AbstractArray{Ptr{Void}, 1})
+
+  # check the the triangulation array is oriented correctly
+  @assert size(triangulation, 1) == 3
+  
+ mnew_ptr =  ccall( (createSubMeshDG_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Int32, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}, Ptr{Ptr{Void}}), m_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings)
+
+ return mnew_ptr
+end
+
+
+
+function transferFieldDG(m_ptr, mnew_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{UInt8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, numberings::AbstractArray{Ptr{Void}, 1}, field_old, interp_op::AbstractArray{Float64, 2}, field_new)
+
+  # check the the triangulation array is oriented correctly
+  @assert size(triangulation, 1) == 3
+  @assert size(interp_op, 2) == 3  # the interpolation operator must be 
+                                   # 3 x numnodesperlement in row major land
+                                   # so, make sure it is numnodesperelement x 3
+  
+ ccall( (transferFieldDG_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}, Ptr{Ptr{Void}}, Ptr{Void}, Ptr{Cdouble}, Ptr{Void}), m_ptr, mnew_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings, field_old, interp_op, field_new)
+
+ return nothing
 end
 
 

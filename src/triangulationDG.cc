@@ -654,7 +654,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
 
 
 // this function transferes the specified field to the new mesh
-void transferField(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3], double* interp_op, apf::Field* field_old, apf::Field* field_new)
+void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3], double* interp_op, apf::Field* field_old, apf::Field* field_new)
 {
 
   // compute some quantities
@@ -1044,7 +1044,7 @@ void getFieldLookupTables(const int nnodes_per_el, const int triangulation[][3],
 }
 
 
-apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3])
+apf::Mesh2* createSubMeshDG(apf::Mesh* m, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3])
 {
 // m is the existing (high order) mesh
 // numtriangles is the number of triangles to break each large triangle into

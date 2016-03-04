@@ -291,6 +291,7 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
     }
 
     std::cout << "finished loading mesh, changing shape" << std::endl;
+    std::cout << "new shape name is " << m->getShape()->getName() << std::endl;
   } else
   {
     std::cout << "finished loading mesh" << std::endl;
@@ -1071,12 +1072,11 @@ int getEdgeCoords2(apf::MeshEntity* e, double coords[2][3], int sx, int sy)
 // sx = x dimension of array, sy = y dimension of array
 int getFaceCoords(double coords[][3], int sx, int sy)
 {
-//  std::cout << "Entered getFaceCoords" << std::endl;
-
+  std::cout << "Entered getFaceCoords" << std::endl;
   apf::MeshEntity* e = m->deref(its[2]);
   apf::Downward verts;  // hold vertices
   int numDownward = m->getDownward(e, 0, verts);  // populate verts
-
+  std::cout << "number of downward verts = " << numDownward << std::endl;
   if ( sx < numDownward || sy != 3)
   {
     std::cout << " Warning, array not right size ";
@@ -1088,6 +1088,7 @@ int getFaceCoords(double coords[][3], int sx, int sy)
   apf::Vector3 vec;  // vector to hold coordinates of a point
   for ( int i = 0; i < numDownward; ++i) // loop over vertices
   {
+    std::cout << "getting coordinates for vertex " << i << " of face" << std::endl;
     m->getPoint(verts[i], 0, vec); // populate vec with coordinates of vertex
 //    std::cout << "coordinates of vertex " << i << " = " << vec << std::endl;
     coords[i][0] = vec[0];
@@ -1103,10 +1104,11 @@ int getFaceCoords(double coords[][3], int sx, int sy)
 int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
 {
 //  std::cout << "Entered getFaceCoords22" << std::endl;
-
+//  std::cout << " element = " << e << std::endl;
   apf::Downward verts;  // hold vertices
   int numDownward = m->getDownward(e, 0, verts);  // populate verts
 
+//  std::cout << "number of downward verts = " << numDownward << std::endl;
   if ( sx < numDownward || sy != 3)
   {
     std::cout << " Warning, array not right size ";
@@ -1118,6 +1120,8 @@ int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
   apf::Vector3 vec;  // vector to hold coordinates of a point
   for ( int i = 0; i < numDownward; ++i) // loop over vertices
   {
+
+//    std::cout << "getting coordinates for vertex " << i << " of face" << std::endl;
     m->getPoint(verts[i], 0, vec); // populate vec with coordinates of vertex
 //    std::cout << "coordinates of vertex " << i << " = " << vec << std::endl;
     coords[i][0] = vec[0];
@@ -1236,7 +1240,7 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
   static int el_type = m_local->getType(element);
   static int el_dim = m_local->typeDimension[el_type];
   static int num_comp = apf::countComponents(n);
-  static apf::FieldShape* fshape_local = m_local->getShape();
+  static apf::FieldShape* fshape_local = apf::getShape(n);
   static apf::MeshEntity* e = entities[0];
   static int col = 0;  // current node
   static int ptr = 0;  // pointer to linear address in entities
@@ -1246,7 +1250,7 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
   el_type = m_local->getType(element);
   el_dim = m_local->typeDimension[el_type];
   num_comp = apf::countComponents(n);
-  fshape_local = m_local->getShape();
+  fshape_local = apf::getShape(n);
   e = entities[0];
 
   col = 0;
