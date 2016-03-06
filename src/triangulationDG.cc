@@ -1,8 +1,9 @@
 // this file contains the code necessary to perform the subtriangulatio of a 
 // high order mesh into a low order one
 
-#include "triangulation.h"
+#include "triangulationDG.h"
 
+namespace triDG {
 #define N_VERT_PER_EL 3  // triangles
 //-----------------------------------------------------------------------------
 // Function declarations (private functions)
@@ -651,161 +652,6 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
 }  // end function
 
 
-
-
-// this function transferes the specified field to the new mesh
-void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3], double* interp_op, apf::Field* field_old, apf::Field* field_new)
-{
-
-  // compute some quantities
-  int nnodes_per_el = typeOffsetsPerElement[3] - 1;
-  apf::FieldShape* mshape = m->getShape();
-  // get number of different types of entities
-//  std::size_t entity_counts[3] = {m->count(0), m->count(1), m->count(2)};
-
-  // get number of nodes on different types of entities
-  int entity_nodes_on[3] = {mshape->countNodesOn(0), mshape->countNodesOn(1), mshape->countNodesOn(2)};
-
-
-  // step 3: transfer Fields
-  // loop over elements on m, transfer values to m_new
-  // this results in repeatedly copying some information, but
-  // that is the price to pay for having a simple loop over element
-  // which enables the code to know the relationship between 
-  // elements on m and m_new
-  // here we also use the element orientation information
-
-  // any constant fieldshape gets mappted to getConstant(0) because all nodes
-  // on the old mesh reside on a vertex of the new mesh, the only question
-  // is how many components the numbering has
-  // the undocumented function apf::countComponenets(Numbing* n); does it
-  // Similarly for fields, the fieldshape is mapped to the equivalent linear
-  // field
-  // unfortunately there is no way to know what the function to get the 
-  // equivalent linear fieldshape is other than parsing the FieldShape
-  // name string and having a table of function pointers here
-  // for now we will just stick with linear Lagrange
-  // the number of components ofa  field can be found with
-  // apf::countComponents(Field* f)
-
-  // transfer field values from the vertices of the old mesh to the new one
-  transferVertices(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings, field_old, interp_op, field_new);
-
-  // get lookup tables
-  // this assumes there are no nodes on vertices of the old mesh
-  int subelements[nnodes_per_el];
-  int subelement_verts[nnodes_per_el];
-  getFieldLookupTables(nnodes_per_el, triangulation, numtriangles, subelements, subelement_verts);
-
-//  std::cout << "Finished precalculating lookup tables" << std::endl;
-
-//  apf::FieldShape* mnew_shape = apf::getLagrange(1);
-
-  // store all the subtriangles corresponding to an old mesh element
-  apf::MeshEntity* subtriangles[numtriangles];
-  apf::MeshEntity* node_entity;  // entity actually containing the node
-  int nodenum; // node within element index
-  int elnum;
-  int new_elnum;
-  int new_vertnum;
-  int entity_node_idx; // index of node among all nodes on entities of same dimension
-  int entity_idx;  // index of node containing entity in downward adjacencies
-  int node_idx; // node index, pre offset
-  int offset_node_idx; // node index, post offset
-  int offset_i;
-  int pos;
-  apf::MeshEntity* e;
-  apf::Downward down; // hold downward adjacent verts
-  apf::Downward down_new; // hold downward adjacent verts of new mesh
-  apf::MeshEntity* new_node_entity;
-  int num_entities_per_dim[3] = { 3, 3, 1};
-//apf::MeshEntity* getEntityFromNode(apf::Mesh* m, int typeOffsetsPerElement[], const int nodenum,  apf::MeshEntity* el, int entity_nodes_on[])
-
-
-    int numcomp = apf::countComponents(field_old);
-    const char* name_i = apf::getName(field_old);
-    const char* name_new = apf::getName(field_new);
-    int numcomp_new = apf::countComponents(field_new);
-
-    if ( numcomp != numcomp_new)
-    {
-      std::cerr << "Warning: incompatable Field transfer requested" << std::endl;
-      return;
-    }
-    
-    std::cout << "\nCopying Field " << name_i << " to " << name_new << std::endl;
-
-
-    double vals[numcomp];  // temporarily hold values
-
-    apf::MeshIterator* itold = m->begin(2);
-    apf::MeshIterator* itnew = m_new->begin(2);
-    while ( (e = m->iterate(itold)) ) // loop over elements in old mesh
-    {
-
-      elnum = getNumber(numberings[2], e, 0, 0);
-
-//      std::cout << "  processing old mesh element number " << elnum << std::endl;
-      // get all the subtriangles of the current element
-      for (int i = 0; i < numtriangles; ++i)
-      {
-        subtriangles[i] = m_new->iterate(itnew);
-//        std::cout << "  subtriangle " << i << " pointer = " << subtriangles[i] << std::endl;
-      }
-
-      // the node number on the old mesh that we are trying to transfer
-      // to the new mesh
-      nodenum = 0;
-
-      for (int dim = 1; dim < 3; ++dim)  // loop all dimensions except verts
-      {
-
-//        std::cout << "  looping over nodes of dimension " << dim << std::endl;
-        m->getDownward(e, dim, down);
-/*        std::cout << "down = ";
-        for (int k = 0; k < 12; ++k)
-        {
-          std::cout << "entry " << k << " = " << down[k] << std::endl;
-        }
-*/
-        // loop over nodes of this dimension
-        for (int j = 0; j < num_entities_per_dim[dim]*entity_nodes_on[dim]; ++j)
-        {
-//          std::cout << "    processing node " << j << std::endl;
-          // get entity on old mesh containing the node
-          entity_node_idx = nodenum - (typeOffsetsPerElement[dim] - 1);
-          entity_idx = entity_node_idx/entity_nodes_on[dim]; // integer division
-          node_idx = entity_node_idx % entity_nodes_on[dim];
-          node_entity = down[entity_idx]; // get the mesh entity pointer
-
-          // offset
-//          std::cout << "    calculating offset" << std::endl;
-          pos = nodenum + elnum*nnodes_per_el;
-          offset_i = elementNodeOffsets[pos]; 
-          offset_node_idx = abs(offset_i - (node_idx + 1)) - 1;
-//          std::cout << "    offset_node_idx = " << offset_node_idx << std::endl;
-          // get the entity on the new mesh containing the node
-//          std::cout << "    retrieving new mesh entity" << std::endl;
-          new_elnum = subelements[nodenum];
-          new_vertnum = subelement_verts[nodenum];
-//          std::cout << "    new_elnum = " << new_elnum << std::endl;
-//          std::cout << "    new_vertnum = " << new_vertnum << std::endl;
-          m_new->getDownward(subtriangles[new_elnum], 0, down_new);
-          new_node_entity = down_new[new_vertnum];
-//          std::cout << "    new_node_entity = " << new_node_entity << std::endl;
-//          std::cout << "    node_entity = " << node_entity << std::endl;
-
-//          std::cout << "    copying values" << std::endl;
-          copyFieldNode(field_old, field_new, node_entity, new_node_entity, offset_node_idx, 0, numcomp, vals);
-
-          ++nodenum;
-        }
-      }
-
-    } // end loop over old mesh elements
-    
-} // end function
-
 // computes the linear index of a 2D array from 2 indices and the dimensions
 // of the array
 // assumes row major storage
@@ -1044,6 +890,166 @@ void getFieldLookupTables(const int nnodes_per_el, const int triangulation[][3],
 }
 
 
+
+} // namespace triDG
+
+
+// this function transferes the specified field to the new mesh
+void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3], double* interp_op, apf::Field* field_old, apf::Field* field_new)
+{
+
+  // compute some quantities
+  int nnodes_per_el = typeOffsetsPerElement[3] - 1;
+  apf::FieldShape* mshape = m->getShape();
+  // get number of different types of entities
+//  std::size_t entity_counts[3] = {m->count(0), m->count(1), m->count(2)};
+
+  // get number of nodes on different types of entities
+  int entity_nodes_on[3] = {mshape->countNodesOn(0), mshape->countNodesOn(1), mshape->countNodesOn(2)};
+
+
+  // step 3: transfer Fields
+  // loop over elements on m, transfer values to m_new
+  // this results in repeatedly copying some information, but
+  // that is the price to pay for having a simple loop over element
+  // which enables the code to know the relationship between 
+  // elements on m and m_new
+  // here we also use the element orientation information
+
+  // any constant fieldshape gets mappted to getConstant(0) because all nodes
+  // on the old mesh reside on a vertex of the new mesh, the only question
+  // is how many components the numbering has
+  // the undocumented function apf::countComponenets(Numbing* n); does it
+  // Similarly for fields, the fieldshape is mapped to the equivalent linear
+  // field
+  // unfortunately there is no way to know what the function to get the 
+  // equivalent linear fieldshape is other than parsing the FieldShape
+  // name string and having a table of function pointers here
+  // for now we will just stick with linear Lagrange
+  // the number of components ofa  field can be found with
+  // apf::countComponents(Field* f)
+
+  // transfer field values from the vertices of the old mesh to the new one
+  triDG::transferVertices(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings, field_old, interp_op, field_new);
+
+  // get lookup tables
+  // this assumes there are no nodes on vertices of the old mesh
+  int subelements[nnodes_per_el];
+  int subelement_verts[nnodes_per_el];
+  triDG::getFieldLookupTables(nnodes_per_el, triangulation, numtriangles, subelements, subelement_verts);
+
+//  std::cout << "Finished precalculating lookup tables" << std::endl;
+
+//  apf::FieldShape* mnew_shape = apf::getLagrange(1);
+
+  // store all the subtriangles corresponding to an old mesh element
+  apf::MeshEntity* subtriangles[numtriangles];
+  apf::MeshEntity* node_entity;  // entity actually containing the node
+  int nodenum; // node within element index
+  int elnum;
+  int new_elnum;
+  int new_vertnum;
+  int entity_node_idx; // index of node among all nodes on entities of same dimension
+  int entity_idx;  // index of node containing entity in downward adjacencies
+  int node_idx; // node index, pre offset
+  int offset_node_idx; // node index, post offset
+  int offset_i;
+  int pos;
+  apf::MeshEntity* e;
+  apf::Downward down; // hold downward adjacent verts
+  apf::Downward down_new; // hold downward adjacent verts of new mesh
+  apf::MeshEntity* new_node_entity;
+  int num_entities_per_dim[3] = { 3, 3, 1};
+//apf::MeshEntity* getEntityFromNode(apf::Mesh* m, int typeOffsetsPerElement[], const int nodenum,  apf::MeshEntity* el, int entity_nodes_on[])
+
+
+    int numcomp = apf::countComponents(field_old);
+    const char* name_i = apf::getName(field_old);
+    const char* name_new = apf::getName(field_new);
+    int numcomp_new = apf::countComponents(field_new);
+
+    if ( numcomp != numcomp_new)
+    {
+      std::cerr << "Warning: incompatable Field transfer requested" << std::endl;
+      return;
+    }
+    
+    std::cout << "\nCopying Field " << name_i << " to " << name_new << std::endl;
+
+
+    double vals[numcomp];  // temporarily hold values
+
+    apf::MeshIterator* itold = m->begin(2);
+    apf::MeshIterator* itnew = m_new->begin(2);
+    while ( (e = m->iterate(itold)) ) // loop over elements in old mesh
+    {
+
+      elnum = getNumber(numberings[2], e, 0, 0);
+
+//      std::cout << "  processing old mesh element number " << elnum << std::endl;
+      // get all the subtriangles of the current element
+      for (int i = 0; i < numtriangles; ++i)
+      {
+        subtriangles[i] = m_new->iterate(itnew);
+//        std::cout << "  subtriangle " << i << " pointer = " << subtriangles[i] << std::endl;
+      }
+
+      // the node number on the old mesh that we are trying to transfer
+      // to the new mesh
+      nodenum = 0;
+
+      for (int dim = 1; dim < 3; ++dim)  // loop all dimensions except verts
+      {
+
+//        std::cout << "  looping over nodes of dimension " << dim << std::endl;
+        m->getDownward(e, dim, down);
+/*        std::cout << "down = ";
+        for (int k = 0; k < 12; ++k)
+        {
+          std::cout << "entry " << k << " = " << down[k] << std::endl;
+        }
+*/
+        // loop over nodes of this dimension
+        for (int j = 0; j < num_entities_per_dim[dim]*entity_nodes_on[dim]; ++j)
+        {
+//          std::cout << "    processing node " << j << std::endl;
+          // get entity on old mesh containing the node
+          entity_node_idx = nodenum - (typeOffsetsPerElement[dim] - 1);
+          entity_idx = entity_node_idx/entity_nodes_on[dim]; // integer division
+          node_idx = entity_node_idx % entity_nodes_on[dim];
+          node_entity = down[entity_idx]; // get the mesh entity pointer
+
+          // offset
+//          std::cout << "    calculating offset" << std::endl;
+          pos = nodenum + elnum*nnodes_per_el;
+          offset_i = elementNodeOffsets[pos]; 
+          offset_node_idx = abs(offset_i - (node_idx + 1)) - 1;
+//          std::cout << "    offset_node_idx = " << offset_node_idx << std::endl;
+          // get the entity on the new mesh containing the node
+//          std::cout << "    retrieving new mesh entity" << std::endl;
+          new_elnum = subelements[nodenum];
+          new_vertnum = subelement_verts[nodenum];
+//          std::cout << "    new_elnum = " << new_elnum << std::endl;
+//          std::cout << "    new_vertnum = " << new_vertnum << std::endl;
+          m_new->getDownward(subtriangles[new_elnum], 0, down_new);
+          new_node_entity = down_new[new_vertnum];
+//          std::cout << "    new_node_entity = " << new_node_entity << std::endl;
+//          std::cout << "    node_entity = " << node_entity << std::endl;
+
+//          std::cout << "    copying values" << std::endl;
+          triDG::copyFieldNode(field_old, field_new, node_entity, new_node_entity, offset_node_idx, 0, numcomp, vals);
+
+          ++nodenum;
+        }
+      }
+
+    } // end loop over old mesh elements
+    
+} // end function
+
+
+
+
 apf::Mesh2* createSubMeshDG(apf::Mesh* m, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3])
 {
 // m is the existing (high order) mesh
@@ -1182,7 +1188,7 @@ apf::Mesh2* createSubMeshDG(apf::Mesh* m, const int numtriangles, const int tria
           
   //        std::cout << "offset = " << offset_j << std::endl;
 
-          el_verts[j] = getVert(m, &verts[0][0], &edges[0][0], &faces[0][0], typeOffsetsPerElement, node, offset_j, e, numberings, entity_nodes_on );
+          el_verts[j] = triDG::getVert(m, &verts[0][0], &edges[0][0], &faces[0][0], typeOffsetsPerElement, node, offset_j, e, numberings, entity_nodes_on );
   //        std::cout << "  el_vert " << j << " = " << el_verts[j] << std::endl;
         }
       }
@@ -1204,7 +1210,7 @@ apf::Mesh2* createSubMeshDG(apf::Mesh* m, const int numtriangles, const int tria
   m_new->verify();
   std::cout << "verified" << std::endl;
 
-  transferNumberings(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings);
+  triDG::transferNumberings(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings);
 
   // write visualization file
   apf::writeVtkFiles("newmesh_linear", m_new);

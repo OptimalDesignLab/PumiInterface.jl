@@ -426,10 +426,11 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   # create subtriangulated mesh
   if order >= 1
 
-    mesh.triangulation = getTriangulation(order)
+    mesh.triangulation = getTriangulationDG(order)
     flush(STDOUT)
     flush(STDERR)
-    mesh.mnew_ptr = createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
+    println("size(mesh.triangulation) = ", size(mesh.triangulation))
+    mesh.mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
 
     println("creating solution field on new mesh")
     mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
@@ -2173,7 +2174,7 @@ for i=1:mesh.numEl  # loop over elements
   coords_it[:,:] = coords_i[1:2, :].'
 #  println("coords_it = ", coords_it)
   println("coords_it = ", coords_it)
-  mesh.coords[:, :, i] = calcnodes(sbp, coords_it)
+  mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
 #  println("mesh.coords[:,:,i] = ", mesh.coords[:,:,i])
 end
 
@@ -2843,7 +2844,7 @@ function saveSolutionToMesh(mesh::PumiMeshDG2, u::AbstractVector)
   return nothing
 end  # end function saveSolutionToMesh
 
-
+#=
 function calcNewNode(i, offset_pumi, offset_orient)
 # this function calculates the new node index on the entity
 # using offset_pumi, the offset
@@ -2855,7 +2856,7 @@ function calcNewNode(i, offset_pumi, offset_orient)
   tmp2 = abs(offset_orient - tmp) - 1
   return tmp2
 end
-
+=#
 function retrieveSolutionFromMesh(mesh::PumiMeshDG2, u::AbstractVector)
 # retrieve solution from mesh (after mesh adaptation)
 # mesh needs to have been reinitilized after mesh adaptation, u needs to be the right size for the new mesh
@@ -2896,7 +2897,7 @@ function retrieveSolutionFromMesh(mesh::PumiMeshDG2, u::AbstractVector)
   return nothing
 end  # end function saveSolutionToMesh
 
-
+#=
 function retrieveNodeSolution(f_ptr, entity, u_node::AbstractVector)
 # retrieve solution on a particular entity, stores it in u_node
 # u_node must be a vector of length mesh.numDofPerNode
@@ -2906,8 +2907,8 @@ function retrieveNodeSolution(f_ptr, entity, u_node::AbstractVector)
   getComponents(f_ptr, entity, 0, u_node)
 
 end
-
-
+=#
+#=
 function printBoundaryEdgeNums(mesh::PumiMesh)
 
   n = mesh.numBC
@@ -2940,8 +2941,8 @@ function printBoundaryEdgeNums(mesh::PumiMesh)
 
   return nothing
 end  # end function
-
-
+=#
+#=
 function printdxidx(name::AbstractString, mat)
 # print the 4d matrix formatted like dxidx
 
@@ -2959,8 +2960,9 @@ close(f)
 
 return nothing
 end
+=#
 
-
+#=
 function printcoords(name::AbstractString, coords)
 
   f = open(name, "a+")
@@ -2981,10 +2983,10 @@ function printcoords(name::AbstractString, coords)
 
   return nothing
 end
+=#
 
 
-
-function writeVisFiles(mesh::PumiMesh, fname::AbstractString)
+function writeVisFiles(mesh::PumiMeshDG2, fname::AbstractString)
   # writes vtk files 
 
     writeVtkFiles(fname, mesh.mnew_ptr)
@@ -3025,7 +3027,7 @@ return nothing
 end
 
 
-function getTriangulation(order::Int)
+function getTriangulationDG(order::Int)
 # get the sub-triangulation for an element of the specified order element
 # the first 3 values indicate the verticies, later values refer to the nodes
 # triangulation must be a 3 x n array of Int32s, so when it gets transposed

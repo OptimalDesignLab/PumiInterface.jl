@@ -3,6 +3,7 @@
 
 #include "triangulation.h"
 
+namespace tri {
 // given nodenum, the index of a node within an element (zero based), return the MeshEntity
 // pointer for the corresponding vert on the new mesh
 // typeOffsetsPerElement are the (1-based) indicies of the start index of the nodes
@@ -496,7 +497,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
   printFields(m_new);
 }  // end function
 
-
+} // end namespace tri
 
 
 // this function transferes the specified field to the new mesh
@@ -669,7 +670,7 @@ void transferField(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const
 //          std::cout << "    node_entity = " << node_entity << std::endl;
 
 //          std::cout << "    copying values" << std::endl;
-          copyFieldNode(field_old, field_new, node_entity, new_node_entity, offset_node_idx, 0, numcomp, vals);
+          tri::copyFieldNode(field_old, field_new, node_entity, new_node_entity, offset_node_idx, 0, numcomp, vals);
 
           ++nodenum;
         }
@@ -800,7 +801,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
         
 //        std::cout << "offset = " << offset_j << std::endl;
 
-        el_verts[j] = getVert(m, &verts[0][0], &edges[0][0], &faces[0][0], typeOffsetsPerElement, node, offset_j, e, numberings, entity_nodes_on );
+        el_verts[j] = tri::getVert(m, &verts[0][0], &edges[0][0], &faces[0][0], typeOffsetsPerElement, node, offset_j, e, numberings, entity_nodes_on );
 //        std::cout << "  el_vert " << j << " = " << el_verts[j] << std::endl;
       }
      
@@ -821,13 +822,12 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
   m_new->verify();
   std::cout << "verified" << std::endl;
 
-  transferNumberings(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings);
+  tri::transferNumberings(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings);
 
   // write visualization file
   apf::writeVtkFiles("newmesh_linear", m_new);
 
   return m_new;
 }
-
 
 

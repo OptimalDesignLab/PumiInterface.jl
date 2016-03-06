@@ -3,6 +3,7 @@
 
 #include "triangulation.h"
 
+namespace triangulation {
 // given nodenum, the index of a node within an element (zero based), return the MeshEntity
 // pointer for the corresponding vert on the new mesh
 // typeOffsetsPerElement are the (1-based) indicies of the start index of the nodes
@@ -830,4 +831,4 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
 }
 
 
-
+}  // namespace triangulation

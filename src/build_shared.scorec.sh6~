@@ -9,7 +9,7 @@ CXXFLAGS="$CXXFLAGS -g -fno-omit-frame-pointer"
 
 #mpicxx $CXXFLAGS -c -Wall -fPIC  -I/usr/local/pumi/core-sim/include -L$HOME/lib funcs1.cc -lmds -lapf -lpcu -lbz2 -lgmi
 
-mpicxx ./funcs1.cc ./a2.cc adaptFuncsJ.cc apfSBPShape.cc apfSBPShape3.cc dgSBPShape1.cc triangulation.cc triangulatDG.cc $CXXFLAGS -c -Wall -fPIC `pkg-config --cflags --libs libmds libma` -lcrv -I`pwd`
+mpicxx ./funcs1.cc ./a2.cc adaptFuncsJ.cc apfSBPShape.cc apfSBPShape3.cc dgSBPShape1.cc triangulation.cc triangulationDG.cc $CXXFLAGS -c -Wall -fPIC `pkg-config --cflags --libs libmds libma` -lcrv -I`pwd`
 
 
 set +x
