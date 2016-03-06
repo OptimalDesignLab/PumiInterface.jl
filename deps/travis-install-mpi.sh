@@ -2,6 +2,9 @@
 # this conf file is taken from the mpi4py project
 # http://mpi4py.scipy.org/
 
+libnuma_pkg=libnuma1_2.0.9~rc5-1ubuntu2_amd64.deb
+libnuma_url=http://mirrors.kernel.org/ubuntu/pool/main/n/numactl/
+
 libhwlock_pkg=libhwloc5_1.8-1ubuntu1_amd64.deb
 libhwlock_url=http://mirrors.kernel.org/ubuntu/pool/universe/h/hwloc/
 
@@ -24,6 +27,8 @@ case $1 in
   mpich3) set -x;
 #    sudo apt-get install mpich;;
     sudo apt-get install -q gfortran libcr0 default-jdk;
+    wget $libnuma_url$libnuma_pkg;
+    sudo dpkg -i $libnuma_pkg;
     wget $libhwlock_url$libhwlock_pkg;
     sudo dpkg -i ./$libhwlock_pkg;
     wget $hwlock_url$hwlock_pkg;
