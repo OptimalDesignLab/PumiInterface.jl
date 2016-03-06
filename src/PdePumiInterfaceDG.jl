@@ -351,7 +351,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 
   println("about to get degree of freedom numbers")
   getDofNumbers(mesh)  # store dof numbers
-  printlin("finished getting degree of freedom numbers")
+  println("finished getting degree of freedom numbers")
 
 
 
@@ -697,7 +697,7 @@ function populateDofNumbers(mesh::PumiMeshDG2)
 	  if nodenum != 0
 	    for i=1:mesh.numDofPerNode
 	      dofnum_i = (nodenum -1)*mesh.numDofPerNode + i
-              println("entity type ", etype, ", entity number ", entity, ", node ", node, ", dof ", i, " is getting number ", dofnum_i)
+#              println("entity type ", etype, ", entity number ", entity, ", node ", node, ", dof ", i, " is getting number ", dofnum_i)
   	      numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, i-1, dofnum_i)
 	    end  # end loop over dofsPerNode
 	  end   # end if nodenum != 0
@@ -1788,8 +1788,8 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
   end
 
 
-  println("num_entities = ", num_entities)
-  println("num_nodes_entity = ", num_nodes_entity)
+#  println("num_entities = ", num_entities)
+#  println("num_nodes_entity = ", num_nodes_entity)
 
 #  curr_dof = 1
   curr_dof = numDof+1
@@ -1826,9 +1826,9 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
 # TODO: move all if statements out one for loop (check only first dof on each node)
   curr_dof = 1
   for i=1:mesh.numEl
-    println("element number: ", i)
+#    println("element number: ", i)
     el_i_ptr = getFace()
-    println("element pointer = ", el_i_ptr)
+#    println("element pointer = ", el_i_ptr)
     incrementFaceIt()
     # get vertices, edges for this element
     numVert = getDownward(mesh.m_ptr, el_i_ptr, 0, verts_i)
@@ -1836,7 +1836,7 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
 #    println("mesh.verts = ", mesh.verts)
     numEdge = getDownward(mesh.m_ptr, el_i_ptr, 1, edges_i)
     for j=1:3  # loop over vertices, edges
-      println("  vertex and edge number: ", j)
+#      println("  vertex and edge number: ", j)
       vert_j = verts_i[j]
       edge_j = edges_i[j]
 #      println("  vert_j = ", vert_j)
@@ -1869,7 +1869,7 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
       for p=1:dofpernode  # loop over dofs
 	dofnum_p = getNumberJ(numbering_ptr, el_i_ptr, k-1, p-1)
 	if dofnum_p > numDof
-          println("assigning number ", curr_dof, " to face node ", k, ", dof ", p)
+#          println("assigning number ", curr_dof, " to face node ", k, ", dof ", p)
 	  numberJ(numbering_ptr, el_i_ptr, k-1, p-1, curr_dof)
 	  curr_dof += 1
 	end
@@ -1994,13 +1994,13 @@ end  # end function
 function getDofNumbers(mesh::PumiMeshDG2)
 # populate array of dof numbers, in same shape as solution array u (or q)
 
-println("in getDofNumbers")
-println("numNodesPerElement = ", mesh.numNodesPerElement)
+#println("in getDofNumbers")
+#println("numNodesPerElement = ", mesh.numNodesPerElement)
 
 mesh.dofs = Array(Int32, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
 
 for i=1:mesh.numEl
-  println("element ", i)
+#  println("element ", i)
   dofnums = getGlobalNodeNumbers(mesh, i)
 
   for j=1:mesh.numNodesPerElement
@@ -2172,6 +2172,7 @@ for i=1:mesh.numEl  # loop over elements
 
   coords_it[:,:] = coords_i[1:2, :].'
 #  println("coords_it = ", coords_it)
+  println("coords_it = ", coords_it)
   mesh.coords[:, :, i] = calcnodes(sbp, coords_it)
 #  println("mesh.coords[:,:,i] = ", mesh.coords[:,:,i])
 end
@@ -2277,7 +2278,6 @@ function getGlobalNodeNumbers(mesh::PumiMeshDG2, elnum::Integer, dofnums::Abstra
 # 
 
 el_i = mesh.elements[elnum]
-println("getting dof numbers for element ", elnum, ", with pointer ", el_i)
 type_i = getType(mesh.m_ptr, el_i)  # what is this used for?
 
 #println("elnum = ", elnum)
@@ -2589,7 +2589,7 @@ function getInterfaceArray(mesh::PumiMeshDG2)
 
   pos = 1 # current position in interfaces
   for i=1:getNumEdges(mesh)
-     println("edge = ", i)
+#     println("edge = ", i)
 #     println("pos = ", pos)
     # get number of elements using the edge
     adjacent_nums, num_adjacent = getAdjacentEntityNums(mesh, i, 1, 2)

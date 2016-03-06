@@ -2296,7 +2296,6 @@ end
 
 # get entities in the Pumi order
 node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
-
 # get node offsets in the SBP order
 node_offsets = view(mesh.elementNodeOffsets[:, elnum])
 #println("node_offsets = ", [Int(i) for i in node_offsets])
@@ -3056,15 +3055,12 @@ function getNodeMaps(mesh::PumiMesh2)
     sbpToPumi = UInt8[1,2,3]
     pumiToSbp = UInt8[1,2,3]
   elseif mesh.order == 2
-    println(STDERR, "Warning: using bad node maps")
     sbpToPumi = UInt8[1,2,3,4,5,6,7]
     pumiToSbp = UInt8[1,2,3,4,5,6,7]
   elseif mesh.order == 3
-    println(STDERR, "Warning: using bad node maps")
     sbpToPumi = UInt8[1,2,3,4,5,6,7,9,8,12,10,11]
     pumiToSbp= UInt8[1,2,3,4,5,6,7,9,8,11,12,10]
   elseif mesh.order == 4 
-    println(STDERR, "Warning: using bad node maps")
     sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,17,13,15,14,16,18]
     pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,14,16,15,17,13,18]
   else

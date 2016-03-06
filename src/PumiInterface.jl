@@ -1325,6 +1325,7 @@ end
 
 
 function getSBPShapes(shape_type::Integer, order::Integer)
+# shape_type: 1 = SBP, 2 = SBPDG1
 
   ccall( (getSBPShapes_name, pumi_libname), Ptr{Void}, (Cint, Cint), shape_type, order)
 

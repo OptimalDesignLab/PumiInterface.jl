@@ -287,6 +287,22 @@ facts("Testing PUMIInterface.jl") do
   @fact adj_num --> [1, 3]
 
 
+  mshape2 = getSBPShapes(1, 4)
+  node_entities = getNodeEntities(m_ptr, mshape2, face)
+  verts = node_entities[1:3]
+  edges = node_entities[4:12]
+  faces = node_entities[13:18]
+  for i in verts
+    @fact getType(m_ptr, i) --> apfVERTEX
+  end
+  for i in edges
+    @fact getType(m_ptr, i) --> apfEDGE
+  end
+  for i in faces
+    @fact getType(m_ptr, i) --> apfTRIANGLE
+  end
+
+
 
 
 

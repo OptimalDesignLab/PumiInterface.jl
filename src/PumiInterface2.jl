@@ -3,6 +3,19 @@
 
 
 export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities, getEntityLocalNumber
+export apfVERTEX, apfEDGE, apfTRIANGLE, apfQUAD, apfTET, apfHEX, apfPRISM, apfPYRAMIX, simplexTypes
+
+# declare the enums
+global const apfVERTEX=0
+global const apfEDGE=1
+global const apfTRIANGLE=2
+global const apfQUAD=3
+global const apfTET=4
+global const apfHEX=5
+global const apfPRISM=6
+global const apfPYRAMID=7
+
+global const simplexTypes = [apfVERTEX, apfEDGE, apfTRIANGLE, apfTET]
 
 function getAdjacentFull(m_ptr, entity, dimension::Integer)
 # returns an array with the adjacencies of meshentity entity of specified dimension, and the number of entries in the array
@@ -172,7 +185,6 @@ function getNodeEntities(m_ptr, mshape_ptr, entity)
   eshape_ptr = getEntityShape(mshape_ptr, entity_type)
   nnodes = countNodes(eshape_ptr)
   downward_entities = Array(Ptr{Void}, nnodes)  # holds mesh entities
-
   num_vert_nodes = countNodesOn(mshape_ptr, 0)
   num_edge_nodes = countNodesOn(mshape_ptr, 1)
   num_face_nodes = countNodesOn(mshape_ptr, 2)
@@ -182,6 +194,19 @@ function getNodeEntities(m_ptr, mshape_ptr, entity)
   has_edge_nodes = (num_edge_nodes != 0)
   has_face_nodes = (num_face_nodes != 0)
   has_region_nodes = (num_region_nodes != 0)
+
+  if entity_type == 2  # triangle
+    num_type_per_entity = [3, 3, 1]
+  elseif entity_type == 4  # tetrahedron
+    num_type_per_entity = [4, 6, 4, 1]
+    numRegions = num_type_per_entity[4]
+  else
+    println(STDERR, "Error: unsupported entity type in getNodeEntites")
+  end
+
+  numVerts = num_type_per_entity[1]
+  numEdges = num_type_per_entity[2]
+  numFaces = num_type_per_entity[3]
 #=
 
   if entity_type == 2  # triangle
@@ -192,39 +217,35 @@ function getNodeEntities(m_ptr, mshape_ptr, entity)
     println("element type not supported by getNodeEntities")
   end
   
-=#  
+=#
+  vert_offset = 0
   retrieved_entities = Array(Ptr{Void}, 12)  # reusable storage
   if has_vert_nodes  # vertices
-    numV = getDownward(m_ptr, entity, 0, downward_entities)
+    vert_offset = getDownward(m_ptr, entity, 0, downward_entities)
+  end
     
-    # insert elements into downward_entities
-#    downward_entities[1:numV] = verts
 	
-    if has_edge_nodes # edges
-      numEdges = getDownward(mshape_ptr, entity, 1, retrieved_entities)
-          for i=1:numEdges
-	    insertN(downward_entities, retrieved_entities[i], numV+num_edge_nodes*(i-1) + 1, num_edge_nodes)
-	  end
-#	  downward_entities[(numV+1):(numV+numEdges)] = edges
-
-      if has_face_nodes
-	 numFaces = getDownward(mshape_ptr, entity, 2, retrieved_entities)
-	for i=1:numFaces
-	  insertN(downward_entities, retrieved_entities[i], numV + num_edge_nodes*numEdges +num_edge_nodes*(i-1) + 1, num_face_nodes)
-	end
-#	downward_entities[ (numV+numEdges+1):(numV+numEdges+numFaces)] = faces
-
-	if has_region_nodes
-	   numRegions = getDownward(m_ptr, entity, 4, retrieved_entities)
-	  for i=1:numRegions
-	    insertN(downward_entities, retrieved_entities[i], numV + num_edge_nodes*numEdges + num_face_nodes*numFaces + num_region_nodes*(i-1) + 1, num_region_nodes)
-	  end
-#	  downward_entities[(numV+numEdges+numFaces+1):(numV+numEdges+numFaces+numRegions)] = regions
+  if has_edge_nodes # edges
+    numEdges = getDownward(mshape_ptr, entity, 1, retrieved_entities)
+        for i=1:numEdges
+          insertN(downward_entities, retrieved_entities[i], vert_offset+num_edge_nodes*(i-1) + 1, num_edge_nodes)
         end
-      end
+  end
+
+  if has_face_nodes
+     numFaces = getDownward(mshape_ptr, entity, 2, retrieved_entities)
+    for i=1:numFaces
+      insertN(downward_entities, retrieved_entities[i], vert_offset + num_edge_nodes*numEdges +num_edge_nodes*(i-1) + 1, num_face_nodes)
     end
   end
-  
+
+  if has_region_nodes
+     numRegions = getDownward(m_ptr, entity, 4, retrieved_entities)
+    for i=1:numRegions
+      insertN(downward_entities, retrieved_entities[i], vert_offset + num_edge_nodes*numEdges + num_face_nodes*numFaces + num_region_nodes*(i-1) + 1, num_region_nodes)
+    end
+  end
+
   return downward_entities
 end
 
