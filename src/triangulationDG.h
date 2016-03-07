@@ -29,12 +29,12 @@ extern "C" {
  *   elementNodeOffsets: the offsets used to remap nodes on shared MeshEntityies
  *   typeOffsetsPerElement: the index where the nodes of each dimension MeshEntity
  *                          start in a list of all nodes on the element
+ *   nodemap_ptos: nodemap from Pumi ordering to SBP ordering (1-based)
  *   numberings[]: the array of Numbering* for verts, edges, and faces
  * Outputs:
  *   m_new: the new Mesh*
 */
-apf::Mesh2* createSubMeshDG(apf::Mesh* m, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3]);
-
+apf::Mesh2* createSubMeshDG(apf::Mesh* m, apf::FieldShape* mshape, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], uint8_t* nodemap_ptos, apf::Numbering* numberings[3], double* coords_arr);
 
 /* Copies a Field from the old mesh to the new mesh
  * Inputs:

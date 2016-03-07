@@ -423,14 +423,16 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
   getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
+  println("mesh.coords = \n", mesh.coords)
   # create subtriangulated mesh
+  println("elementNodeOffsets = ", mesh.elementNodeOffsets)
   if order >= 1
 
     mesh.triangulation = getTriangulationDG(order)
     flush(STDOUT)
     flush(STDERR)
     println("size(mesh.triangulation) = ", size(mesh.triangulation))
-    mesh.mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
+    mesh.mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, mesh.coords)
 
     println("creating solution field on new mesh")
     mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
@@ -3033,7 +3035,7 @@ function getTriangulationDG(order::Int)
 # triangulation must be a 3 x n array of Int32s, so when it gets transposed
 # by passing it to C, it becomes a n x 3 array of ints
 if order == 1
-  triangulation = Int32[1 1 4 2 4 4 4 ; 4 4 5 5 3 6 5; 3 2 2 3 6 3 6]
+  triangulation = Int32[1 1 4 2 4 5 4 ; 4 4 5 5 3 3 5; 3 2 2 3 6 6 6]
 elseif order == 3
   println(STDERR, "Warning: bat triangulation used")
   triangulation = Int32[1 1 4 5 5 2 6 7 10 12 12 10 9; 4 10 5 11 2 6 7 12 11 7 3 12 10; 10 9 10 10 11 11 11 11 12 3 8 8 8]
@@ -3053,10 +3055,11 @@ function getNodeMaps(mesh::PumiMeshDG2)
 # having to do the mapping at all is inelegent to say the least
 # store mappings in both directions in case they are needed
 # use UInt8s to save cache space during loops
-#=
+
   if mesh.order == 1
-    sbpToPumi = UInt8[1,2,3]
-    pumiToSbp = UInt8[1,2,3]
+    sbpToPumi = UInt8[3,1,2]
+    pumiToSbp = UInt8[2,3,1]
+#=
   elseif mesh.order == 2
     sbpToPumi = UInt8[1,2,3,4,5,6,7]
     pumiToSbp = UInt8[1,2,3,4,5,6,7]
@@ -3066,14 +3069,14 @@ function getNodeMaps(mesh::PumiMeshDG2)
   elseif mesh.order == 4 
     sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,17,13,15,14,16,18]
     pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,10,11,12,14,16,15,17,13,18]
+=#
   else
 
     println(STDERR, "Warning: Unsupported element order requestion in getFaceOffsets")
-=#
     # default to 1:1 mapping
     sbpToPumi = UInt8[1:mesh.numNodesPerElement;]
     pumiToSbp = UInt8[1:mesh.numNodesPerElement;]
-#  end
+  end
 
   return sbpToPumi, pumiToSbp
 end  # end getNodeMaps

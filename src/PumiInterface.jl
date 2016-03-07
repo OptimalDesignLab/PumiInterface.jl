@@ -1276,12 +1276,12 @@ end
 
 # DG version of the above functions
 
-function createSubMeshDG(m_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{UInt8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, numberings::AbstractArray{Ptr{Void}, 1})
+function createSubMeshDG(m_ptr, mshape_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{UInt8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, nodemapPumiToSbp::Array{Uint8, 1}, numberings::AbstractArray{Ptr{Void}, 1}, coords::AbstractArray{Float64, 3})
 
   # check the the triangulation array is oriented correctly
   @assert size(triangulation, 1) == 3
   
- mnew_ptr =  ccall( (createSubMeshDG_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Int32, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}, Ptr{Ptr{Void}}), m_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings)
+ mnew_ptr =  ccall( (createSubMeshDG_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}, Ptr{UInt8}, Ptr{Ptr{Void}}, Ptr{Float64}), m_ptr, mshape_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, nodemapPumiToSbp, numberings, coords)
 
  return mnew_ptr
 end
