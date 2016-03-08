@@ -1474,7 +1474,9 @@ void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, con
   // apf::countComponents(Field* f)
 
   // transfer field values from the vertices of the old mesh to the new one
+  std::cout << "transfering vertices" << std::endl;
   triDG::transferVertices(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings, field_old, interp_op, field_new);
+  std::cout << "finished transfering vertices" << std::endl;
 
   // get lookup tables
   // this assumes there are no nodes on vertices of the old mesh
@@ -1530,7 +1532,7 @@ void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, con
 
       elnum = getNumber(numberings[2], e, 0, 0);
 
-//      std::cout << "  processing old mesh element number " << elnum << std::endl;
+      std::cout << "  processing old mesh element number " << elnum << std::endl;
       // get all the subtriangles of the current element
       for (int i = 0; i < numtriangles; ++i)
       {
