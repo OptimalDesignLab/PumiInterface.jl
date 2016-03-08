@@ -217,9 +217,40 @@ void completeNumbering(apf::Mesh* m_new, apf::Numbering* n_new);
  * Inputs:
  *   m_new: a mesh
  *   n_new: a Numbering*
-*/
+ */
 int getMaxNumber(apf::Mesh* m_new, apf::Numbering* n_new);
 
+
+
+/* Get the mapping old edge local number -> subelement, subelement edge local
+ * number
+ * Inputs:
+ *   triangulation: the triangulation
+ *   numtriangles: the number of triangles
+ *   subelements: array of length 3 to be populated with the subelement numbers
+ *   subelement_edges: array of length 3 to be populated with the subelement
+ *                     edge local numbers
+ */
+void getEdgeLookupTables(const int triangulation[][3], const int numtriangles, int* subelements, int* subelement_edges);
+
+/* Determines if an array contains 2 specified values
+ * Inputs:
+ *   arr: the array
+ *   len: length of the array
+ *   val1: the first value
+ *   val2: the second value
+ */
+bool contains2( int* arr, int len, const int val1, const int val2);
+
+/* Determines the local edge number of an edge defined by 2 vertices
+ * Inputs:
+ *   arr: array of vertiex indices
+ *   val1: first vertex
+ *   val2: second vertex
+ * Outputs:
+ *   -1 if edge not found, otherwise the local edge number
+ */
+int getEdgePos(const int arr[3], const int val1, const int val2);
 
 //-----------------------------------------------------------------------------
 // Function definitions
@@ -945,7 +976,7 @@ void getVertLookupTables(const int triangulation[][3], const int numtriangles, i
 
 // precalculate tables
 // node on old mesh  -> local element number, vertex index on new mesh
-// where local elemlent number tells which element it is of all the 
+// where local element number tells which element it is of all the 
 // subelements created for the current old mesh element
 // This lookup table skips any nodes that might be on vertices, because
 // they are handled through getVertLookupTables and transferVertices
@@ -1008,6 +1039,78 @@ void getFieldLookupTables(const int nnodes_per_el, const int triangulation[][3],
 }
 
 
+// map an local edge number on the old mesh to the local element number and
+// local edge number
+// only works for subtriangulations such that there are only interior nodes
+// (ie. edges are not divided
+void getEdgeLookupTables(const int triangulation[][3], const int numtriangles, int* subelements, int* subelement_edges)
+{
+  int vert1;
+  int vert2;
+  int ret_val;
+  for (int edge_old = 0; edge_old < 3; ++edge_old)
+  {
+    vert1 = edge_old;
+    vert2 = (edge_old + 1) % 3;
+
+    // check all triangles for this edge
+    for (int subel = 0; subel < numtriangles; ++ subel)
+    {
+      ret_val = getEdgePos( triangulation[subel], vert1, vert2);
+      if (ret_val > 0)  // found edge
+      {
+        subelements[edge_old] = subel;
+        subelement_edges[edge_old] = ret_val;
+      }
+    }
+  }
+
+
+}  // end function
+
+
+// does an array contain 2 specified values
+bool contains2(const int* arr, int len, const int val1, const int val2)
+{
+  bool found1 = false;
+  bool found2 = false;
+  int tmp;
+  for (int i=0; i < len; ++i)
+  {
+    tmp = arr[i];
+    if (tmp == val1) {found1 = true;}
+    if (tmp == val2) {found2 = true;}
+  }
+
+  return found1 && found2;
+}
+
+// get the local edge number of teh edge defined by two values
+// assuming the edge actually contains the values
+int getEdgePos(const int arr[3], const int val1, const int val2)
+{
+  int pos1=0;
+  int pos2=0;
+  int tmp;
+
+  for (int i=0; i < 3; ++i)
+  {
+    tmp = arr[i];
+    if (tmp == val1) {pos1 = i;}
+    if (tmp == val2) {pos2 = i;}
+  }
+
+  if (pos1 == 0 || pos2 == 0)
+  {
+    return -1;  // edge not found
+  }
+
+  if ( (pos1 == 0 && pos2 == 1) || (pos1 == 1 && pos2 == 0)) { return 0;}
+  else if ( (pos1 == 1 && pos2 == 2) || (pos1 == 2 && pos2 == 1)) { return 1;}
+  else if ( (pos1 == 2 && pos2 == 0) || (pos1 == 0 && pos2 == 2)) { return 2;}
+  else { return -1;}
+
+} // end function
 
 void printArray(std::ostream& os, apf::MeshEntity** arr, const int si, const int sj)
 {
