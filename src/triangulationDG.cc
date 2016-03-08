@@ -40,6 +40,7 @@ apf::MeshEntity* getVert(apf::Mesh* m, apf::MeshEntity* verts[], apf::MeshEntity
  *   e_old: the MeshEntity* containing the node on the old mesh
  *   e_new: the MeshEntity* containing the node on the new mesh
  *   node_old: the index of the node on the old mesh entity
+ *   node_new: the index of hte node on the new mesh entity
  *   ncomp: number of components in the numbering
  * Outputs:
  *   1 if values were copied, zero otherwise
@@ -164,6 +165,13 @@ void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, co
 */
 void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* n_old, apf::Numbering* n_new);
 
+
+/* Transfers Numbering values from the edges of the old mesh to the edges of
+ * the new mesh.  Only works if every old mesh edge is has exactly 1 new
+ * mesh edge (ie. it is not subdivided)
+ */
+void transferEdges(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* n_old, apf::Numbering* n_new);
+
 // calculate the lookup tables that map:
 // vertex number on old mesh element -> subtriangle number, vert index
 // on new mesh
@@ -252,6 +260,25 @@ bool contains2( int* arr, int len, const int val1, const int val2);
  */
 int getEdgePos(const int arr[3], const int val1, const int val2);
 
+
+/* Determine the orientation of an edge relative to the element
+ * Inputs:
+ *   m: the mesh
+ *   el: the element
+ *   edge_idx: the local index of the edge
+ * Outputs:
+ *   bool: true if edge is reversed, false otherwise
+ */
+bool getEdgeOrientation(apf::Mesh* m, apf::MeshEntity* el, int edge_idx);
+
+/* Figures out what the FieldShape on the new mesh should be for a given
+ * FieldShape on the old mesh
+ * Inputs:
+ *   fshape_old: fieldshape from the Numbering/Field on the old mesh
+ * Outputs:
+ *   the new FieldShape*
+ */
+apf::FieldShape* getNewShape(apf::FieldShape* fshape_old);
 //-----------------------------------------------------------------------------
 // Function definitions
 //-----------------------------------------------------------------------------
@@ -563,7 +590,6 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
 
    // copy numberings
   int numnumberings = m->countNumberings();
-  apf::FieldShape* mnew_shape = apf::getLagrange(1);
 
   // store all the subtriangles corresponding to an old mesh element
   apf::MeshEntity* subtriangles[numtriangles];
@@ -618,15 +644,23 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
     {
       std::cout << "Copying numbering " << name_i << " to elements of new mesh" << std::endl;
       transferNumberingToElements(m, m_new, numtriangles, numbering_i);
+      continue;
     }
 
     // create new field and populate it
-    apf::Numbering* n_new = apf::createNumbering(m_new, name_i, mnew_shape, numcomp);
+    apf::FieldShape* fshape_new = getNewShape(numbering_i_shape);
+    std::cout << "creating new Numbering with name: " << fshape_new->getName() << std::endl;
+    apf::Numbering* n_new = apf::createNumbering(m_new, name_i, fshape_new, numcomp);
 
     // if Numbering has values on vertices, transfer them here
     if (numbering_i_shape->hasNodesIn(0)) 
     {
       transferVertices(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numbering_i, n_new);
+    }
+
+    if (numbering_i_shape->hasNodesIn(1))
+    {
+      transferEdges(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numbering_i, n_new);
     }
 
     // now transfer all non-vertex values
@@ -911,7 +945,7 @@ void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, co
       vert_old = down2[i];
 
       // get the element, vertex on new mesh
-      el_new = subtriangles[i];
+      el_new = subtriangles[subelements[i]];
       m_new->getDownward(el_new, 0, down);
       vert_new = down[ subelement_verts[i] ];
 
@@ -922,7 +956,90 @@ void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, co
         
 }
 
+// transfer Numbering values from the old mesh to the
+// edges of the new mesh
+// This function does not use elementNodeOffsets, because there are not
+// nodes on edges in the old mesh
+// the new Numbering must have the same number of nodes per edge as the 
+// old Numbering
+void transferEdges(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* n_old, apf::Numbering* n_new)
+{
 
+  std::cout << "entered transferEdges" << std::endl;
+  int subelements[3];
+  int subelement_edges[3];
+  getEdgeLookupTables(triangulation, numtriangles, subelements, subelement_edges);
+
+  std::cout << "edge lookup tables: " << std::endl;
+  for (int i = 0; i < 3; ++i)
+  {
+    std::cout << "edge " << i << " is part of subelement " << subelements[i] << ", edge " << subelement_edges[i] << std::endl;
+  }
+
+  apf::FieldShape* nshape = apf::getShape(n_old);
+  const int nnodes_per_edge = nshape->countNodesOn(m->simplexTypes[2]);
+  const int ncomp = apf::countComponents(n_old);
+  apf::MeshEntity* subtriangles[numtriangles];
+  apf::MeshIterator* itold = m->begin(2);
+  apf::MeshIterator* itnew = m_new->begin(2);
+  apf::MeshEntity* el;  // hold old mesh element
+  apf::MeshEntity* el_new;  // hold new mesh element
+  apf::MeshEntity* edge_new;  // hold edge of new element;
+  apf::MeshEntity* edge_old; // hold edge on old mesh element
+  apf::Downward down2;  // hold edges of old mesh element
+  apf::Downward down;  // hold edges of new mesh element
+  bool old_edge_reversed; // is the old edge reversed
+  bool new_edge_reversed; // is the new edge reversed
+  int orient_diff; 
+  int offset;  // offset (used to reverse the edge node ordering
+
+  std::cout << "calculated lookup tables, about to transfer edge data" << std::endl;
+
+  int el_cnt = 0;
+  while ( (el = m->iterate(itold)) )
+  {
+    std::cout << "on element " << el_cnt << std::endl;
+    // get old mesh edges
+    m->getDownward(el, 1, down2);
+
+    for (int i = 0; i < numtriangles; ++i)
+    {
+      subtriangles[i] = m_new->iterate(itnew);
+    }
+
+    for (int i = 0; i < 3; ++i)  // loop over edges of old mesh element
+    {
+      std::cout << "  edge " << i << std::endl;
+      edge_old = down2[i]; // get old mesh edge
+
+      // get new mesh edge
+      el_new = subtriangles[subelements[i]];
+      m_new->getDownward(el_new, 1, down);
+      edge_new = down[subelement_edges[i]];
+
+      std::cout << "got new mesh edge" << std::endl;
+
+      // get the edge orientations
+      old_edge_reversed = getEdgeOrientation(m, el, i);
+      new_edge_reversed = getEdgeOrientation(m_new, el_new, subelement_edges[i]);
+
+      std::cout << "got edge orientations" << std::endl;
+
+      orient_diff = old_edge_reversed - new_edge_reversed;
+      offset = orient_diff*(nnodes_per_edge - 1);
+
+      std::cout << "orient_diff = " << orient_diff << std::endl;
+      std::cout << "offset = " << offset << std::endl;
+
+      for (int node = 0; node < nnodes_per_edge; ++node)
+      {
+        copyNumberingNode(n_old, n_new, edge_old, edge_new, node, offset - node, ncomp);
+      }
+    }  // end loop over element edges
+    ++el_cnt;
+  }  // end loop over old mesh elements
+
+}  // end function
 // calculate the lookup tables that map:
 // vertex number on old mesh element -> subtriangle number, vert index
 // on new mesh
@@ -1048,6 +1165,7 @@ void getEdgeLookupTables(const int triangulation[][3], const int numtriangles, i
   int vert1;
   int vert2;
   int ret_val;
+
   for (int edge_old = 0; edge_old < 3; ++edge_old)
   {
     vert1 = edge_old;
@@ -1056,11 +1174,13 @@ void getEdgeLookupTables(const int triangulation[][3], const int numtriangles, i
     // check all triangles for this edge
     for (int subel = 0; subel < numtriangles; ++ subel)
     {
-      ret_val = getEdgePos( triangulation[subel], vert1, vert2);
+      // +1 because triangulation is 1-based
+      ret_val = getEdgePos( triangulation[subel], vert1 +1, vert2 +1);
       if (ret_val > 0)  // found edge
       {
         subelements[edge_old] = subel;
         subelement_edges[edge_old] = ret_val;
+        continue;
       }
     }
   }
@@ -1085,12 +1205,11 @@ bool contains2(const int* arr, int len, const int val1, const int val2)
   return found1 && found2;
 }
 
-// get the local edge number of teh edge defined by two values
-// assuming the edge actually contains the values
+// get the local edge number of the edge defined by two values
 int getEdgePos(const int arr[3], const int val1, const int val2)
 {
-  int pos1=0;
-  int pos2=0;
+  int pos1=-1;
+  int pos2=-1;
   int tmp;
 
   for (int i=0; i < 3; ++i)
@@ -1100,18 +1219,90 @@ int getEdgePos(const int arr[3], const int val1, const int val2)
     if (tmp == val2) {pos2 = i;}
   }
 
-  if (pos1 == 0 || pos2 == 0)
+  if (pos1 == -1 || pos2 == -1)
   {
     return -1;  // edge not found
   }
 
-  if ( (pos1 == 0 && pos2 == 1) || (pos1 == 1 && pos2 == 0)) { return 0;}
-  else if ( (pos1 == 1 && pos2 == 2) || (pos1 == 2 && pos2 == 1)) { return 1;}
-  else if ( (pos1 == 2 && pos2 == 0) || (pos1 == 0 && pos2 == 2)) { return 2;}
-  else { return -1;}
+  if (pos1 == 0 && pos2 == 1)
+  {
+    return 0;
+  }
+  else if (pos1 == 1 && pos2 == 0)
+  {
+    return 0;
+  }
+  else if (pos1 == 1 && pos2 == 2)
+  {
+    return 1;
+  }
+  else if (pos1 == 2 && pos2 == 1)
+  { 
+    return 1;
+  }
+  else if (pos1 == 2 && pos2 == 0) 
+  {
+    return 2;
+  }
+  else if (pos1 == 0 && pos2 == 2)
+  { 
+    return 2;
+  }
+  else 
+  { 
+    return -1;
+  }
 
 } // end function
 
+// get the edge orientation of a specified edge (true = revered relative to
+// element, false = same as element)
+bool getEdgeOrientation(apf::Mesh* m, apf::MeshEntity* el, int edge_idx)
+{
+  apf::Downward downverts;
+  apf::Downward downedges;
+  m->getDownward(el, 0, downverts);
+  m->getDownward(el, 1, downedges);
+  apf::MeshEntity* edge = downedges[edge_idx];
+
+  m->getDownward(edge, 0, downedges); // reuse downedges
+
+  apf::MeshEntity* vert1 = downedges[1];
+  apf::MeshEntity* vert2 = downedges[2];
+
+  int vert1pos = 0;
+  int vert2pos = 1;
+
+  // find positions of verts within downverts
+  for (int i = 0; i < 3; ++i)
+  {
+    if (downverts[i] == vert1) { vert1pos = i;}
+    if (downverts[i] == vert2) { vert2pos = i;}
+  }
+
+  // figure out what orientation the edge is in by comparing vert positions
+
+  if (edge_idx == 1 || edge_idx == 2)
+  {
+    if (vert2pos > vert1pos)
+    {
+      return false;
+    } else
+    {
+      return true;
+    }
+  } else // edge_idx  == 3
+  {
+    if (vert2pos > vert1pos)
+    {
+      return true;
+    } else
+    {
+      return false;
+    }
+  }  
+
+} // end function
 void printArray(std::ostream& os, apf::MeshEntity** arr, const int si, const int sj)
 {
   int idx = 0;
@@ -1220,6 +1411,29 @@ int getMaxNumber(apf::Mesh* m_new, apf::Numbering* n_new)
 }  // end function
 
 
+// figure out what the FieldShape on the new mesh should be
+// The mapping is nonlinear, so this is an approximation
+apf::FieldShape* getNewShape(apf::FieldShape* fshape_old)
+{
+  int nnodes_vert = fshape_old->countNodesOn(0);
+  int nnodes_edge = fshape_old->countNodesOn(1);
+  int nnodes_face = fshape_old->countNodesOn(2);
+
+  // edge only shape
+  if (nnodes_edge > 0 && nnodes_vert == 0 && nnodes_face == 0)
+  {
+    return apf::getConstant(1);
+  } 
+  // one node per face
+  else if (nnodes_face == 1 && nnodes_edge == 0 && nnodes_vert == 0)
+  {
+    return apf::getConstant(2);
+  } else
+  {
+    return apf::getLagrange(1);
+  }
+
+}
 
 } // namespace triDG
 
