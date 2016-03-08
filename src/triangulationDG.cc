@@ -205,6 +205,20 @@ void getVertLookupTables(const int triangulation[][3], const int numtriangles, i
 */
 void getFieldLookupTables(const int nnodes_per_el, const int triangulation[][3], const int numtriangles, int* subelements, int* subelement_verts);
 
+/* Assigns a default value to all unnumbered nodes of a numbering
+ * Inputs:
+ *   m_new: new mesh
+ *   n_new: a Numbering* on the new mesh
+*/
+void completeNumbering(apf::Mesh* m_new, apf::Numbering* n_new);
+
+
+/* Gets the maximum number present in a Numbering
+ * Inputs:
+ *   m_new: a mesh
+ *   n_new: a Numbering*
+*/
+int getMaxNumber(apf::Mesh* m_new, apf::Numbering* n_new);
 
 
 //-----------------------------------------------------------------------------
@@ -679,7 +693,10 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
          } // end loop over dimensions
 
     } // end loop over old mesh elements
-   
+ 
+    std::cout << "Complete numbering" << std::endl; 
+    completeNumbering(m_new, n_new);
+
     int num_numbered_nodes_new = apf::countNodes(n_new);
     std::cout << "Actually copied " << num_numbered_nodes_new << " nodes" << std::endl; 
 /*  // this test doesn't work because numbering of an entity dimension
@@ -1006,6 +1023,99 @@ void printArray(std::ostream& os, apf::MeshEntity** arr, const int si, const int
   }
 
 }  // end function
+
+
+// get the maximum number present in a numbering on the new mesh (safely)
+void completeNumbering(apf::Mesh* m_new, apf::Numbering* n_new)
+{
+  const int maxval = getMaxNumber(m_new, n_new) + 1;
+  std::cout << "maxval = " << maxval << std::endl;
+  apf::FieldShape* nshape = apf::getShape(n_new);
+  const int ncomp = apf::countComponents(n_new);
+  apf::MeshEntity* e;
+
+  for (int dim = 0; dim < 3; ++dim)
+  {
+    // skip dimensions without nodes
+    if ( !(nshape->hasNodesIn(dim)) )
+    {
+      continue;
+    }
+
+    // otherwise loop over them
+    apf::MeshIterator* it = m_new->begin(dim);
+    int entity_cnt = 0;
+    while ( (e = m_new->iterate(it)) )  // loop over entities of this dimension
+    {
+      for (int node = 0; node < nshape->countNodesOn(m_new->simplexTypes[dim]); ++node)
+      {
+        for (int comp = 0; comp < ncomp; ++comp)
+        {
+          if (!apf::isNumbered(n_new, e, node, comp))
+          {
+            std::cout << "assigning value to entity " << entity_cnt << " of dimension " << dim << " node " << node << " comp " << comp << std::endl;
+            apf::number(n_new, e, node, comp, maxval);
+          }  // end outer if
+        }  // end loop over components
+      }  // end loop over nodes
+      ++entity_cnt;
+    }  // end loop over entities
+  }  // end loop over dimensions
+
+}  // end function
+
+
+// get the maximum number present in a numbering on the new mesh (safely)
+int getMaxNumber(apf::Mesh* m_new, apf::Numbering* n_new)
+{
+  std::cout << "entered getMaxNumber" << std::endl;
+  apf::FieldShape* nshape = apf::getShape(n_new);
+  std::cout << "name of Numbering Fieldshape is: " << nshape->getName() << std::endl;
+  const int ncomp = apf::countComponents(n_new);
+  apf::MeshEntity* e;
+  int val;
+  int maxval = 0;
+
+  for (int dim = 0; dim < 3; ++dim)
+  {
+    if ( !(nshape->hasNodesIn(dim)) )
+    {
+      std::cout << "skipping dimensions " << dim << std::endl;
+      continue;
+    }
+
+
+    std::cout << "checking dimension " << dim << std::endl;
+    int e_cnt = 0;
+    apf::MeshIterator* it = m_new->begin(dim);
+    while ( (e = m_new->iterate(it)) )  // loop over entities of this dimension
+    {
+      std::cout << "  entity " << e_cnt << std::endl;
+      for (int node = 0; node < nshape->countNodesOn(m_new->simplexTypes[dim]); ++node)
+      {
+        std::cout << "    node " << node << std::endl;
+        for (int comp = 0; comp < ncomp; ++comp)
+        {
+          if (apf::isNumbered(n_new, e, node, comp))
+          {
+            val = apf::getNumber(n_new, e, node, comp);
+            std::cout << "      has value = " << val << std::endl;
+            if (val > maxval)
+            {
+              maxval = val;
+            }  // end inner if
+          }  // end outer if
+        }  // end loop over components
+      }  // end loop over nodes
+      ++e_cnt;
+    }  // end loop over entities
+  }  // end loop over dimensions
+
+  std::cout << "  returning max value = " << maxval << std::endl;
+  return maxval;
+
+}  // end function
+
 
 
 } // namespace triDG

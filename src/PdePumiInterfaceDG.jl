@@ -235,7 +235,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
   mesh. numNodesPerElement = mesh.typeOffsetsPerElement[end] - 1
-  numnodes = mesh.numNodesPerElement*dofpernode
+  numnodes = mesh.numNodesPerElement*mesh.numEl
   println("numNodesPerType = ", mesh.numNodesPerType)
   println("numEntitesPerType = ", mesh.numEntitiesPerType)
   println("numnodes = ", numnodes)
@@ -2838,7 +2838,7 @@ function saveSolutionToMesh(mesh::PumiMeshDG2, u::AbstractVector)
     end  # end loop over entity types
   end  # end loop over elements
 
-  if mesh.order >= 3
+  if mesh.order >= 1
     println("transfering field to sub mesh")
     transferField(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.fnew_ptr)
   end

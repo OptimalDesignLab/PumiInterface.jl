@@ -1276,7 +1276,7 @@ end
 
 # DG version of the above functions
 
-function createSubMeshDG(m_ptr, mshape_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{UInt8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, nodemapPumiToSbp::Array{Uint8, 1}, numberings::AbstractArray{Ptr{Void}, 1}, coords::AbstractArray{Float64, 3})
+function createSubMeshDG(m_ptr, mshape_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{UInt8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, nodemapPumiToSbp::Array{UInt8, 1}, numberings::AbstractArray{Ptr{Void}, 1}, coords::AbstractArray{Float64, 3})
 
   # check the the triangulation array is oriented correctly
   @assert size(triangulation, 1) == 3
