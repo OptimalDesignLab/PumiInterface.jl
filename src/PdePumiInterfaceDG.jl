@@ -241,7 +241,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   # create the solution field
   mesh.mshape_ptr = getSBPShapes(field_shape_type, order)
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
-  mesh.min_node_dist = minNodeDist(order, mesh.isDG)
+  mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
 
   # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])

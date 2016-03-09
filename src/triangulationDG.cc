@@ -302,11 +302,11 @@ apf::MeshEntity* getVert(apf::Mesh* m, apf::MeshEntity* verts[], apf::MeshEntity
   int entity_node_offset_idx_local; // offset local idx
   int dim;  // dimension of entity containing the node
 
-  std::cout << "getting new mesh vertex for nodenum " << nodenum << std::endl;
+//  std::cout << "getting new mesh vertex for nodenum " << nodenum << std::endl;
   // this assumes there are nodes on vertices
   if (nodenum < ( typeOffsetsPerElement[1] - 1))  // first 3 "nodes" are verts
   {
-    std::cout << "vertex node" << std::endl;
+//    std::cout << "vertex node" << std::endl;
     dim = 0;
     entity_node_idx = nodenum - (typeOffsetsPerElement[dim] - 1);
 //    std::cout << "entity_node_idx = " << entity_node_idx << std::endl;
@@ -330,7 +330,7 @@ apf::MeshEntity* getVert(apf::Mesh* m, apf::MeshEntity* verts[], apf::MeshEntity
 
   } else if (nodenum < ( typeOffsetsPerElement[2] - 1))
   {
-    std::cout << "edge node" << std::endl;
+//    std::cout << "edge node" << std::endl;
     dim = 1;
     entity_node_idx = nodenum - (typeOffsetsPerElement[dim] - 1);
 //    std::cout << "entity_node_idx = " << entity_node_idx << std::endl;
@@ -357,28 +357,28 @@ apf::MeshEntity* getVert(apf::Mesh* m, apf::MeshEntity* verts[], apf::MeshEntity
   } else if (nodenum < ( typeOffsetsPerElement[3] - 1))
   {
 
-    std::cout << "face node" << std::endl;
+//    std::cout << "face node" << std::endl;
     dim = 2;
     entity_node_idx = nodenum - (typeOffsetsPerElement[dim] - 1);
-    std::cout << "entity_node_idx = " << entity_node_idx << std::endl;
-    std::cout << "entity_nodes_on[dim] = " << entity_nodes_on[dim] << std::endl;
+//    std::cout << "entity_node_idx = " << entity_node_idx << std::endl;
+//    std::cout << "entity_nodes_on[dim] = " << entity_nodes_on[dim] << std::endl;
     entity_idx = entity_node_idx/entity_nodes_on[dim]; // integer division
-    std::cout << "entity_idx = " << entity_idx << std::endl;
+//    std::cout << "entity_idx = " << entity_idx << std::endl;
     entity_node_idx_local = entity_node_idx % entity_nodes_on[dim];
-    std::cout << "entity_node_idx_local = " << entity_node_idx_local << std::endl;
-    std::cout << "offset = " << (int)offset << std::endl;
+//    std::cout << "entity_node_idx_local = " << entity_node_idx_local << std::endl;
+//    std::cout << "offset = " << (int)offset << std::endl;
     entity_node_offset_idx_local = abs(offset - (entity_node_idx_local + 1)) - 1;
-    std::cout << "entity_node_offset_idx_local = " << entity_node_offset_idx_local << std::endl;
+//    std::cout << "entity_node_offset_idx_local = " << entity_node_offset_idx_local << std::endl;
 
     // get the entity number
     m->getDownward(el, dim, down);
     e = down[entity_idx];
-    std::cout << "e = " << e << std::endl;
+//    std::cout << "e = " << e << std::endl;
     entity_num = apf::getNumber(numberings[dim], e, 0, 0);
 //    std::cout << "entity_num = " << entity_num << std::endl;
 
     pos = entity_num*entity_nodes_on[dim] + entity_node_offset_idx_local;
-    std::cout << "pos = " << pos << std::endl;
+//    std::cout << "pos = " << pos << std::endl;
 
     return faces[pos];
 
@@ -429,16 +429,16 @@ int copyNumberingNode(apf::Numbering* n_old, apf::Numbering* n_new, apf::MeshEnt
 // copy all of the field values at a particular node from an old Numbering to a new one.
 void copyFieldNode(apf::Field* field_old, apf::Field* field_new, apf::MeshEntity* e_old, apf::MeshEntity* e_new, const int node_old, const int node_new, int ncomp, double vals[])
 {
-  std::cout << "copying from " << e_old << " node " << node_old;
-  std::cout << " to " << e_new << " node " << node_new << std::endl;
+//  std::cout << "copying from " << e_old << " node " << node_old;
+//  std::cout << " to " << e_new << " node " << node_new << std::endl;
 
       apf::getComponents(field_old, e_old, node_old, vals);
-      std::cout << "    retrieved components, vals = ";
-      for (int i = 0; i < ncomp; ++i)
-      {
-        std::cout << vals[i] << ", ";
-      }
-      std::cout << std::endl;
+//      std::cout << "    retrieved components, vals = ";
+//      for (int i = 0; i < ncomp; ++i)
+//      {
+//        std::cout << vals[i] << ", ";
+//      }
+//      std::cout << std::endl;
 
       apf::setComponents(field_new, e_new, node_new, vals);
 //      std::cout << "    wrote components" << std::endl;
@@ -488,14 +488,14 @@ void transferNumberingToElements(apf::Mesh* m, apf::Mesh* m_new, const int numtr
   apf::FieldShape* fshape_new = apf::getConstant(2);
   int numcomp = apf::countComponents(numbering_old);
   const char* name_old = apf::getName(numbering_old);
-  std::cout << "name_old = " << name_old << std::endl;
+//  std::cout << "name_old = " << name_old << std::endl;
   std::size_t name_length = strlen(name_old) + 1; // string lenth, including \0
 //  std::cout << "name_length = " << name_length << std::endl;
   char name_new[name_length + 4]; // add space for "_old"
   strcpy(name_new, name_old);
 //  std::cout << "after first strcat, name_new = " << name_new << std::endl;
   strcat(name_new, "_old");
-  std::cout << "name_new = " << name_new << std::endl;
+//  std::cout << "name_new = " << name_new << std::endl;
   apf::Numbering* numbering_new = apf::createNumbering(m_new, name_new, fshape_new, numcomp);
 
   apf::MeshEntity* e;
@@ -503,16 +503,16 @@ void transferNumberingToElements(apf::Mesh* m, apf::Mesh* m_new, const int numtr
   int val;
   while ( (e = m->iterate(itold)) )  // loop over old mesh elements
   {
-    std::cout << "processing element " << e << std::endl;
+//    std::cout << "processing element " << e << std::endl;
       for (int i = 0; i < numtriangles; ++i)
       {
-        std::cout << "  triangle " << i << std::endl;
+//        std::cout << "  triangle " << i << std::endl;
         for (int n = 0; n < numcomp; ++n)
         {
-          std::cout << "    component " << n << std::endl;
+//          std::cout << "    component " << n << std::endl;
           val = apf::getNumber(numbering_old, e, 0, n);
           e_new = m_new->iterate(itnew);
-          std::cout << "    e_new = " << e_new << std::endl;
+//          std::cout << "    e_new = " << e_new << std::endl;
           apf::number(numbering_new, e_new, 0, n, val);
         }
       }
@@ -523,9 +523,6 @@ void transferNumberingToElements(apf::Mesh* m, apf::Mesh* m_new, const int numtr
 
 void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3])
 {
-  std::cout << "Entered transferNumberings" << std::endl;
-  std::cout << "old mesh pointer = " << m << std::endl;
-  std::cout << "new mesh pointer = " << m_new << std::endl;
   // compute some quantities
   int nnodes_per_el = typeOffsetsPerElement[3] - 1;
 //  apf::FieldShape* mshape = m->getShape();
@@ -615,16 +612,16 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
 
   for (int i = 0; i < numnumberings; ++i)
   {
-    std::cout << "Copying Numbering " << i << std::endl;
+//    std::cout << "Copying Numbering " << i << std::endl;
 
     apf::Numbering* numbering_i = m->getNumbering(i);
     int numcomp = apf::countComponents(numbering_i);
     const char* name_i = apf::getName(numbering_i);
-    std::cout << "Numbering name is " << name_i << std::endl;
+//    std::cout << "Numbering name is " << name_i << std::endl;
     apf::FieldShape* numbering_i_shape = apf::getShape(numbering_i);
-    const char* shape_name = numbering_i_shape->getName();
-    std::cout << "Numbering Fieldshape name = " << shape_name << std::endl;
-    int num_numbered_nodes = apf::countNodes(numbering_i);
+//    const char* shape_name = numbering_i_shape->getName();
+//    std::cout << "Numbering Fieldshape name = " << shape_name << std::endl;
+//    int num_numbered_nodes = apf::countNodes(numbering_i);
 /*
     for (int s_dim=0; s_dim < 3; ++s_dim)
     {
@@ -633,7 +630,7 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
 */
 
     int numbered_count = 0;
-    std::cout << "Number of nodes with assigned numbers = " << num_numbered_nodes << std::endl;
+//    std::cout << "Number of nodes with assigned numbers = " << num_numbered_nodes << std::endl;
     apf::Field* field_i = apf::getField(numbering_i);
     if (field_i != NULL)
     {
@@ -651,7 +648,7 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
 
     // create new field and populate it
     apf::FieldShape* fshape_new = getNewShape(numbering_i_shape);
-    std::cout << "creating new Numbering with name: " << fshape_new->getName() << std::endl;
+//    std::cout << "creating new Numbering with name: " << fshape_new->getName() << std::endl;
     apf::Numbering* n_new = apf::createNumbering(m_new, name_i, fshape_new, numcomp);
 
     // if Numbering has values on vertices, transfer them here
@@ -673,7 +670,7 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
 
       elnum = getNumber(numberings[2], e, 0, 0);
 
-      std::cout << "  processing old mesh element number " << elnum << std::endl;
+//      std::cout << "  processing old mesh element number " << elnum << std::endl;
       // get all the subtriangles of the current element
       for (int i = 0; i < numtriangles; ++i)
       {
@@ -686,7 +683,7 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
       for (int dim = 2; dim < 3; ++dim)  // loop all dimensions except verts
       {
 
-        std::cout << "  looping over dimension " << dim << std::endl;
+//        std::cout << "  looping over dimension " << dim << std::endl;
         m->getDownward(e, dim, down);
 
         // skip this dimension if no nodes on the old mesh Numbering
@@ -707,7 +704,7 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
 //          std::cout << "  number of entities on this dimension = " << nume << std::endl;
           for (int entity_d = 0; entity_d < m -> adjacentCount[apf::Mesh::TRIANGLE][dim]; ++entity_d)
           {
-            std::cout << "  on entity " << entity_d << std::endl;
+//            std::cout << "  on entity " << entity_d << std::endl;
             // get the starting node number for this entity on the old mesh
             // in the fieldshape of the mesh
             // This has to be reset here because the fieldshape of the numbering
@@ -723,35 +720,35 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
             for (int node_e = 0; node_e < numbering_i_shape->countNodesOn(dimensionTypes[dim]); ++node_e)
             {
 
-              std::cout << "    on node " << node_e << std::endl;
+//              std::cout << "    on node " << node_e << std::endl;
 
     //          std::cout << "    processing node " << nodenum << std::endl;
               // get entity on old mesh containing the node
               entity_node_idx = nodenum - (typeOffsetsPerElement[dim] - 1);
-              std::cout << "entity_nodes_on[dim] = " << entity_nodes_on[dim] << std::endl;
+//              std::cout << "entity_nodes_on[dim] = " << entity_nodes_on[dim] << std::endl;
               entity_idx = entity_node_idx/entity_nodes_on[dim]; // integer division
-              std::cout << "entity_idx = " << entity_idx << std::endl;
+//              std::cout << "entity_idx = " << entity_idx << std::endl;
               node_idx = entity_node_idx % entity_nodes_on[dim];
               node_entity = down[entity_idx]; // get the mesh entity pointer
-              std::cout << "node_entity = " << node_entity << std::endl;
+//              std::cout << "node_entity = " << node_entity << std::endl;
 
               // offset
-              std::cout << "    calculating offset" << std::endl;
+//              std::cout << "    calculating offset" << std::endl;
               pos = nodenum + elnum*nnodes_per_el;
               offset_i = elementNodeOffsets[pos]; 
               offset_node_idx = abs(offset_i - (node_idx + 1)) - 1;
 
               // get the entity on the new mesh containing the node
-              std::cout << "    retrieving new mesh entity" << std::endl;
+//              std::cout << "    retrieving new mesh entity" << std::endl;
               new_elnum = subelements[nodenum];
               new_vertnum = subelement_verts[nodenum];
-              std::cout << "    new_elnum = " << new_elnum << std::endl;
-              std::cout << "    new_vertnum = " << new_vertnum << std::endl;
+//              std::cout << "    new_elnum = " << new_elnum << std::endl;
+//              std::cout << "    new_vertnum = " << new_vertnum << std::endl;
               m_new->getDownward(subtriangles[new_elnum], 0, down2);
               new_node_entity = down2[new_vertnum];
-              std::cout << "    new_node_entity = " << new_node_entity << std::endl;
+//              std::cout << "    new_node_entity = " << new_node_entity << std::endl;
 
-              std::cout << "    copying values" << std::endl;
+//              std::cout << "    copying values" << std::endl;
               numbered_count += copyNumberingNode(numbering_i, n_new, node_entity, new_node_entity, offset_node_idx, 0, numcomp);
 
               ++nodenum;
@@ -761,11 +758,11 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
 
     } // end loop over old mesh elements
  
-    std::cout << "Complete numbering" << std::endl; 
+//    std::cout << "Complete numbering" << std::endl; 
     completeNumbering(m_new, n_new);
 
-    int num_numbered_nodes_new = apf::countNodes(n_new);
-    std::cout << "Actually copied " << num_numbered_nodes_new << " nodes" << std::endl; 
+//    int num_numbered_nodes_new = apf::countNodes(n_new);
+//    std::cout << "Actually copied " << num_numbered_nodes_new << " nodes" << std::endl; 
 /*  // this test doesn't work because numbering of an entity dimension
  *      gets mapped to all the nodes on that entity dimension
     if (num_numbered_nodes != num_numbered_nodes_new)
@@ -875,20 +872,10 @@ void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, co
   getVertLookupTables(triangulation, numtriangles, subelements, subelement_verts);
   apf::MeshEntity* subtriangles[numtriangles];
 
-  std::cout << "vertex lookup tables: " << std::endl;
-  for (int i = 0; i < N_VERT_PER_EL; ++i)
-  {
-    std::cout << "vert " << i << " is part of subelement " << subelements[i] << ", vertex " << subelement_verts[i] << std::endl;
-  }
-
-  // now do the transfer
   const int ncomp = apf::countComponents(field_old);
-  std::cout << "a" << std::endl;
   const int nnodes_per_el = typeOffsetsPerElement[3] - 1;
-  std::cout << "b" << std::endl;
   double node_vals[nnodes_per_el][ncomp];  // hold values at node locations
   double vert_vals[N_VERT_PER_EL][ncomp];  // hold values interpolated to verts
-  std::cout <<  "nnodes_per_el = " << nnodes_per_el << std::endl;
   apf::MeshIterator* itold = m->begin(2);
   apf::MeshIterator* itnew = m_new->begin(2);
   apf::MeshEntity* el;  // hold old mesh element
@@ -897,10 +884,10 @@ void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, co
   apf::Downward down;  // hold vertices of new mesh element
 
   int e_cnt = 0;
-  std::cout << "about to start looping over elements" << std::endl;
+//  std::cout << "about to start looping over elements" << std::endl;
   while ( (el = m->iterate(itold)) )  // loop over elements of old mesh
   {
-    std::cout << "processing element " << e_cnt << std::endl;
+//    std::cout << "processing element " << e_cnt << std::endl;
     // do interpolation, store result in vert_vals
     getFieldElementVals(field_old, el, &node_vals[0][0]);
     smallMatMat(interp_op, &node_vals[0][0], &vert_vals[0][0], N_VERT_PER_EL, nnodes_per_el, ncomp);
@@ -913,7 +900,7 @@ void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, co
 
     for (int i = 0; i < N_VERT_PER_EL; ++i)  // loop over vertices of old mesh
     {
-      std::cout << "  vert " << i << std::endl;
+//      std::cout << "  vert " << i << std::endl;
 
       // get the element, vertex on new mesh
       el_new = subtriangles[subelements[i]];
@@ -921,7 +908,7 @@ void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, co
       vert_new = down[ subelement_verts[i] ];
 
       // copy values to new mesh
-      std::cout << "copying to " << vert_new << std::endl;
+//      std::cout << "copying to " << vert_new << std::endl;
       apf::setComponents(field_new, vert_new, 0, vert_vals[i]);
     }  // ned loop over vertices of old mesh
     ++e_cnt;
@@ -987,16 +974,9 @@ void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, co
 void transferEdges(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* n_old, apf::Numbering* n_new)
 {
 
-  std::cout << "entered transferEdges" << std::endl;
   int subelements[3];
   int subelement_edges[3];
   getEdgeLookupTables(triangulation, numtriangles, subelements, subelement_edges);
-
-  std::cout << "edge lookup tables: " << std::endl;
-  for (int i = 0; i < 3; ++i)
-  {
-    std::cout << "edge " << i << " is part of subelement " << subelements[i] << ", edge " << subelement_edges[i] << std::endl;
-  }
 
   apf::FieldShape* nshape = apf::getShape(n_old);
   const int nnodes_per_edge = nshape->countNodesOn(m->simplexTypes[2]);
@@ -1015,12 +995,11 @@ void transferEdges(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const
   int orient_diff; 
   int offset;  // offset (used to reverse the edge node ordering
 
-  std::cout << "calculated lookup tables, about to transfer edge data" << std::endl;
 
   int el_cnt = 0;
   while ( (el = m->iterate(itold)) )
   {
-    std::cout << "on element " << el_cnt << std::endl;
+//    std::cout << "on element " << el_cnt << std::endl;
     // get old mesh edges
     m->getDownward(el, 1, down2);
 
@@ -1031,7 +1010,7 @@ void transferEdges(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const
 
     for (int i = 0; i < 3; ++i)  // loop over edges of old mesh element
     {
-      std::cout << "  edge " << i << std::endl;
+//      std::cout << "  edge " << i << std::endl;
       edge_old = down2[i]; // get old mesh edge
 
       // get new mesh edge
@@ -1039,19 +1018,19 @@ void transferEdges(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const
       m_new->getDownward(el_new, 1, down);
       edge_new = down[subelement_edges[i]];
 
-      std::cout << "got new mesh edge" << std::endl;
+//      std::cout << "got new mesh edge" << std::endl;
 
       // get the edge orientations
       old_edge_reversed = getEdgeOrientation(m, el, i);
       new_edge_reversed = getEdgeOrientation(m_new, el_new, subelement_edges[i]);
 
-      std::cout << "got edge orientations" << std::endl;
+//      std::cout << "got edge orientations" << std::endl;
 
       orient_diff = old_edge_reversed - new_edge_reversed;
       offset = orient_diff*(nnodes_per_edge - 1);
 
-      std::cout << "orient_diff = " << orient_diff << std::endl;
-      std::cout << "offset = " << offset << std::endl;
+//      std::cout << "orient_diff = " << orient_diff << std::endl;
+//      std::cout << "offset = " << offset << std::endl;
 
       for (int node = 0; node < nnodes_per_edge; ++node)
       {
@@ -1345,7 +1324,7 @@ void printArray(std::ostream& os, apf::MeshEntity** arr, const int si, const int
 void completeNumbering(apf::Mesh* m_new, apf::Numbering* n_new)
 {
   const int maxval = getMaxNumber(m_new, n_new) + 1;
-  std::cout << "maxval = " << maxval << std::endl;
+//  std::cout << "maxval = " << maxval << std::endl;
   apf::FieldShape* nshape = apf::getShape(n_new);
   const int ncomp = apf::countComponents(n_new);
   apf::MeshEntity* e;
@@ -1369,7 +1348,7 @@ void completeNumbering(apf::Mesh* m_new, apf::Numbering* n_new)
         {
           if (!apf::isNumbered(n_new, e, node, comp))
           {
-            std::cout << "assigning value to entity " << entity_cnt << " of dimension " << dim << " node " << node << " comp " << comp << std::endl;
+//            std::cout << "assigning value to entity " << entity_cnt << " of dimension " << dim << " node " << node << " comp " << comp << std::endl;
             apf::number(n_new, e, node, comp, maxval);
           }  // end outer if
         }  // end loop over components
@@ -1384,9 +1363,9 @@ void completeNumbering(apf::Mesh* m_new, apf::Numbering* n_new)
 // get the maximum number present in a numbering on the new mesh (safely)
 int getMaxNumber(apf::Mesh* m_new, apf::Numbering* n_new)
 {
-  std::cout << "entered getMaxNumber" << std::endl;
+//  std::cout << "entered getMaxNumber" << std::endl;
   apf::FieldShape* nshape = apf::getShape(n_new);
-  std::cout << "name of Numbering Fieldshape is: " << nshape->getName() << std::endl;
+//  std::cout << "name of Numbering Fieldshape is: " << nshape->getName() << std::endl;
   const int ncomp = apf::countComponents(n_new);
   apf::MeshEntity* e;
   int val;
@@ -1396,26 +1375,26 @@ int getMaxNumber(apf::Mesh* m_new, apf::Numbering* n_new)
   {
     if ( !(nshape->hasNodesIn(dim)) )
     {
-      std::cout << "skipping dimensions " << dim << std::endl;
+//      std::cout << "skipping dimensions " << dim << std::endl;
       continue;
     }
 
 
-    std::cout << "checking dimension " << dim << std::endl;
+//    std::cout << "checking dimension " << dim << std::endl;
     int e_cnt = 0;
     apf::MeshIterator* it = m_new->begin(dim);
     while ( (e = m_new->iterate(it)) )  // loop over entities of this dimension
     {
-      std::cout << "  entity " << e_cnt << std::endl;
+//      std::cout << "  entity " << e_cnt << std::endl;
       for (int node = 0; node < nshape->countNodesOn(m_new->simplexTypes[dim]); ++node)
       {
-        std::cout << "    node " << node << std::endl;
+//        std::cout << "    node " << node << std::endl;
         for (int comp = 0; comp < ncomp; ++comp)
         {
           if (apf::isNumbered(n_new, e, node, comp))
           {
             val = apf::getNumber(n_new, e, node, comp);
-            std::cout << "      has value = " << val << std::endl;
+//            std::cout << "      has value = " << val << std::endl;
             if (val > maxval)
             {
               maxval = val;
@@ -1427,7 +1406,7 @@ int getMaxNumber(apf::Mesh* m_new, apf::Numbering* n_new)
     }  // end loop over entities
   }  // end loop over dimensions
 
-  std::cout << "  returning max value = " << maxval << std::endl;
+//  std::cout << "  returning max value = " << maxval << std::endl;
   return maxval;
 
 }  // end function
@@ -1496,9 +1475,7 @@ void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, con
   // apf::countComponents(Field* f)
 
   // transfer field values from the vertices of the old mesh to the new one
-  std::cout << "transfering vertices" << std::endl;
   triDG::transferVertices(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings, field_old, interp_op, field_new);
-  std::cout << "finished transfering vertices" << std::endl;
 
   // get lookup tables
   // this assumes there are no nodes on vertices of the old mesh
@@ -1506,11 +1483,6 @@ void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, con
   int subelement_verts[nnodes_per_el];
   triDG::getFieldLookupTables(nnodes_per_el, triangulation, numtriangles, subelements, subelement_verts);
 
-  std::cout << "Field lookup tables:" << std::endl;
-  for (int i = 0; i < nnodes_per_el; ++i)
-  {
-    std::cout << "node " << i << " is part of subelement " << subelements[i] << ", vert " << subelement_verts[i] << std::endl;
-  }
 //  std::cout << "Finished precalculating lookup tables" << std::endl;
 
 //  apf::FieldShape* mnew_shape = apf::getLagrange(1);
@@ -1559,7 +1531,7 @@ void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, con
 
       elnum = getNumber(numberings[2], e, 0, 0);
 
-      std::cout << "  processing old mesh element number " << elnum << std::endl;
+//      std::cout << "  processing old mesh element number " << elnum << std::endl;
       // get all the subtriangles of the current element
       for (int i = 0; i < numtriangles; ++i)
       {
@@ -1573,8 +1545,12 @@ void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, con
 
       for (int dim = 1; dim < 3; ++dim)  // loop all dimensions except verts
       {
+        if (entity_nodes_on[dim] == 0)
+        {
+          continue;
+        }
 
-        std::cout << "  looping over nodes of dimension " << dim << std::endl;
+//        std::cout << "  looping over nodes of dimension " << dim << std::endl;
         m->getDownward(e, dim, down);
 /*        std::cout << "down = ";
         for (int k = 0; k < 12; ++k)
@@ -1585,13 +1561,13 @@ void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, con
         // loop over nodes of this dimension
         for (int j = 0; j < num_entities_per_dim[dim]*entity_nodes_on[dim]; ++j)
         {
-          std::cout << "    processing node " << j << std::endl;
+//          std::cout << "    processing node " << j << std::endl;
           // get entity on old mesh containing the node
           entity_node_idx = nodenum - (typeOffsetsPerElement[dim] - 1);
           entity_idx = entity_node_idx/entity_nodes_on[dim]; // integer division
           node_idx = entity_node_idx % entity_nodes_on[dim];
-          std::cout << "entity_node_idx = " << entity_node_idx << std::endl;
-          std::cout << "entity_idx = " << entity_idx << std::endl;
+//          std::cout << "entity_node_idx = " << entity_node_idx << std::endl;
+//          std::cout << "entity_idx = " << entity_idx << std::endl;
           node_entity = down[entity_idx]; // get the mesh entity pointer
 
           // offset
@@ -1599,19 +1575,18 @@ void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, con
           pos = nodenum + elnum*nnodes_per_el;
           offset_i = elementNodeOffsets[pos]; 
           offset_node_idx = abs(offset_i - (node_idx + 1)) - 1;
-          std::cout << "    offset_node_idx = " << offset_node_idx << std::endl;
+//          std::cout << "    offset_node_idx = " << offset_node_idx << std::endl;
           // get the entity on the new mesh containing the node
 //          std::cout << "    retrieving new mesh entity" << std::endl;
           new_elnum = subelements[nodenum];
           new_vertnum = subelement_verts[nodenum];
-          std::cout << "    new_elnum = " << new_elnum << std::endl;
-          std::cout << "    new_vertnum = " << new_vertnum << std::endl;
+//          std::cout << "    new_elnum = " << new_elnum << std::endl;
+//          std::cout << "    new_vertnum = " << new_vertnum << std::endl;
           m_new->getDownward(subtriangles[new_elnum], 0, down_new);
           new_node_entity = down_new[new_vertnum];
 //          std::cout << "    new_node_entity = " << new_node_entity << std::endl;
 //          std::cout << "    node_entity = " << node_entity << std::endl;
 
-          std::cout << "    copying values" << std::endl;
           triDG::copyFieldNode(field_old, field_new, node_entity, new_node_entity, offset_node_idx, 0, numcomp, vals);
 
           ++nodenum;
@@ -1646,7 +1621,7 @@ apf::Mesh2* createSubMeshDG(apf::Mesh* m, apf::FieldShape* mshape, const int num
 
   // get number of nodes on different types of entities
   int entity_nodes_on[3] = {mshape->countNodesOn(0), mshape->countNodesOn(1), mshape->countNodesOn(2)};
-  std::cout << "number of nodes on a face = " << entity_nodes_on[2] << std::endl;
+//  std::cout << "number of nodes on a face = " << entity_nodes_on[2] << std::endl;
   const int numNodesPerElement = entity_nodes_on[0] + entity_nodes_on[1] + entity_nodes_on[2];
   // create new mesh
   gmi_register_null();
@@ -1663,7 +1638,7 @@ apf::Mesh2* createSubMeshDG(apf::Mesh* m, apf::FieldShape* mshape, const int num
   apf::MeshEntity* edges[entity_counts[1]][entity_nodes_on[1]];
   apf::MeshEntity* faces[entity_counts[2]][entity_nodes_on[2]];
 
-  std::cout << "creating vertices on new mesh" << std::endl;
+//  std::cout << "creating vertices on new mesh" << std::endl;
   int dim = 0;  // indicate vertices
   apf::MeshIterator* it = m->begin(dim);  // iterate over vertices
   apf::MeshEntity* e;  // uninitilized pointer?
@@ -1676,12 +1651,12 @@ apf::Mesh2* createSubMeshDG(apf::Mesh* m, apf::FieldShape* mshape, const int num
       while ( (e = m->iterate(it)) )
       {
        int idx = apf::getNumber(numberings[dim], e, 0, 0);
-       std::cout << "creating new vertex for old vertex " << idx << std::endl;
+//       std::cout << "creating new vertex for old vertex " << idx << std::endl;
        m->getPoint(e, 0, coords);
        verts[idx][0] = m_new->createVert(0); // should be 2d array
        m_new->setPoint(verts[idx][0], 0, coords);
-       std::cout << "new vert pointer = " << verts[idx][0]; 
-       std::cout << " at coordinates " << coords[0] << " " << coords[1] << std::endl;
+//       std::cout << "new vert pointer = " << verts[idx][0]; 
+//       std::cout << " at coordinates " << coords[0] << " " << coords[1] << std::endl;
 //       std::cout << "creating vertex for vertex " << idx << " at coordinates " << coords << " pointer = " << verts[idx][0] << std::endl;
       }
 
@@ -1707,28 +1682,28 @@ apf::Mesh2* createSubMeshDG(apf::Mesh* m, apf::FieldShape* mshape, const int num
       {
         int idx = apf::getNumber(numberings[dim], e, 0, 0);
 
-        std::cout << "creating vertices on element " << idx << std::endl;
+//        std::cout << "creating vertices on element " << idx << std::endl;
         for (int i = 0; i < entity_nodes_on[dim]; i++)
         {
 
-          std::cout << "  node " << i << std::endl;
+//          std::cout << "  node " << i << std::endl;
           // get the coordinates
 //          m->getPoint(e, i, coords);
           int coords_idx = triDG::getindex3c(0, nodemap_ptos[i] - 1, idx, 2,  numNodesPerElement, numEl);
-          std::cout << "component " << 0 << " node " << nodemap_ptos[i] - 1 << " element " << idx << " has offset " << coords_idx << std::endl;
+//          std::cout << "component " << 0 << " node " << nodemap_ptos[i] - 1 << " element " << idx << " has offset " << coords_idx << std::endl;
           coords[0] = coords_arr[coords_idx];
           coords_idx = triDG::getindex3c(1, nodemap_ptos[i] - 1, idx, 2,  numNodesPerElement, numEl);
           coords[1] = coords_arr[coords_idx];
 
           faces[idx][i] = m_new->createVert(0); // should be 2d array
-          std::cout << "  new vert pointer = " << faces[idx][i] << " at coordinates " << coords[0] << " " << coords[1] << std::endl;
+//          std::cout << "  new vert pointer = " << faces[idx][i] << " at coordinates " << coords[0] << " " << coords[1] << std::endl;
           m_new->setPoint(faces[idx][i], 0, coords);
 
 //          std::cout << "creating edge vertex for face " << idx << ", node " << i << " at coordinates " << coords << " pointer = " << faces[idx][i] <<  std::endl;
         }
       }
 
-
+/*
   std::cout << "finished creating vertices" << std::endl;
 
   std::cout << "Vert MeshEntity* :" << std::endl;
@@ -1739,12 +1714,12 @@ apf::Mesh2* createSubMeshDG(apf::Mesh* m, apf::FieldShape* mshape, const int num
 
   std::cout << "Face MeshEntity* :" << std::endl;
   triDG::printArray(std::cout, &faces[0][0], entity_counts[2], entity_nodes_on[2]);
-
+*/
 
   // step 2: create elements from vertices
   // loop over elements on m, create element on m_new
   // here we use the edge orientation information
-  std::cout << "creating elements on new mesh" << std::endl;
+//  std::cout << "creating elements on new mesh" << std::endl;
   dim = 2;
   int elnum; // holds the element number
   int node;  // original node number
@@ -1758,21 +1733,21 @@ apf::Mesh2* createSubMeshDG(apf::Mesh* m, apf::FieldShape* mshape, const int num
   while ( (e = m->iterate(it)) )
   {
     elnum = apf::getNumber(numberings[dim], e, 0, 0); // zero base index
-    std::cout << "\n\nsubtriangulating element " << elnum << std::endl;
+//    std::cout << "\n\nsubtriangulating element " << elnum << std::endl;
     for (int i=0; i < numtriangles; ++i)  // loop over all subtriangles
     {
-      std::cout << "\ncreating sub triangle " << i << std::endl;
+//      std::cout << "\ncreating sub triangle " << i << std::endl;
       // get 3 vertices
       for (int j=0; j < 3; ++j)
       {
         node = triangulation[i][j] - 1; // one based index
-        std::cout << "\nnode = " << node << std::endl;
+//        std::cout << "\nnode = " << node << std::endl;
 
         // handle verts as a special case because for DG meshes
         // there might not be nodes on vertices
         if ( node < N_VERT_PER_EL)
         {
-          std::cout << "this node is a vertex" << std::endl;
+//          std::cout << "this node is a vertex" << std::endl;
           const int dim = 0; // this is a vertex
           m->getDownward(e, dim, down);
           e_tmp = down[node];   // node = 1, 2, or 3, and is therefore the index
@@ -1782,24 +1757,24 @@ apf::Mesh2* createSubMeshDG(apf::Mesh* m, apf::FieldShape* mshape, const int num
 
           el_verts[j] = verts[entity_num][0];
         } else {
-          std::cout << "this node is a regular node" << std::endl;
+//          std::cout << "this node is a regular node" << std::endl;
         //  not a vertex, follow normal procedure because there is definitely
         // a node on the vertex
 
           // calculate linear offset for elementNode offsets
           pos = node - N_VERT_PER_EL + elnum*nnodes_per_el;
-          std::cout << "offset pos = " << pos << std::endl;
+//          std::cout << "offset pos = " << pos << std::endl;
           offset_j = elementNodeOffsets[pos];
           
-          std::cout << "offset = " << offset_j << std::endl;
+//          std::cout << "offset = " << offset_j << std::endl;
 
           el_verts[j] = triDG::getVert(m, &verts[0][0], &edges[0][0], &faces[0][0], typeOffsetsPerElement, node - N_VERT_PER_EL, offset_j, e, numberings, entity_nodes_on );
-          std::cout << "  el_vert " << j << " = " << el_verts[j] << std::endl;
+//          std::cout << "  el_vert " << j << " = " << el_verts[j] << std::endl;
         }
       }
 
-      std::cout << "creating element with verts " << el_verts[0] << " ";
-      std::cout << el_verts[1] << " " << el_verts[2] << std::endl;
+//      std::cout << "creating element with verts " << el_verts[0] << " ";
+//      std::cout << el_verts[1] << " " << el_verts[2] << std::endl;
      
       // build the element 
       apf::buildElement(m_new, 0, apf::Mesh::TRIANGLE, el_verts);
