@@ -168,9 +168,12 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 					 # index (ie. edge 1,2, or 3)
   color_cnt::Array{Int32, 1}  # number of elements in each color
 
+  interp_op::Array{Float64, 2}  # 3 x numNodesPerEl matrix that interpolates
+                                # solution values to the vertices
 
 
- function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts; dofpernode=1, shape_type=2, coloring_distance=2)
+
+ function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, interp_op; dofpernode=1, shape_type=2, coloring_distance=2)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -191,6 +194,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.order = order
   mesh.shape_type = shape_type
   mesh.coloringDistance = coloring_distance
+  mesh.interp_op = interp_op
 
   # figure out coordinate FieldShape, node FieldShape
   coord_shape_type = 0 # integer to indicate the FieldShape of the coordinates
@@ -424,6 +428,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   println("mesh.coords = \n", mesh.coords)
+  println("mesh.dofs = \n", mesh.dofs)
   # create subtriangulated mesh
   println("elementNodeOffsets = ", mesh.elementNodeOffsets)
   if order >= 1
@@ -1844,15 +1849,17 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
       edge_j = edges_i[j]
 #      println("  vert_j = ", vert_j)
 #      println("  edge_j = ", edge_j)
-      for k=1:num_nodes_entity[1] # loop over vertex dofs
-#	println("    dof number: ", k)
-#	println("    vert_j = ", vert_j)
-        dofnum_k = getNumberJ(numbering_ptr, vert_j, 0, k-1)
-	if dofnum_k > numDof  # still has initial number
-	  # give it new (final) number
-	  numberJ(numbering_ptr, vert_j, 0, k-1, curr_dof)
-	  curr_dof += 1
-	end
+      for k=1:num_nodes_entity[1] # loop over vertex nodes
+        for p=1:dofpernode
+  #	println("    dof number: ", k)
+  #	println("    vert_j = ", vert_j)
+          dofnum_k = getNumberJ(numbering_ptr, vert_j, k-1, p-1)
+          if dofnum_k > numDof  # still has initial number
+            # give it new (final) number
+            numberJ(numbering_ptr, vert_j, 0, k-1, curr_dof)
+            curr_dof += 1
+          end
+        end
       end  # end loop over vertex dofs
       
       # loop over nodes on edge
@@ -1868,12 +1875,21 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
       end
     end  # end loop over vertices, edges
     # label face nodes
+    println("num_nodes_entity[3] = ", num_nodes_entity[3])
     for k=1:num_nodes_entity[3]  # loop over nodes on face
+        # visit the nodes in the SBP ordering, so consider k to be the SBP
+        # node number
+        # this only works when there are no nodes on edges or vertices, because
+        # we would have to do additional translation to take them into account
+        pumi_node = mesh.nodemapSbpToPumi[k]
+
+        println("considering Sbp face node ", k, ", which is pumi node ", pumi_node)
       for p=1:dofpernode  # loop over dofs
-	dofnum_p = getNumberJ(numbering_ptr, el_i_ptr, k-1, p-1)
+	dofnum_p = getNumberJ(numbering_ptr, el_i_ptr, pumi_node-1, p-1)
+        println("which has initial number ", dofnum_p)
 	if dofnum_p > numDof
-#          println("assigning number ", curr_dof, " to face node ", k, ", dof ", p)
-	  numberJ(numbering_ptr, el_i_ptr, k-1, p-1, curr_dof)
+          println("assigning number ", curr_dof)
+	  numberJ(numbering_ptr, el_i_ptr, pumi_node-1, p-1, curr_dof)
 	  curr_dof += 1
 	end
       end
@@ -1898,6 +1914,21 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
   resetAllIts2()
   return nothing
 
+end
+
+function getNodeIdx(e_type::Integer, e_idx::Integer, node_idx::Integer, typeOffsetsPerElement, numNodesPerType )
+# calculate the local node number (in the list of all nodes on the element)
+# from the entity the node is classified on and its index on the entity
+
+# e_type is the type of the entity: 1 = vert, 2 = edge, 3 = face
+# node_idx is the index of the node on the entity it is classified on
+# e_idx is the index of the entity the node is classified on (ie 1st, 2nd or
+# 3rd edge)
+
+  type_offset = typeOffsetsPerElement[e_type]
+  println("typeoffsetsPerElement = ", typeOffsetsPerElement)
+  nodes_on_type = numNodesPerType[e_type]
+  return type_offset -1 + (e_idx - 1)*nodes_on_type + node_idx
 end
 
 #=
@@ -2840,7 +2871,7 @@ function saveSolutionToMesh(mesh::PumiMeshDG2, u::AbstractVector)
 
   if mesh.order >= 1
     println("transfering field to sub mesh")
-    transferField(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.fnew_ptr)
+    transferFieldDG(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.interp_op.', mesh.fnew_ptr)
   end
 
   return nothing

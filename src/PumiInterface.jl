@@ -1296,7 +1296,7 @@ function transferFieldDG(m_ptr, mnew_ptr, triangulation::AbstractArray{Int32, 2}
                                    # 3 x numnodesperlement in row major land
                                    # so, make sure it is numnodesperelement x 3
   
- ccall( (transferFieldDG_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}, Ptr{Ptr{Void}}, Ptr{Void}, Ptr{Cdouble}, Ptr{Void}), m_ptr, mnew_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings, field_old, interp_op, field_new)
+ ccall( (transferFieldDG_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}, Ptr{Ptr{Void}}, Ptr{Cdouble}, Ptr{Void}, Ptr{Void}), m_ptr, mnew_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings, interp_op, field_old, field_new)
 
  return nothing
 end

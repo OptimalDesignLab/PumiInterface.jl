@@ -429,15 +429,17 @@ int copyNumberingNode(apf::Numbering* n_old, apf::Numbering* n_new, apf::MeshEnt
 // copy all of the field values at a particular node from an old Numbering to a new one.
 void copyFieldNode(apf::Field* field_old, apf::Field* field_new, apf::MeshEntity* e_old, apf::MeshEntity* e_new, const int node_old, const int node_new, int ncomp, double vals[])
 {
+  std::cout << "copying from " << e_old << " node " << node_old;
+  std::cout << " to " << e_new << " node " << node_new << std::endl;
 
       apf::getComponents(field_old, e_old, node_old, vals);
-/*      std::cout << "    retrieved components, vals = ";
+      std::cout << "    retrieved components, vals = ";
       for (int i = 0; i < ncomp; ++i)
       {
         std::cout << vals[i] << ", ";
       }
       std::cout << std::endl;
-*/
+
       apf::setComponents(field_new, e_new, node_new, vals);
 //      std::cout << "    wrote components" << std::endl;
 }
@@ -865,24 +867,40 @@ void smallMatMat(const double* A, const double* x, double* b, const int m, const
 // not interpolating is currently not supported
 void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3], apf::Field* field_old, double* interp_op, apf::Field* field_new)
 {
+
+  std::cout << "entered transferVertices" << std::endl;
   // the lookup tables
   int subelements[N_VERT_PER_EL];
   int subelement_verts[N_VERT_PER_EL];
   getVertLookupTables(triangulation, numtriangles, subelements, subelement_verts);
   apf::MeshEntity* subtriangles[numtriangles];
+
+  std::cout << "vertex lookup tables: " << std::endl;
+  for (int i = 0; i < N_VERT_PER_EL; ++i)
+  {
+    std::cout << "vert " << i << " is part of subelement " << subelements[i] << ", vertex " << subelement_verts[i] << std::endl;
+  }
+
   // now do the transfer
   const int ncomp = apf::countComponents(field_old);
+  std::cout << "a" << std::endl;
   const int nnodes_per_el = typeOffsetsPerElement[3] - 1;
+  std::cout << "b" << std::endl;
   double node_vals[nnodes_per_el][ncomp];  // hold values at node locations
   double vert_vals[N_VERT_PER_EL][ncomp];  // hold values interpolated to verts
+  std::cout <<  "nnodes_per_el = " << nnodes_per_el << std::endl;
   apf::MeshIterator* itold = m->begin(2);
   apf::MeshIterator* itnew = m_new->begin(2);
   apf::MeshEntity* el;  // hold old mesh element
   apf::MeshEntity* el_new;  // hold new mesh element
   apf::MeshEntity* vert_new;  // hold vertex of new element;
   apf::Downward down;  // hold vertices of new mesh element
+
+  int e_cnt = 0;
+  std::cout << "about to start looping over elements" << std::endl;
   while ( (el = m->iterate(itold)) )  // loop over elements of old mesh
   {
+    std::cout << "processing element " << e_cnt << std::endl;
     // do interpolation, store result in vert_vals
     getFieldElementVals(field_old, el, &node_vals[0][0]);
     smallMatMat(interp_op, &node_vals[0][0], &vert_vals[0][0], N_VERT_PER_EL, nnodes_per_el, ncomp);
@@ -895,14 +913,18 @@ void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, co
 
     for (int i = 0; i < N_VERT_PER_EL; ++i)  // loop over vertices of old mesh
     {
+      std::cout << "  vert " << i << std::endl;
+
       // get the element, vertex on new mesh
-      el_new = subtriangles[i];
+      el_new = subtriangles[subelements[i]];
       m_new->getDownward(el_new, 0, down);
       vert_new = down[ subelement_verts[i] ];
 
       // copy values to new mesh
+      std::cout << "copying to " << vert_new << std::endl;
       apf::setComponents(field_new, vert_new, 0, vert_vals[i]);
     }  // ned loop over vertices of old mesh
+    ++e_cnt;
   }  // end loop over old mesh elements
         
 }
@@ -1444,7 +1466,7 @@ void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, con
 
   // compute some quantities
   int nnodes_per_el = typeOffsetsPerElement[3] - 1;
-  apf::FieldShape* mshape = m->getShape();
+  apf::FieldShape* mshape = apf::getShape(field_old);
   // get number of different types of entities
 //  std::size_t entity_counts[3] = {m->count(0), m->count(1), m->count(2)};
 
@@ -1484,6 +1506,11 @@ void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, con
   int subelement_verts[nnodes_per_el];
   triDG::getFieldLookupTables(nnodes_per_el, triangulation, numtriangles, subelements, subelement_verts);
 
+  std::cout << "Field lookup tables:" << std::endl;
+  for (int i = 0; i < nnodes_per_el; ++i)
+  {
+    std::cout << "node " << i << " is part of subelement " << subelements[i] << ", vert " << subelement_verts[i] << std::endl;
+  }
 //  std::cout << "Finished precalculating lookup tables" << std::endl;
 
 //  apf::FieldShape* mnew_shape = apf::getLagrange(1);
@@ -1547,7 +1574,7 @@ void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, con
       for (int dim = 1; dim < 3; ++dim)  // loop all dimensions except verts
       {
 
-//        std::cout << "  looping over nodes of dimension " << dim << std::endl;
+        std::cout << "  looping over nodes of dimension " << dim << std::endl;
         m->getDownward(e, dim, down);
 /*        std::cout << "down = ";
         for (int k = 0; k < 12; ++k)
@@ -1558,11 +1585,13 @@ void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, con
         // loop over nodes of this dimension
         for (int j = 0; j < num_entities_per_dim[dim]*entity_nodes_on[dim]; ++j)
         {
-//          std::cout << "    processing node " << j << std::endl;
+          std::cout << "    processing node " << j << std::endl;
           // get entity on old mesh containing the node
           entity_node_idx = nodenum - (typeOffsetsPerElement[dim] - 1);
           entity_idx = entity_node_idx/entity_nodes_on[dim]; // integer division
           node_idx = entity_node_idx % entity_nodes_on[dim];
+          std::cout << "entity_node_idx = " << entity_node_idx << std::endl;
+          std::cout << "entity_idx = " << entity_idx << std::endl;
           node_entity = down[entity_idx]; // get the mesh entity pointer
 
           // offset
@@ -1570,19 +1599,19 @@ void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, con
           pos = nodenum + elnum*nnodes_per_el;
           offset_i = elementNodeOffsets[pos]; 
           offset_node_idx = abs(offset_i - (node_idx + 1)) - 1;
-//          std::cout << "    offset_node_idx = " << offset_node_idx << std::endl;
+          std::cout << "    offset_node_idx = " << offset_node_idx << std::endl;
           // get the entity on the new mesh containing the node
 //          std::cout << "    retrieving new mesh entity" << std::endl;
           new_elnum = subelements[nodenum];
           new_vertnum = subelement_verts[nodenum];
-//          std::cout << "    new_elnum = " << new_elnum << std::endl;
-//          std::cout << "    new_vertnum = " << new_vertnum << std::endl;
+          std::cout << "    new_elnum = " << new_elnum << std::endl;
+          std::cout << "    new_vertnum = " << new_vertnum << std::endl;
           m_new->getDownward(subtriangles[new_elnum], 0, down_new);
           new_node_entity = down_new[new_vertnum];
 //          std::cout << "    new_node_entity = " << new_node_entity << std::endl;
 //          std::cout << "    node_entity = " << node_entity << std::endl;
 
-//          std::cout << "    copying values" << std::endl;
+          std::cout << "    copying values" << std::endl;
           triDG::copyFieldNode(field_old, field_new, node_entity, new_node_entity, offset_node_idx, 0, numcomp, vals);
 
           ++nodenum;
@@ -1651,7 +1680,8 @@ apf::Mesh2* createSubMeshDG(apf::Mesh* m, apf::FieldShape* mshape, const int num
        m->getPoint(e, 0, coords);
        verts[idx][0] = m_new->createVert(0); // should be 2d array
        m_new->setPoint(verts[idx][0], 0, coords);
-       std::cout << "at coordinates " << coords[0] << " " << coords[1] << std::endl;
+       std::cout << "new vert pointer = " << verts[idx][0]; 
+       std::cout << " at coordinates " << coords[0] << " " << coords[1] << std::endl;
 //       std::cout << "creating vertex for vertex " << idx << " at coordinates " << coords << " pointer = " << verts[idx][0] << std::endl;
       }
 
