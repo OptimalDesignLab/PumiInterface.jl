@@ -264,15 +264,12 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
     pos += mesh.numTypePerElement[i-1]*mesh.numNodesPerType[i-1]
     mesh.typeOffsetsPerElement[i] = pos
   end
-  println("mesh.typeOffsetsPerElement = ", mesh.typeOffsetsPerElement)
   mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
   mesh. numNodesPerElement = mesh.typeOffsetsPerElement[end] - 1
   numnodes = mesh.numNodesPerElement*mesh.numEl
   println("numNodesPerType = ", mesh.numNodesPerType)
   println("numEntitesPerType = ", mesh.numEntitiesPerType)
-  println("numnodes = ", numnodes)
-  println("numdof = ", numnodes*dofpernode)
   mesh.numNodes = numnodes      # we assume there are no non-free nodes/dofs
   mesh.numDof = numnodes*dofpernode
 
@@ -396,7 +393,6 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
     getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
-    println("getting perturbed neighbors")
     mesh.pertNeighborEls = getPertNeighbors1(mesh)
 
   elseif coloring_distance == 0  # do a distance-0 coloring
@@ -456,10 +452,6 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
   getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
-  println("mesh.coords = \n", mesh.coords)
-  println("mesh.dofs = \n", mesh.dofs)
-  # create subtriangulated mesh
-  println("elementNodeOffsets = ", mesh.elementNodeOffsets)
   if order >= 1
 
     mesh.triangulation = getTriangulationDG(order)
@@ -1785,9 +1777,6 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
   # number of nodes on a vertex
   num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
   num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
-  println("num_nodes_v = ", num_nodes_v)
-  println("num_nodes_e = ", num_nodes_e)
-  println("num_nodes_f = ", num_nodes_f)
   numnodes = num_nodes_v*mesh.numVert + num_nodes_e*mesh.numEdge + num_nodes_f*mesh.numEl
 
 
@@ -1903,7 +1892,6 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
       end
     end  # end loop over vertices, edges
     # label face nodes
-    println("num_nodes_entity[3] = ", num_nodes_entity[3])
     for k=1:num_nodes_entity[3]  # loop over nodes on face
         # visit the nodes in the SBP ordering, so consider k to be the SBP
         # node number
@@ -1911,12 +1899,9 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
         # we would have to do additional translation to take them into account
         pumi_node = mesh.nodemapSbpToPumi[k]
 
-        println("considering Sbp face node ", k, ", which is pumi node ", pumi_node)
       for p=1:dofpernode  # loop over dofs
 	dofnum_p = getNumberJ(numbering_ptr, el_i_ptr, pumi_node-1, p-1)
-        println("which has initial number ", dofnum_p)
 	if dofnum_p > numDof
-          println("assigning number ", curr_dof)
 	  numberJ(numbering_ptr, el_i_ptr, pumi_node-1, p-1, curr_dof)
 	  curr_dof += 1
 	end
