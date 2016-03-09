@@ -1,6 +1,6 @@
 using SummationByParts
 
-function nodecalc(p)
+function nodecalc(sbp, isDG::Bool)
   vtx = [0.0 0; 1 0; 0 1]
   r1 = vtx[1, :]
   r2 = vtx[2, :]
@@ -10,10 +10,12 @@ function nodecalc(p)
   T[:, 1] = r2 - r1
   T[:, 2] = r3 - r1
 
-  # create operator
-  sbp1 = TriSBP{Float64}(degree=p)
 
-  coords = calcnodes(sbp1, vtx)
+  if isDG
+    coords = SummationByParts.SymCubatures.calcnodes(sbp.cub, vtx)
+  else
+    coords = calcnodes(sbp, vtx)
+  end
 
   xi = zeros(coords)
 
@@ -24,10 +26,10 @@ function nodecalc(p)
   return xi, coords
 end
 
-function minNodeDist(p)
+function minNodeDist(sbp, isDG::Bool)
 # get the minimum distance between nodes on a reference element of degree p
 
-    xi, coords = nodecalc(p)
+    xi, coords = nodecalc(sbp, isDG)
     min_dist = typemax(Float64)
 #    println("coords = ", coords)
     for i=1:size(coords, 2)

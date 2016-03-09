@@ -15,15 +15,34 @@ export AbstractMesh,PumiMeshDG2, PumiMeshDG2Preconditioning, reinitPumiMeshDG2, 
 # in the Pumi order (ie. vertex nodes counter clockwise, edge nodes
 # counterclockwise, the face nodes counterclockwise starting in with the
 # node nearest the first vertex).
-# The external interface uses remaps the nodes into an order specified
+# The external interface remaps the nodes into an order specified
 # by the nodemaps nodemapSbptoPumi and nodemapPumitoSbp.
-# for SBP elements, this amounts to changing the order of the face nodes.
 # The external interface is compreised of the arrays:
 # dofs, coords, dxidx, jac, sparsity_bnds 
 # Care must be taken with the visualization files to map back to the Pumi
 # order
 
-
+# For DG meshes, two different FieldShapes are used: the coordinate FieldShape,
+# which coveres vertices (and might cover mid edge nodes in the future for 
+# curved meshes), and the solution Fieldshape, which describes the nodes
+# Pumi *only* stores the coordinates of nodes in the coordinate FieldShape,
+# so the interface between what Pumi knows about elements and what Julia
+# knows about element is the follow:
+#  Pumi keeps track of vertices (and possibly mid edge nodes)
+#  SBP calculates the location of all nodes from the vertex coordinates
+#  SBP calculates the mapping jacobian from the node coordinates
+#
+# In order to store data on the mesh in the solution FieldShape, Pumi
+# must know at least the number and classification of the nodes.
+# In practice, we define a Pumi node ordering as follows:
+#  vertex nodes, from the bottom left, going counter-clockwise
+#  edge nodes: edge 1, edge 2, edge 3
+#  face nodes: starting at the node closest to vertex 1, proceeding 
+#              counter-clockwise, outermost to innermost
+# This requirement is stronger than what is actually necessary, but 
+# having an explicitly defined node ordering convention and a general
+# mechanism to convert from Pumi to SBP ordering is a better interface
+#         
 export PumiMeshDG2, PumiMeshDG
 #abstract AbstractMesh
 @doc """
@@ -37,14 +56,23 @@ export PumiMeshDG2, PumiMeshDG
     m_ptr: a Ptr{Void} to the Pumi mesh
     mnew_ptr: a Ptr{Void} to the subtriangulated mesh used for high
               order visualization, null pointer if not needed
+    mshape_ptr: a Ptr{Void} do the FieldShape of the solution field (not the
+                coordinate field)
+    coordshape_ptr: a pointer to the FieldShape of the coordinate field
 
     f_ptr:  a Ptr{Void} to the Pumi apf::Field holding the solution
+    fnew_ptr: a pointer to the solution Field on the subtriangulated mesh,
+              null if not needed
+    shape_type: an enum describing what shape functions to use
+    min_node_dist: the minimum distance between nodes on a reference element
     vert_NPtr: a pointer to the apf::Numbering object that numbers the 
                vertices (0-based numbering)
     edge_Nptr: a pointer to the Pumi apf::Numbering that numbers the mesh 
                edges (0-based numbering)
     el_Nptr:  a pointer to the Pumi apf::Numbering that numbers the mesh
               elements
+    coloring_Nptr: a pointer to the Pumi Numbering containing the element
+                   coloring
 
     numVert: number of vertices in the mesh
     numEdge: number of edges in the mesh
@@ -124,6 +152,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 
   # used for high order elements to determine the orientations of edges and 
   # faces (and vertices, too, for consistency)
+  # stored in Pumi node ordering, not SBP
   elementNodeOffsets::Array{UInt8, 2}
   # truth values if the entity is oriented consistently with the element
   typeNodeFlags::Array{BitArray{2}, 1}
@@ -212,7 +241,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   # create the solution field
   mesh.mshape_ptr = getSBPShapes(field_shape_type, order)
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
-  mesh.min_node_dist = minNodeDist(order)
+  mesh.min_node_dist = minNodeDist(order, mesh.isDG)
 
   # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])
@@ -1577,9 +1606,8 @@ function getEntityOrientations(mesh::PumiMeshDG2)
   # hold a bit telling if the entity is in the proper orientation for this element
   # ie. it is "owned" by this element, so the nodes can be accessed in order
 
-# this should use the offsets_sbp_to_pumi to figure out where to put the 
-# offset for a given node in the offsets array, because they are stored
-# in SBP order, not Pumi order
+  # the elementNodeOffsets array is internal, therefore should be 
+  # stored in Pumi node order, not SBP order
   flags = Array(BitArray{2}, 3)
   # create the arrays
   for i=1:3

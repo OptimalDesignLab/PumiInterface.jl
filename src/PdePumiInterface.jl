@@ -231,7 +231,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
                                          # field shape for CG
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
-  mesh.min_node_dist = minNodeDist(order)
+  mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
 
   # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])
@@ -1553,8 +1553,6 @@ end
 
 
 
-
-
 function getEntityOrientations(mesh::PumiMesh2)
 # get the offset for node access of each mesh entity of each element
 # to read/write from a Pumi field, accessing the data stored on an edge looks like:
@@ -1574,9 +1572,7 @@ function getEntityOrientations(mesh::PumiMesh2)
   # hold a bit telling if the entity is in the proper orientation for this element
   # ie. it is "owned" by this element, so the nodes can be accessed in order
 
-# this should use the offsets_sbp_to_pumi to figure out where to put the 
-# offset for a given node in the offsets array, because they are stored
-# in SBP order, not Pumi order
+  # elementNodeOffsets is an internal array, stored in Pumi node order
   flags = Array(BitArray{2}, 3)
   # create the arrays
   for i=1:3
