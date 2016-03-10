@@ -155,6 +155,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   # stored in Pumi node ordering, not SBP
   elementNodeOffsets::Array{UInt8, 2}
   # truth values if the entity is oriented consistently with the element
+  # Array of length 3, whose elements are numTypePerelement x numEl
   typeNodeFlags::Array{BitArray{2}, 1}
   triangulation::Array{Int32, 2}  # sub triangulation of an element
 

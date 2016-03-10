@@ -233,4 +233,104 @@ facts("--- Testing PdePumiInterface --- ") do
 
 end
 
+facts("----- Testing PdePumiInterfaceDG -----") do
 
+  opts = Dict{Any, Any}(
+    "numBC" => 1,
+    "BC1" =>  [0],
+    "run_type" => 4,
+    "verify_coloring" => true,
+    "use_edge_res" => false,
+    "write_edge_vertnums" => true,
+    "write_face_vertnums" => true,
+    "write_boundarynums" => true,
+    "write_dxidx" => true,
+    "write_coords" => true,
+    "write_sparsity" => true,
+    "write_offsets" => true,
+    "write_counts" => true,
+    "write_sparsity_nodebnds" => true,
+    "write_dofs" => false
+    )
+    order = 1
+    smb_name = "tri2l.smb"
+    dmg_name = ".null"
+    interp_op = [0.5 0 0; 0 0.5 0; 0 0 0.5]
+    sbp = TriSBP{Float64}(degree=order, reorder=false, internal=true)
+
+
+    mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, coloring_distance=2, dofpernode=4)
+
+   println("edge flags = ", mesh.typeNodeFlags[2])
+   @fact mesh.m_ptr --> not(C_NULL)
+   @fact mesh.mnew_ptr --> not(C_NULL)
+   @fact mesh.numVert --> 4
+   @fact mesh.numEdge --> 5
+   @fact mesh.numEl --> 2
+   @fact mesh.numDof --> 24
+   @fact mesh.numNodes --> 6
+   @fact mesh.numDofPerNode --> 4
+   @fact mesh.numBoundaryEdges --> 4
+   @fact mesh.numInterfaces --> 1
+   @fact mesh.numNodesPerElement --> 3
+   @fact mesh.numNodesPerType --> [0, 0, 3]
+   @fact mesh.numEntitiesPerType --> [4, 5, 2]
+   @fact mesh.numTypePerElement --> [3, 3, 1]
+   @fact mesh.typeOffsetsPerElement --> [1, 1, 1, 4]
+   @fact mesh.typeOffsetsPerElement_ --> mesh.typeOffsetsPerElement
+   @fact mesh.dim --> 2
+   @fact mesh.isDG --> true
+   @fact mesh.coloringDistance --> 2
+   @fact mesh.numColors --> 4
+   @fact mesh.numBC --> 1
+   @fact mesh.elementNodeOffsets --> zeros(mesh.numNodesPerElement, mesh.numEl)
+   @fact mesh.typeNodeFlags[1] --> trues(3, mesh.numEl)
+   tmp = trues(3, 2); tmp[1, 1] = false
+   @fact mesh.typeNodeFlags[2] --> tmp
+   @fact mesh.bndry_offsets --> [1, 5]
+   iface = mesh.interfaces[1]
+   @fact iface.elementL --> 1
+   @fact iface.elementR --> 2
+   @fact iface.faceL --> 1
+   @fact iface.faceR --> 3
+   @fact mesh.coords[:, :, 1] --> roughly([-2/3 -2/3 1/3; 2/3 -1/3 2/3], atol=1e-13)
+   @fact mesh.coords[:, :, 2] --> roughly([2/3 -1/3 2/3; 1/3 -2/3 -2/3], atol=1e-13)
+   @fact sort(unique(mesh.dofs)) --> collect(1:mesh.numDof)
+   for i=1:size(mesh.sparsity_bnds, 2)
+     @fact mesh.sparsity_bnds[1,i] --> 1
+     @fact mesh.sparsity_bnds[2,i] --> 24
+   end
+
+   for i=1:size((mesh.sparsity_nodebnds), 2)
+     @fact mesh.sparsity_nodebnds[1,i] --> 1
+     @fact mesh.sparsity_nodebnds[2,i] --> 6
+   end
+
+   @fact mesh.color_masks[1][1] --> true
+   @fact mesh.color_masks[1][2] --> false
+   @fact mesh.color_masks[2][1] --> false
+   @fact mesh.color_masks[2][2] --> true
+   @fact mesh.neighbor_colors[1, 1] --> 2
+   @fact mesh.neighbor_colors[2, 1] --> 1
+   @fact mesh.neighbor_colors[1, 2] --> 1
+   @fact mesh.neighbor_colors[2, 2] --> 2
+
+   @fact mesh.neighbor_nums[1, 1] --> 2
+   @fact mesh.neighbor_nums[2, 1] --> 1
+   @fact mesh.neighbor_nums[1, 2] --> 1
+   @fact mesh.neighbor_nums[2, 2] --> 2
+
+   @fact mesh.pertNeighborEls[1, 1] --> 1
+   @fact mesh.pertNeighborEls[2, 1] --> 1
+   @fact mesh.pertNeighborEls[1, 2] --> 2
+   @fact mesh.pertNeighborEls[2, 2] --> 2
+
+   @fact mesh.color_cnt[1] --> 1
+   @fact mesh.color_cnt[2] --> 1
+
+
+   println("mesh.neighbor_colors = \n", mesh.neighbor_colors)
+   println("mesh.neighbor_nums = \n", mesh.neighbor_nums)
+   println("mesh.pertNeighborEls = \n", mesh.pertNeighborEls)
+
+end
