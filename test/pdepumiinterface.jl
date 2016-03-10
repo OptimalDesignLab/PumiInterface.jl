@@ -261,7 +261,6 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
     mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, coloring_distance=2, dofpernode=4)
 
-   println("edge flags = ", mesh.typeNodeFlags[2])
    @fact mesh.m_ptr --> not(C_NULL)
    @fact mesh.mnew_ptr --> not(C_NULL)
    @fact mesh.numVert --> 4
@@ -329,8 +328,5 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact mesh.color_cnt[2] --> 1
 
 
-   println("mesh.neighbor_colors = \n", mesh.neighbor_colors)
-   println("mesh.neighbor_nums = \n", mesh.neighbor_nums)
-   println("mesh.pertNeighborEls = \n", mesh.pertNeighborEls)
 
 end
