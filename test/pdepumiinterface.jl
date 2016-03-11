@@ -367,7 +367,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     for j=1:sbpface.numnodes
       dxidx = inv(dxdxi_face_rshape[:, :, j])
       jac_face[j] = det(dxidx)
-      dxidx_face[:, :, j] = dxidx
+      dxidx_face[:, :, j] = dxidx/det(dxidx)
 
       @fact jac_face[j] --> roughly(mesh.jac_face[j, i], atol=1e-13)
       @fact dxidx_face[:, :, j] --> roughly(mesh.dxidx_face[:, :, j, i], atol=1e-13)
