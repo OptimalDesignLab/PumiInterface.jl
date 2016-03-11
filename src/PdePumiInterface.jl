@@ -146,7 +146,10 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
   typeOffsetsPerElement_::Array{Int32, 1}  # Int32 version of above
   nodemapSbpToPumi::Array{UInt8, 1}  # maps nodes of SBP to Pumi order
   nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
-
+  
+  ref_verts::Array{Float64, 2}  # 2 x 3 array holding the coordinates of 
+                                # the vertices of the reference element
+                                # in reference coordinates
   dim::Int  # dimension of mesh (2D or 3D)
   isDG::Bool  # is this a DG mesh (always false)
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
@@ -232,6 +235,7 @@ type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
                                          # field shape for CG
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
+  mesh.ref_verts = [0.0 1 0; 0 0 1]
 
   # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])

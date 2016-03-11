@@ -258,8 +258,9 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     interp_op = [0.5 0 0; 0 0.5 0; 0 0 0.5]
     sbp = TriSBP{Float64}(degree=order, reorder=false, internal=true)
 
-
-    mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, coloring_distance=2, dofpernode=4)
+    vtx = [0. 0; 1 0; 0 1]
+    sbpface = TriFace{Float64}(order, sbp.cub, vtx)
+    mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface, coloring_distance=2, dofpernode=4)
 
    @fact mesh.m_ptr --> not(C_NULL)
    @fact mesh.mnew_ptr --> not(C_NULL)
@@ -327,6 +328,57 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact mesh.color_cnt[1] --> 1
    @fact mesh.color_cnt[2] --> 1
 
+ 
+   function test_interp{Tmsh}(mesh::AbstractMesh{Tmsh})
+     sbpface = mesh.sbpface
+     dxdxi_element = zeros(2, 2, mesh.numNodesPerElement, 1)
+     dxdxi_face = zeros(4, sbpface.numnodes, 1)
+     dxidx_face = zeros(2,2, sbpface.numnodes)
+     jac_face = zeros(sbpface.numnodes)
+
+     for i=1:mesh.numInterfaces
+       el = mesh.interfaces[i].elementL
+       face = mesh.interfaces[i].elementR
+
+       for j=1:mesh.numNodesPerElement
+         dxidx_hat = mesh.dxidx[:, :, j, el]
+         dxidx = dxidx_hat*mesh.jac[j, el]
+         dxdxi = inv(dxidx)
+         dxdxi_element[:, :, j, el] = dxdxi
+       end
+
+       bndry_arr = [ Boundary(1, face)]
+#       println("bndry = ", bndry_arr[1])
+       dxdxi_element_rshape = reshape(dxdxi_element, 4, mesh.numNodesPerElement, 1)
+#       println("dxdxi_element_rshape = \n", dxdxi_element_rshape)
+#       println("dxdxi_face = \n", dxdxi_face)
+#       println("sbpface.numnodes = ", sbpface.numnodes)
+#       println("sbpface.stencilsize = ", sbpface.stencilsize)
+#       println("size(dxdxi_element_rshape) = ", size(dxdxi_element_rshape))
+#       println("size(dxdxi_face) = ", size(dxdxi_face))
+#       println("sbpface = ", sbpface)
+#       println("about to call boundaryinterpolate")
+       boundaryinterpolate!(sbpface, bndry_arr, dxdxi_element_rshape, dxdxi_face)
+#       println("finished calling boundary interpolate")
+
+#       println("dxdxi_face = \n", dxdxi_face)
+       dxdxi_face_rshape = reshape(dxdxi_face, 2, 2, sbpface.numnodes)
+#       println("dxidx_face_rshape = \n", dxdxi_face_rshape)
+    for j=1:sbpface.numnodes
+      dxidx = inv(dxdxi_face_rshape[:, :, j])
+      jac_face[j] = det(dxidx)
+      dxidx_face[:, :, j] = dxidx
+
+      @fact jac_face[j] --> roughly(mesh.jac_face[j, i], atol=1e-13)
+      @fact dxidx_face[:, :, j] --> roughly(mesh.dxidx_face[:, :, j, i], atol=1e-13)
+    end
+
+    end  # end loop over interfaces
+
+  end  # end function
+
+
+   test_interp(mesh)
 
 
 end

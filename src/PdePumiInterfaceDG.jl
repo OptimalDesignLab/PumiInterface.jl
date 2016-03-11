@@ -139,6 +139,9 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   nodemapSbpToPumi::Array{UInt8, 1}  # maps nodes of SBP to Pumi order
   nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
 
+  ref_verts::Array{Float64, 2}  # 2 x 3 array giving the coordinates
+                                # of the vertices of the reference
+                                # element in parametric space
   dim::Int  # dimension of mesh (2 or 3D)
   isDG::Bool  # is this a DG mesh (always true)
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
@@ -179,7 +182,11 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 
   coords::Array{T1, 3}  # store coordinates of all nodes
   dxidx::Array{T1, 4}  # store scaled mapping jacobian
+  dxidx_face::Array{T1, 4} # store scaled mapping jacobian at face nodes
+                           # 2 x 2 x numfacenodes x numInterfaces
   jac::Array{T1,2}  # store mapping jacobian output
+  jac_face::Array{T1,2}  # store jacobian determanent at face nodes
+                         # numfacenodes x numInterfaces
 
   dofs::Array{Int32, 3}  # store dof numbers of solution array to speed assembly
   sparsity_bnds::Array{Int32, 2}  # store max, min dofs for each dof
@@ -201,9 +208,10 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   interp_op::Array{Float64, 2}  # 3 x numNodesPerEl matrix that interpolates
                                 # solution values to the vertices
 
+  sbpface::TriFace{Float64}  # SBP object needed to do interpolation
 
 
- function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, interp_op; dofpernode=1, shape_type=2, coloring_distance=2)
+ function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, interp_op, sbpface; dofpernode=1, shape_type=2, coloring_distance=2)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -225,6 +233,8 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.shape_type = shape_type
   mesh.coloringDistance = coloring_distance
   mesh.interp_op = interp_op
+  mesh.ref_verts = [0.0 1 0; 0 0 1]
+  mesh.sbpface = sbpface
 
   # figure out coordinate FieldShape, node FieldShape
   coord_shape_type = 0 # integer to indicate the FieldShape of the coordinates
@@ -453,6 +463,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
   getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
+  mesh.dxidx_face, mesh.jac_face = interpolateMapping(mesh)
   if order >= 1
 
     mesh.triangulation = getTriangulationDG(order)
@@ -694,6 +705,80 @@ function flattenArray{T}(A::AbstractArray{AbstractArray{T}, 1})
   return B
 
 end
+
+# interpolates dxidx, jac to the face nodes
+# only do this for elementL of each interface
+function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
+  println("----- Entered interpolateMapping -----")
+  sbpface = mesh.sbpface
+
+  dxidx_face = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numInterfaces)
+  jac_face = zeros(Tmsh, sbpface.numnodes, mesh.numInterfaces)
+
+  dxdxi_el = zeros(Tmsh, 4, mesh.numNodesPerElement, 1)
+  dxdxi_elface = zeros(Tmsh, 4, sbpface.numnodes, 1)
+  dxidx_node = zeros(Tmsh, 2, 2)
+  dxdxi_node = zeros(Tmsh, 2, 2)
+  bndry_arr = Array(Boundary, 1)
+  for i=1:mesh.numInterfaces
+    dxidx_i = view(dxidx_face, :, :, :, i)
+    jac_i = view(jac_face, :, i)
+
+    interface_i = mesh.interfaces[i]
+    el = interface_i.elementL
+    face = interface_i.faceL
+
+    # get the data
+    for j=1:mesh.numNodesPerElement
+      dxidx_hat = view(mesh.dxidx[:, :, j, el])
+      detJ = mesh.jac[j, el]
+
+      # dxdxi = inv(dxidx) = adj(dxidx_hat)
+      dxdxi_node[1,1] = dxidx_hat[2,2]
+      dxdxi_node[1,2] = -dxidx_hat[1,2]
+      dxdxi_node[2,1] = -dxidx_hat[2,1]
+      dxdxi_node[2,2] = dxidx_hat[1,1]
+
+      dxdxi_el[1,j,1] = dxdxi_node[1,1]
+      dxdxi_el[2,j,1] = dxdxi_node[1,2]
+      dxdxi_el[3,j,1] = dxdxi_node[2,1]
+      dxdxi_el[4,j,1] = dxdxi_node[2,2]
+
+    end
+
+
+    # interpolate to the face
+    bndry_arr[1] = Boundary(1, face)
+    boundaryinterpolate!(sbpface, bndry_arr, dxdxi_el, dxdxi_elface)
+
+
+    # now store dxidx, |J| at the boundary nodes
+    for j=1:sbpface.numnodes
+      dxdxi_node[1,1] = dxdxi_elface[1, j, 1]
+      dxdxi_node[1,2] = dxdxi_elface[2, j, 1]
+      dxdxi_node[2,1] = dxdxi_elface[3, j, 1]
+      dxdxi_node[2,2] = dxdxi_elface[4, j, 1]
+
+      # inv(A) = adj(A)/|A|
+      det_dxdxi = dxdxi_node[1,1]*dxdxi_node[2,2] - dxdxi_node[1,2]*dxdxi_node[2,1]
+      dxidx_node[1,1] = dxdxi_node[2,2]/det_dxdxi
+      dxidx_node[1,2] = -dxdxi_node[1,2]/det_dxdxi
+      dxidx_node[2,1] = -dxdxi_node[2,1] /det_dxdxi
+      dxidx_node[2,2] = dxdxi_node[2,2]/det_dxdxi
+
+      detJ = dxidx_node[1,1]*dxidx_node[2,2] - dxidx_node[1,2]*dxidx_node[2,1]
+      dxidx_i[1,1,j] = dxidx_node[1,1]/detJ
+      dxidx_i[1,2,j] = dxidx_node[1,2]/detJ
+      dxidx_i[2,1,j] = dxidx_node[2,1]/detJ
+      dxidx_i[2,2,j] = dxidx_node[2,2]/detJ
+      jac_i[j] = detJ
+    end
+    
+  end  # end loop over interfaces
+
+  return dxidx_face, jac_face
+
+end  # end function
 
 function populateDofNumbers(mesh::PumiMeshDG2)
 # populate the dofnums_Nptr with values calculated from
