@@ -32,15 +32,6 @@ export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getEle
 
 export PumiMesh
 #abstract AbstractMesh
-@doc """
-### PumiInterface.PumiMesh
-
-  This abstract type is the supertype of all Pumi mesh objects
-
-  The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
-  jac).
-"""->
-abstract PumiMesh{T1} <: AbstractMesh{T1}
 
 @doc """
 ### PdePumiInterface.PumiMeshCG
@@ -50,7 +41,7 @@ abstract PumiMesh{T1} <: AbstractMesh{T1}
   The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
   jac).
 """->
-abstract PumiMeshCG{T1} <: PumiMesh{T1}
+abstract PumiMeshCG{T1} <: AbstractCGMesh{T1}
 
 @doc """
 ### PdePumiInterface.PumiMeshDG
@@ -61,8 +52,15 @@ abstract PumiMeshCG{T1} <: PumiMesh{T1}
   The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
   jac).
 """->
-abstract PumiMeshDG{T1} <: PumiMesh{T1}
+abstract PumiMeshDG{T1} <: AbstractDGMesh{T1}
 
+@doc """
+### PumiInterface.PumiMesh
+
+  This type is the union of all Pumi mesh types
+
+"""->
+typealias PumiMesh{T1} Union{PumiMeshCG{T1}, PumiMeshDG{T1}}
 
 include("./PdePumiInterface3.jl")
 include("PdePumiInterfaceDG.jl")
@@ -114,7 +112,7 @@ include("PdePumiInterfaceDG.jl")
                       color the elements (graph vertices are elements and graph
                       edges exist where elements share an edge)
 """->
-type PumiMesh2{T1} <: PumiMesh{T1}   # 2d pumi mesh, triangle only
+type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
