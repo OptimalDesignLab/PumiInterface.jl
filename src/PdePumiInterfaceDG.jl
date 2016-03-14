@@ -2697,7 +2697,8 @@ function getInterfaceArray(mesh::PumiMeshDG2)
 # interfaces is the array to be populated with the data, it must be 
 # number of internal edges by 1
 # the nodemap is used to determine the node ordering of elementR relative to
-# elementL
+# elementL (ie. the relative orientation is determined between the nodes of 
+# the 2 element in SBP order)
 # the edge is "owned" by elementL, ie the first node on the edge is the first
 # node from the perspective of elementL
 
@@ -2767,9 +2768,9 @@ function getInterfaceArray(mesh::PumiMeshDG2)
       edgeL = getEdgeLocalNum(mesh, i, elementL)
       edgeR = getEdgeLocalNum(mesh, i, elementR)
 
-      # here we set the orientation flag to 2 for all edges, because in 2D
+      # here we set the orientation flag to 1 for all edges, because in 2D
       # the edges always have opposite orientation
-      mesh.interfaces[pos] = Interface(elementL, elementR, edgeL, edgeR, UInt8(2))
+      mesh.interfaces[pos] = Interface(elementL, elementR, edgeL, edgeR, UInt8(1))
 #       println("updating pos")
       pos += 1
 
