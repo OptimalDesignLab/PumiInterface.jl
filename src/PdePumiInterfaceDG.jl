@@ -789,7 +789,8 @@ function interpolateFace(bndry::Boundary, sbpface, dxidx_hat_in, jac_in, dxdxi_e
 
 
   # interpolate to the face
-  bndry_arr = [bndry]
+  face = bndry.face
+  bndry_arr = [Boundary(1, face)]
 #    bndry_arr[1] = Boundary(1, face)
   boundaryinterpolate!(sbpface, bndry_arr, dxdxi_el, dxdxi_elface)
 
@@ -2380,16 +2381,13 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh})
     # extract the needed vertex coords
     v1 = facemap[1, face]
     v2 = facemap[2, face]
-    println("coords_it = ", coords_it)
     coords_edge[1, 1] = coords_it[v1, 1]
     coords_edge[1, 2] = coords_it[v1, 2]
     coords_edge[2, 1] = coords_it[v2, 1]
     coords_edge[2, 2] = coords_it[v2 ,2]
-    println("coords_edge = ", coords_edge)
 
     coords_bndry[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbpface.cub, coords_edge)
 
-    println("coords_bndry = ", coords_bndry[:, :, i])
 
   end
 

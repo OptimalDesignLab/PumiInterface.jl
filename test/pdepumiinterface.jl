@@ -368,6 +368,22 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
    test_interp(mesh)
 
+   # check dxidx_bndry
+   # for straight sided elements, dxidx is constant
+   for i=1:mesh.numBoundaryEdges
+     el = mesh.bndryfaces[i].element
+     dxidx_test = mesh.dxidx[:, :, 1, el]
+     jac_test = mesh.jac[1, el]
+     for j=1:mesh.sbpface.numnodes
+       dxidx_code = mesh.dxidx_bndry[:, :, j, i]
+       jac_code = mesh.jac_bndry[j, i]
+       @fact dxidx_code --> roughly(dxidx_test, atol=1e-13)
+       @fact jac_code --> roughly(jac_test, atol=1e-13)
+     end
+   end
+
+
+
 
    # check coords_bndry
    vert_coords = [-1.0 -1.0; 1  1; -1 1]
