@@ -260,6 +260,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
     vtx = [0. 0; 1 0; 0 1]
     sbpface = TriFace{Float64}(order, sbp.cub, vtx)
+    println("sbpface.numnodes = ", sbpface.numnodes)
     mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface, coloring_distance=2, dofpernode=4)
 
    @fact mesh.m_ptr --> not(C_NULL)
@@ -366,6 +367,36 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
 
    test_interp(mesh)
+
+
+   # check coords_bndry
+   vert_coords = [-1.0 -1.0; 1  1; -1 1]
+   
+   function getBndry(arr, el, face)
+     for i=1:length(arr)
+       bndry_i = arr[i]
+       if bndry_i.element == el && bndry_i.face == face
+         return bndry_i, i
+       end
+     end
+   end
+
+   bndry, idx = getBndry(mesh.bndryfaces, 1, 2)
+   # get vertex coordinates
+   v1 = vert_coords[2, :]
+   v2 = vert_coords[3, :]
+   diff = v2 - v1
+   slope = diff[2]/diff[1]
+   b = v1[2] - slope*v1[1]
+
+   # vertify the face node coordinates are on the line
+   for i=1:mesh.sbpface.numnodes
+     x_i = mesh.coords_bndry[1, i, idx]
+     y_i = mesh.coords_bndry[2, i, idx]
+    @fact y_i --> roughly(slope*x_i + b, atol=1e-13)
+   end
+
+
 
 
 end

@@ -469,7 +469,10 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
   getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
+
   mesh.dxidx_face, mesh.jac_face, mesh.dxidx_bndry, mesh.jac_bndry = interpolateMapping(mesh)
+  mesh.coords_bndry = getBndryCoordinates(mesh)
+
   if order >= 1
 
     mesh.triangulation = getTriangulationDG(order)
@@ -2343,7 +2346,6 @@ for i=1:mesh.numEl  # loop over elements
 
   coords_it[:,:] = coords_i[1:2, :].'
 #  println("coords_it = ", coords_it)
-  println("coords_it = ", coords_it)
   mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
 #  println("mesh.coords[:,:,i] = ", mesh.coords[:,:,i])
 end
@@ -2353,6 +2355,47 @@ return nothing
 end
 
 
+function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh})
+  println("----- Entered getBndryCoordinates -----")
+  sbpface = mesh.sbpface
+  coords_bndry = zeros(Tmsh, 2, sbpface.numnodes, mesh.numBoundaryEdges)
+
+  coords_i = zeros(3, 3)
+  coords_it = zeros(3, 2)
+  coords_edge = zeros(2, 2)
+  facemap = [1 2 1; 2 3 3]
+
+  for i=1:mesh.numBoundaryEdges
+    bndry_i = mesh.bndryfaces[i]
+
+    el = bndry_i.element
+    el_ptr = mesh.elements[el]
+    face = bndry_i.face
+
+    sizex, sizey = size(coords_i)
+    getFaceCoords(el_ptr, coords_i, sizex, sizey)
+
+    coords_it[:, :] = coords_i[1:2, :].'
+
+    # extract the needed vertex coords
+    v1 = facemap[1, face]
+    v2 = facemap[2, face]
+    println("coords_it = ", coords_it)
+    coords_edge[1, 1] = coords_it[v1, 1]
+    coords_edge[1, 2] = coords_it[v1, 2]
+    coords_edge[2, 1] = coords_it[v2, 1]
+    coords_edge[2, 2] = coords_it[v2 ,2]
+    println("coords_edge = ", coords_edge)
+
+    coords_bndry[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbpface.cub, coords_edge)
+
+    println("coords_bndry = ", coords_bndry[:, :, i])
+
+  end
+
+
+  return coords_bndry
+end
 
 
 function getElementVertCoords(mesh::PumiMeshDG2, elnum::Integer, coords::AbstractArray{Float64,2})
