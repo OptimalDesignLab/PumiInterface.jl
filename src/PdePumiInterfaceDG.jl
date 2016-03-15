@@ -181,12 +181,18 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
                                    # indexing: [norm_component, Left or right, left face node, left face element]
 
   coords::Array{T1, 3}  # store coordinates of all nodes
+  coords_bndry::Array{T1, 3}  # store coordinates of nodes on boundary,
+                              # 2 x numFaceNodes x numBoundaryEdges
   dxidx::Array{T1, 4}  # store scaled mapping jacobian
   dxidx_face::Array{T1, 4} # store scaled mapping jacobian at face nodes
                            # 2 x 2 x numfacenodes x numInterfaces
+  dxidx_bndry::Array{T1, 4} # store scaled mapping jacobian at boundary nodes,
+                            # similar to dxidx_face
   jac::Array{T1,2}  # store mapping jacobian output
   jac_face::Array{T1,2}  # store jacobian determanent at face nodes
                          # numfacenodes x numInterfaces
+  jac_bndry::Array{T1, 2} # store jacobian determinant at boundry nodes
+                          # similar to jac_bndry
 
   dofs::Array{Int32, 3}  # store dof numbers of solution array to speed assembly
   sparsity_bnds::Array{Int32, 2}  # store max, min dofs for each dof
@@ -463,7 +469,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
   getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
-  mesh.dxidx_face, mesh.jac_face = interpolateMapping(mesh)
+  mesh.dxidx_face, mesh.jac_face, mesh.dxidx_bndry, mesh.jac_bndry = interpolateMapping(mesh)
   if order >= 1
 
     mesh.triangulation = getTriangulationDG(order)
@@ -715,6 +721,9 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
   dxidx_face = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numInterfaces)
   jac_face = zeros(Tmsh, sbpface.numnodes, mesh.numInterfaces)
 
+  dxidx_bndry = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numBoundaryEdges)
+  jac_bndry = zeros(Tmsh, sbpface.numnodes, mesh.numBoundaryEdges)
+
   dxdxi_el = zeros(Tmsh, 4, mesh.numNodesPerElement, 1)
   dxdxi_elface = zeros(Tmsh, 4, sbpface.numnodes, 1)
   dxidx_node = zeros(Tmsh, 2, 2)
@@ -727,58 +736,87 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
     interface_i = mesh.interfaces[i]
     el = interface_i.elementL
     face = interface_i.faceL
+    bndry = Boundary(1, face)
 
-    # get the data
-    for j=1:mesh.numNodesPerElement
-      dxidx_hat = view(mesh.dxidx[:, :, j, el])
-      detJ = mesh.jac[j, el]
+    dxidx_in = view(mesh.dxidx, :, :, :, el)
+    jac_in = view(mesh.jac, :, el)
 
-      # dxdxi = inv(dxidx) = adj(dxidx_hat)
-      dxdxi_node[1,1] = dxidx_hat[2,2]
-      dxdxi_node[1,2] = -dxidx_hat[1,2]
-      dxdxi_node[2,1] = -dxidx_hat[2,1]
-      dxdxi_node[2,2] = dxidx_hat[1,1]
+    interpolateFace(bndry, mesh.sbpface, dxidx_in, jac_in, dxdxi_el, dxdxi_elface, dxdxi_node, dxidx_node, dxidx_i, jac_i)
 
-      dxdxi_el[1,j,1] = dxdxi_node[1,1]
-      dxdxi_el[2,j,1] = dxdxi_node[1,2]
-      dxdxi_el[3,j,1] = dxdxi_node[2,1]
-      dxdxi_el[4,j,1] = dxdxi_node[2,2]
+  end
 
-    end
+  # now do boundary
+  for i=1:mesh.numBoundaryEdges
+    dxidx_i = view(dxidx_bndry, :, :, :, i)
+    jac_i = view(jac_bndry, :, i)
 
+    bndry = mesh.bndryfaces[i]
 
-    # interpolate to the face
-    bndry_arr[1] = Boundary(1, face)
-    boundaryinterpolate!(sbpface, bndry_arr, dxdxi_el, dxdxi_elface)
+    el = bndry.element
+    dxidx_in = view(mesh.dxidx, :, :, :, el)
+    jac_in = view(mesh.jac, :, el)
 
+    interpolateFace(bndry, mesh.sbpface, dxidx_in, jac_in, dxdxi_el, dxdxi_elface, dxdxi_node, dxidx_node, dxidx_i, jac_i)
+  end
 
-    # now store dxidx, |J| at the boundary nodes
-    for j=1:sbpface.numnodes
-      dxdxi_node[1,1] = dxdxi_elface[1, j, 1]
-      dxdxi_node[1,2] = dxdxi_elface[2, j, 1]
-      dxdxi_node[2,1] = dxdxi_elface[3, j, 1]
-      dxdxi_node[2,2] = dxdxi_elface[4, j, 1]
-
-      # inv(A) = adj(A)/|A|
-      det_dxdxi = dxdxi_node[1,1]*dxdxi_node[2,2] - dxdxi_node[1,2]*dxdxi_node[2,1]
-      dxidx_node[1,1] = dxdxi_node[2,2]/det_dxdxi
-      dxidx_node[1,2] = -dxdxi_node[1,2]/det_dxdxi
-      dxidx_node[2,1] = -dxdxi_node[2,1] /det_dxdxi
-      dxidx_node[2,2] = dxdxi_node[2,2]/det_dxdxi
-
-      detJ = dxidx_node[1,1]*dxidx_node[2,2] - dxidx_node[1,2]*dxidx_node[2,1]
-      dxidx_i[1,1,j] = dxidx_node[1,1]/detJ
-      dxidx_i[1,2,j] = dxidx_node[1,2]/detJ
-      dxidx_i[2,1,j] = dxidx_node[2,1]/detJ
-      dxidx_i[2,2,j] = dxidx_node[2,2]/detJ
-      jac_i[j] = detJ
-    end
-    
-  end  # end loop over interfaces
-
-  return dxidx_face, jac_face
+  return dxidx_face, jac_face, dxidx_bndry, jac_bndry
 
 end  # end function
+
+function interpolateFace(bndry::Boundary, sbpface, dxidx_hat_in, jac_in, dxdxi_el, dxdxi_elface, dxdxi_node, dxidx_node, dxidx_i, jac_i)
+
+  numNodesPerElement = size(dxidx_hat_in, 3)
+  # get the data
+  for j=1:numNodesPerElement
+    dxidx_hat = view(dxidx_hat_in, :, :, j)
+    detJ = jac_in[j]
+
+    # dxdxi = inv(dxidx) = adj(dxidx_hat)
+    dxdxi_node[1,1] = dxidx_hat[2,2]
+    dxdxi_node[1,2] = -dxidx_hat[1,2]
+    dxdxi_node[2,1] = -dxidx_hat[2,1]
+    dxdxi_node[2,2] = dxidx_hat[1,1]
+
+    dxdxi_el[1,j,1] = dxdxi_node[1,1]
+    dxdxi_el[2,j,1] = dxdxi_node[1,2]
+    dxdxi_el[3,j,1] = dxdxi_node[2,1]
+    dxdxi_el[4,j,1] = dxdxi_node[2,2]
+
+  end
+
+
+  # interpolate to the face
+  bndry_arr = [bndry]
+#    bndry_arr[1] = Boundary(1, face)
+  boundaryinterpolate!(sbpface, bndry_arr, dxdxi_el, dxdxi_elface)
+
+
+  # now store dxidx, |J| at the boundary nodes
+  for j=1:sbpface.numnodes
+    dxdxi_node[1,1] = dxdxi_elface[1, j, 1]
+    dxdxi_node[1,2] = dxdxi_elface[2, j, 1]
+    dxdxi_node[2,1] = dxdxi_elface[3, j, 1]
+    dxdxi_node[2,2] = dxdxi_elface[4, j, 1]
+
+    # inv(A) = adj(A)/|A|
+    det_dxdxi = dxdxi_node[1,1]*dxdxi_node[2,2] - dxdxi_node[1,2]*dxdxi_node[2,1]
+    dxidx_node[1,1] = dxdxi_node[2,2]/det_dxdxi
+    dxidx_node[1,2] = -dxdxi_node[1,2]/det_dxdxi
+    dxidx_node[2,1] = -dxdxi_node[2,1] /det_dxdxi
+    dxidx_node[2,2] = dxdxi_node[2,2]/det_dxdxi
+
+    detJ = dxidx_node[1,1]*dxidx_node[2,2] - dxidx_node[1,2]*dxidx_node[2,1]
+    dxidx_i[1,1,j] = dxidx_node[1,1]/detJ
+    dxidx_i[1,2,j] = dxidx_node[1,2]/detJ
+    dxidx_i[2,1,j] = dxidx_node[2,1]/detJ
+    dxidx_i[2,2,j] = dxidx_node[2,2]/detJ
+    jac_i[j] = detJ
+  end
+
+  return nothing
+
+end
+
 
 function populateDofNumbers(mesh::PumiMeshDG2)
 # populate the dofnums_Nptr with values calculated from

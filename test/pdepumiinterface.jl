@@ -348,22 +348,9 @@ facts("----- Testing PdePumiInterfaceDG -----") do
        end
 
        bndry_arr = [ Boundary(1, face)]
-#       println("bndry = ", bndry_arr[1])
        dxdxi_element_rshape = reshape(dxdxi_element, 4, mesh.numNodesPerElement, 1)
-#       println("dxdxi_element_rshape = \n", dxdxi_element_rshape)
-#       println("dxdxi_face = \n", dxdxi_face)
-#       println("sbpface.numnodes = ", sbpface.numnodes)
-#       println("sbpface.stencilsize = ", sbpface.stencilsize)
-#       println("size(dxdxi_element_rshape) = ", size(dxdxi_element_rshape))
-#       println("size(dxdxi_face) = ", size(dxdxi_face))
-#       println("sbpface = ", sbpface)
-#       println("about to call boundaryinterpolate")
        boundaryinterpolate!(sbpface, bndry_arr, dxdxi_element_rshape, dxdxi_face)
-#       println("finished calling boundary interpolate")
-
-#       println("dxdxi_face = \n", dxdxi_face)
        dxdxi_face_rshape = reshape(dxdxi_face, 2, 2, sbpface.numnodes)
-#       println("dxidx_face_rshape = \n", dxdxi_face_rshape)
     for j=1:sbpface.numnodes
       dxidx = inv(dxdxi_face_rshape[:, :, j])
       jac_face[j] = det(dxidx)
