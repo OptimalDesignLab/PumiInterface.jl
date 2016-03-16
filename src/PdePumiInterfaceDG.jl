@@ -2364,10 +2364,13 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh})
   coords_i = zeros(3, 3)
   coords_it = zeros(3, 2)
   coords_edge = zeros(2, 2)
-  facemap = [1 2 1; 2 3 3]
+#  facemap = [1 2 1; 2 3 3]
 
+  #TODO: undo once SBP node ordering convention is decided
+  facemap = [2 3 3; 1 2  1]
   for i=1:mesh.numBoundaryEdges
     bndry_i = mesh.bndryfaces[i]
+    println("\nbndry_i = ", bndry_i)
 
     el = bndry_i.element
     el_ptr = mesh.elements[el]
@@ -2377,17 +2380,23 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh})
     getFaceCoords(el_ptr, coords_i, sizex, sizey)
 
     coords_it[:, :] = coords_i[1:2, :].'
+    println("coords_it = ", coords_it)
 
     # extract the needed vertex coords
     v1 = facemap[1, face]
     v2 = facemap[2, face]
+
+    println("v1 = ", v1)
+    println("v2 = ", v2)
     coords_edge[1, 1] = coords_it[v1, 1]
     coords_edge[1, 2] = coords_it[v1, 2]
     coords_edge[2, 1] = coords_it[v2, 1]
     coords_edge[2, 2] = coords_it[v2 ,2]
 
+    println("coords_edge = ", coords_edge)
     coords_bndry[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbpface.cub, coords_edge)
 
+    println("coords_bndry = ", coords_bndry[:, :, i])
 
   end
 
