@@ -227,7 +227,7 @@ class DG1SBPQuadratic : public FieldShape
            fail("unimplimented getLocalGradients called in DG1SBPQuadratic Vertex");
         }
 		
-        int countNodes() const {return 1;}
+        int countNodes() const {return 0;}
     };
     class Edge : public EntityShape
     {
@@ -255,7 +255,7 @@ class DG1SBPQuadratic : public FieldShape
           fail("unimplimented getLocaGradients() called in SBPQuadratiac Edge");
         }
 		
-        int countNodes() const {return 3;}
+        int countNodes() const {return 0;}
 		
 
     };
@@ -286,7 +286,7 @@ class DG1SBPQuadratic : public FieldShape
           fail("unimplimented getLocalGradients() called in DG1SBPQuadratic Triangle");
         }
 		
-        int countNodes() const {return 7;}
+        int countNodes() const {return 6;}
 		
 		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
 		// elem is the triangle 
@@ -367,48 +367,52 @@ class DG1SBPQuadratic : public FieldShape
     }
     bool hasNodesIn(int dimension)
     {
-      if (dimension <= 2)
-        return true;
-      else
+      if (dimension <= 1)
         return false;
+      else
+        return true;
     }
     int countNodesOn(int type)
     {
-      if (type == Mesh::VERTEX)
-	  {
-        return 1;
-	  } else if ( type == Mesh::EDGE) 
-	  {
-	    return 1;
-	  } else if ( type == Mesh::TRIANGLE)
-	  {
-	    return 1;
-	  }  else
-	  {
+      if (type == Mesh::TRIANGLE)
+      {
+        return 6;
+      } else
+      {
         return 0;
-	  }
+      }
     }
+
     int getOrder() {return 2;}
     void getNodeXi(int type, int node, Vector3& xi)
     {
 	  // return the xi coordinates of the specified node of the specified type
 	  // *in the coordinate system of that type*
 	  // which makes this function not useful
-	  if (type == Mesh::VERTEX)
-	  {
-        xi = Vector3(0,0,0);
-	  } else if (type == Mesh::EDGE)
-	  {  
-	    xi = Vector3(0,0,0);
-	  }  else if (type == Mesh::TRIANGLE)
-	  {
-	    xi = Vector3(1.0/3.0, 1.0/3.0, 0);
-	  } else
-	  {
-	    xi = Vector3(0,0,0);
-	  }
+          if (type != Mesh::TRIANGLE)
+          {
+            xi = Vector3(0, 0, 0);
+            return;
+          }
+      switch (node)
+      {
+        case 0:
+          { xi = Vector3(0.4459484909159649,0.10810301816807022, 0); break; }
+        case 1:
+          { xi = Vector3(0.4459484909159649,0.4459484909159649,0); break; }
+        case 2:
+          { xi = Vector3(0.10810301816807022,0.4459484909159649,0); break; }
+        case 3:
+          { xi = Vector3(0.09157621350977074,0.8168475729804585,0); break; }
+        case 4:
+          { xi = Vector3(0.09157621350977074,0.09157621350977074,0); break; }
+        case 5:
+          { xi = Vector3(0.8168475729804585,0.09157621350977074,0); break; }
+        default: 
+          { xi = Vector3(0, 0,0); break; }
+      }
 	  
-    }
+    }  // end function getNodeXi
 };  // class DG1SBPQuadratic
 
 
@@ -439,7 +443,7 @@ class DG1SBPCubic : public FieldShape
            fail("unimplimented getValues called in DG1SBPCubic Vertex");
         }
 		
-        int countNodes() const {return 1;}
+        int countNodes() const {return 0;}
     };
     class Edge : public EntityShape
     {
@@ -448,6 +452,7 @@ class DG1SBPCubic : public FieldShape
         void getValues(Mesh*, MeshEntity*,
             Vector3 const& xi, NewArray<double>& values) const
         {
+          /*
           double xiv = xi[0];
           const double n1 = 0.0;
           const double n2 = 0.2934695559090417;
@@ -458,8 +463,9 @@ class DG1SBPCubic : public FieldShape
           values[1] = (xiv - n1)*(xiv - n3)*(xiv - n4)/(0.08564618241975609);
           values[2] = (xiv - n1)*(xiv - n2)*(xiv - n4)/(-0.08564618241982433);
           values[3] = (xiv - n1)*(xiv - n2)*(xiv - n3)/(0.2073451756638735);
+          */
           
-  //        fail("unimplimented getValues() called in DG1SBPCubic Edge");
+          fail("unimplimented getValues() called in DG1SBPCubic Edge");
         }
 
         void getLocalGradients(Mesh*, MeshEntity*,
@@ -473,7 +479,7 @@ class DG1SBPCubic : public FieldShape
           fail("unimplimented getLocaGradients() called in DG1SBPCubic Edge");
         }
 		
-        int countNodes() const {return 4;}
+        int countNodes() const {return 0;}
 		
 
     };
@@ -484,7 +490,7 @@ class DG1SBPCubic : public FieldShape
         void getValues(Mesh*, MeshEntity*,
             Vector3 const& xi, NewArray<double>& values) const
         {
-          
+/*          
           values.allocate(12);
           values[0] = 1-xi[0]-xi[1];
           values[1] = xi[0];
@@ -499,13 +505,14 @@ class DG1SBPCubic : public FieldShape
           values[9] = 0.0;
           values[10] = 0.0;
           values[11] = 0.0;
+*/
           
-//          fail("unimplimented getValues() called in DG1SBPCubic Triangle");
+          fail("unimplimented getValues() called in DG1SBPCubic Triangle");
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>& grads) const
         {
-          
+/*          
           grads.allocate(12);
           grads[0] = Vector3(-1,-1,0);
           grads[1] = Vector3( 1, 0,0);
@@ -519,11 +526,11 @@ class DG1SBPCubic : public FieldShape
           grads[9] = Vector3( 0, 0, 0);
           grads[10] = Vector3( 0, 0, 0);
           grads[11] = Vector3( 0, 0, 0);
-          
-//          fail("unimplimented getLocalGradients() called in DG1SBPCubic Triangle");
+*/          
+          fail("unimplimented getLocalGradients() called in DG1SBPCubic Triangle");
         }
 		
-        int countNodes() const {return 12;}
+        int countNodes() const {return 10;}
 		
 		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
                 {
@@ -621,67 +628,61 @@ class DG1SBPCubic : public FieldShape
     }
     bool hasNodesIn(int dimension)
     {
-      if (dimension <= 2)
-        return true;
-      else
+      if (dimension <= 1)
         return false;
+      else
+        return true;
     }
     int countNodesOn(int type)
     {
-      if (type == Mesh::VERTEX)
-	  {
-        return 1;
-	  } else if ( type == Mesh::EDGE) 
-	  {
-	    return 2;
-	  } else if ( type == Mesh::TRIANGLE)
-	  {
-	    return 3;
-	  }  else
-	  {
+      if (type == Mesh::TRIANGLE)
+      {
+        return 10;
+      } else
+      {
         return 0;
-	  }
+      }
+
     }
+
     int getOrder() {return 3;}
     void getNodeXi(int type, int node, Vector3& xi)
     {
 	  // return the xi coordinates of the specified node of the specified type
 	  // *in the coordinate system of that type*
 	  // which makes this function not useful
-	  if (type == Mesh::VERTEX)
+	  if (type != Mesh::TRIANGLE)
 	  {
-        xi = Vector3(0,0,0);
-	  } else if (type == Mesh::EDGE)
-	  { 
-        if (node == 0)
-	    {
-		  xi = Vector3(-0.4130608881811966, 0, 0);
-		} else if (node == 1)
-		{
-		  xi = Vector3(0.41306088818191977, 0, 0);
-		} else  // default case
-		{
-		  xi = Vector3(0,0, 0);
-		}
-	  }  else if (type == Mesh::TRIANGLE)
-	  {
-	    switch(node) {
-		  case 0:
-		    xi = Vector3(0.20734517566359092, 0.20734517566359092, 0);
-			break;
-		  case 1:
-		    xi = Vector3 (0.5853096486728182, 0.20734517566359092, 0);
-			break;
-		  case 2: 
-		    xi = Vector3( 0.20734517566359092, 0.5853096486728182, 0);
-			break;
-		  default:
-		    xi = Vector3(0, 0, 0);
-		  }
-	  } else
-	  {
-	    xi = Vector3(0,0,0);
+            xi = Vector3(0,0,0);
+            return;
 	  }
+
+      switch (node)
+      {
+        case 0:
+          { xi = Vector3(0.06931165313831339,0.8613766937233732, 0); break; }
+        case 1:
+          { xi = Vector3(0.06931165313831339,0.06931165313831339,0); break; }
+        case 2:
+          { xi = Vector3(0.8613766937233732,0.06931165313831339,0); break; }
+        case 3:
+          { xi = Vector3(0.3113221292816416,0.6175981504408568,0); break; }
+        case 4:
+          { xi = Vector3(0.07107972027750162,0.6175981504408568,0); break; }
+        case 5:
+          { xi = Vector3(0.07107972027750162,0.3113221292816416,0); break; }
+        case 6:
+          { xi = Vector3(0.3113221292816416,0.07107972027750162,0); break; }
+        case 7:
+          { xi = Vector3(0.6175981504408568,0.07107972027750162,0); break; }
+        case 8:
+          { xi = Vector3(0.6175981504408568,0.3113221292816416,0); break; }
+        case 9:
+          { xi = Vector3(0.3333333333333333,0.3333333333333333,0); break; }
+        default: 
+          { xi = Vector3(0, 0,0); break; }
+      }
+	
 	  
     }
 };  // class DG1SBPCubic
@@ -714,7 +715,7 @@ class DG1SBPQuartic : public FieldShape
            fail("unimplimented getValues called in DG1SBPQuartic Vertex");
         }
 		
-        int countNodes() const {return 1;}
+        int countNodes() const {return 0;}
     };
     class Edge : public EntityShape
     {
@@ -742,7 +743,7 @@ class DG1SBPQuartic : public FieldShape
           fail("unimplimented getLocaGradients() called in DG1SBPQuartic Edge");
         }
 		
-        int countNodes() const {return 5;}
+        int countNodes() const {return 0;}
 		
 
     };
@@ -773,7 +774,7 @@ class DG1SBPQuartic : public FieldShape
           fail("unimplimented getLocalGradients() called in DG1SBPQuartic Triangle");
         }
 		
-        int countNodes() const {return 18;}
+        int countNodes() const {return 15;}
 		
 		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
                 {
@@ -873,26 +874,20 @@ class DG1SBPQuartic : public FieldShape
     }
     bool hasNodesIn(int dimension)
     {
-      if (dimension <= 2)
-        return true;
-      else
+      if (dimension <= 1)
         return false;
+      else
+        return true;
     }
     int countNodesOn(int type)
     {
-      if (type == Mesh::VERTEX)
-	  {
-        return 1;
-	  } else if ( type == Mesh::EDGE) 
-	  {
-	    return 3;
-	  } else if ( type == Mesh::TRIANGLE)
-	  {
-	    return 6;
-	  }  else
-	  {
+      if (type == Mesh::TRIANGLE)
+      {
+        return 15;
+      } else
+      {
         return 0;
-	  }
+      }
     }
     int getOrder() {return 4;}
     void getNodeXi(int type, int node, Vector3& xi)
@@ -900,52 +895,48 @@ class DG1SBPQuartic : public FieldShape
 	  // return the xi coordinates of the specified node of the specified type
 	  // *in the coordinate system of that type*
 	  // which makes this function not useful
-	  if (type == Mesh::VERTEX)
-	  {
+      if (type != Mesh::TRIANGLE)
+      {
         xi = Vector3(0,0,0);
-	  } else if (type == Mesh::EDGE)
-	  { 
-        if (node == 0)
-	    {
-		  xi = Vector3(-0.5773502691896256, 0, 0);
-		} else if (node == 1)
-		{
-		  xi = Vector3(0.0, 0, 0);
-		} else if (node == 2)
-		{
-		  xi = Vector3(0.5773502691896257, 0, 0);
-		} else  // default case
-		{
-		  xi = Vector3(0,0, 0);
-		}
-	  }  else if (type == Mesh::TRIANGLE)
-	  {
-	    switch(node) {
-		  case 0:
-		    xi = Vector3(0.13079159382974495, 0.13079159382974495, 0);
-			break;
-		  case 1:
-		    xi = Vector3 (0.4247639617258106, 0.1504720765483788, 0);
-			break;
-		  case 2: 
-		    xi = Vector3( 0.7384168123405102, 0.13079159382974495, 0);
-			break;
-		  case 3:
-		    xi = Vector3( 0.4247639617258106, 0.4247639617258106, 0);
-			break;
-		  case 4: 
-		    xi = Vector3(0.13079159382974495, 0.7384168123405102, 0);
-			break;
-		  case 5:
-		    xi = Vector3(0.1504720765483788, 0.4247639617258106, 0);
-                    break;
-		  default:
-		    xi = Vector3(0, 0, 0);
-		  }
-	  } else
-	  {
-	    xi = Vector3(0,0,0);
-	  }
+        return;
+      }
+      switch (node)
+      {
+        case 0:
+          { xi = Vector3(0.0421656144094321,0.9156687711811358, 0); break; }
+        case 1:
+          { xi = Vector3(0.0421656144094321,0.0421656144094321,0); break; }
+        case 2:
+          { xi = Vector3(0.9156687711811358,0.0421656144094321,0); break; }
+        case 3:
+          { xi = Vector3(0.4742946891175103,0.05141062176497935,0); break; }
+        case 4:
+          { xi = Vector3(0.4742946891175103,0.4742946891175103,0); break; }
+        case 5:
+          { xi = Vector3(0.05141062176497935,0.4742946891175103,0); break; }
+        case 6:
+          { xi = Vector3(0.24208597375947866,0.5158280524810427,0); break; }
+        case 7:
+          { xi = Vector3(0.24208597375947866,0.24208597375947866,0); break; }
+        case 8:
+          { xi = Vector3(0.5158280524810427,0.24208597375947866,0); break; }
+        case 9:
+          { xi = Vector3(0.047981341371464654,0.7404565999904429,0); break; }
+        case 10:
+          { xi = Vector3(0.21156205863809244,0.7404565999904429,0); break; }
+        case 11:
+          { xi = Vector3(0.21156205863809244,0.047981341371464654,0); break; }
+        case 12:
+          { xi = Vector3(0.047981341371464654,0.21156205863809244,0); break; }
+        case 13:
+          { xi = Vector3(0.7404565999904429,0.21156205863809244,0); break; }
+        case 14:
+          { xi = Vector3(0.7404565999904429,0.047981341371464654,0); break; }
+        default: 
+          { xi = Vector3(0, 0,0); break; }
+      }
+	
+
 	  
     }
 };  // class DG1SBPQuartic
