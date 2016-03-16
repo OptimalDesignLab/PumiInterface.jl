@@ -12,6 +12,7 @@ function nodecalc(sbp, isDG::Bool)
 
 
   if isDG
+    println("getting DG mesh coordinates")
     coords = SummationByParts.SymCubatures.calcnodes(sbp.cub, vtx)
   else
     coords = calcnodes(sbp, vtx)

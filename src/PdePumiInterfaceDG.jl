@@ -3254,12 +3254,12 @@ function getTriangulationDG(order::Int)
 # by passing it to C, it becomes a n x 3 array of ints
 if order == 1
   triangulation = Int32[1 1 4 2 4 5 4 ; 4 4 5 5 3 3 5; 3 2 2 3 6 6 6]
+elseif order == 2
+  triangulation = Int32[1 8 4 11 9 2 5 6 1 8 6 1; 4 4 9 9 2 2 3 3 7 6 5 5 8; 8 5 5 4 9 5 5 7 3 3 6 7 6]
 elseif order == 3
-  println(STDERR, "Warning: bat triangulation used")
-  triangulation = Int32[1 1 4 5 5 2 6 7 10 12 12 10 9; 4 10 5 11 2 6 7 12 11 7 3 12 10; 10 9 10 10 11 11 11 11 12 3 8 8 8]
+  triangulation = Int32[1 1 1 1 2 6 10 10 5 5 1 2 2 2 3 3 3 9 9 13; 10 11 6 2 12 12 11 12 10 13 5 7 4 3 8 9 1 7 7 13 12; 5 10 11 6 6 11 12 13 13 9 9 12 7 4 4 8 9 4 8 7 7]
 elseif order == 4
-  println(STDERR, "Warning: bat triangulation used")
-  triangulation = Int32[1 1 4 5 5 6 6 2 7 7 15 14 14 8 8 9 17 11 18 13 13 18; 4 13 5 14 6 15 2 7 8 16 16 16 18 17 9 3 3 17 17 18 11 16; 13 12 13 13 14 14 15 15 16 15 14 18 13 16 17 17 10 10 11 11 12 17]
+  triangulation = Int32[1 1 1 1 1 2 2 2 2 2 3 3 3 3 1 5 15 15 7 18 7 7 12 11 11 10 13 9 9 16 16; 15 7 18 6 2 17 8 7 4 3 13 9 16 5 5 15 11 7 12 6 18 17 17 12 8 8 14 14 10 11 10; 5 15 7 18 6 6 17 8 14 4 4 13 9 16 3 16 16 11 11 17 17 12 8 8 10 7 4 13 14 10 9]
 else
   println(STDERR, "Warning, unsupported triangulation requested")
   return zeros(Int32, 0, 0)
@@ -3277,6 +3277,9 @@ function getNodeMaps(mesh::PumiMeshDG2)
   if mesh.order == 1
     sbpToPumi = UInt8[3,1,2]
     pumiToSbp = UInt8[2,3,1]
+  elseif order == 2 || order == 3 || order == 4
+    sbpToPumi = UInt8[1:mesh.numNodesPerElement]
+    pumiToSBP = UInt8[1:mesh.numNodesPerElement]
 #=
   elseif mesh.order == 2
     sbpToPumi = UInt8[1,2,3,4,5,6,7]
