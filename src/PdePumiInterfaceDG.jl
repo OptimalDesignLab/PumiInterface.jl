@@ -748,18 +748,20 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
 
   end
 
+  println("\nInterpolating boundary")
   # now do boundary
   for i=1:mesh.numBoundaryEdges
+    bndry = mesh.bndryfaces[i]
+
     dxidx_i = view(dxidx_bndry, :, :, :, i)
     jac_i = view(jac_bndry, :, i)
-
-    bndry = mesh.bndryfaces[i]
 
     el = bndry.element
     dxidx_in = view(mesh.dxidx, :, :, :, el)
     jac_in = view(mesh.jac, :, el)
 
     interpolateFace(bndry, mesh.sbpface, dxidx_in, jac_in, dxdxi_el, dxdxi_elface, dxdxi_node, dxidx_node, dxidx_i, jac_i)
+    print("\n")
   end
 
   return dxidx_face, jac_face, dxidx_bndry, jac_bndry
@@ -794,6 +796,7 @@ function interpolateFace(bndry::Boundary, sbpface, dxidx_hat_in, jac_in, dxdxi_e
 #    bndry_arr[1] = Boundary(1, face)
   boundaryinterpolate!(sbpface, bndry_arr, dxdxi_el, dxdxi_elface)
 
+  println("dxdxi_elface = ", dxdxi_elface)
 
   # now store dxidx, |J| at the boundary nodes
   for j=1:sbpface.numnodes
@@ -802,12 +805,13 @@ function interpolateFace(bndry::Boundary, sbpface, dxidx_hat_in, jac_in, dxdxi_e
     dxdxi_node[2,1] = dxdxi_elface[3, j, 1]
     dxdxi_node[2,2] = dxdxi_elface[4, j, 1]
 
+
     # inv(A) = adj(A)/|A|
     det_dxdxi = dxdxi_node[1,1]*dxdxi_node[2,2] - dxdxi_node[1,2]*dxdxi_node[2,1]
     dxidx_node[1,1] = dxdxi_node[2,2]/det_dxdxi
     dxidx_node[1,2] = -dxdxi_node[1,2]/det_dxdxi
     dxidx_node[2,1] = -dxdxi_node[2,1] /det_dxdxi
-    dxidx_node[2,2] = dxdxi_node[2,2]/det_dxdxi
+    dxidx_node[2,2] = dxdxi_node[1,1]/det_dxdxi
 
     detJ = dxidx_node[1,1]*dxidx_node[2,2] - dxidx_node[1,2]*dxidx_node[2,1]
     dxidx_i[1,1,j] = dxidx_node[1,1]/detJ
@@ -2367,10 +2371,9 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh})
 #  facemap = [1 2 1; 2 3 3]
 
   #TODO: undo once SBP node ordering convention is decided
-  facemap = [2 3 3; 1 2  1]
+  facemap = [1 2 3; 2 3 1]
   for i=1:mesh.numBoundaryEdges
     bndry_i = mesh.bndryfaces[i]
-    println("\nbndry_i = ", bndry_i)
 
     el = bndry_i.element
     el_ptr = mesh.elements[el]
@@ -2380,23 +2383,18 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh})
     getFaceCoords(el_ptr, coords_i, sizex, sizey)
 
     coords_it[:, :] = coords_i[1:2, :].'
-    println("coords_it = ", coords_it)
 
     # extract the needed vertex coords
-    v1 = facemap[1, face]
-    v2 = facemap[2, face]
-
-    println("v1 = ", v1)
-    println("v2 = ", v2)
+#    v1 = facemap[1, face]
+#    v2 = facemap[2, face]
+    v1 = face
+    v2 = mod(face,3) + 1
     coords_edge[1, 1] = coords_it[v1, 1]
     coords_edge[1, 2] = coords_it[v1, 2]
     coords_edge[2, 1] = coords_it[v2, 1]
     coords_edge[2, 2] = coords_it[v2 ,2]
 
-    println("coords_edge = ", coords_edge)
     coords_bndry[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbpface.cub, coords_edge)
-
-    println("coords_bndry = ", coords_bndry[:, :, i])
 
   end
 
