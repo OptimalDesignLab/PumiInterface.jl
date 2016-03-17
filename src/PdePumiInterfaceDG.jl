@@ -761,7 +761,6 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
     jac_in = view(mesh.jac, :, el)
 
     interpolateFace(bndry, mesh.sbpface, dxidx_in, jac_in, dxdxi_el, dxdxi_elface, dxdxi_node, dxidx_node, dxidx_i, jac_i)
-    print("\n")
   end
 
   return dxidx_face, jac_face, dxidx_bndry, jac_bndry
@@ -796,7 +795,6 @@ function interpolateFace(bndry::Boundary, sbpface, dxidx_hat_in, jac_in, dxdxi_e
 #    bndry_arr[1] = Boundary(1, face)
   boundaryinterpolate!(sbpface, bndry_arr, dxdxi_el, dxdxi_elface)
 
-  println("dxdxi_elface = ", dxdxi_elface)
 
   # now store dxidx, |J| at the boundary nodes
   for j=1:sbpface.numnodes
@@ -3253,7 +3251,7 @@ function getTriangulationDG(order::Int)
 if order == 1
   triangulation = Int32[1 1 4 2 4 5 4 ; 4 4 5 5 3 3 5; 3 2 2 3 6 6 6]
 elseif order == 2
-  triangulation = Int32[1 8 4 11 9 2 5 6 1 8 6 1; 4 4 9 9 2 2 3 3 7 6 5 5 8; 8 5 5 4 9 5 5 7 3 3 6 7 6]
+  triangulation = Int32[1 8 4 1 1 9 2 5 6 1 8 6 1; 4 4 9 9 2 2 3 3 7 6 5 5 8; 8 5 5 4 9 5 5 7 3 3 6 7 6]
 elseif order == 3
   triangulation = Int32[1 1 1 1 2 6 10 10 5 5 1 2 2 2 3 3 3 9 9 13; 10 11 6 2 12 12 11 12 10 13 5 7 4 3 8 9 1 7 7 13 12; 5 10 11 6 6 11 12 13 13 9 9 12 7 4 4 8 9 4 8 7 7]
 elseif order == 4
@@ -3275,9 +3273,9 @@ function getNodeMaps(mesh::PumiMeshDG2)
   if mesh.order == 1
     sbpToPumi = UInt8[3,1,2]
     pumiToSbp = UInt8[2,3,1]
-  elseif order == 2 || order == 3 || order == 4
-    sbpToPumi = UInt8[1:mesh.numNodesPerElement]
-    pumiToSBP = UInt8[1:mesh.numNodesPerElement]
+  elseif mesh.order == 2 || mesh.order == 3 || mesh.order == 4
+    sbpToPumi = collect(UInt8, 1:mesh.numNodesPerElement)
+    pumiToSbp = collect(UInt8, 1:mesh.numNodesPerElement)
 #=
   elseif mesh.order == 2
     sbpToPumi = UInt8[1,2,3,4,5,6,7]
