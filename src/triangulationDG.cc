@@ -978,12 +978,6 @@ void transferEdges(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const
   int subelement_edges[3];
   getEdgeLookupTables(triangulation, numtriangles, subelements, subelement_edges);
 
-  for (int i = 0; i < 3; ++i)
-  {
-    std::cout << "subelement " << i << " = " << subelements[i] << std::endl;
-    std::cout << "subelement edge = " << subelement_edges[i] << std::endl;
-  }
-
   apf::FieldShape* nshape = apf::getShape(n_old);
   const int nnodes_per_edge = nshape->countNodesOn(m->simplexTypes[2]);
   const int ncomp = apf::countComponents(n_old);
@@ -1020,11 +1014,8 @@ void transferEdges(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const
       edge_old = down2[i]; // get old mesh edge
 
       // get new mesh edge
-      std::cout << "subelement number = " << subelements[i] << std::endl;
       el_new = subtriangles[subelements[i]];
-      std::cout << "el_new = " << el_new << std::endl;
 
-      std::cout << "subelement edge = " << subelement_edges[i] << std::endl;
       m_new->getDownward(el_new, 1, down);
       edge_new = down[subelement_edges[i]];
 
@@ -1179,24 +1170,16 @@ void getEdgeLookupTables(const int triangulation[][3], const int numtriangles, i
 
   for (int edge_old = 0; edge_old < 3; ++edge_old)
   {
-    std::cout << "edge_old = " << edge_old << std::endl;
     vert1 = edge_old;
     vert2 = (edge_old + 1) % 3;
 
     // check all triangles for this edge
     for (int subel = 0; subel < numtriangles; ++ subel)
     {
-      std::cout << "checking subelement " << subel << std::endl;
-      std::cout << "composed of vertices " << triangulation[subel][0];
-      std::cout << ", " << triangulation[subel][1];
-      std::cout << ", " << triangulation[subel][2] << std::endl;
       // +1 because triangulation is 1-based
       ret_val = getEdgePos( triangulation[subel], vert1 +1, vert2 +1);
-      std::cout << "ret_val = " << ret_val << std::endl;
       if (ret_val >= 0)  // found edge
       {
-        std::cout << "match found" << std::endl;
-        std::cout << std::endl;
         subelements[edge_old] = subel;
         subelement_edges[edge_old] = ret_val;
         continue;
