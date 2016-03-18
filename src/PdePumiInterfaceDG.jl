@@ -333,27 +333,27 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 	    start_coords[1], start_coords[2])
 =#
 # elseif opts["reordering_algorithm"] == "default"
-    println("about to number nodes")
+#    println("about to number nodes")
     numberNodes(mesh)
 
 #  else
 #    println(STDERR, "Error: invalid dof reordering algorithm requested")
 #  end
 
-  println("finished numbering nodes")
+#  println("finished numbering nodes")
 
-  println("about to number dofs")
+#  println("about to number dofs")
   # do dof numbering
   populateDofNumbers(mesh)
-  println("finished numbering dofs")
+#  println("finished numbering dofs")
  
 
   # get entity pointers
-  println("about to get entity pointers")
+#  println("about to get entity pointers")
   mesh.verts, mesh.edges, mesh.elements = getEntityPointers(mesh)
-  println("finished getting entity pointers")
+#  println("finished getting entity pointers")
 
-  println("about to get boundary edge list")
+#  println("about to get boundary edge list")
   mesh.numBC = opts["numBC"]
 
   # create array of all model edges that have a boundary condition
@@ -363,15 +363,15 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
     bndry_edges_all = [ bndry_edges_all; opts[key_i]]  # ugly but easy
   end
 
-  println("finished getting boundary edge list")
+#  println("finished getting boundary edge list")
 
-  println("about to count boundary edges")
+#  println("about to count boundary edges")
  mesh.numBoundaryEdges, num_ext_edges =  countBoundaryEdges(mesh, bndry_edges_all)
-  println("finished counting boundary edges")
+#  println("finished counting boundary edges")
 
   # populate mesh.bndry_faces from options dictionary
 #  mesh.bndry_faces = Array(Array{Int, 1}, mesh.numBC)
-  println("about to get boudnary offets")
+#  println("about to get boudnary offets")
   mesh.bndry_offsets = Array(Int, mesh.numBC + 1)
   mesh.bndry_funcs = Array(BCType, mesh.numBC)
   boundary_nums = Array(Int, mesh.numBoundaryEdges, 2)
@@ -388,20 +388,20 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 
 
   mesh.bndry_offsets[mesh.numBC + 1] = offset # = num boundary edges
-  println("finished getting boundary offsets")
+#  println("finished getting boundary offsets")
 
   # get array of all boundary mesh edges in the same order as in mesh.bndry_faces
 #  boundary_nums = flattenArray(mesh.bndry_faces[i])
 #  boundary_edge_faces = getEdgeFaces(mesh, mesh.bndry_faces)
   # use partially constructed mesh object to populate arrays
 
-  println("about to get entity orientations")
+#  println("about to get entity orientations")
   mesh.elementNodeOffsets, mesh.typeNodeFlags = getEntityOrientations(mesh)
-  println("finished getting entity orientations")
+#  println("finished getting entity orientations")
 
-  println("about to get degree of freedom numbers")
+#  println("about to get degree of freedom numbers")
   getDofNumbers(mesh)  # store dof numbers
-  println("finished getting degree of freedom numbers")
+#  println("finished getting degree of freedom numbers")
 
 
 
@@ -449,12 +449,12 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   end
 
   # get boundary information for entire mesh
-  println("getting boundary info")
+#  println("getting boundary info")
   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
   getBoundaryArray(mesh, boundary_nums)
 
   # need to count the number of internal interfaces - do this during boundary edge counting
-  println("getting interface info")
+#  println("getting interface info")
   mesh.numInterfaces = mesh.numEdge - num_ext_edges
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
@@ -721,7 +721,7 @@ end
 # interpolates dxidx, jac to the face nodes
 # only do this for elementL of each interface
 function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
-  println("----- Entered interpolateMapping -----")
+#  println("----- Entered interpolateMapping -----")
   sbpface = mesh.sbpface
 
   dxidx_face = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numInterfaces)
@@ -2362,7 +2362,7 @@ end
 
 
 function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh})
-  println("----- Entered getBndryCoordinates -----")
+#  println("----- Entered getBndryCoordinates -----")
   sbpface = mesh.sbpface
   coords_bndry = zeros(Tmsh, 2, sbpface.numnodes, mesh.numBoundaryEdges)
 
