@@ -245,15 +245,18 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   # figure out coordinate FieldShape, node FieldShape
   coord_shape_type = 0 # integer to indicate the FieldShape of the coordinates
   field_shape_type = 0 # integer to indicate the FieldShape of the nodes
+  mesh_order = order  # order of the coordinate field
   if shape_type == 2
     coord_shape_type = 0  # lagrange
     field_shape_type = shape_type
+    mesh_order = 1
   else  # same coordinate, field shape
     coord_shape_type = shape_type
     field_shape_type = shape_type
+    mehs_order = order
   end
 
-  num_Entities, mesh.m_ptr, mesh.coordshape_ptr = init2(dmg_name, smb_name, order, shape_type=coord_shape_type)
+  num_Entities, mesh.m_ptr, mesh.coordshape_ptr = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
 
   # create the solution field
   mesh.mshape_ptr = getSBPShapes(field_shape_type, order)
@@ -3253,7 +3256,8 @@ if order == 1
 elseif order == 2
   triangulation = Int32[1 8 4 1 1 9 2 5 6 1 8 6 1; 4 4 9 9 2 2 3 3 7 6 5 5 8; 8 5 5 4 9 5 5 7 3 3 6 7 6]
 elseif order == 3
-  triangulation = Int32[1 1 1 1 2 6 10 10 5 5 1 2 2 2 3 3 3 9 9 13; 10 11 6 2 12 12 11 12 10 13 5 7 4 3 8 9 1 7 7 13 12; 5 10 11 6 6 11 12 13 13 9 9 12 7 4 4 8 9 4 8 7 7]
+  triangulation = Int32[7 1 8 8 8 7 13 7 5 12 8 5 13 13 12 11 12 10 3 11 6;12 5 1 3 4 3 8 4 10 6 13 1 12 9 13 13 11 1 12 1 11;3 9 9 1 3 4 9 8 9 2 7 10 7 10 11 10 6 11 2 2 2]
+#  triangulation = Int32[1 1 1 1 2 6 10 10 5 5 1 2 2 2 3 3 3 9 9 13; 10 11 6 2 12 12 11 12 10 13 5 7 4 3 8 9 1 7 7 13 12; 5 10 11 6 6 11 12 13 13 9 9 12 7 4 4 8 9 4 8 7 7]
 elseif order == 4
   triangulation = Int32[1 1 1 1 1 2 2 2 2 2 3 3 3 3 1 5 15 15 7 18 7 7 12 11 11 10 13 9 9 16 16; 15 7 18 6 2 17 8 7 4 3 13 9 16 5 5 15 11 7 12 6 18 17 17 12 8 8 14 14 10 11 10; 5 15 7 18 6 6 17 8 14 4 4 13 9 16 3 16 16 11 11 17 17 12 8 8 10 7 4 13 14 10 9]
 else

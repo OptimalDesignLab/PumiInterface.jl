@@ -248,7 +248,6 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
     meshloaded = true;  // record the fact that a mesh is now loaded
     apf::reorderMdsMesh(m);
 
-
   apf::FieldShape* fshape; // variable to hold field shape
   bool change_shape = false;
   if ( shape_type == 0)  // use lagrange
@@ -274,14 +273,16 @@ int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2*
   // this is a result of the mesh shape having been changed previously
   apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
   std::cout << "coords_tag = " << coords_tag << std::endl;
+  
   if (coords_tag != 0 && change_shape)  // if the tag exists
   {
     apf::changeMeshShape(m, apf::getLagrange(1), false);
+    std::cout << "finished first mesh shape change" << std::endl;
   }
-
-
+  
   if (change_shape)
   {
+    std::cout << "about to perform final mesh shape change" << std::endl;
     if ( order == 1 )
     {
       apf::changeMeshShape(m, fshape, true);
