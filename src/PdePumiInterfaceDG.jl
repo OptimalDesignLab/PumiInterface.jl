@@ -3252,7 +3252,7 @@ function getTriangulationDG(order::Int)
 # triangulation must be a 3 x n array of Int32s, so when it gets transposed
 # by passing it to C, it becomes a n x 3 array of ints
 if order == 1
-  triangulation = Int32[1 1 4 2 4 5 4 ; 4 4 5 5 3 3 5; 3 2 2 3 6 6 6]
+  triangulation = Int32[1 2 2 6 1 5 5; 2 6 3 3 5 4 6; 5 5 6 4 3 3 4]
 elseif order == 2
   triangulation = Int32[1 8 4 1 1 9 2 5 6 1 8 6 1; 4 4 9 9 2 2 3 3 7 6 5 5 8; 8 5 5 4 9 5 5 7 3 3 6 7 6]
 elseif order == 3
@@ -3274,10 +3274,10 @@ function getNodeMaps(mesh::PumiMeshDG2)
 # store mappings in both directions in case they are needed
 # use UInt8s to save cache space during loops
 
-  if mesh.order == 1
-    sbpToPumi = UInt8[3,1,2]
-    pumiToSbp = UInt8[2,3,1]
-  elseif mesh.order == 2 || mesh.order == 3 || mesh.order == 4
+  if mesh.order <= 4
+#    sbpToPumi = UInt8[3,1,2]
+#    pumiToSbp = UInt8[2,3,1]
+#  elseif mesh.order == 2 || mesh.order == 3 || mesh.order == 4
     sbpToPumi = collect(UInt8, 1:mesh.numNodesPerElement)
     pumiToSbp = collect(UInt8, 1:mesh.numNodesPerElement)
 #=

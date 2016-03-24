@@ -188,9 +188,9 @@ class DG1SBPLinear : public FieldShape
       switch (node)
       {
         case 0:
-          { xi = Vector3(1/6,1/6,0); break; }
-        case 1:
           { xi = Vector3(2/3,1/6,0); break; }
+        case 1:
+          { xi = Vector3(1/6,1/6,0); break; }
         case 2:
           { xi = Vector3(1/6, 2/3,0); break; }
         default: 
