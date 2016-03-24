@@ -151,6 +151,7 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
                                 # in reference coordinates
   dim::Int  # dimension of mesh (2D or 3D)
   isDG::Bool  # is this a DG mesh (always false)
+  isInterpolated::Bool # is the field interpolated to the faces
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
   numColors::Int  # number of colors
   numBC::Int  # number of boundary conditions
@@ -223,6 +224,7 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   println("  dmg_name = ", dmg_name)
   mesh = new()
   mesh.isDG = false
+  mesh.isInterpolated = false
   mesh.dim = 2
   mesh.numDofPerNode = dofpernode
   mesh.order = order
