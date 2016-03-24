@@ -6,6 +6,7 @@ using SummationByParts
 using ODLCommonTools
 using ArrayViews
 include("nodecalc.jl")
+include("elements.jl")
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
 export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles
@@ -271,7 +272,7 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   mesh.numDof = numnodes*dofpernode
 
   # get nodemaps
-  mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(mesh)
+  mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(order, shape_type, mesh.numNodesPerElement)
 
  
   # get pointers to mesh entity numberings
@@ -434,20 +435,7 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   # create subtriangulated mesh
-  if order >= 3
-
-    mesh.triangulation = getTriangulation(order)
-    flush(STDOUT)
-    flush(STDERR)
-    mesh.mnew_ptr = createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
-
-    println("creating solution field on new mesh")
-    mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
-  else
-    mesh.triangulation = zeros(Int32, 0, 0)
-    mesh.mnew_ptr = C_NULL
-    mesh.fnew_ptr = C_NULL
-  end
+  createSubtriangulatedMesh(mesh)
 
   println("finished creating sub mesh\n")
 
@@ -2831,10 +2819,7 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
     end  # end loop over entity types
   end  # end loop over elements
 
-  if mesh.order >= 3
-    println("transfering field to sub mesh")
-    transferField(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.fnew_ptr)
-  end
+  transferFieldToSubmesh(mesh)
 
   return nothing
 end  # end function saveSolutionToMesh
@@ -3024,53 +3009,6 @@ writedlm(fname, vals)
 return nothing
 end
 
-
-function getTriangulation(order::Int)
-# get the sub-triangulation for an element of the specified order
-# Pumi node ordering
-if order == 2
-  triangulation = Int32[1 1 4 2 5 6; 4 7 2 5 3 7; 7 6 7 7 7 3]
-elseif order == 3
-  triangulation = Int32[1 1 4 5 5 2 6 7 10 12 12 10 9; 4 10 5 11 2 6 7 12 11 7 3 12 10; 10 9 10 10 11 11 11 11 12 3 8 8 8]
-elseif order == 4
-  triangulation = Int32[1 1 4 5 5 6 6 2 7 7 15 14 14 8 8 9 17 11 18 13 13 18; 4 13 5 14 6 15 2 7 8 16 16 16 18 17 9 3 3 17 17 18 11 16; 13 12 13 13 14 14 15 15 16 15 14 18 13 16 17 17 10 10 11 11 12 17]
-else
-  println(STDERR, "Warning, unsupported triangulation requested")
-  return zeros(Int32, 0, 0)
-end
- 
-end
-
-
-function getNodeMaps(mesh::PumiMesh2)
-# get the mappings between the SBP and Pumi node orderings
-# having to do the mapping at all is inelegent to say the least
-# store mappings in both directions in case they are needed
-# use UInt8s to save cache space during loops
-
-
-  if mesh.order == 1
-    sbpToPumi = UInt8[1,2,3]
-    pumiToSbp = UInt8[1,2,3]
-  elseif mesh.order == 2
-    sbpToPumi = UInt8[1,2,3,4,5,6,7]
-    pumiToSbp = UInt8[1,2,3,4,5,6,7]
-  elseif mesh.order == 3
-    sbpToPumi = UInt8[1,2,3,4,5,6,7,9,8,12,10,11]
-    pumiToSbp= UInt8[1,2,3,4,5,6,7,9,8,11,12,10]
-  elseif mesh.order == 4 
-    sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,17,13,15,14,16,18]
-    pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,14,16,15,17,13,18]
-  else
-    println(STDERR, "Warning: Unsupported element order requestion in getNodeMaps")
-
-    # default to 1:1 mapping
-    sbpToPumi = UInt8[1:mesh.numNodesPerElement]
-    pumiToSbp = UInt8[1:mesh.numNodesPerElement]
-  end
-
-  return sbpToPumi, pumiToSbp
-end  # end getNodeMaps
 
 
 
