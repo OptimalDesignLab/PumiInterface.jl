@@ -15,7 +15,7 @@ PKGCONFIG=`pkg-config --cflags --libs libmds libma`
 
 #mpicxx $CXXFLAGS -c -Wall -fPIC  -I/usr/local/pumi/core-sim/include -L$HOME/lib funcs1.cc -lmds -lapf -lpcu -lbz2 -lgmi
 
-mpicxx ./funcs1.cc ./a2.cc adaptFuncsJ.cc apfSBPShape.cc apfSBPShape3.cc triangulation.cc $CXXFLAGS -c -Wall -fPIC $PKGCONFIG -I`pwd` 
+mpicxx ./funcs1.cc ./a2.cc adaptFuncsJ.cc apfSBPShape.cc apfSBPShape3.cc dgSBPShape1.cc triangulationDG.cc triangulation.cc $CXXFLAGS -c -Wall -fPIC $PKGCONFIG -I`pwd` 
 
 
 set +x
@@ -26,5 +26,5 @@ set +x
 # because of the geniuses who maintain Ubuntu, the -Wl,--no-as-needed is required
 # for newer versions of ubuntu to actually link to the Pumi libraries, even
 # when the linker doesn't think they are required
-mpicxx $CXXFLAGS --share -fPIC -Wl,--no-as-needed `pkg-config --libs-only-L --libs libmds` -lmds -lma -o libfuncs1.so funcs1.o a2.o adaptFuncsJ.o apfSBPShape.o apfSBPShape3.o triangulation.o
+mpicxx $CXXFLAGS --share -fPIC -Wl,--no-as-needed `pkg-config --libs-only-L --libs libmds` -lmds -lma -o libfuncs1.so funcs1.o a2.o adaptFuncsJ.o apfSBPShape.o apfSBPShape3.o dgSBPShape1.o triangulationDG.o triangulation.o
 
