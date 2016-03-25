@@ -86,6 +86,7 @@ export PumiMeshDG2, PumiMeshDG
     numNodesPerElements: number of nodes on an element
     numNodesPerType: array of length 3 that tells how many nodes are on a mesh
                      vertex, edge, and element
+    numNodesPerFace: number of nodes on each face of the element (edges in 2D)
     numEntitiesPertype: [numVert, numEdges, numEl]
     numTypesPerElement: array of length 3 telling how many vertices, edges
                          and faces in each element 
@@ -132,6 +133,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   numInterfaces::Int # number of internal interfaces
   numNodesPerElement::Int  # number of nodes per element
   numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
+  numNodesPerFace::Int  # number of face nodes
   numEntitiesPerType::Array{Int, 1} # [numVert, numEdge, numEl]
   numTypePerElement::Array{Int, 1}  # number of verts, edges, faces per element
   typeOffsetsPerElement::Array{Int, 1} # the starting index of the vert, edge, and face nodes in an element 
@@ -242,6 +244,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.coloringDistance = coloring_distance
   mesh.interp_op = interp_op
   mesh.ref_verts = [0.0 1 0; 0 0 1]
+  mesh.numNodesPerFace = sbpface.numnodes
 
   if sbp.numfacenodes == 0
     mesh.sbpface = sbpface

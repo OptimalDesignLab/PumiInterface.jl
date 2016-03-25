@@ -98,6 +98,7 @@ include("PdePumiInterfaceDG.jl")
     numNodesPerElements: number of nodes on an element
     numNodesPerType: array of length 3 that tells how many nodes are on a mesh
                      vertex, edge, and element
+    numNodesPerFace: number of nodes on each face of the element (edges in 2D)
     numEntitiesPertype: [numVert, numEdges, numEl]
     numTypesPerElement: array of length 3 telling how many vertices, edges
                          and faces in each element 
@@ -139,6 +140,7 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   numInterfaces::Int # number of internal interfaces
   numNodesPerElement::Int  # number of nodes per element
   numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
+  numNodesPerFace::Int  # number of nodes per face
   numEntitiesPerType::Array{Int, 1} # [numVert, numEdge, numEl]
   numTypePerElement::Array{Int, 1}  # number of verts, edges, faces per element
   typeOffsetsPerElement::Array{Int, 1} # the starting index of the vert, edge, and face nodes in an element 
@@ -252,6 +254,7 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   # count numbers of different things per other thing
   # use for bookkeeping
   mesh.numNodesPerType = num_nodes_entity
+  mesh.numNodesPerFace = 2*num_nodes_v + num_nodes_e
   mesh.typeOffsetsPerElement = zeros(Int, 4)
   pos = 1
   mesh.typeOffsetsPerElement[1] = pos
