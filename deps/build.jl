@@ -27,6 +27,7 @@ if install_mpi
   run(`$cmd_string $arg_str`)
 end
 
+pumi_version = "4c09f7b"
 
 if install_pumi  # did not find pumi
   if isdir("./core")
@@ -36,6 +37,7 @@ if install_pumi  # did not find pumi
   run(`git clone https://github.com/SCOREC/core.git core`) 
   cd("./core")
   run(`git pull`)
+  run(`git checkout $pumi_version`)
   mkdir("./build")
   cd("./build")
   mkdir("./install")  # install directory
