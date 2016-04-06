@@ -184,6 +184,7 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 // init for 2d mesh
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
+// PCU appears to not want a Communicator object?
 int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type )
 {
   std::cout << "Entered init2\n" << std::endl;
@@ -191,9 +192,14 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3],
   // various startup options
 
   // initilize communications if needed
-  if (!PCU_Comm_Initialized())
+  int flag;
+  MPI_Initialized(&flag);
+  if (!flag)
   {
     MPI_Init(0,NULL);  // initilize MPI 
+  }
+  if (!PCU_Comm_Initialized())
+  {
     PCU_Comm_Init();   // initilize PUMI's communication
   }
  
@@ -1431,6 +1437,12 @@ void getPeers(apf::Mesh*m, int part_nums[])
   }
 
 } // end function
+
+
+int isShared(apf::Mesh* m, apf::MeshEntity* e)
+{
+  return m->isShared(e)
+}
 
 apf::Copies copies;
 std::size_t countRemotes(apf::Mesh* m, apf::MeshEntity* e)

@@ -189,6 +189,8 @@ apf::FieldShape* getSBPShapes(int type, int order);
 std::size_t countPeers(apf::Mesh* m, int dim);
 void getPeers(apf::Mesh*m, int part_nums[]);
 
+int isShared(apf::Mesh* m, apf::MeshEntity* e);
+
 std::size_t countRemotes(apf::Mesh* m, apf::MeshEntity* e);
 void getRemotes(int part_nums[], apf::MeshEntity* entities);
 }

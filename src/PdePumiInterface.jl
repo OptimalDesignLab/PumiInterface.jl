@@ -5,6 +5,8 @@ using PumiInterface
 using SummationByParts
 using ODLCommonTools
 using ArrayViews
+using MPI
+
 include("nodecalc.jl")
 include("elements.jl")
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))

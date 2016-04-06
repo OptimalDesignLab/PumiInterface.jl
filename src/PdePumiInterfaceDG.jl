@@ -118,6 +118,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   min_node_dist::Float64  # minimum distance between nodes
   min_el_size::Float64 # size of the smallest element (units of length)
 
+  comm::MPI.Comm  # MPI Communicator
   vert_Nptr::Ptr{Void}  # numbering of vertices (zero based)
   edge_Nptr::Ptr{Void}  # numbering of edges (zero based)
   el_Nptr::Ptr{Void}  # numbering of elements (faces)  (zero based)
@@ -141,6 +142,14 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   typeOffsetsPerElement_::Array{Int32, 1}  # Int32 version of above
   nodemapSbpToPumi::Array{UInt8, 1}  # maps nodes of SBP to Pumi order
   nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
+
+  # parallel info
+  myrank::Int  # MPI rank, zero based
+  commsize::Int # MPI comm size
+  peer_parts::Array{Int, 1}  # array of part numbers that share entities with
+                             # the current part
+  peer_face_counts::Array{Int, 1}  # number of edges on each part
+
 
   ref_verts::Array{Float64, 2}  # 2 x 3 array giving the coordinates
                                 # of the vertices of the reference
@@ -222,7 +231,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   sbpface::TriFace{Float64}  # SBP object needed to do interpolation
 
 
- function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, interp_op, sbpface; dofpernode=1, shape_type=2, coloring_distance=2)
+ function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, interp_op, sbpface; dofpernode=1, shape_type=2, coloring_distance=2; comm=MPI.COMM_WORLD)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -246,6 +255,14 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.interp_op = interp_op
   mesh.ref_verts = [0.0 1 0; 0 0 1]
   mesh.numNodesPerFace = sbpface.numnodes
+  mesh.comm = comm
+
+  if !MPI.Initialized()
+    MPI.Init()
+  end
+
+  mesh.myrank = MPI.Comm_rank(mesh.comm)
+  mesh.commsize = MPI.Comm_size(mesh.comm)
 
   if sbp.numfacenodes == 0
     mesh.sbpface = sbpface
@@ -315,6 +332,12 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.edge_Nptr = getEdgeNumbering()
   mesh.el_Nptr = getFaceNumbering()
   mesh.entity_Nptrs = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
+
+  # start parallel initializiation
+
+
+
+
 
   # create the coloring_Nptr
   el_mshape = getConstantShapePtr(2)
@@ -718,6 +741,50 @@ function flattenArray{T}(A::AbstractArray{AbstractArray{T}, 1})
   return B
 
 end
+
+function getElIndex(a::Array, b)
+
+  for i = 1:length(a)
+    if a[i] == b
+      return i
+    end
+  end
+
+  return 0
+end
+
+function getParallelInfo(mesh::PumiMeshDG2)
+# get information on number of shared entities
+
+  npeers = countPeers(mesh.m_ptr, 1)  # get edge peers
+  peer_arr = Array(Cint, npeers)
+  getPeers(mesh.m_ptr, peer_arr)
+
+  # count the number of edges shared with each peer
+  partnums = Array(Cint, 1)
+  remotes = Array(Ptr{Void}, 1)
+  counts = Array(Int, npeers)  # hold the counts
+  for i=1:mesh.numEdges
+    edge = mesh.edges[i]
+    if isShared(edge)
+      nremotes = countRemotes(mesh.m_ptr, edge)
+      @assert nremotes == 1
+      getRemotes(partnums, remotes)
+
+      part_idx = getElIndex(peer_arr, partnums[1])
+      counts[part_idx] += 1
+    end
+  end
+
+  # get the edges
+
+  # either get the boundary ordering and send it or post receive
+
+end
+
+
+
+
 
 # interpolates dxidx, jac to the face nodes
 # only do this for elementL of each interface

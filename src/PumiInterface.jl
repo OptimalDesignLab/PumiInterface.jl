@@ -135,6 +135,7 @@ global const getSBPShapes_name = "getSBPShapes"
 
 global const countPeers_name = "countPeers"
 global const getPeers_name = "getPeers"
+global const isShared_name = "isShared"
 global const countRemotes_name = "countRemotes"
 global const getRemotes_name = "getRemotes"
 end
@@ -150,7 +151,7 @@ export countPeers, getPeers
 # iterator functors
 export VertIterator, EdgeIterator, FaceIterator
 export VertGetter, EdgeGetter, FaceGetter
-export countPeers, getPeers, countRemotes, getRemotes
+export countPeers, getPeers, countRemotes, getRemotes, isShared
 
 @doc """
   initilize the state of the interface library
@@ -1352,6 +1353,12 @@ function getPeers(m_ptr, part_nums::Array{Cint})
   ccall( getPeers_name, pumi_libname, Void, (Ptr{Void}, Ptr{Cint}), m_ptr, part_nums)
 
   return nothing
+end
+
+function isShared(m_ptr, e_ptr)
+
+  val = ccall(isShared_name, pumi_libname, Cint, (Ptr{Void}, Ptr{Void}), m_ptr, e_ptr)
+  return val != 0
 end
 
 function countRemotes(m_ptr, entity)
