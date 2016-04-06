@@ -123,6 +123,7 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   fnew_ptr::Ptr{Void}  # pointer to field on mnew_ptr
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
+  min_el_size::Float64 # the minimum size of an element
 
   vert_Nptr::Ptr{Void}  # numbering of vertices (zero based)
   edge_Nptr::Ptr{Void}  # numbering of edges (zero based)
@@ -432,6 +433,7 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
   mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
 
+  mesh.min_el_size = getMinElementSize(mesh)
   # get face normals
   mesh.bndry_normals = Array(T1, 2, sbp.numfacenodes, mesh.numBoundaryEdges)
   getBoundaryFaceNormals(mesh, sbp, mesh.bndryfaces, mesh.bndry_normals)
@@ -640,8 +642,9 @@ return bndry_faces
 end
 
 
-
-  
+function getMinElementSize(mesh::AbstractMesh)
+  return sqrt(1./maximum(mesh.jac))*mesh.min_node_dist
+end
 
 
 function flattenArray{T}(A::AbstractArray{AbstractArray{T}, 1})
@@ -2797,7 +2800,7 @@ function saveSolutionToMesh(mesh::PumiMesh2, u::AbstractVector)
 
   num_entities = [3, 3, 1] # number of vertices, edges, faces
 
-  q_vals = zeros(4)
+  q_vals = zeros(mesh.numDofPerNode)
 
   for el=1:mesh.numEl
     el_i = mesh.elements[el]

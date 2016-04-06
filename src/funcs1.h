@@ -3,6 +3,27 @@
 
 #include <stdint.h>
 // header file for funcs1
+#include <iostream>
+#include <apf.h>
+#include <gmi_mesh.h>
+#include <gmi_null.h>
+#include <apfMDS.h>
+#include <apfMesh2.h>
+#include <PCU.h>
+#include <apfNumbering.h>
+#include <apfShape.h>
+#include <ma.h>
+#include <crv.h>  // curved mesh stuff
+#include <stdlib.h>   // malloc, free, etc.
+#include <math.h>
+#include <string.h>
+
+#include "adaptFuncsJ.h"
+#include "apfSBPShape.h"
+#include "apfSBPShape3.h"
+#include "dgSBPShape1.h"
+#include "triangulation.h"
+#include "triangulationDG.h"
 
 
 /*
@@ -17,7 +38,7 @@ extern "C" {
 int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type );
 
 
-int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type );
+int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type );
 
 // these functions are not user accessible
 void cleanup(apf::Mesh* m_local);
@@ -164,6 +185,12 @@ void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components
 
 apf::FieldShape* getSBPShapes(int type, int order);
 
+
+std::size_t countPeers(apf::Mesh* m, int dim);
+void getPeers(apf::Mesh*m, int part_nums[]);
+
+std::size_t countRemotes(apf::Mesh* m, apf::MeshEntity* e);
+void getRemotes(int part_nums[], apf::MeshEntity* entities);
 }
 
 #endif

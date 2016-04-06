@@ -11,28 +11,7 @@
 // do not increment the iterators
 
 
-#include <iostream>
-#include <apf.h>
-#include <gmi_mesh.h>
-#include <gmi_null.h>
-#include <apfMDS.h>
-#include <apfMesh2.h>
-#include <PCU.h>
-#include <apfNumbering.h>
-#include <apfShape.h>
-#include <ma.h>
-#include <crv.h>  // curved mesh stuff
-#include <stdlib.h>   // malloc, free, etc.
-#include <math.h>
-#include <string.h>
-
 #include "funcs1.h"
-#include "adaptFuncsJ.h"
-#include "apfSBPShape.h"
-#include "apfSBPShape3.h"
-#include "dgSBPShape1.h"
-#include "triangulation.h"
-#include "triangulationDG.h"
 //#include "a2.h"
 
 //=============================================================================
@@ -205,7 +184,7 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 // init for 2d mesh
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
-int initABC2(char* dmg_name, char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type )
+int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type )
 {
   std::cout << "Entered init2\n" << std::endl;
 
@@ -1428,3 +1407,45 @@ apf::FieldShape* getSBPShapes(int type, int order)
   }
 }  // end function
 
+
+//-----------------------------------------------------------------------------
+// Parallelization function
+//-----------------------------------------------------------------------------
+
+apf::Parts parts;
+// count the number of peer parts
+std::size_t countPeers(apf::Mesh* m, int dim)
+{
+  apf::getPeers(m, dim, parts);
+  return parts.size();
+}
+
+void getPeers(apf::Mesh*m, int part_nums[])
+{
+  int i = 0;
+
+  for (apf::Parts::iterator it = parts.begin(); it != parts.end(); ++it)
+  {
+    part_nums[i] = *it;
+    ++i;
+  }
+
+} // end function
+
+apf::Copies copies;
+std::size_t countRemotes(apf::Mesh* m, apf::MeshEntity* e)
+{
+  m->getRemotes(e, copies);
+  return copies.size();
+}
+
+void getRemotes(int part_nums[], apf::MeshEntity* entities[])
+{
+  int i = 0;
+  for (apf::Copies::iterator it = copies.begin(); it != copies.end(); ++it)
+  {
+    part_nums[i] = it->first;
+    entities[i] = it->second;
+    ++i;
+  }
+}

@@ -132,6 +132,11 @@ global const createSubMeshDG_name = "createSubMeshDG"
 global const transferFieldDG_name = "transferFieldDG"
 
 global const getSBPShapes_name = "getSBPShapes"
+
+global const countPeers_name = "countPeers"
+global const getPeers_name = "getPeers"
+global const countRemotes_name = "countRemotes"
+global const getRemotes_name = "getRemotes"
 end
 
 
@@ -141,10 +146,11 @@ export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapeP
 export createSubMeshDG, transferFieldDG, getSBPShapes
 
 export toModel, getModelType, getModelTag
-
+export countPeers, getPeers
 # iterator functors
 export VertIterator, EdgeIterator, FaceIterator
 export VertGetter, EdgeGetter, FaceGetter
+export countPeers, getPeers, countRemotes, getRemotes
 
 @doc """
   initilize the state of the interface library
@@ -1332,6 +1338,35 @@ function getSBPShapes(shape_type::Integer, order::Integer)
 end
 
 
+function countPeers(m_ptr, dim)
+# get the number of other parts that have the entities of the specified
+# dimension in common with this part
+
+ npeers = ccall(countPeers_name, pumi_libname, Csize_t, (Ptr{Void}, Cint), m_ptr, dim)
+
+ return npeers
+end
+
+function getPeers(m_ptr, part_nums::Array{Cint})
+
+  ccall( getPeers_name, pumi_libname, Void, (Ptr{Void}, Ptr{Cint}), m_ptr, part_nums)
+
+  return nothing
+end
+
+function countRemotes(m_ptr, entity)
+
+  nremotes = ccall( countRemotes_name, pumi_libname, Csize_t, (Ptr{Void}, Ptr{Void}), m, entity)
+
+  return nremotes
+end
+
+function getRemotes(partnums::Array{Cint}, entities::Array{Ptr{Void}})
+  
+  ccall(getRemotes_name, pumi_libname, Void, (Ptr{Cint}, Ptr{Ptr{Void}}), partnums, entities)
+
+  return nothing
+end
 
 
 declareNames()  # will this execute when module is compiled?

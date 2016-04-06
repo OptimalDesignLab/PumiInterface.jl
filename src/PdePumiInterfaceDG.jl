@@ -116,6 +116,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   fnew_ptr::Ptr{Void}  # pointer to field on mnew_ptr
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
+  min_el_size::Float64 # size of the smallest element (units of length)
 
   vert_Nptr::Ptr{Void}  # numbering of vertices (zero based)
   edge_Nptr::Ptr{Void}  # numbering of edges (zero based)
@@ -476,6 +477,8 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.dxidx = Array(T1, 2, 2, sbp.numnodes, mesh.numEl)
   mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
   mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+
+  mesh.min_el_size = getMinElementSize(mesh)
 
   # get face normals
   mesh.bndry_normals = Array(T1, 2, sbp.numfacenodes, mesh.numBoundaryEdges)
@@ -3026,7 +3029,7 @@ function saveSolutionToMesh(mesh::PumiMeshDG2, u::AbstractVector)
 
   num_entities = [3, 3, 1] # number of vertices, edges, faces
 
-  q_vals = zeros(4)
+  q_vals = zeros(mesh.numDofPerNode)
 
   for el=1:mesh.numEl
     el_i = mesh.elements[el]

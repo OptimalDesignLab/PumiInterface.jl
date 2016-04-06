@@ -28,7 +28,7 @@ if install_mpi
 end
 
 pumi_version = "e4eabf5"
-
+pumi_version = "HEAD"
 if install_pumi  # did not find pumi
   if isdir("./core")
     println("deleting existing Core repo in /deps")
