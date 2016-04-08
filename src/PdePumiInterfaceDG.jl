@@ -123,7 +123,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   edge_Nptr::Ptr{Void}  # numbering of edges (zero based)
   el_Nptr::Ptr{Void}  # numbering of elements (faces)  (zero based)
   coloring_Nptr::Ptr{Void}  # coloring of mesh for sparse jacobian calculation
-  entity_Nptrs::Array{Ptr{Void}, 1}  # [vert_Nptr, edge_Nptr, el_Nptr]
+  entity_Nptrs::Array{Ptr{Void}, 1}  # [vert_Nptr, edge_Nptr, el_Nptr], 0-based
   numVert::Int  # number of vertices in the mesh
   numEdge::Int # number of edges in the mesh
   numEl::Int  # number of elements (faces)
@@ -757,8 +757,8 @@ function getParallelInfo(mesh::PumiMeshDG2)
 # get information on number of shared entities
 
   npeers = countPeers(mesh.m_ptr, 1)  # get edge peers
-  peer_arr = Array(Cint, npeers)
-  getPeers(mesh.m_ptr, peer_arr)
+  peer_nums = Array(Cint, npeers)
+  getPeers(mesh.m_ptr, peer_nums)
 
   # count the number of edges shared with each peer
   partnums = Array(Cint, 1)
@@ -771,18 +771,81 @@ function getParallelInfo(mesh::PumiMeshDG2)
       @assert nremotes == 1
       getRemotes(partnums, remotes)
 
-      part_idx = getElIndex(peer_arr, partnums[1])
+      part_idx = getElIndex(peer_nums, partnums[1])
       counts[part_idx] += 1
     end
   end
 
   # get the edges
+  edges_local = Array(Array{Ptr{Void}, 1}, npeers)
+  bndries_local = Array(Array{Boundary}, npeers)
+  bndries_local = Array(Array{Boundary}, npeers)
+  shared_interfaces = Array(Array{Interface}, npeers)
+  for i=1:npeers
+    edges_local[i] = Array(Ptr{Void}, counts[i])
+    local_bndries = Array(Boundary, counts[i])
+    remote_bndries = Array(Boundary, counts[i])
+    shared_interfaces = Array(Interface, count[i])
+  end
+
+  # get all the (local pointer to) edges in a single pass, 
+  # even though they might not be needed
+  curr_pos = ones(Int, npeers)  # hold the current position in each edge array
+  for i=1:mesh.numEdges
+    edge_i = mesh.edges[i]
+    if isShared(edge)
+      countRemotes(mesh.m_ptr, edge_i)
+      getRemotes(partnums, remotes)
+      peer_i = partnums[1]
+
+      idx = getElIndex(peer_nums, peer_i)  # get the part boundary index
+      edges_local[idx][curr_pos[peer_i]] = edge_i
+      curr_pos[idx] += 1
+    end
+  end
+
+  # get boundary info for the edges
+  for i=1:npeers
+    if mesh.myrank > peer_nums[i]
+      getEdgeBoundaries(mesh, edges[i], bndries_local[i])
+      sort!(bndries_local[i])
+    end
+  end
+
+  # get the remote edge pointers
+  for i=1:npeers
+    if mesh.myrank > peer_nums[i]
+      for 
+
+
+  
+
 
   # either get the boundary ordering and send it or post receive
 
 end
 
 
+function getEdgeBoundaries(mesh::PumiMeshDG2, edges::Array{Ptr{Void}}, 
+                           bndries::Array{Bndry})
+# get the array of Boundaryies for an array of edges
+# edges is the array of the edge MeshEnities
+# bndries is the array to be populated with the Boundaryies
+
+for i=1:length(edges)
+  edge_i = edges[i]
+
+  numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
+
+  @assert( numFace == 1)
+
+  getAdjacent(faces)
+  facenum = getFaceNumber2(faces[1]) + 1
+  edgenum = getEdgeNumber2(edge_i) + 1  # unneeded?
+  edgenum_local = getEdgeLocalNum(mesh, edgenum, facenum)
+
+  bndries[i] = Boundary(facenum, edgenum_local)
+end
 
 
 
