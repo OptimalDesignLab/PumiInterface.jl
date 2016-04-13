@@ -118,7 +118,6 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   min_node_dist::Float64  # minimum distance between nodes
   min_el_size::Float64 # size of the smallest element (units of length)
 
-  comm::MPI.Comm  # MPI Communicator
   vert_Nptr::Ptr{Void}  # numbering of vertices (zero based)
   edge_Nptr::Ptr{Void}  # numbering of edges (zero based)
   el_Nptr::Ptr{Void}  # numbering of elements (faces)  (zero based)
@@ -143,13 +142,15 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   nodemapSbpToPumi::Array{UInt8, 1}  # maps nodes of SBP to Pumi order
   nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
 
-  # parallel info
+  # parallel bookkeeping info
+  comm::MPI.Comm  # MPI Communicator
   myrank::Int  # MPI rank, zero based
   commsize::Int # MPI comm size
   peer_parts::Array{Int, 1}  # array of part numbers that share entities with
                              # the current part
   peer_face_counts::Array{Int, 1}  # number of edges on each part
-
+  send_reqs::Array{MPI.Request, 1}  # Request objects for sends
+  recv_reqs::Array{MPI.Request, 1}  # Request objects for sends
 
   ref_verts::Array{Float64, 2}  # 2 x 3 array giving the coordinates
                                 # of the vertices of the reference
@@ -228,10 +229,33 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   interp_op::Array{Float64, 2}  # 3 x numNodesPerEl matrix that interpolates
                                 # solution values to the vertices
 
+  ###### parallel data #####
+
+  # array of arrays of Boundary objects, one array for each peer part
+  # the Boundary describes the local part of a shared interface
+  bndries_local::Array{Array{Boundary, 1}, 1} 
+  # array of arrays of Boundary objects from the *remote* process describing its
+  # part of a shared interface, on array for each peer part
+  # ie. the element number is the element number of the remote part.  Use with
+  # caution.
+  bndries_remote::Array{Array{Boundary, 1}, 1} # hold a Boundary object from
+
+  # array of arrays of Interface objects giving a complete description of the
+  # interfaces that span part boundaries.  elementL is always the local element
+  # and elementR is always the element that lives on the remote process.
+  # elementR has been given an element number > numEl
+  shared_interfaces::Array{Array{Interface, 1}, 1}
+
+  # array of length npeers + 1, holding the first element number for 
+  # each peer part, with the last element being 1 more than the highest element
+  # number for the last peer
+  shared_element_offsets::Array{Int, 1}
+
+                                 
   sbpface::TriFace{Float64}  # SBP object needed to do interpolation
 
 
- function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, interp_op, sbpface; dofpernode=1, shape_type=2, coloring_distance=2; comm=MPI.COMM_WORLD)
+ function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, interp_op, sbpface; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -263,6 +287,11 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 
   mesh.myrank = MPI.Comm_rank(mesh.comm)
   mesh.commsize = MPI.Comm_size(mesh.comm)
+
+  # for now, rk4 only in parallel
+  if mesh.commsize > 1
+    @assert opts["run_type"] == 1
+  end
 
   if sbp.numfacenodes == 0
     mesh.sbpface = sbpface
@@ -333,12 +362,6 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.el_Nptr = getFaceNumbering()
   mesh.entity_Nptrs = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
 
-  # start parallel initializiation
-
-
-
-
-
   # create the coloring_Nptr
   el_mshape = getConstantShapePtr(2)
   mesh.coloring_Nptr = createNumberingJ(mesh.m_ptr, "coloring", el_mshape, 1)
@@ -402,7 +425,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 #  println("finished getting boundary edge list")
 
 #  println("about to count boundary edges")
- mesh.numBoundaryEdges, num_ext_edges =  countBoundaryEdges(mesh, bndry_edges_all)
+ mesh.numBoundaryEdges, num_ext_edges, mesh.numInterfaces =  countBoundaryEdges(mesh, bndry_edges_all)
 #  println("finished counting boundary edges")
 
   # populate mesh.bndry_faces from options dictionary
@@ -438,6 +461,9 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 #  println("about to get degree of freedom numbers")
   getDofNumbers(mesh)  # store dof numbers
 #  println("finished getting degree of freedom numbers")
+
+  # start parallel initializiation
+  getParallelInfo(mesh)
 
 
 
@@ -491,7 +517,9 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 
   # need to count the number of internal interfaces - do this during boundary edge counting
 #  println("getting interface info")
-  mesh.numInterfaces = mesh.numEdge - num_ext_edges
+  println("num_ext_edges = ", num_ext_edges)
+  println("numEdges = ", mesh.numEdge)
+  println("numInterfaces = ", mesh.numInterfaces)
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
 
@@ -755,51 +783,72 @@ end
 
 function getParallelInfo(mesh::PumiMeshDG2)
 # get information on number of shared entities
+#TODO: update fields of mesh
 
+  myrank = mesh.myrank
+  f = open("fout$myrank.txt", "a+")
   npeers = countPeers(mesh.m_ptr, 1)  # get edge peers
-  peer_nums = Array(Cint, npeers)
+  peer_nums = zeros(Cint, npeers)
   getPeers(mesh.m_ptr, peer_nums)
-
+  println(f, "peer_nums = ", peer_nums)
+  mesh.peer_parts = peer_nums
+  mesh.send_reqs = Array(MPI.Request, npeers)  # array of Requests for sends
+  mesh.recv_reqs = Array(MPI.Request, npeers)  # array of Requests for receives
   # count the number of edges shared with each peer
-  partnums = Array(Cint, 1)
+  partnums = zeros(Cint, 1)
   remotes = Array(Ptr{Void}, 1)
-  counts = Array(Int, npeers)  # hold the counts
-  for i=1:mesh.numEdges
+  counts = zeros(Int, npeers)  # hold the counts of the number of edges shared
+                               # with each peer
+  println(f, "counting number of edges shared with each peer")
+  for i=1:mesh.numEdge
+    println(f, "checking edge ", i)
     edge = mesh.edges[i]
-    if isShared(edge)
+    if isShared(mesh.m_ptr, edge)
+      println(f, "  this edge is shared")
       nremotes = countRemotes(mesh.m_ptr, edge)
       @assert nremotes == 1
       getRemotes(partnums, remotes)
+      println(f, "  partnums[1] = ", partnums[1]); flush(f)
 
       part_idx = getElIndex(peer_nums, partnums[1])
       counts[part_idx] += 1
     end
   end
+  mesh.peer_face_counts = counts
 
+  println(f, "counts = \n", counts); flush(f)
   # get the edges
   edges_local = Array(Array{Ptr{Void}, 1}, npeers)
-  bndries_local = Array(Array{Boundary}, npeers)
-  bndries_local = Array(Array{Boundary}, npeers)
-  shared_interfaces = Array(Array{Interface}, npeers)
+  edges_remote = Array(Array{Ptr{Void}, 1}, npeers)  # is this still used?
+  mesh.bndries_local = bndries_local = Array(Array{Boundary,1}, npeers)
+  mesh.bndries_remote = bndries_remote = Array(Array{Boundary,1}, npeers)
+  mesh.shared_interfaces = shared_interfaces = Array(Array{Interface,1}, npeers)
   for i=1:npeers
     edges_local[i] = Array(Ptr{Void}, counts[i])
-    local_bndries = Array(Boundary, counts[i])
-    remote_bndries = Array(Boundary, counts[i])
-    shared_interfaces = Array(Interface, count[i])
+    edges_remote[i] = Array(Ptr{Void}, counts[i])
+    bndries_local[i] = Array(Boundary, counts[i])
+    bndries_remote[i] = Array(Boundary, counts[i])
   end
 
-  # get all the (local pointer to) edges in a single pass, 
+  # get all the (local pointers to) edges in a single pass, 
   # even though they might not be needed
+  println(f, "\ngetting local edge pointers")
   curr_pos = ones(Int, npeers)  # hold the current position in each edge array
-  for i=1:mesh.numEdges
+  for i=1:mesh.numEdge
+    println(f, "checking edge ", i)
     edge_i = mesh.edges[i]
-    if isShared(edge)
-      countRemotes(mesh.m_ptr, edge_i)
+    if isShared(mesh.m_ptr, edge_i)
+      println(f, "  this edge is shared"); flush(f)
+      nremotes = countRemotes(mesh.m_ptr, edge_i)
+      println(f, "  nremotes = ", nremotes); flush(f)
       getRemotes(partnums, remotes)
       peer_i = partnums[1]
+      println(f, "  peer_i = ", peer_i); flush(f)
 
       idx = getElIndex(peer_nums, peer_i)  # get the part boundary index
-      edges_local[idx][curr_pos[peer_i]] = edge_i
+      println(f, "  idx = ", idx); flush(f)
+      println(f, "  curr_pos[peer_i] = ", curr_pos[peer_i]); flush(f)
+      edges_local[idx][curr_pos[peer_i + 1]] = edge_i
       curr_pos[idx] += 1
     end
   end
@@ -812,39 +861,157 @@ function getParallelInfo(mesh::PumiMeshDG2)
     end
   end
 
-  # get the remote edge pointers
+  # get the remote edge pointers if I am the higher number process
+  # tell MPI that the pointers are really Ints
+  dtype = MPI.mpitype(Int)
+  MPI.mpitype_dict[Ptr{Void}] = dtype
+
+  down = Array(Ptr{Void}, 12)  # hold downward edges
+  nrecvs = 0
+  for i=1:npeers
+    edges_i = edges_remote[i]  # array to hold the remote edge pointers
+    if mesh.myrank > peer_nums[i]
+      bndries_i = bndries_local[i]
+      for j = 1:length(bndries_i)
+        bndry_j = bndries_local[j]
+        # get the edge
+        el_j = mesh.elements(bndry_j.element)
+        getDownward(mesh.m_ptr, el_j, apfEDGE, down)
+        edge_j = down[bndry_j.face]
+
+        # get the remote edge pointer
+        nremotes = countRemotes(mesh.m_ptr, edge_j)
+        @assert nremotes == 1
+        getRemotes(partnums, remotes)
+        edges_i[j] = remotes[1]
+      end
+
+      # now send the edges to the lower rank process
+      mesh.send_reqs[i] = MPI.Isend(edges_i, peer_nums[i], 1, mesh.comm)
+    else  # I am the receiving process
+      mesh.recv_reqs[i] = MPI.Irecv!(edges_i, peer_nums[i], 1, mesh.comm)
+      nrecvs += 1
+    end
+  end  # end loop over peers
+
+  # get arrays of Requests
+  recv_reqs_reduced = Array(MPI.Request, nrecvs)
+  recv_peers = Array(MPI.Request, nrecvs)  # which process they came from
+  pos = 1
+  for i=1:npeers
+    if mesh.myrank < peer_nums[i]
+      recv_reqs_reduced[pos] = mesh.recv_reqs[i]
+      recv_peers[pos] = i
+      pos += 1
+    end
+  end
+
+
+  # wait for all communication to finish
   for i=1:npeers
     if mesh.myrank > peer_nums[i]
-      for 
+      MPI.Wait!(mesh.send_reqs[i])
+    else
+      j = MPI.Waitany!(recv_reqs_reduced)
+      peernum = recv_peers[j]
+      getEdgeBoundaries(mesh, edges_remote[peernum], bndries_local[peernum])
+    end
+  end
 
+  # now send Boundary info
+  for i=1:npeers
+    mesh.send_reqs[i] = MPI.Isend(bndries_local[i], peer_nums[i], 1, mesh.comm)
+    mesh.recv_reqs[i] = MPI.Irecv!(bndries_remote[i], peer_nums[i], 1, mesh.comm)
+  end
 
-  
+  for i=1:npeers
+    MPI.Wait!(mesh.recv_reqs[i])
+  end
 
+  # now create Interfaces from the two Boundary arrays
+  peer_offsets = Array(Int, npeers+1)  # record the starting element number
+                                       # of the elements belonging to each peer
+  curr_elnum = mesh.numEl + 1
+  for i=1:npeers
+    peer_offsets[i] = curr_elnum
+    curr_elnum, shared_interfaces[i] = numberBoundaryEls(curr_elnum, 
+                                 bndries_local[i], bndries_remote[i])
+    curr_elnum += 1
+  end
+  peer_offsets[npeers+1] = curr_elnum
+  mesh.shared_element_offsets = peer_offsets
 
-  # either get the boundary ordering and send it or post receive
+  # delete the dangerous Ptr{Void} -> Int MPI type
+  delete!(MPI.mpitype_dict, Ptr{Void})
 
+  # wait for the sends to finish before exiting
+  for i=1:npeers
+    MPI.Wait!(mesh.send_reqs[i])
+  end
+
+  return nothing
 end
 
 
 function getEdgeBoundaries(mesh::PumiMeshDG2, edges::Array{Ptr{Void}}, 
-                           bndries::Array{Bndry})
+                           bndries::Array{Boundary})
 # get the array of Boundaryies for an array of edges
 # edges is the array of the edge MeshEnities
 # bndries is the array to be populated with the Boundaryies
 
-for i=1:length(edges)
-  edge_i = edges[i]
+  for i=1:length(edges)
+    edge_i = edges[i]
 
-  numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
+    numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
 
-  @assert( numFace == 1)
+    @assert( numFace == 1)
 
-  getAdjacent(faces)
-  facenum = getFaceNumber2(faces[1]) + 1
-  edgenum = getEdgeNumber2(edge_i) + 1  # unneeded?
-  edgenum_local = getEdgeLocalNum(mesh, edgenum, facenum)
+    getAdjacent(faces)
+    facenum = getFaceNumber2(faces[1]) + 1
+    edgenum = getEdgeNumber2(edge_i) + 1  # unneeded?
+    edgenum_local = getEdgeLocalNum(mesh, edgenum, facenum)
 
-  bndries[i] = Boundary(facenum, edgenum_local)
+    bndries[i] = Boundary(facenum, edgenum_local)
+  end
+
+  return nothing
+end
+
+function numberBoundaryEls(startnum, bndries_local::Array{Boundary}, bndries_remote::Array{Boundary})
+
+  ninterfaces = length(bndries_local)
+  interfaces = Array(Interface, ninterfaces)
+  curr_elnum = startnum  # counter for 
+  new_elR = 0 # number of new element to create
+  for i=1:ninterfaces
+    bndry_l = bndries_local[i]
+    bndry_r = bndries_remote[i]
+    old_el = isRepeated(bndries_remote, i)
+    if old_el == 0
+      new_elR = curr_elnum
+      curr_elnum += 1
+    else
+      new_elR = interfaces[i].elementR
+    end
+
+    interfaces[i] = Interface(bndry_l.element, bndry_l.face, new_elR, bndry_r.face, UInt8(1))
+  end
+
+  last_elnum = curr_elnum - 1
+  return last_elnum, interfaces
+end
+
+function isRepeated(bndries::Array{Boundary}, idx)
+# figures out if a specified element has been seen before, returning
+# its index if so, and returning zero if not
+  el = bndries[i].element
+  for i=1:idx
+    if bndries[i].element == el
+      return i
+    end
+  end
+
+  return 0
 end
 
 
@@ -852,7 +1019,7 @@ end
 # interpolates dxidx, jac to the face nodes
 # only do this for elementL of each interface
 function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
-#  println("----- Entered interpolateMapping -----")
+  println("----- Entered interpolateMapping -----")
   sbpface = mesh.sbpface
 
   dxidx_face = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numInterfaces)
@@ -861,12 +1028,16 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
   dxidx_bndry = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numBoundaryEdges)
   jac_bndry = zeros(Tmsh, sbpface.numnodes, mesh.numBoundaryEdges)
 
+  println("size(mesh.dxidx) = ", size(mesh.dxidx))
+  println("dxidx = ", mesh.dxidx)
   dxdxi_el = zeros(Tmsh, 4, mesh.numNodesPerElement, 1)
   dxdxi_elface = zeros(Tmsh, 4, sbpface.numnodes, 1)
   dxidx_node = zeros(Tmsh, 2, 2)
   dxdxi_node = zeros(Tmsh, 2, 2)
   bndry_arr = Array(Boundary, 1)
+  println("\ninterpolating interfaces")
   for i=1:mesh.numInterfaces
+    println("i = ", i)
     dxidx_i = view(dxidx_face, :, :, :, i)
     jac_i = view(jac_face, :, i)
 
@@ -874,6 +1045,7 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
     el = interface_i.elementL
     face = interface_i.faceL
     bndry = Boundary(1, face)
+    println("el = ", el)
 
     dxidx_in = view(mesh.dxidx, :, :, :, el)
     jac_in = view(mesh.jac, :, el)
@@ -885,6 +1057,7 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
   println("\nInterpolating boundary")
   # now do boundary
   for i=1:mesh.numBoundaryEdges
+    println("i = ", i)
     bndry = mesh.bndryfaces[i]
 
     dxidx_i = view(dxidx_bndry, :, :, :, i)
@@ -903,11 +1076,15 @@ end  # end function
 
 function interpolateFace(bndry::Boundary, sbpface, dxidx_hat_in, jac_in, dxdxi_el, dxdxi_elface, dxdxi_node, dxidx_node, dxidx_i, jac_i)
 
+  println("entered interpolateFace")
   numNodesPerElement = size(dxidx_hat_in, 3)
   # get the data
   for j=1:numNodesPerElement
+    println("j = ", j)
     dxidx_hat = view(dxidx_hat_in, :, :, j)
+    println("dxidx_hat = ", dxidx_hat)
     detJ = jac_in[j]
+    println("detJ = ", detJ)
 
     # dxdxi = inv(dxidx) = adj(dxidx_hat)
     dxdxi_node[1,1] = dxidx_hat[2,2]
@@ -2254,9 +2431,11 @@ function countBoundaryEdges(mesh::PumiMeshDG2, bndry_edges_all)
   resetEdgeIt()
   bnd_edges_cnt = 0
   external_edges_cnt = 0
+  internal_edge_cnt = 0 # count the number of internal interfaces
   bnd_edges = Array(Int, mesh.numEdge, 2)
   faces = Array(Ptr{Void}, 2)  # edge has maximum 2 faces
   for i=1:mesh.numEdge
+    println("examining edge ", i)
     edge_i = getEdge()
 
     # get  model edge info
@@ -2266,21 +2445,22 @@ function countBoundaryEdges(mesh::PumiMeshDG2, bndry_edges_all)
 
     # get mesh face info
     numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
-    if numFace == 1  # external edges
+    nremotes = countRemotes(mesh.m_ptr, edge_i)
+
+    println("Process ", mesh.myrank, " edge is on model entity ", me_i, ", of dimension ", me_dim, ", tag ", me_tag, ", nface ", numFace, ", nremotes ", nremotes)
+    if numFace == 1 && nremotes == 0  # external edges
       external_edges_cnt += 1
+    elseif nremotes == 0  # internal interfaces (not including shared parallel edges)
+      internal_edge_cnt += 1
     end
 
-    if me_dim == 1  # if not classified on model edge
+    if me_dim == 1  # if classified on model edge
       index = findfirst(bndry_edges_all, me_tag)
-
-
 
       if index != 0  # if model edge has a BC on i
 
 	getAdjacent(faces)
 	facenum = getFaceNumber2(faces[1]) + 1
-
-
 
 	bnd_edges_cnt += 1
 	bnd_edges[bnd_edges_cnt, 1] = facenum
@@ -2295,7 +2475,7 @@ function countBoundaryEdges(mesh::PumiMeshDG2, bndry_edges_all)
 #  mesh.boundary_nums = bnd_edges[1:bnd_edges_cnt, :] # copy, bad but unavoidable
 #  mesh.numBoundaryEdges = bnd_edges_cnt
 
-return bnd_edges_cnt, external_edges_cnt
+return bnd_edges_cnt, external_edges_cnt, internal_edge_cnt
 
 end  # end function
 
@@ -2941,12 +3121,12 @@ function getInterfaceArray(mesh::PumiMeshDG2)
 
   pos = 1 # current position in interfaces
   for i=1:getNumEdges(mesh)
-#     println("edge = ", i)
-#     println("pos = ", pos)
+     println("edge = ", i)
+     println("pos = ", pos)
     # get number of elements using the edge
     adjacent_nums, num_adjacent = getAdjacentEntityNums(mesh, i, 1, 2)
-#     println("num_adjacent = ", num_adjacent)
-#     println("adjacent_nums = ", adjacent_nums)
+     println("num_adjacent = ", num_adjacent)
+     println("adjacent_nums = ", adjacent_nums)
     if num_adjacent > 1  # internal edge
 #       println("this is an internal edge")
       element1 = adjacent_nums[1]

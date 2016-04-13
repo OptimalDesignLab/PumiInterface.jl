@@ -301,7 +301,8 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3],
   // initilize  number of each type of entity
   for (int i = 0; i < 3; ++i)
   {
-    numEntity[i] = apf::countOwned(m, i);
+    numEntity[i] = (m->count(i));
+//      apf::countOwned(m, i);
     number_entities[i] = numEntity[i];
   }
 
@@ -363,7 +364,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3],
 
 
 
-//  apf::writeASCIIVtkFiles("output_init", m);
+  apf::writeASCIIVtkFiles("output_init", m);
 /*
   // write curved mesh visualization file
   apf::FieldShape* mshape = m->getShape();
@@ -1422,6 +1423,7 @@ apf::Parts parts;
 // count the number of peer parts
 std::size_t countPeers(apf::Mesh* m, int dim)
 {
+  parts.clear();  // always empty the container before getting new elements
   apf::getPeers(m, dim, parts);
   return parts.size();
 }
@@ -1441,12 +1443,13 @@ void getPeers(apf::Mesh*m, int part_nums[])
 
 int isShared(apf::Mesh* m, apf::MeshEntity* e)
 {
-  return m->isShared(e)
+  return m->isShared(e);
 }
 
 apf::Copies copies;
 std::size_t countRemotes(apf::Mesh* m, apf::MeshEntity* e)
 {
+  copies.clear();  // always empty container before getting new elements
   m->getRemotes(e, copies);
   return copies.size();
 }

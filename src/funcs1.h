@@ -192,7 +192,7 @@ void getPeers(apf::Mesh*m, int part_nums[]);
 int isShared(apf::Mesh* m, apf::MeshEntity* e);
 
 std::size_t countRemotes(apf::Mesh* m, apf::MeshEntity* e);
-void getRemotes(int part_nums[], apf::MeshEntity* entities);
+void getRemotes(int part_nums[], apf::MeshEntity* entities[]);
 }
 
 #endif

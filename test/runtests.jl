@@ -302,6 +302,15 @@ facts("Testing PUMIInterface.jl") do
     @fact getType(m_ptr, i) --> apfTRIANGLE
   end
 
+  @fact countPeers(m_ptr, apfVERTEX) --> 0
+  @fact countPeers(m_ptr, apfEDGE) --> 0
+
+  for i in verts
+    @fact countRemotes(m_ptr, i) --> 0
+  end
+  for i in edges
+    @fact countRemotes(m_ptr, i) --> 0
+  end
 
 
 
@@ -347,7 +356,7 @@ facts("Testing PUMIInterface.jl") do
  numberJ(n_ptr, vert, 0, 0, 1)
  @fact getNumberJ(n_ptr, vert, 0, 0) --> 1
 
-
+ 
   end
 
 end

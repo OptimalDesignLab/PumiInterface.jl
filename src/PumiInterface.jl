@@ -1343,34 +1343,34 @@ function countPeers(m_ptr, dim)
 # get the number of other parts that have the entities of the specified
 # dimension in common with this part
 
- npeers = ccall(countPeers_name, pumi_libname, Csize_t, (Ptr{Void}, Cint), m_ptr, dim)
+ npeers = ccall( (countPeers_name, pumi_libname), Csize_t, (Ptr{Void}, Cint), m_ptr, dim)
 
  return npeers
 end
 
 function getPeers(m_ptr, part_nums::Array{Cint})
 
-  ccall( getPeers_name, pumi_libname, Void, (Ptr{Void}, Ptr{Cint}), m_ptr, part_nums)
+  ccall( (getPeers_name, pumi_libname), Void, (Ptr{Void}, Ptr{Cint}), m_ptr, part_nums)
 
   return nothing
 end
 
 function isShared(m_ptr, e_ptr)
 
-  val = ccall(isShared_name, pumi_libname, Cint, (Ptr{Void}, Ptr{Void}), m_ptr, e_ptr)
+  val = ccall( (isShared_name, pumi_libname), Cint, (Ptr{Void}, Ptr{Void}), m_ptr, e_ptr)
   return val != 0
 end
 
 function countRemotes(m_ptr, entity)
 
-  nremotes = ccall( countRemotes_name, pumi_libname, Csize_t, (Ptr{Void}, Ptr{Void}), m, entity)
+  nremotes = ccall( (countRemotes_name, pumi_libname), Csize_t, (Ptr{Void}, Ptr{Void}), m_ptr, entity)
 
   return nremotes
 end
 
 function getRemotes(partnums::Array{Cint}, entities::Array{Ptr{Void}})
   
-  ccall(getRemotes_name, pumi_libname, Void, (Ptr{Cint}, Ptr{Ptr{Void}}), partnums, entities)
+  ccall( (getRemotes_name, pumi_libname), Void, (Ptr{Cint}, Ptr{Ptr{Void}}), partnums, entities)
 
   return nothing
 end
