@@ -786,11 +786,9 @@ function getParallelInfo(mesh::PumiMeshDG2)
 #TODO: update fields of mesh
 
   myrank = mesh.myrank
-  f = open("fout$myrank.txt", "a+")
   npeers = countPeers(mesh.m_ptr, 1)  # get edge peers
   peer_nums = zeros(Cint, npeers)
   getPeers(mesh.m_ptr, peer_nums)
-  println(f, "peer_nums = ", peer_nums)
   mesh.peer_parts = peer_nums
   mesh.send_reqs = Array(MPI.Request, npeers)  # array of Requests for sends
   mesh.recv_reqs = Array(MPI.Request, npeers)  # array of Requests for receives
@@ -799,16 +797,12 @@ function getParallelInfo(mesh::PumiMeshDG2)
   remotes = Array(Ptr{Void}, 1)
   counts = zeros(Int, npeers)  # hold the counts of the number of edges shared
                                # with each peer
-  println(f, "counting number of edges shared with each peer")
   for i=1:mesh.numEdge
-    println(f, "checking edge ", i)
     edge = mesh.edges[i]
     if isShared(mesh.m_ptr, edge)
-      println(f, "  this edge is shared")
       nremotes = countRemotes(mesh.m_ptr, edge)
       @assert nremotes == 1
       getRemotes(partnums, remotes)
-      println(f, "  partnums[1] = ", partnums[1]); flush(f)
 
       part_idx = getElIndex(peer_nums, partnums[1])
       counts[part_idx] += 1
@@ -816,7 +810,6 @@ function getParallelInfo(mesh::PumiMeshDG2)
   end
   mesh.peer_face_counts = counts
 
-  println(f, "counts = \n", counts); flush(f)
   # get the edges
   edges_local = Array(Array{Ptr{Void}, 1}, npeers)
   edges_remote = Array(Array{Ptr{Void}, 1}, npeers)  # is this still used?
@@ -832,22 +825,15 @@ function getParallelInfo(mesh::PumiMeshDG2)
 
   # get all the (local pointers to) edges in a single pass, 
   # even though they might not be needed
-  println(f, "\ngetting local edge pointers")
   curr_pos = ones(Int, npeers)  # hold the current position in each edge array
   for i=1:mesh.numEdge
-    println(f, "checking edge ", i)
     edge_i = mesh.edges[i]
     if isShared(mesh.m_ptr, edge_i)
-      println(f, "  this edge is shared"); flush(f)
       nremotes = countRemotes(mesh.m_ptr, edge_i)
-      println(f, "  nremotes = ", nremotes); flush(f)
       getRemotes(partnums, remotes)
       peer_i = partnums[1]
-      println(f, "  peer_i = ", peer_i); flush(f)
 
       idx = getElIndex(peer_nums, peer_i)  # get the part boundary index
-      println(f, "  idx = ", idx); flush(f)
-      println(f, "  curr_pos[peer_i] = ", curr_pos[idx]); flush(f)
       edges_local[idx][curr_pos[idx]] = edge_i
       curr_pos[idx] += 1
     end
@@ -981,24 +967,18 @@ end
 
 function numberBoundaryEls(startnum, bndries_local::Array{Boundary}, bndries_remote::Array{Boundary})
 
-  println("\bentered numberBoundaryEls")
-  println("startnum = ", startnum)
   ninterfaces = length(bndries_local)
   interfaces = Array(Interface, ninterfaces)
   curr_elnum = startnum  # counter for 
   new_elR = 0 # number of new element to create
   for i=1:ninterfaces
-    println("checking interface ", i)
     bndry_l = bndries_local[i]
     bndry_r = bndries_remote[i]
     old_el = isRepeated(bndries_remote, i)
     if old_el == 0
-      println("this is a new element")
       new_elR = curr_elnum
-      println("new_elR = ", new_elR)
       curr_elnum += 1
     else
-      println("this is a repeated element")
       new_elR = interfaces[i].elementR
     end
 
@@ -1027,7 +1007,6 @@ end
 # interpolates dxidx, jac to the face nodes
 # only do this for elementL of each interface
 function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
-  println("----- Entered interpolateMapping -----")
   sbpface = mesh.sbpface
 
   dxidx_face = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numInterfaces)
@@ -1036,16 +1015,12 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
   dxidx_bndry = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numBoundaryEdges)
   jac_bndry = zeros(Tmsh, sbpface.numnodes, mesh.numBoundaryEdges)
 
-  println("size(mesh.dxidx) = ", size(mesh.dxidx))
-  println("dxidx = ", mesh.dxidx)
   dxdxi_el = zeros(Tmsh, 4, mesh.numNodesPerElement, 1)
   dxdxi_elface = zeros(Tmsh, 4, sbpface.numnodes, 1)
   dxidx_node = zeros(Tmsh, 2, 2)
   dxdxi_node = zeros(Tmsh, 2, 2)
   bndry_arr = Array(Boundary, 1)
-  println("\ninterpolating interfaces")
   for i=1:mesh.numInterfaces
-    println("i = ", i)
     dxidx_i = view(dxidx_face, :, :, :, i)
     jac_i = view(jac_face, :, i)
 
@@ -1053,7 +1028,6 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
     el = interface_i.elementL
     face = interface_i.faceL
     bndry = Boundary(1, face)
-    println("el = ", el)
 
     dxidx_in = view(mesh.dxidx, :, :, :, el)
     jac_in = view(mesh.jac, :, el)
@@ -1062,10 +1036,8 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
 
   end
 
-  println("\nInterpolating boundary")
   # now do boundary
   for i=1:mesh.numBoundaryEdges
-    println("i = ", i)
     bndry = mesh.bndryfaces[i]
 
     dxidx_i = view(dxidx_bndry, :, :, :, i)
@@ -1084,15 +1056,11 @@ end  # end function
 
 function interpolateFace(bndry::Boundary, sbpface, dxidx_hat_in, jac_in, dxdxi_el, dxdxi_elface, dxdxi_node, dxidx_node, dxidx_i, jac_i)
 
-  println("entered interpolateFace")
   numNodesPerElement = size(dxidx_hat_in, 3)
   # get the data
   for j=1:numNodesPerElement
-    println("j = ", j)
     dxidx_hat = view(dxidx_hat_in, :, :, j)
-    println("dxidx_hat = ", dxidx_hat)
     detJ = jac_in[j]
-    println("detJ = ", detJ)
 
     # dxdxi = inv(dxidx) = adj(dxidx_hat)
     dxdxi_node[1,1] = dxidx_hat[2,2]
@@ -2443,7 +2411,6 @@ function countBoundaryEdges(mesh::PumiMeshDG2, bndry_edges_all)
   bnd_edges = Array(Int, mesh.numEdge, 2)
   faces = Array(Ptr{Void}, 2)  # edge has maximum 2 faces
   for i=1:mesh.numEdge
-    println("examining edge ", i)
     edge_i = getEdge()
 
     # get  model edge info
@@ -2455,7 +2422,6 @@ function countBoundaryEdges(mesh::PumiMeshDG2, bndry_edges_all)
     numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
     nremotes = countRemotes(mesh.m_ptr, edge_i)
 
-    println("Process ", mesh.myrank, " edge is on model entity ", me_i, ", of dimension ", me_dim, ", tag ", me_tag, ", nface ", numFace, ", nremotes ", nremotes)
     if numFace == 1 && nremotes == 0  # external edges
       external_edges_cnt += 1
     elseif nremotes == 0  # internal interfaces (not including shared parallel edges)
@@ -3129,12 +3095,8 @@ function getInterfaceArray(mesh::PumiMeshDG2)
 
   pos = 1 # current position in interfaces
   for i=1:getNumEdges(mesh)
-     println("edge = ", i)
-     println("pos = ", pos)
     # get number of elements using the edge
     adjacent_nums, num_adjacent = getAdjacentEntityNums(mesh, i, 1, 2)
-     println("num_adjacent = ", num_adjacent)
-     println("adjacent_nums = ", adjacent_nums)
     if num_adjacent > 1  # internal edge
 #       println("this is an internal edge")
       element1 = adjacent_nums[1]

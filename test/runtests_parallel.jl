@@ -72,7 +72,6 @@ facts("Testing PUMIInterface.jl") do
   remote_sum = 0
   for i=1:length(edges)
     nremotes =  countRemotes(m_ptr, edges[i])
-    println("Process ", myrank, " edge ", i, " has ", nremotes, " remotes")
     remote_cnt += Int(nremotes)
     if nremotes != 0
       getRemotes(part_nums, entities)
@@ -127,8 +126,6 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   # check the interfaces
   for i=1:length(mesh.shared_interfaces[1])
     interface_i = mesh.shared_interfaces[1][i]
-    println("interface_i = ", interface_i)
-    println("interface_i.elementR = ", interface_i.elementR)
     @fact interface_i.elementL --> greater_than(0)
     @fact interface_i.elementL --> less_than(mesh.numEl + 1)
     @fact interface_i.elementR --> greater_than(mesh.numEl)
