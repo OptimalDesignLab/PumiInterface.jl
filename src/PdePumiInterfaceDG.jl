@@ -847,8 +847,8 @@ function getParallelInfo(mesh::PumiMeshDG2)
 
       idx = getElIndex(peer_nums, peer_i)  # get the part boundary index
       println(f, "  idx = ", idx); flush(f)
-      println(f, "  curr_pos[peer_i] = ", curr_pos[peer_i]); flush(f)
-      edges_local[idx][curr_pos[peer_i + 1]] = edge_i
+      println(f, "  curr_pos[peer_i] = ", curr_pos[idx]); flush(f)
+      edges_local[idx][curr_pos[idx]] = edge_i
       curr_pos[idx] += 1
     end
   end
@@ -856,7 +856,7 @@ function getParallelInfo(mesh::PumiMeshDG2)
   # get boundary info for the edges
   for i=1:npeers
     if mesh.myrank > peer_nums[i]
-      getEdgeBoundaries(mesh, edges[i], bndries_local[i])
+      getEdgeBoundaries(mesh, edges_local[i], bndries_local[i])
       sort!(bndries_local[i])
     end
   end
@@ -873,9 +873,9 @@ function getParallelInfo(mesh::PumiMeshDG2)
     if mesh.myrank > peer_nums[i]
       bndries_i = bndries_local[i]
       for j = 1:length(bndries_i)
-        bndry_j = bndries_local[j]
+        bndry_j = bndries_i[j]
         # get the edge
-        el_j = mesh.elements(bndry_j.element)
+        el_j = mesh.elements[bndry_j.element]
         getDownward(mesh.m_ptr, el_j, apfEDGE, down)
         edge_j = down[bndry_j.face]
 
@@ -896,7 +896,7 @@ function getParallelInfo(mesh::PumiMeshDG2)
 
   # get arrays of Requests
   recv_reqs_reduced = Array(MPI.Request, nrecvs)
-  recv_peers = Array(MPI.Request, nrecvs)  # which process they came from
+  recv_peers = Array(Int, nrecvs)  # which process they came from
   pos = 1
   for i=1:npeers
     if mesh.myrank < peer_nums[i]
@@ -912,13 +912,14 @@ function getParallelInfo(mesh::PumiMeshDG2)
     if mesh.myrank > peer_nums[i]
       MPI.Wait!(mesh.send_reqs[i])
     else
-      j = MPI.Waitany!(recv_reqs_reduced)
+      j, stat = MPI.Waitany!(recv_reqs_reduced)
       peernum = recv_peers[j]
       getEdgeBoundaries(mesh, edges_remote[peernum], bndries_local[peernum])
     end
   end
 
   # now send Boundary info
+  MPI.type_create(eltype(bndries_local[1]))
   for i=1:npeers
     mesh.send_reqs[i] = MPI.Isend(bndries_local[i], peer_nums[i], 1, mesh.comm)
     mesh.recv_reqs[i] = MPI.Irecv!(bndries_remote[i], peer_nums[i], 1, mesh.comm)
@@ -959,6 +960,7 @@ function getEdgeBoundaries(mesh::PumiMeshDG2, edges::Array{Ptr{Void}},
 # edges is the array of the edge MeshEnities
 # bndries is the array to be populated with the Boundaryies
 
+  faces = Array(Ptr{Void}, 1)
   for i=1:length(edges)
     edge_i = edges[i]
 
@@ -979,22 +981,28 @@ end
 
 function numberBoundaryEls(startnum, bndries_local::Array{Boundary}, bndries_remote::Array{Boundary})
 
+  println("\bentered numberBoundaryEls")
+  println("startnum = ", startnum)
   ninterfaces = length(bndries_local)
   interfaces = Array(Interface, ninterfaces)
   curr_elnum = startnum  # counter for 
   new_elR = 0 # number of new element to create
   for i=1:ninterfaces
+    println("checking interface ", i)
     bndry_l = bndries_local[i]
     bndry_r = bndries_remote[i]
     old_el = isRepeated(bndries_remote, i)
     if old_el == 0
+      println("this is a new element")
       new_elR = curr_elnum
+      println("new_elR = ", new_elR)
       curr_elnum += 1
     else
+      println("this is a repeated element")
       new_elR = interfaces[i].elementR
     end
 
-    interfaces[i] = Interface(bndry_l.element, bndry_l.face, new_elR, bndry_r.face, UInt8(1))
+    interfaces[i] = Interface(bndry_l.element, new_elR,  bndry_l.face, bndry_r.face, UInt8(1))
   end
 
   last_elnum = curr_elnum - 1
@@ -1004,8 +1012,8 @@ end
 function isRepeated(bndries::Array{Boundary}, idx)
 # figures out if a specified element has been seen before, returning
 # its index if so, and returning zero if not
-  el = bndries[i].element
-  for i=1:idx
+  el = bndries[idx].element
+  for i=1:(idx-1)
     if bndries[i].element == el
       return i
     end
