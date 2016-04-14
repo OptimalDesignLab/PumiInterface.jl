@@ -148,9 +148,12 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   commsize::Int # MPI comm size
   peer_parts::Array{Int, 1}  # array of part numbers that share entities with
                              # the current part
+  npeers::Int  # length of the above array
   peer_face_counts::Array{Int, 1}  # number of edges on each part
   send_reqs::Array{MPI.Request, 1}  # Request objects for sends
+  send_stats::Array{MPI.Status, 1}, # Status objects for sends
   recv_reqs::Array{MPI.Request, 1}  # Request objects for sends
+  recv_stats::Array{MPI.Status, 1}  # status objects for sends
 
   ref_verts::Array{Float64, 2}  # 2 x 3 array giving the coordinates
                                 # of the vertices of the reference
@@ -790,6 +793,7 @@ function getParallelInfo(mesh::PumiMeshDG2)
   peer_nums = zeros(Cint, npeers)
   getPeers(mesh.m_ptr, peer_nums)
   mesh.peer_parts = peer_nums
+  mesh.npeers =  npeers
   mesh.send_reqs = Array(MPI.Request, npeers)  # array of Requests for sends
   mesh.recv_reqs = Array(MPI.Request, npeers)  # array of Requests for receives
   # count the number of edges shared with each peer
