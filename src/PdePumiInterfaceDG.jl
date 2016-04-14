@@ -151,7 +151,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   npeers::Int  # length of the above array
   peer_face_counts::Array{Int, 1}  # number of edges on each part
   send_reqs::Array{MPI.Request, 1}  # Request objects for sends
-  send_stats::Array{MPI.Status, 1}, # Status objects for sends
+  send_stats::Array{MPI.Status, 1} # Status objects for sends
   recv_reqs::Array{MPI.Request, 1}  # Request objects for sends
   recv_stats::Array{MPI.Status, 1}  # status objects for sends
 
@@ -204,11 +204,16 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   dxidx::Array{T1, 4}  # store scaled mapping jacobian
   dxidx_face::Array{T1, 4} # store scaled mapping jacobian at face nodes
                            # 2 x 2 x numfacenodes x numInterfaces
+  dxidx_sharedface::Array{Array{T1, 4}, 1}  # array of arrays for dxidx
+                                            # on shared edges
   dxidx_bndry::Array{T1, 4} # store scaled mapping jacobian at boundary nodes,
                             # similar to dxidx_face
   jac::Array{T1,2}  # store mapping jacobian output
   jac_face::Array{T1,2}  # store jacobian determanent at face nodes
                          # numfacenodes x numInterfaces
+  jac_sharedface::Array{Array{T1, 2}, 1}  # array of arrays for shared
+                                          # edge jacobian determinent
+
   jac_bndry::Array{T1, 2} # store jacobian determinant at boundry nodes
                           # similar to jac_bndry
 
@@ -542,7 +547,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   if mesh.isInterpolated
-    mesh.dxidx_face, mesh.jac_face, mesh.dxidx_bndry, mesh.jac_bndry = interpolateMapping(mesh)
+    mesh.dxidx_face, mesh.jac_face, mesh.dxidx_sharedface, mesh.jac_sharedface, mesh.dxidx_bndry, mesh.jac_bndry = interpolateMapping(mesh)
     mesh.coords_bndry = getBndryCoordinates(mesh)
   end
 
@@ -1014,10 +1019,18 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
   sbpface = mesh.sbpface
 
   dxidx_face = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numInterfaces)
+  dxidx_sharedface = Array(Array{Tmsh, 4}, mesh.npeers)
+  for i=1:mesh.npeers
+    dxidx_sharedface[i] = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.peer_face_counts[i])
+  end
   jac_face = zeros(Tmsh, sbpface.numnodes, mesh.numInterfaces)
 
   dxidx_bndry = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numBoundaryEdges)
   jac_bndry = zeros(Tmsh, sbpface.numnodes, mesh.numBoundaryEdges)
+  jac_sharedface = Array(Array{Tmsh, 2}, mesh.npeers)
+  for i=1:mesh.npeers
+    jac_sharedface[i] = Array(Tmsh, sbpface.numnodes, mesh.peer_face_counts[i])
+  end
 
   dxdxi_el = zeros(Tmsh, 4, mesh.numNodesPerElement, 1)
   dxdxi_elface = zeros(Tmsh, 4, sbpface.numnodes, 1)
@@ -1040,6 +1053,27 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
 
   end
 
+  # now do shared edges
+  for peer = 1:mesh.npeers
+    dxidx_p = dxidx_sharedface[peer]
+    jac_p = jac_sharedface[peer]
+    interfaces_p = mesh.shared_interfaces[peer]
+    for i=1:mesh.peer_face_counts[peer]
+      dxidx_i = view(dxidx_p, :, :, :, i)
+      jac_i = view(jac_p, :, i)
+
+      interface_i = interfaces_p[i]
+      el = interface_i.elementL
+      face = interface_i.faceL
+      bndry = Boundary(1, face)
+
+      dxidx_in = view(mesh.dxidx, :, :, :, el)
+      jac_in = view(mesh.jac, :, el)
+
+      interpolateFace(bndry, mesh.sbpface, dxidx_in, jac_in, dxdxi_el, dxdxi_elface, dxdxi_node, dxidx_node, dxidx_i, jac_i)
+    end
+  end
+
   # now do boundary
   for i=1:mesh.numBoundaryEdges
     bndry = mesh.bndryfaces[i]
@@ -1054,7 +1088,7 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
     interpolateFace(bndry, mesh.sbpface, dxidx_in, jac_in, dxdxi_el, dxdxi_elface, dxdxi_node, dxidx_node, dxidx_i, jac_i)
   end
 
-  return dxidx_face, jac_face, dxidx_bndry, jac_bndry
+  return dxidx_face, jac_face, dxidx_sharedface, jac_sharedface, dxidx_bndry, jac_bndry
 
 end  # end function
 

@@ -135,7 +135,27 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   @fact mesh.shared_element_offsets[1] --> (mesh.numEl + 1)
   @fact mesh.shared_element_offsets[2] --> (mesh.numEl + 3)
 
+  # check the interpolation
+  # use the fact that dxidx, jac are constant across the element
+  for p=1:mesh.npeers
+    interfaces_p = mesh.shared_interfaces[p]
+    dxidx_p = mesh.dxidx_sharedface[p]
+    jac_p = mesh.jac_sharedface[p]
+    for i=1:mesh.peer_face_counts[p]
+      interface_i = interfaces_p[i]
+      dxidx_ref = mesh.dxidx[:, :, 1, interface_i.elementL]
+      jac_ref= mesh.jac[1, interface_i.elementL]
 
+      for j=1:mesh.sbpface.numnodes
+        for k=1:2
+          for m=1:2
+            @fact dxidx_p[k, m, j, i] --> roughly(dxidx_p[k,m], atol=1e-12)
+          end
+        end
+        @fact jac_p[j, i] --> roughly(jac_ref, atol=1e-12)
+      end
+    end
+  end
 
 end
 MPI.Barrier( MPI.COMM_WORLD)
