@@ -285,7 +285,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.shape_type = shape_type
   mesh.coloringDistance = coloring_distance
   mesh.interp_op = interp_op
-  mesh.ref_verts = [0.0 1 0; 0 0 1]
+  mesh.ref_verts = [0.0 1 0; 0 0 1]  # ???
   mesh.numNodesPerFace = sbpface.numnodes
   mesh.comm = comm
 
@@ -579,65 +579,98 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 
 
   # write data if requested
-
+  myrank = mesh.myrank
   if opts["write_edge_vertnums"]
-    rmfile("edge_vertnums.dat")
-    f = open("edge_vertnums.dat", "a+")
+    rmfile("edge_vertnums_$myrank.dat")
+    f = open("edge_vertnums_$myrank.dat", "a+")
     printEdgeVertNumbers(mesh.edge_Nptr, mesh.vert_Nptr, fstream=f)
     close(f)
   end
 
   if opts["write_face_vertnums"]
-    rmfile("face_vertnums.dat")
-    f = open("face_vertnums.dat", "a+")
+    rmfile("face_vertnums_$myrank.dat")
+    f = open("face_vertnums_$myrank.dat", "a+")
     printFaceVertNumbers(mesh.el_Nptr, mesh.vert_Nptr, fstream=f)
     close(f)
   end
 
   if opts["write_boundarynums"]
-    rmfile("boundary_nums.dat")
-    f = open("boundary_nums.dat", "a+")
+    rmfile("boundary_nums_$myrank.dat")
+    f = open("boundary_nums_$myrank.dat", "a+")
     println(f, boundary_nums)
     close(f)
   end
 
   if opts["write_dxidx"]
-    rmfile("dxidx.dat")
-    printdxidx("dxidx.dat", mesh.dxidx)
+    rmfile("dxidx_$myrank.dat")
+    printdxidx("dxidx_$myrank.dat", mesh.dxidx)
   end
 
 
   if opts["write_coords"]
-    rmfile("coords.dat")
+    rmfile("coords_$myrank.dat")
     println("size(coords) = ", size(mesh.coords))
-    writedlm("coords.dat", mesh.coords)
+    writedlm("coords_$myrank.dat", mesh.coords)
 #    printcoords("coords.dat", mesh.coords)
   end
 
   if opts["write_sparsity"]
-    rmfile("sparsity_bnds.dat")
-    writedlm("sparsity_bnds.dat", mesh.sparsity_bnds.')
+    rmfile("sparsity_bnds_$myrank.dat")
+    writedlm("sparsity_bnds_$myrank.dat", mesh.sparsity_bnds.')
   end
 
   if opts["write_sparsity_nodebnds"]
     println("writing sparsiy node bounds")
-    rmfile("sparsity_nodebnds.dat")
-    writedlm("sparsity_nodebnds.dat", mesh.sparsity_nodebnds)
+    rmfile("sparsity_nodebnds_$myrank.dat")
+    writedlm("sparsity_nodebnds_$myrank.dat", mesh.sparsity_nodebnds)
   end
 
   if opts["write_offsets"]
-    rmfile("entity_offsets.dat")
-    writedlm("entity_offsets.dat", mesh.elementNodeOffsets)
+    rmfile("entity_offsets_$myrank.dat")
+    writedlm("entity_offsets_$myrank.dat", mesh.elementNodeOffsets)
   end
 
   if opts["write_dofs"]
-    rmfile("dofs.dat")
+    rmfile("dofs_$myrank.dat")
     println("size(mesh.dofs) = ", size(mesh.dofs))
-    writedlm("dofs.dat", mesh.dofs)
+    writedlm("dofs_$myrank.dat", mesh.dofs)
   end
 
   if opts["write_counts"]
     writeCounts(mesh)
+  end
+
+  if opts["write_interfaces"]
+    f = open("interface_$myrank.dat", "a+")
+    ifaces = mesh.interfaces
+    for i=1:length(ifaces)
+      face_i = ifaces[i]
+      println(f, (face_i.elementL), " ", Int(face_i.elementR), " ", Int(face_i.faceL), " ", Int(face_i.faceR), " ", Int(face_i.orient))
+    end
+    close(f)
+  end
+
+  if opts["write_boundaries"]
+    f = open("boundary_$myrank.dat", "a+")
+    bndries = mesh.bndryfaces
+    for i=1:length(mesh.bndryfaces)
+      bndry_i = mesh.bndryfaces[i]
+      println(f, Int(bndry_i.element), " ", Int(bndry_i.face))
+    end
+    close(f)
+  end
+
+  if opts["write_sharedboundaries"]
+    for i=1:mesh.npeers
+      fname = string("sharedboundaries_", i, "_", myrank, ".dat")
+      f = open(fname, "a+")
+      bndries_i = mesh.bndries_local[i]
+      for j=1:length(bndries_i)
+        bndry_j = bndries_i[j]
+        println(f, Int(bndry_j.element), " ", Int(bndry_j.face))
+      end
+      close(f)
+    end
   end
 
   writeVtkFiles("mesh_complete", mesh.m_ptr)
@@ -801,6 +834,8 @@ function getParallelInfo(mesh::PumiMeshDG2)
   mesh.npeers =  npeers
   mesh.send_reqs = Array(MPI.Request, npeers)  # array of Requests for sends
   mesh.recv_reqs = Array(MPI.Request, npeers)  # array of Requests for receives
+  mesh.send_stats = Array(MPI.Status, npeers)
+  mesh.recv_stats = Array(MPI.Status, npeers)
   # count the number of edges shared with each peer
   partnums = zeros(Cint, 1)
   remotes = Array(Ptr{Void}, 1)
@@ -905,9 +940,10 @@ function getParallelInfo(mesh::PumiMeshDG2)
   # wait for all communication to finish
   for i=1:npeers
     if mesh.myrank > peer_nums[i]
-      MPI.Wait!(mesh.send_reqs[i])
+      mesh.send_stats[i] = MPI.Wait!(mesh.send_reqs[i])
     else
       j, stat = MPI.Waitany!(recv_reqs_reduced)
+      mesh.recv_stats[j] = stat
       peernum = recv_peers[j]
       getEdgeBoundaries(mesh, edges_remote[peernum], bndries_local[peernum])
     end
@@ -921,7 +957,7 @@ function getParallelInfo(mesh::PumiMeshDG2)
   end
 
   for i=1:npeers
-    MPI.Wait!(mesh.recv_reqs[i])
+    mesh.recv_stats[i] = MPI.Wait!(mesh.recv_reqs[i])
   end
 
   # now create Interfaces from the two Boundary arrays
@@ -942,7 +978,7 @@ function getParallelInfo(mesh::PumiMeshDG2)
 
   # wait for the sends to finish before exiting
   for i=1:npeers
-    MPI.Wait!(mesh.send_reqs[i])
+    mesh.send_stats[i] = MPI.Wait!(mesh.send_reqs[i])
   end
 
   return nothing

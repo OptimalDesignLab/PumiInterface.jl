@@ -16,7 +16,10 @@ facts("--- Testing PdePumiInterface --- ") do
     "write_offsets" => true,
     "write_counts" => true,
     "write_sparsity_nodebnds" => true,
-    "write_dofs" => false
+    "write_dofs" => false,
+    "write_interfaces" => false,
+    "write_boundaries" => false,
+    "write_sharedboundaries" => false,
     )
 
     # names of output files
@@ -197,7 +200,10 @@ facts("--- Testing PdePumiInterface --- ") do
     "write_offsets" => true,
     "write_counts" => true,
     "write_sparsity_nodebnds" => true,
-    "write_dofs" => false
+    "write_dofs" => false,
+    "write_interfaces" => false,
+    "write_boundaries" => false,
+    "write_sharedboundaries" => false,
     )
 
 
@@ -250,7 +256,10 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     "write_offsets" => true,
     "write_counts" => true,
     "write_sparsity_nodebnds" => true,
-    "write_dofs" => false
+    "write_dofs" => false,
+    "write_interfaces" => false,
+    "write_boundaries" => false,
+    "write_sharedboundaries" => false,
     )
     order = 1
     smb_name = "tri2l.smb"

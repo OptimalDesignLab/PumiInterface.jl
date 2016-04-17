@@ -100,7 +100,10 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     "write_offsets" => false,
     "write_counts" => false,
     "write_sparsity_nodebnds" => false,
-    "write_dofs" => false
+    "write_dofs" => false,
+    "write_interfaces" => false,
+    "write_boundaries" => false,
+    "write_sharedboundaries" => false,
     )
 
   sbp = TriSBP{Float64}(degree=order, reorder=false, internal=true)

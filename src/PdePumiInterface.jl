@@ -150,7 +150,10 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   typeOffsetsPerElement_::Array{Int32, 1}  # Int32 version of above
   nodemapSbpToPumi::Array{UInt8, 1}  # maps nodes of SBP to Pumi order
   nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
-  
+
+  # parallel info
+  npeers::Int  # number of peer processes
+
   ref_verts::Array{Float64, 2}  # 2 x 3 array holding the coordinates of 
                                 # the vertices of the reference element
                                 # in reference coordinates
@@ -227,10 +230,16 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   println("\nConstructing PumiMesh2 Object")
   println("  sbp_name = ", smb_name)
   println("  dmg_name = ", dmg_name)
+  if !MPI.Initialized()
+    MPI.Init()
+  end
+  @assert MPI.Comm_size(MPI.COMM_WORLD) == 1
+
   mesh = new()
   mesh.isDG = false
   mesh.isInterpolated = false
   mesh.dim = 2
+  mesh.npeers = 0
   mesh.numDofPerNode = dofpernode
   mesh.order = order
   mesh.numNodesPerElement = getNumNodes(order)
