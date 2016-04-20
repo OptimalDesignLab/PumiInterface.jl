@@ -152,7 +152,12 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
 
   # parallel info
-  npeers::Int  # number of peer processes
+  comm::MPI.Comm  # MPI Communicator
+  myrank::Int  # MPI rank, zero based
+  commsize::Int # MPI comm size
+  peer_parts::Array{Int, 1}  # array of part numbers that share entities with
+                             # the current part
+  npeers::Int  # length of the above array
 
   ref_verts::Array{Float64, 2}  # 2 x 3 array holding the coordinates of 
                                 # the vertices of the reference element
@@ -250,6 +255,9 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
                                          # field shape for CG
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
+  mesh.comm = MPI.COMM_WORLD
+  mesh.commsize = MPI.Comm_size(MPI.COMM_WORLD)
+  mesh.myrank = MPI.Comm_rank(MPI.COMM_WORLD)
   mesh.ref_verts = [0.0 1 0; 0 0 1]
 
   # count the number of all the different mesh attributes

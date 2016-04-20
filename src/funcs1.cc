@@ -196,10 +196,12 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3],
   MPI_Initialized(&flag);
   if (!flag)
   {
+    std::cout << "initializing MPI" << std::endl;
     MPI_Init(0,NULL);  // initilize MPI 
   }
   if (!PCU_Comm_Initialized())
   {
+    std::cout << "initializing PCU" << std::endl;
     PCU_Comm_Init();   // initilize PUMI's communication
   }
  

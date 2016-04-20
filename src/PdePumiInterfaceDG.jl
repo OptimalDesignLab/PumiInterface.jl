@@ -201,6 +201,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   coords::Array{T1, 3}  # store coordinates of all nodes
   coords_bndry::Array{T1, 3}  # store coordinates of nodes on boundary,
                               # 2 x numFaceNodes x numBoundaryEdges
+  coords_sharedface::Array{Array{T1, 3}, 1}  # coordinates of shared interface nodes
   dxidx::Array{T1, 4}  # store scaled mapping jacobian
   dxidx_face::Array{T1, 4} # store scaled mapping jacobian at face nodes
                            # 2 x 2 x numfacenodes x numInterfaces
@@ -548,7 +549,14 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 
   if mesh.isInterpolated
     mesh.dxidx_face, mesh.jac_face, mesh.dxidx_sharedface, mesh.jac_sharedface, mesh.dxidx_bndry, mesh.jac_bndry = interpolateMapping(mesh)
-    mesh.coords_bndry = getBndryCoordinates(mesh)
+
+    mesh.coords_bndry = zeros(T1, 2, sbpface.numnodes, mesh.numBoundaryEdges)
+    getBndryCoordinates(mesh, mesh.bndryfaces, mesh.coords_bndry)
+    mesh.coords_sharedface = Array(Array{T1, 3}, mesh.npeers)
+    for i=1:mesh.npeers
+      mesh.coords_sharedface[i] = zeros(T1, 2, sbpface.numnodes, mesh.peer_face_counts[i])
+      getBndryCoordinates(mesh, mesh.bndries_local[i], mesh.coords_sharedface[i])
+    end
   end
 
   createSubtriangulatedMesh(mesh)
@@ -2720,10 +2728,14 @@ return nothing
 end
 
 
-function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh})
+function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh}, 
+                             bndryfaces::Array{Boundary}, 
+                             coords_bndry::Array{Tmsh, 3})
+# calculate the coordinates on the boundary for the specified faces
+# and store in coords_bndry
+
 #  println("----- Entered getBndryCoordinates -----")
   sbpface = mesh.sbpface
-  coords_bndry = zeros(Tmsh, 2, sbpface.numnodes, mesh.numBoundaryEdges)
 
   coords_i = zeros(3, 3)
   coords_it = zeros(3, 2)
@@ -2732,8 +2744,8 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh})
 
   #TODO: undo once SBP node ordering convention is decided
   facemap = [1 2 3; 2 3 1]
-  for i=1:mesh.numBoundaryEdges
-    bndry_i = mesh.bndryfaces[i]
+  for i=1:length(bndryfaces)
+    bndry_i = bndryfaces[i]
 
     el = bndry_i.element
     el_ptr = mesh.elements[el]
@@ -2758,8 +2770,6 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh})
 
   end
 
-
-  return coords_bndry
 end
 
 
