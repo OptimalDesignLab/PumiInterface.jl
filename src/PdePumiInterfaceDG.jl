@@ -834,6 +834,8 @@ function getParallelInfo(mesh::PumiMeshDG2)
 # get information on number of shared entities
 #TODO: update fields of mesh
 
+  println("----- Entered getParllelInfo -----")
+
   myrank = mesh.myrank
   npeers = countPeers(mesh.m_ptr, 1)  # get edge peers
   peer_nums = zeros(Cint, npeers)
@@ -958,7 +960,7 @@ function getParallelInfo(mesh::PumiMeshDG2)
   end
 
   # now send Boundary info
-  MPI.type_create(eltype(bndries_local[1]))
+  MPI.type_create(Boundary)
   for i=1:npeers
     mesh.send_reqs[i] = MPI.Isend(bndries_local[i], peer_nums[i], 1, mesh.comm)
     mesh.recv_reqs[i] = MPI.Irecv!(bndries_remote[i], peer_nums[i], 1, mesh.comm)
