@@ -30,13 +30,15 @@ end
 pumi_version = "e4eabf5"
 #pumi_version = "HEAD"
 if install_pumi  # did not find pumi
-  if isdir("./core")
-    println("deleting existing Core repo in /deps")
-    rm("./core", recursive=true)
+#  if isdir("./core")
+#    println("deleting existing Core repo in /deps")
+#    rm("./core", recursive=true)
+#  end
+  if !isdir("./core")
+    run(`./download.sh`)
   end
-  run(`git clone https://github.com/SCOREC/core.git core`) 
   cd("./core")
-  run(`git pull`)
+#  run(`git pull`)
   run(`git checkout $pumi_version`)
   mkdir("./build")
   cd("./build")
