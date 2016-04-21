@@ -4,3 +4,4 @@
 export LD_LIBRARY_PATH=`pwd`:$LD_LIBRARY_PATH
 #export LD_LIBRARY_PATH=/usr/local/pumi/core-sim/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=`pwd`/../deps/core/build/install/lib:$LD_LIBRARY_PATH
+export PATH=`pwd`/../deps/core/build/install/bin:$PATH

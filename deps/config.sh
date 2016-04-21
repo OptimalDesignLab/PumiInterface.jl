@@ -9,5 +9,6 @@ cmake .. \
   -DCMAKE_CXX_FLAGS="-O2 -g -Wall" \
   -DENABLE_THREADS=OFF \
   -DBUILD_SHARED_LIBS=True \
-  -DCMAKE_INSTALL_PREFIX=`pwd`"/install"
+  -DCMAKE_INSTALL_PREFIX=`pwd`"/install" \
+  -DIS_TESTING=True
 #  -DENABLE_ZOLTAN=

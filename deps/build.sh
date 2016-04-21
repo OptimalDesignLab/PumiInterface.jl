@@ -2,7 +2,11 @@
 
 rm -vfr ./core
 
-git clone https://github.com/SCOREC/core.git core
+#git clone https://github.com/SCOREC/core.git core
+if [ ! -d core ]; then
+  ./download.sh
+fi
+
 cd ./core
 git pull
 mkdir -v ./build
