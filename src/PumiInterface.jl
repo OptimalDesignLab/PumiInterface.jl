@@ -1,3 +1,4 @@
+__precompile__(false)
 # functions to test the julia/PUMI interface
 module PumiInterface
 include("PumiInterface2.jl")  # higher level functions
