@@ -402,7 +402,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 =#
 # elseif opts["reordering_algorithm"] == "default"
 #    println("about to number nodes")
-    numberNodes(mesh)
+  numberNodes(mesh)
 
 #  else
 #    println(STDERR, "Error: invalid dof reordering algorithm requested")
@@ -1021,6 +1021,9 @@ function getEdgeBoundaries(mesh::PumiMeshDG2, edges::Array{Ptr{Void}},
 end
 
 function numberBoundaryEls(startnum, bndries_local::Array{Boundary}, bndries_remote::Array{Boundary})
+# create Interfaces out of the local + remote Boundary arrays
+# also numbers the remote elements with numbers > numEl, storing them in
+# the elementR field of the Interface
 
   ninterfaces = length(bndries_local)
   interfaces = Array(Interface, ninterfaces)
@@ -1759,9 +1762,13 @@ function getDistance2Colors(mesh, elnum::Integer, adj, adj2, colors)
 # get the distance-2 neighbors of a given element
 # repeats included
 # adj : array to be populated with distance-1 edge neighbors
-# adj2 : array to be populated with sum of distance-1 and distance-2 edge
+# adj2 : array of arrays to be populated with sum of distance-1 and distance-2 edge
 # neighbors
 # colors : array to be populated with colors of elements in adj2
+# getting the distance-2 colors (instead of the distance-1 colors) is necessary
+# to avoid a problem where 2 elements that have a common neighbor element
+# will be visited without visiting the common neighbor first, coloring
+# the 2 elements the same
 
   el_i = mesh.elements[elnum]
 
