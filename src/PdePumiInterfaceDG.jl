@@ -1791,12 +1791,16 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
 
   colordata.nonlocal_colors = zeros(Int32, mesh.numSharedEl)
   adj = Array(Ptr{Void}, 3)  # distance-1 edge neighbors
-  adj2 = Array(Array{Ptr{Void}, 1}, 3)  # distance-2 edge neighbors + distance-1 
+  adj2 = Array(Array{Ptr{Void}, 1}, 3)  # distance-2 edge neighbors + distance-1
+  self = Array(Ptr{Void}, 1)  # the current element pointer
   for i=1:3
     adj2[i] = Array(Ptr{Void}, 4)
   end
 
-  colors = zeros(Int32, 5*4)  # the first 3 sets of four elements are for
+  const local_start = 1
+  const nonlocal_start = 12
+
+  colors = zeros(Int32, 5*4 + 1)  # the first 3 sets of four elements are for
                               # the colors of the distance-2 neighbors + 
                               # their common distance-2 neighbor
                               # the last 2*3 entries are for the non-local
@@ -1805,13 +1809,19 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
                               # original element + 1 of its non-local neighbors
                               # (for the case where a single element has 2
                               #  non local neighbors)
+  local_colors = view(colors, 1:12)
+  nonlocal_d1neighborcolors = view(colors, 13:18)
+  self_color = view(colors, 19)
+  nonlocal_neighborcolors = view(colors, 20:21)
 
 
   for i in keys(colordata.adj_dict)
     el_i = mesh.elements[i]
+    self[1] = el_i
 
-    getDistance2Colors(mesh, i, adj, adj2, colors)
-    getNonLocalColors(mesh, adj, colordata, view(colors, 13:18))
+    getDistance2Colors(mesh, i, adj, adj2, local_colors)
+    getNonLocalColors(mesh, adj, colordata, nonlocal_d1neighborcolors)
+    getNonLocalColors(mesh, self, colordata, nonlocal_neighborcolors)
 
     min_color = getMinColor2(colors, numc)
 
@@ -1823,7 +1833,7 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
     # record the color
     numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
     cnt_colors[min_color] += 1  # update counts
-    colors[end-1] = min_color  
+    self_color[1] = min_color  
 
     # now do the coloring of the non-local neighbors
     vals = colordata.adj_dict[i]
@@ -1841,7 +1851,7 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
 
           colordata.nonlocal_colors[val_i] = min_color
           cnt_colors[min_color] += 1  # update counts
-          colors[end-1 + i] = min_color
+          nonlocal_neighborcolors[i] = min_color
         end  # end if not colored yet
       end  # end if this neighbor actually exists
     end  # end loop over vals
