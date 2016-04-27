@@ -160,5 +160,29 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     end
   end
 
+  # check the adjacency dictonary
+  adj_dict = PdePumiInterface.getLocalAdjacency(mesh)
+  @fact length(adj_dict) --> mesh.numSharedEl
+  # now check that no element appears more than twice
+  count_dict = Dict{Int, Int}()
+  for (key, val) in adj_dict
+    el1 = val[1]
+    el2 = val[2]
+    for elnums = 1:2
+      val_i = val[elnums]
+      if !haskey(count_dict, val_i)
+        count_dict[val_i] = 1
+      else
+        count_dict[val_i] = count_dict[val_i] + 1
+      end
+    end
+  end
+
+  for (key, val) in count_dict
+    @fact val  --> less_than(3)
+    @fact val[1] --> not(0)
+  end
+
+
 end
 MPI.Barrier( MPI.COMM_WORLD)
