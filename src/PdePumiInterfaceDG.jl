@@ -3586,9 +3586,9 @@ end
 
 
 
-function writeCounts(mesh::PumiMeshDG2; fname="counts.txt")
+function writeCounts(mesh::PumiMeshDG2; fname="counts")
 # write values needed for memory usage estimate
-vals = Array(Int, 9)
+vals = Array(Int, 8)
 vals[1] = mesh.numVert
 vals[2] = mesh.numEdge
 vals[3] = mesh.numEl
@@ -3598,7 +3598,7 @@ vals[6] = mesh.numNodesPerType[2]
 vals[7] = mesh.numNodesPerType[3]
 vals[8] = mesh.numDofPerNode
 
-
+#=
 # estimate jacobian storage size
 acc = 0
 for i=1:mesh.numDof
@@ -3610,8 +3610,11 @@ size_rowval = 64*acc
 size_colptr = 64*mesh.numDof
 
 vals[9] = size_nz + size_rowval + size_colptr
-
-writedlm(fname, vals)
+=#
+# append mpi_rank, file extension
+myrank = mesh.myrank
+fname2 = string(fname, "_", myrank, ".txt")
+writedlm(fname2, vals)
 			  
 return nothing
 end
