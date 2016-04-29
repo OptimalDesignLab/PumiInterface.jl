@@ -1831,7 +1831,7 @@ apf::Mesh2* createSubMeshDG(apf::Mesh* m, apf::FieldShape* mshape, const int num
   triDG::transferNumberings(m, mshape, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings);
 
   // write visualization file
-  apf::writeVtkFiles("newmesh_linear", m_new);
+//  apf::writeVtkFiles("newmesh_linear", m_new);
 
   return m_new;
 }

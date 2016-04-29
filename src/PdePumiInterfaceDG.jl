@@ -531,6 +531,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   println("numInterfaces = ", mesh.numInterfaces)
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
+  sort!(mesh.interfaces)
 
   getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
 
@@ -682,6 +683,16 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   end
 
   writeVtkFiles("mesh_complete", mesh.m_ptr)
+
+  myrank = mesh.myrank
+  f = open("load_balance_$myrank.dat", "a+")
+  println(f, mesh.numVert)
+  println(f, mesh.numEdge)
+  println(f, mesh.numEl)
+  println(f, mesh.numInterfaces)
+  println(f, mesh.numBoundaryEdges)
+  println(f, sum(mesh.peer_face_counts))
+  close(f)
 
   return mesh
   # could use incomplete initilization to avoid copying arrays
