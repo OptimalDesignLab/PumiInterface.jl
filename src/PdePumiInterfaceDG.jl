@@ -6,7 +6,8 @@ export AbstractMesh,PumiMeshDG2, PumiMeshDG2Preconditioning, reinitPumiMeshDG2, 
 
 # a type to hold data related to coloring the mesh
 type ColoringData
-  adj_dict::Dict{Int, NTuple(2,  Int)}
+  adj_dict::Dict{Int, NTuple{2,  Int}}
+  nonlocal_colors::Array{Int32, 1}
   # put other fields here
 
   function ColoringData(dict)
@@ -1800,18 +1801,16 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
   const local_start = 1
   const nonlocal_start = 12
 
-  colors = zeros(Int32, 5*4 + 1)  # the first 3 sets of four elements are for
-                              # the colors of the distance-2 neighbors + 
-                              # their common distance-2 neighbor
-                              # the last 2*3 entries are for the non-local
-                              # neighbors of the distance-1 neighbors
-                              # the last two entries are for the 
-                              # original element + 1 of its non-local neighbors
-                              # (for the case where a single element has 2
-                              #  non local neighbors)
+  colors = zeros(Int32, 5*4 + 1)  
+  # the first 3 sets of four elements are for the colors of the distance-2 
+  # neighbors + their common distance-2 neighbor
+  # the last 2*3 entries are for the non-local neighbors of the distance-1 
+  # neighbors
+  # the last two entries are for the original element + 1 of its non-local 
+  # neighbors
+  # (for the case where a single element has 2 non local neighbors)
   local_colors = view(colors, 1:12)
   nonlocal_d1neighborcolors = view(colors, 13:18)
-  self_color = view(colors, 19)
   nonlocal_neighborcolors = view(colors, 20:21)
 
 
@@ -1833,7 +1832,8 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
     # record the color
     numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
     cnt_colors[min_color] += 1  # update counts
-    self_color[1] = min_color  
+    colors[1] = min_color  # colors is now sorted, so the first entry is
+                           # definitely 0 (unused)
 
     # now do the coloring of the non-local neighbors
     vals = colordata.adj_dict[i]
@@ -1851,13 +1851,14 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
 
           colordata.nonlocal_colors[val_i] = min_color
           cnt_colors[min_color] += 1  # update counts
-          nonlocal_neighborcolors[i] = min_color
+          colors[1] = min_color
         end  # end if not colored yet
       end  # end if this neighbor actually exists
     end  # end loop over vals
 
   end  # end loop over keys in colordata.adj_dict
 
+  return numc
 end
 
 function getDistance2Colors(mesh, elnum::Integer, adj, adj2, colors)
@@ -2018,7 +2019,7 @@ function getColors0(mesh, masks::AbstractArray{BitArray{1}, 1})
 end
 
 
-function getColors1{T, T2}(mesh, masks::AbstractArray{BitArray{1}, 1}, neighbor_colors::AbstractArray{T, 2}, neighbor_nums::AbstractArray{T2, 2}; verify=true )
+function getColors1{T, T2}(mesh, colordata::ColoringData, masks::AbstractArray{BitArray{1}, 1}, neighbor_colors::AbstractArray{T, 2}, neighbor_nums::AbstractArray{T2, 2}; verify=true )
 # verify edge neighbor faces have different colors (ie. distance-1 coloring
 # of graph where elements are the vertices connected by edges if 
 # there is a mesh edge connecting them
@@ -2032,6 +2033,9 @@ function getColors1{T, T2}(mesh, masks::AbstractArray{BitArray{1}, 1}, neighbor_
 
 adj = Array(Ptr{Void}, 4)   # pointers to element i + 3 neighbors
 adj_color = zeros(Int32, 4)  # element colors
+
+adj_dict = colordata_adj_dict
+nonlocal_colors = colordata.nonlocal_colors
 
 # initialize masks to 0 (false)
 for i=1:length(masks)
@@ -2047,18 +2051,21 @@ cnt = 0
 for i=1:mesh.numEl
   el_i = mesh.elements[i]
 
+  
+
   # check edge neighbors only
   num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
   @assert num_adj <= 3
-  getBridgeAdjacent(adj)
+  getBridgeAdjacent(adj)  
 
   adj[num_adj + 1] = el_i  # insert the current element
-  # get color, element numbers
+  # get color, element numbers for local elements
   for j=1:(num_adj + 1)
     adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
     neighbor_colors[j, i] = adj_color[j]
     neighbor_nums[j, i] = getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
   end
+
 
   color_i = adj_color[num_adj + 1]  # color of current element
   masks[color_i][i] = true  # indicate element i gets perturbed by color_i
