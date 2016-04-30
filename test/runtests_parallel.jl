@@ -183,6 +183,16 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact val[1] --> not(0)
   end
 
+  # check neighbor_colors for uniqueness
+  myrank = mesh.myrank
+  for i=1:mesh.numEl
+    colors_i = mesh.neighbor_colors[:, i]
+    sort!(colors_i)
+    nzs = countnz(colors_i)
+    nz_start = length(colors_i) - nzs
+    colors_i2 = colors_i[nz_start:end]
+    @fact colors_i2 --> unique(colors_i2)
+  end
 
 end
 MPI.Barrier( MPI.COMM_WORLD)

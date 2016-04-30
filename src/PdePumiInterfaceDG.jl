@@ -486,6 +486,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   getDofNumbers(mesh)  # store dof numbers
 #  println("finished getting degree of freedom numbers")
 
+
   # start parallel initializiation
   colordata = getParallelInfo(mesh)
 
@@ -1838,9 +1839,9 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
     # now do the coloring of the non-local neighbors
     vals = colordata.adj_dict[i]
     for i=1:length(vals)  # loop over the non-local neighbors
-      if val[i] != 0  # only the ones that actually exist
-        val_i = val[i]  # the nonlocal element number
-        if colordata.nonlocal_colors[val_i] == 0  # if not colored yet
+      if vals[i] != 0  # only the ones that actually exist
+        val_i = vals[i]  # the nonlocal element number
+        if colordata.nonlocal_colors[val_i - mesh.numEl] == 0  # if not colored yet
           min_color = getMinColor2(colors, numc)
 
           if min_color > numc
@@ -1849,7 +1850,7 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
             numc = min_color
           end
 
-          colordata.nonlocal_colors[val_i] = min_color
+          colordata.nonlocal_colors[val_i - mesh.numEl] = min_color
           cnt_colors[min_color] += 1  # update counts
           colors[1] = min_color
         end  # end if not colored yet
@@ -1912,15 +1913,18 @@ function getNonLocalColors(mesh, adj::Array{Ptr{Void}}, colordata::ColoringData,
 # gets the colors of the non-local neighbors of the specified elements
 # adj holds the pointers to the elements
 
+  adj_dict = colordata.adj_dict
   pos = 1
   for i=1:length(adj)
     elnum = getNumberJ(mesh.el_Nptr, adj[i], 0, 0) + 1
-    vals = colordata.adj_dict[elnum]
-    for j=1:length(vals)
-      if vals[i] != 0
-        val_i = vals[i]
-        colors[pos] = colordata.nonlocal_colors[val_i]
-        pos += 1
+    if haskey(adj_dict, elnum)
+      vals = adj_dict[elnum]
+      for j=1:length(vals)
+        if vals[j] != 0
+          val_i = vals[j]
+          colors[pos] = colordata.nonlocal_colors[val_i - mesh.numEl]
+          pos += 1
+        end
       end
     end
   end
@@ -2033,7 +2037,7 @@ function getColors1{T, T2}(mesh, colordata::ColoringData, masks::AbstractArray{B
 
 adj = Array(Ptr{Void}, 4)   # pointers to element i + 3 neighbors
 adj_color = zeros(Int32, 4)  # element colors
-
+adj_elnum = zeros(Int32, 4)  # element numbers
 adj_dict = colordata_adj_dict
 nonlocal_colors = colordata.nonlocal_colors
 
@@ -2050,24 +2054,41 @@ end
 cnt = 0
 for i=1:mesh.numEl
   el_i = mesh.elements[i]
-
-  
+  elnum = getNumberJ(mesh.el_Nptr, el_i, 0, 0) + 1
 
   # check edge neighbors only
   num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
   @assert num_adj <= 3
   getBridgeAdjacent(adj)  
+  adj[num_adj + 1] = el_i  # insert the current elementa
 
-  adj[num_adj + 1] = el_i  # insert the current element
-  # get color, element numbers for local elements
-  for j=1:(num_adj + 1)
-    adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
-    neighbor_colors[j, i] = adj_color[j]
-    neighbor_nums[j, i] = getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
+  # get color, element numbers for non-local elements
+  pos = 1  #current index in the adj_color, adj_elnum arrays
+  nonlocal_els = adj_dict[elnum]
+  for j=1:2
+    nonlocal_elnum = nonlocal_els[j]
+    if nonlocal_elnum != 0  # if this is a real ghost neighbor
+      elcolor = nonlocal_colors[nonlocal_elnum - mesh.numEl]
+      adj_color[pos] = elcolor
+      adj_elnum[pos] = nonlocal_elnum
+      pos += 1
+    end
   end
 
+  # get color, element numbers for local elements + self
+  for j=1:(num_adj + 1)
+    adj_color[pos] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
+    adj_elnum[pos] = getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
+    pos += 1
+  end
 
-  color_i = adj_color[num_adj + 1]  # color of current element
+  # copy them into the global arrays
+  for j=1:4
+    neighbor_colors[j, i] = adj_color[j]
+    neighbor_nums[j, i] = adj_elnum[j]
+  end
+
+  color_i = adj_color[pos - 1]  # color of current element
   masks[color_i][i] = true  # indicate element i gets perturbed by color_i
 
   if verify
@@ -2082,7 +2103,7 @@ for i=1:mesh.numEl
       start_idx += 1
     end
 
-
+    #TODO: do this by comparing adjacent entries, without allocating memory
     if nz_arr != unique(nz_arr)
       println("element ", i, " has non unique colors")
       println("adj_color = ", nz_arr)
@@ -2090,6 +2111,7 @@ for i=1:mesh.numEl
     end
   end   # end if verify
   fill!(adj_color, 0)
+  fill!(adj_elnum, 0)
 end
 
 if verify

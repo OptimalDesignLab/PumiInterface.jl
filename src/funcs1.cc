@@ -364,8 +364,6 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3],
 
   resetFaceIt();
 
-
-
   apf::writeASCIIVtkFiles("output_init", m);
 /*
   // write curved mesh visualization file
