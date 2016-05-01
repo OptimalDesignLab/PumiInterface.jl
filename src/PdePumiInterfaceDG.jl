@@ -118,6 +118,13 @@ export PumiMeshDG2, PumiMeshDG
     coloringDistance: the distance k of the distance-k graph coloring used to
                       color the elements (graph vertices are elements and graph
                       edges exist where elements share an edge)
+
+    dofs: a 3D array holding the degree of freedom numbers for the elements,
+          both locally owned and the ghost elements.  The first mesh.numEl
+          elements are the locally owned ones, the rest are for the ghost 
+          element.  Their offsets are specified by mesh.shared_element_offsets.
+          The global dof number is the number stored in this array + 
+          dof_offset  (even for the non-local elements)
 """->
 type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
@@ -233,7 +240,8 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   jac_bndry::Array{T1, 2} # store jacobian determinant at boundry nodes
                           # similar to jac_bndry
 
-  dofs::Array{Int32, 3}  # store dof numbers of solution array to speed assembly
+  dof_offset::Int  # local to global offset for dofs
+  dofs::Array{Int, 3}  # store dof numbers of solution array to speed assembly
   sparsity_bnds::Array{Int32, 2}  # store max, min dofs for each dof
   sparsity_nodebnds::Array{Int32, 2}  # store min, max nodes for each node
   color_masks::Array{BitArray{1}, 1}  # array of bitarray masks used to control element perturbations when forming jacobian, number of arrays = number of colors
@@ -487,13 +495,13 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.elementNodeOffsets, mesh.typeNodeFlags = getEntityOrientations(mesh)
 #  println("finished getting entity orientations")
 
-#  println("about to get degree of freedom numbers")
-  getDofNumbers(mesh)  # store dof numbers
-#  println("finished getting degree of freedom numbers")
-
 
   # start parallel initializiation
   colordata = getParallelInfo(mesh)
+
+#  println("about to get degree of freedom numbers")
+  getDofNumbers(mesh)  # store dof numbers
+#  println("finished getting degree of freedom numbers")
 
 
 
@@ -2770,7 +2778,7 @@ function getDofNumbers(mesh::PumiMeshDG2)
 #println("in getDofNumbers")
 #println("numNodesPerElement = ", mesh.numNodesPerElement)
 
-mesh.dofs = Array(Int32, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
+mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.shared_element_offsets[end] - 1)
 
 for i=1:mesh.numEl
 #  println("element ", i)
@@ -2781,6 +2789,93 @@ for i=1:mesh.numEl
       mesh.dofs[k, j, i] = dofnums[k,j]
     end
   end
+end
+
+# get dof number of non-local elements
+# post receives first
+send_reqs = mesh.send_reqs
+recv_reqs = mesh.recv_reqs
+for i=1:mesh.npeers
+  # get the pointer of the start location
+  start_el = mesh.shared_element_offsets[i]
+  numel = mesh.shared_element_offsets[i+1] - start_el
+  ndata = mesh.numDofPerNode*mesh.numNodesPerElement*numel
+  lin_idx = sub2ind(size(mesh.dofs), 1, 1, start_el)
+  ptr_start_el = pointer(mesh.dofs, lin_idx)
+  peer_i = mesh.peer_parts[i]
+  recv_reqs[i] = MPI.Irecv!(ptr_start_el, ndata, peer_i, 1, mesh.comm)
+end
+
+# now send data
+dof_sendbuf = Array(Array{Int, 3}, mesh.npeers)
+for i=1:mesh.npeers
+  numel = mesh.shared_element_offsets[i+1] - mesh.shared_element_offsets[i]
+  dof_sendbuf[i] = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, numel)
+  sendbuf_i = dof_sendbuf[i]
+  elnums_i = mesh.local_element_lists[i]
+  for j=1:length(elnums_i)
+    elnum_j = elnums_i[j]
+    for k=1:mesh.numNodesPerElement
+      for p=1:mesh.numDofPerNode
+        sendbuf_i[p, k, j] = mesh.dofs[p, k, elnum_j]
+      end
+    end
+  end  # end loop over current list of elements
+
+  # now do the send
+  send_reqs[i] = MPI.Isend(sendbuf_i, mesh.peer_parts[i], 1, mesh.comm)
+end
+
+# figure out the local to global offset of the dof numbers
+# compute number of local dofs
+ndof = 0
+for i=1:3
+  ndof += mesh.numNodesPerType[i]*mesh.numEntitiesPerType[i]*mesh.numDofPerNode
+end
+
+# get all processes dof offsets
+dof_offsets = MPI.Allgather(ndof, mesh.comm)
+
+# figure out own dof_offset
+dof_offset = 0
+for i=1:mesh.myrank  # sum all dofs up to but *not* including self
+  dof_offset += dof_offsets[i]
+end
+mesh.dof_offset = dof_offset
+
+# figure out peer dof_offsets
+peer_dof_offsets = Array(Int, mesh.npeers)
+for i=1:mesh.npeers
+  dof_offset_i = 0
+  for j=1:mesh.peer_parts[i]
+    dof_offset_i += dof_offsets[i]
+  end
+  peer_dof_offsets[i] = dof_offset_i
+end
+
+# adjust other elements dof such that dof + dof_offset of this process = global
+# dof number
+# store local dof number + (offset of owner - offset of host) in dofs array
+dofs = mesh.dofs
+for i=1:mesh.npeers
+  idx, stat =  MPI.Waitany!(recv_reqs)
+  # do subtraction first to avoid overflow
+  offset = peer_dof_offsets[idx] - dof_offset
+  start_el = mesh.shared_element_offsets[idx]
+  end_el = mesh.shared_element_offsets[idx+1] - 1
+  for j=start_el:end_el
+    for k=1:mesh.numNodesPerElement
+      for p=1:mesh.numDofPerNode
+        dofs[p, k, j] += offset
+      end
+    end
+  end
+
+end  # end loop over peers
+
+# wait for the sends to finish before returning
+for i=1:mesh.npeers
+  MPI.Wait!(send_reqs[i])
 end
 
 #println("mesh.dof = ", mesh.dofs)

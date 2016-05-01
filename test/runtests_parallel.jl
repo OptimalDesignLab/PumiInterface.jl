@@ -239,6 +239,22 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     end
   end
 
+  # check dof numbers for non-local elements
+  npeer_els = mesh.shared_element_offsets[end] = mesh.shared_element_offsets[1]
+  dof_min = mesh.numDofPerNode*mesh.numNodesPerElement*mesh.numEl
+  dof_max = mesh.numDofPerNode*mesh.numNodesPerElement*(npeer_els + mesh.numEl)  + 1
+  for i=(mesh.numEl + 1):size(mesh.dofs, 3)
+    for j=1:mesh.numNodesPerElement
+      for k=1:mesh.numDofPerNode
+        if mesh.myrank == 0
+          @fact (mesh.dofs[k, j, i] + mesh.dof_offset) --> greater_than(dof_min)
+          @fact (mesh.dofs[k, j, i] + mesh.dof_offset) --> less_than(dof_max)
+        else
+          @fact mesh.dofs[k, j, i] --> less_than(1)
+        end
+      end
+    end
+  end
 
 end
 MPI.Barrier( MPI.COMM_WORLD)
