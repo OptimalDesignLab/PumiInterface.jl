@@ -275,6 +275,8 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   # number for the last peer
   shared_element_offsets::Array{Int, 1}
 
+  # element numbers of the elements on each peer boundary
+  local_element_lists::Array{Array{Int32, 1}, 1}
   # color masks for the non-local elements, contains npeers x numColor
   # BitArrays, where each BitArray has length = the number of ghost elements
   # on the current peer boundary
@@ -994,12 +996,15 @@ function getParallelInfo(mesh::PumiMeshDG2)
   # now create Interfaces from the two Boundary arrays
   peer_offsets = Array(Int, npeers+1)  # record the starting element number
                                        # of the elements belonging to each peer
+  mesh.local_element_lists = Array(Array{Int32, 1}, mesh.npeers)
   curr_elnum = mesh.numEl + 1
   for i=1:npeers
     peer_offsets[i] = curr_elnum
     curr_elnum, shared_interfaces[i] = numberBoundaryEls(curr_elnum, 
                                  bndries_local[i], bndries_remote[i])
     curr_elnum += 1
+
+    mesh.local_element_lists[i] = getBoundaryElList(bndries_local[i])
   end
   peer_offsets[npeers+1] = curr_elnum
   mesh.shared_element_offsets = peer_offsets
@@ -1074,6 +1079,24 @@ function numberBoundaryEls(startnum, bndries_local::Array{Boundary}, bndries_rem
 
   last_elnum = curr_elnum - 1
   return last_elnum, interfaces
+end
+
+function getBoundaryElList(bndries_local::Array{Boundary})
+# get the list of elemements on the boundary
+
+  nfaces = length(bndries_local)
+  elnums = Array(Int32, nfaces)  # nfaces is the upper bound on 
+                                 # the number of elements
+  pos = 1 # current position in elnums
+  for i=1:nfaces
+    old_iface_idx = isRepeated(bndries_local, i)
+    if old_iface_idx == 0
+      elnums[pos] = bndries_local[i].element
+      pos += 1
+    end
+  end
+
+  return elnums[1:(pos-1)]
 end
 
 function isRepeated(bndries::Array{Boundary}, idx)

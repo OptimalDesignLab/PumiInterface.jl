@@ -138,6 +138,39 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   @fact mesh.shared_element_offsets[1] --> (mesh.numEl + 1)
   @fact mesh.shared_element_offsets[2] --> (mesh.numEl + 3)
 
+  # check the gathering of the elements on the boundaries
+  for i=1:mesh.npeers
+    peernum = mesh.peer_parts[i]
+    local_els = mesh.local_element_lists[i]
+    for j = 1:length(local_els)
+      el = local_els[j]
+      el_ptr = mesh.elements[el]
+      down, tmp = PumiInterface.getDownward(mesh.m_ptr, el_ptr, apfEDGE)
+      cnt = 0 # count number of shared edges
+      for k=1:3
+        if isShared(mesh.m_ptr, down[k])
+          nremotes = PumiInterface.countRemotes(mesh.m_ptr, down[k])
+          partnums = Array(Cint, nremotes)
+          entities = Array(Ptr{Void}, nremotes)
+          PumiInterface.getRemotes(partnums, entities)
+          for p=1:nremotes
+            if partnums[p] == peernum
+              cnt += 1
+            end  # end if
+          end  # end loop p
+        end  # end if isShared
+      end  # end loop k
+
+      @fact cnt --> greater_than(0)
+    end  # end loop j
+
+    # check element numbers are unique
+    local_elnums = copy(local_els)
+    sort!(local_elnums)
+    @fact local_elnums --> unique(local_elnums)
+  end  # end loop i
+
+
   # check the interpolation
   # use the fact that dxidx, jac are constant across the element
   for p=1:mesh.npeers
