@@ -1061,12 +1061,12 @@ function numberBoundaryEls(startnum, bndries_local::Array{Boundary}, bndries_rem
   for i=1:ninterfaces
     bndry_l = bndries_local[i]
     bndry_r = bndries_remote[i]
-    old_el = isRepeated(bndries_remote, i)
-    if old_el == 0
+    old_iface_idx = isRepeated(bndries_remote, i)
+    if old_iface_idx == 0
       new_elR = curr_elnum
       curr_elnum += 1
     else
-      new_elR = interfaces[i].elementR
+      new_elR = interfaces[old_iface_idx].elementR
     end
 
     interfaces[i] = Interface(bndry_l.element, new_elR,  bndry_l.face, bndry_r.face, UInt8(1))
@@ -1078,7 +1078,7 @@ end
 
 function isRepeated(bndries::Array{Boundary}, idx)
 # figures out if a specified element has been seen before, returning
-# its index if so, and returning zero if not
+# the index of the boundary containing it if so, and returning zero if not
   el = bndries[idx].element
   for i=1:(idx-1)
     if bndries[i].element == el
