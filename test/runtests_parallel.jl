@@ -189,10 +189,23 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     colors_i = mesh.neighbor_colors[:, i]
     sort!(colors_i)
     nzs = countnz(colors_i)
-    nz_start = length(colors_i) - nzs
+    nz_start = length(colors_i) - nzs + 1
     colors_i2 = colors_i[nz_start:end]
     @fact colors_i2 --> unique(colors_i2)
   end
+
+  for i=1:mesh.npeers
+    numel_i = mesh.shared_element_offsets[i+1] - mesh.shared_element_offsets[i]
+    masks = mesh.shared_element_colormasks[i]
+    for j = 1:numel_i
+      val = 0
+      for k = 1:mesh.numColors
+        val += masks[k][j]
+      end
+      @fact val --> 1  # each element should have exactly 1 color
+    end
+  end
+
 
 end
 MPI.Barrier( MPI.COMM_WORLD)

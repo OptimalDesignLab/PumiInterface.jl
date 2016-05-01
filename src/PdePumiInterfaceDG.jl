@@ -275,7 +275,10 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   # number for the last peer
   shared_element_offsets::Array{Int, 1}
 
-                                 
+  # color masks for the non-local elements, contains npeers x numColor
+  # BitArrays, where each BitArray has length = the number of ghost elements
+  # on the current peer boundary
+  shared_element_colormasks::Array{Array{BitArray{1}, 1}, 1}                               
   sbpface::TriFace{Float64}  # SBP object needed to do interpolation
 
 
@@ -499,7 +502,9 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
     mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
-    getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
+    println("about to get distance 1 coloring")
+    cnt, mesh.shared_element_colormasks = getColors1(mesh, colordata, mesh.color_masks, 
+                                mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
     mesh.pertNeighborEls = getPertNeighbors1(mesh)
 
   elseif coloring_distance == 0  # do a distance-0 coloring
@@ -734,7 +739,7 @@ function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
     mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
-    getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
+    getColors1(mesh, colordata, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
     mesh.pertNeighborEls = getPertNeighbors1(mesh)
 
   elseif coloring_distance == 0  # do a distance-0 coloring
@@ -2035,10 +2040,12 @@ function getColors1{T, T2}(mesh, colordata::ColoringData, masks::AbstractArray{B
 # neighbor_nums is 4 by numEl array of integers holding the element numbers
 # of the neighbors + self
 
+println("entered getColors")
+
 adj = Array(Ptr{Void}, 4)   # pointers to element i + 3 neighbors
 adj_color = zeros(Int32, 4)  # element colors
 adj_elnum = zeros(Int32, 4)  # element numbers
-adj_dict = colordata_adj_dict
+adj_dict = colordata.adj_dict
 nonlocal_colors = colordata.nonlocal_colors
 
 # initialize masks to 0 (false)
@@ -2053,6 +2060,7 @@ end
 
 cnt = 0
 for i=1:mesh.numEl
+  println("element ", i)
   el_i = mesh.elements[i]
   elnum = getNumberJ(mesh.el_Nptr, el_i, 0, 0) + 1
 
@@ -2064,14 +2072,16 @@ for i=1:mesh.numEl
 
   # get color, element numbers for non-local elements
   pos = 1  #current index in the adj_color, adj_elnum arrays
+  if haskey(adj_dict, elnum)
   nonlocal_els = adj_dict[elnum]
-  for j=1:2
-    nonlocal_elnum = nonlocal_els[j]
-    if nonlocal_elnum != 0  # if this is a real ghost neighbor
-      elcolor = nonlocal_colors[nonlocal_elnum - mesh.numEl]
-      adj_color[pos] = elcolor
-      adj_elnum[pos] = nonlocal_elnum
-      pos += 1
+    for j=1:2
+      nonlocal_elnum = nonlocal_els[j]
+      if nonlocal_elnum != 0  # if this is a real ghost neighbor
+        elcolor = nonlocal_colors[nonlocal_elnum - mesh.numEl]
+        adj_color[pos] = elcolor
+        adj_elnum[pos] = nonlocal_elnum
+        pos += 1
+      end
     end
   end
 
@@ -2120,9 +2130,40 @@ if verify
     println(STDERR, "Warning: non unique element coloring")
   end
   println("number of element with non unique coloring = ", cnt)
+  println("abc")
 end
 
-return cnt
+# now create color masks for non-local elements
+println("getting non-local color masks")
+nonlocal_masks = Array(Array{BitArray{1}, 1}, mesh.npeers)
+start_elnum = 1
+for i=1:mesh.npeers
+  println("Peer = ", i)
+  nonlocal_masks[i] = Array(BitArray{1}, mesh.numColors)
+  masks_i = nonlocal_masks[i]  # starting element number for this peer
+  numel_i = mesh.shared_element_offsets[i+1] - mesh.shared_element_offsets[i]
+
+  # create the masks BitArrays
+  for j=1:mesh.numColors
+    println("creating mask for color ", j)
+    masks_i[j] = falses(numel_i)
+  end
+
+  # set flag to true if the element has the color
+  for k=1:numel_i
+    println("getting color of element ", k)
+    global_elnum = start_elnum + k - 1
+    println("global elnum = ", global_elnum)
+    println("start_elnum = ", start_elnum)
+    color_k = nonlocal_colors[global_elnum]
+    masks_i[color_k][k] = true
+  end
+
+  start_elnum += numel_i
+end
+
+
+return cnt, nonlocal_masks
 
 end
 
