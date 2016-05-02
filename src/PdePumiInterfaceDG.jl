@@ -4,6 +4,19 @@
 
 export AbstractMesh,PumiMeshDG2, PumiMeshDG2Preconditioning, reinitPumiMeshDG2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles
 
+# a type to hold data related to coloring the mesh
+type ColoringData
+  adj_dict::Dict{Int, NTuple{2,  Int}}
+  nonlocal_colors::Array{Int32, 1}
+  # put other fields here
+
+  function ColoringData(dict)
+    obj = new()
+    obj.adj_dict = dict
+    return obj
+  end
+end
+
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 
@@ -70,7 +83,7 @@ export PumiMeshDG2, PumiMeshDG
     edge_Nptr: a pointer to the Pumi apf::Numbering that numbers the mesh 
                edges (0-based numbering)
     el_Nptr:  a pointer to the Pumi apf::Numbering that numbers the mesh
-              elements
+              elements (0-based numbering)
     coloring_Nptr: a pointer to the Pumi Numbering containing the element
                    coloring
 
@@ -105,6 +118,13 @@ export PumiMeshDG2, PumiMeshDG
     coloringDistance: the distance k of the distance-k graph coloring used to
                       color the elements (graph vertices are elements and graph
                       edges exist where elements share an edge)
+
+    dofs: a 3D array holding the degree of freedom numbers for the elements,
+          both locally owned and the ghost elements.  The first mesh.numEl
+          elements are the locally owned ones, the rest are for the ghost 
+          element.  Their offsets are specified by mesh.shared_element_offsets.
+          The global dof number is the number stored in this array + 
+          dof_offset  (even for the non-local elements)
 """->
 type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
@@ -126,6 +146,8 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   numVert::Int  # number of vertices in the mesh
   numEdge::Int # number of edges in the mesh
   numEl::Int  # number of elements (faces)
+  numGlobalEl::Int  # number of local elements + number of non-local elements
+  numSharedEl::Int  # number of non-local elements
   order::Int # order of shape functions
   numDof::Int # number of degrees of freedom
   numNodes::Int  # number of nodes
@@ -150,8 +172,11 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
                              # the current part
   npeers::Int  # length of the above array
   peer_face_counts::Array{Int, 1}  # number of edges on each part
+  send_waited::Array{Bool, 1}  # indicates whether the send_reqs have been
+                               # waited on already
   send_reqs::Array{MPI.Request, 1}  # Request objects for sends
   send_stats::Array{MPI.Status, 1} # Status objects for sends
+  recv_waited::Array{Bool, 1}  # similar to send_waited
   recv_reqs::Array{MPI.Request, 1}  # Request objects for sends
   recv_stats::Array{MPI.Status, 1}  # status objects for sends
 
@@ -218,7 +243,8 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   jac_bndry::Array{T1, 2} # store jacobian determinant at boundry nodes
                           # similar to jac_bndry
 
-  dofs::Array{Int32, 3}  # store dof numbers of solution array to speed assembly
+  dof_offset::Int  # local to global offset for dofs
+  dofs::Array{Int, 3}  # store dof numbers of solution array to speed assembly
   sparsity_bnds::Array{Int32, 2}  # store max, min dofs for each dof
   sparsity_nodebnds::Array{Int32, 2}  # store min, max nodes for each node
   color_masks::Array{BitArray{1}, 1}  # array of bitarray masks used to control element perturbations when forming jacobian, number of arrays = number of colors
@@ -260,7 +286,12 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   # number for the last peer
   shared_element_offsets::Array{Int, 1}
 
-                                 
+  # element numbers of the elements on each peer boundary
+  local_element_lists::Array{Array{Int32, 1}, 1}
+  # color masks for the non-local elements, contains npeers x numColor
+  # BitArrays, where each BitArray has length = the number of ghost elements
+  # on the current peer boundary
+  shared_element_colormasks::Array{Array{BitArray{1}, 1}, 1}                               
   sbpface::TriFace{Float64}  # SBP object needed to do interpolation
 
 
@@ -467,23 +498,26 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   mesh.elementNodeOffsets, mesh.typeNodeFlags = getEntityOrientations(mesh)
 #  println("finished getting entity orientations")
 
+
+  # start parallel initializiation
+  colordata = getParallelInfo(mesh)
+
 #  println("about to get degree of freedom numbers")
   getDofNumbers(mesh)  # store dof numbers
 #  println("finished getting degree of freedom numbers")
 
-  # start parallel initializiation
-  getParallelInfo(mesh)
-
 
 
   if coloring_distance == 2
-    numc = colorMesh2(mesh)
+    numc = colorMesh2(mesh, colordata)
     mesh.numColors = numc
 
     mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
-    getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
+    println("about to get distance 1 coloring")
+    cnt, mesh.shared_element_colormasks = getColors1(mesh, colordata, mesh.color_masks, 
+                                mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
     mesh.pertNeighborEls = getPertNeighbors1(mesh)
 
   elseif coloring_distance == 0  # do a distance-0 coloring
@@ -729,7 +763,7 @@ function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
     mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
-    getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
+    getColors1(mesh, colordata, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
     mesh.pertNeighborEls = getPertNeighbors1(mesh)
 
   elseif coloring_distance == 0  # do a distance-0 coloring
@@ -845,7 +879,7 @@ function getParallelInfo(mesh::PumiMeshDG2)
 # get information on number of shared entities
 #TODO: update fields of mesh
 
-  println("----- Entered getParllelInfo -----")
+  println("----- Entered getParallelInfo -----")
 
   myrank = mesh.myrank
   npeers = countPeers(mesh.m_ptr, 1)  # get edge peers
@@ -854,7 +888,9 @@ function getParallelInfo(mesh::PumiMeshDG2)
   mesh.peer_parts = peer_nums
   mesh.npeers =  npeers
   mesh.send_reqs = Array(MPI.Request, npeers)  # array of Requests for sends
+  mesh.send_waited = Array(Bool, npeers)
   mesh.recv_reqs = Array(MPI.Request, npeers)  # array of Requests for receives
+  mesh.recv_waited = Array(Bool, npeers)
   mesh.send_stats = Array(MPI.Status, npeers)
   mesh.recv_stats = Array(MPI.Status, npeers)
   # count the number of edges shared with each peer
@@ -984,15 +1020,26 @@ function getParallelInfo(mesh::PumiMeshDG2)
   # now create Interfaces from the two Boundary arrays
   peer_offsets = Array(Int, npeers+1)  # record the starting element number
                                        # of the elements belonging to each peer
+  mesh.local_element_lists = Array(Array{Int32, 1}, mesh.npeers)
   curr_elnum = mesh.numEl + 1
   for i=1:npeers
     peer_offsets[i] = curr_elnum
     curr_elnum, shared_interfaces[i] = numberBoundaryEls(curr_elnum, 
                                  bndries_local[i], bndries_remote[i])
     curr_elnum += 1
+
+    mesh.local_element_lists[i] = getBoundaryElList(bndries_local[i])
   end
   peer_offsets[npeers+1] = curr_elnum
   mesh.shared_element_offsets = peer_offsets
+  mesh.numGlobalEl = curr_elnum - 1
+  mesh.numSharedEl = curr_elnum -1 - mesh.numEl  # number of non-local shared
+                                                 # elnums
+
+  # create the dictonary that maps from locally owned element's numbers
+  # to their adjacent non-local neighbors
+  adj_dict = getLocalAdjacency(mesh)
+  colordata = ColoringData(adj_dict)
 
   # delete the dangerous Ptr{Void} -> Int MPI type
   delete!(MPI.mpitype_dict, Ptr{Void})
@@ -1002,7 +1049,7 @@ function getParallelInfo(mesh::PumiMeshDG2)
     mesh.send_stats[i] = MPI.Wait!(mesh.send_reqs[i])
   end
 
-  return nothing
+  return colordata
 end
 
 
@@ -1043,12 +1090,12 @@ function numberBoundaryEls(startnum, bndries_local::Array{Boundary}, bndries_rem
   for i=1:ninterfaces
     bndry_l = bndries_local[i]
     bndry_r = bndries_remote[i]
-    old_el = isRepeated(bndries_remote, i)
-    if old_el == 0
+    old_iface_idx = isRepeated(bndries_remote, i)
+    if old_iface_idx == 0
       new_elR = curr_elnum
       curr_elnum += 1
     else
-      new_elR = interfaces[i].elementR
+      new_elR = interfaces[old_iface_idx].elementR
     end
 
     interfaces[i] = Interface(bndry_l.element, new_elR,  bndry_l.face, bndry_r.face, UInt8(1))
@@ -1058,9 +1105,27 @@ function numberBoundaryEls(startnum, bndries_local::Array{Boundary}, bndries_rem
   return last_elnum, interfaces
 end
 
+function getBoundaryElList(bndries_local::Array{Boundary})
+# get the list of elemements on the boundary
+
+  nfaces = length(bndries_local)
+  elnums = Array(Int32, nfaces)  # nfaces is the upper bound on 
+                                 # the number of elements
+  pos = 1 # current position in elnums
+  for i=1:nfaces
+    old_iface_idx = isRepeated(bndries_local, i)
+    if old_iface_idx == 0
+      elnums[pos] = bndries_local[i].element
+      pos += 1
+    end
+  end
+
+  return elnums[1:(pos-1)]
+end
+
 function isRepeated(bndries::Array{Boundary}, idx)
 # figures out if a specified element has been seen before, returning
-# its index if so, and returning zero if not
+# the index of the boundary containing it if so, and returning zero if not
   el = bndries[idx].element
   for i=1:(idx-1)
     if bndries[i].element == el
@@ -1069,6 +1134,34 @@ function isRepeated(bndries::Array{Boundary}, idx)
   end
 
   return 0
+end
+
+function getLocalAdjacency(mesh::PumiMeshDG2)
+
+  # map from an element number of all the element numbers of the 
+  # non-local elements
+  # an element can have a maximum of 2 non-local neighbor elements
+  adj_dict = Dict{Int, NTuple{2, Int}}()
+  sizehint!(adj_dict, mesh.numSharedEl)
+
+  for i=1:mesh.npeers
+    ifaces_i = mesh.shared_interfaces[i]
+    for j=1:length(ifaces_i)
+      iface_j = ifaces_i[j]
+      el_local = iface_j.elementL
+      el_nonlocal = iface_j.elementR
+
+      if !haskey(adj_dict, el_local)
+        adj_dict[el_local] = (Int(el_nonlocal), 0)
+      else
+        old_tuple = adj_dict[el_local]
+        @assert old_tuple[2] == 0
+        adj_dict[el_local] = (old_tuple[1], Int(el_nonlocal))
+      end  # end if-else
+    end # end loop over interfaces
+  end  # end loop over peers
+
+  return adj_dict
 end
 
 
@@ -1653,47 +1746,16 @@ end
 
 
 # perform distance-1 coloring of mesh 
-function colorMesh2(mesh::PumiMeshDG2)
+function colorMesh2(mesh::PumiMeshDG2, colordata::ColoringData)
 # each element must have a different color than its neighbors with which it 
 # shares and edge
 
-# figure out the number of colors
-# this is a lot of random memory access
-#=
-num_neigh_max = 0
-for i=1:mesh.numEl  # loop over elements
-  el_i = mesh.elements[i]
-  num_neigh_i = countBridgeAdjacent(mesh.m_ptr, element, 1, 2)
-
-  if num_neigh_i > num_neigh_max
-    num_neigh_max = num_neigh_i
-  end
-end
-=#
-
-
-# now perform the coloring
-# visit each element, get colors of its neighbors
-# give current element the lowest color possible
-# also construct BitArray masks
-#setNumberingOffset(mesh.coloring_Nptr, 1)  # set all values to -1 + 1 = 0
-
-#=
-# initialize masks to zero
-for i=1:length(masks)
-  masks[i] = falses(mesh.numEl)
-  println("masks[i] = ", masks[i])
-end
-=#
 
 for i=1:mesh.numEl
   numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
 end
 
-#adj_size = 6  # guess number of neighboring faces
 numc = 4  # guess number of colors
-#adj = Array(Ptr{Void}, adj_size)  # hold neighboring faces
-#adj_color =zeros(Int32, adj_size)  # colors of neighboring faces
 
 adj = Array(Ptr{Void}, 3)  # distance-1 edge neighbors
 adj2 = Array(Array{Ptr{Void}, 1}, 3)  # distance-2 edge neighbors + distance-1 
@@ -1705,9 +1767,16 @@ end
 colors = zeros(Int32, 3*4)
 
 cnt_colors = zeros(Int32, numc)  # count how many of each color
+adj_dict = colordata.adj_dict
+
 for i=1:mesh.numEl
 #  println("Processing element ", i)
+  if haskey(adj_dict, i)  # skip any element on a parallel boundary
+    continue
+  end
+
   el_i = mesh.elements[i]
+
   # get faces that share an edge with el_i, and all elements
   # those elements share an edge with
   # this is actually more restrictive than we want because
@@ -1760,6 +1829,10 @@ for i=1:mesh.numEl
   fill!(colors, 0)
 
 end
+
+# now color the parallel boundary elements and their neighbors
+numc = colorMeshBoundary2(mesh, colordata, numc, cnt_colors)
+
 println("number of colors = ", numc)
 println("number of each color = ", cnt_colors)
 mesh.color_cnt = cnt_colors
@@ -1768,6 +1841,78 @@ return numc
 
 end
 
+function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cnt_colors)
+
+  colordata.nonlocal_colors = zeros(Int32, mesh.numSharedEl)
+  adj = Array(Ptr{Void}, 3)  # distance-1 edge neighbors
+  adj2 = Array(Array{Ptr{Void}, 1}, 3)  # distance-2 edge neighbors + distance-1
+  self = Array(Ptr{Void}, 1)  # the current element pointer
+  for i=1:3
+    adj2[i] = Array(Ptr{Void}, 4)
+  end
+
+  const local_start = 1
+  const nonlocal_start = 12
+
+  colors = zeros(Int32, 5*4 + 1)  
+  # the first 3 sets of four elements are for the colors of the distance-2 
+  # neighbors + their common distance-2 neighbor
+  # the last 2*3 entries are for the non-local neighbors of the distance-1 
+  # neighbors
+  # the last two entries are for the original element + 1 of its non-local 
+  # neighbors
+  # (for the case where a single element has 2 non local neighbors)
+  local_colors = view(colors, 1:12)
+  nonlocal_d1neighborcolors = view(colors, 13:18)
+  nonlocal_neighborcolors = view(colors, 20:21)
+
+
+  for i in keys(colordata.adj_dict)
+    el_i = mesh.elements[i]
+    self[1] = el_i
+
+    getDistance2Colors(mesh, i, adj, adj2, local_colors)
+    getNonLocalColors(mesh, adj, colordata, nonlocal_d1neighborcolors)
+    getNonLocalColors(mesh, self, colordata, nonlocal_neighborcolors)
+
+    min_color = getMinColor2(colors, numc)
+
+    if min_color > numc
+      resize!(cnt_colors, min_color)
+      cnt_colors[min_color] = 0  # initialize new value to zero
+      numc = min_color
+    end
+    # record the color
+    numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
+    cnt_colors[min_color] += 1  # update counts
+    colors[1] = min_color  # colors is now sorted, so the first entry is
+                           # definitely 0 (unused)
+
+    # now do the coloring of the non-local neighbors
+    vals = colordata.adj_dict[i]
+    for i=1:length(vals)  # loop over the non-local neighbors
+      if vals[i] != 0  # only the ones that actually exist
+        val_i = vals[i]  # the nonlocal element number
+        if colordata.nonlocal_colors[val_i - mesh.numEl] == 0  # if not colored yet
+          min_color = getMinColor2(colors, numc)
+
+          if min_color > numc
+            resize!(cnt_colors, min_color)
+            cnt_colors[min_color] = 0  # initialize new value to zero
+            numc = min_color
+          end
+
+          colordata.nonlocal_colors[val_i - mesh.numEl] = min_color
+          cnt_colors[min_color] += 1  # update counts
+          colors[1] = min_color
+        end  # end if not colored yet
+      end  # end if this neighbor actually exists
+    end  # end loop over vals
+
+  end  # end loop over keys in colordata.adj_dict
+
+  return numc
+end
 
 function getDistance2Colors(mesh, elnum::Integer, adj, adj2, colors)
 # get the distance-2 neighbors of a given element
@@ -1815,6 +1960,31 @@ function getDistance2Colors(mesh, elnum::Integer, adj, adj2, colors)
 
   return nothing
 end
+
+function getNonLocalColors(mesh, adj::Array{Ptr{Void}}, colordata::ColoringData, colors::AbstractArray)
+# gets the colors of the non-local neighbors of the specified elements
+# adj holds the pointers to the elements
+
+  adj_dict = colordata.adj_dict
+  pos = 1
+  for i=1:length(adj)
+    elnum = getNumberJ(mesh.el_Nptr, adj[i], 0, 0) + 1
+    if haskey(adj_dict, elnum)
+      vals = adj_dict[elnum]
+      for j=1:length(vals)
+        if vals[j] != 0
+          val_i = vals[j]
+          colors[pos] = colordata.nonlocal_colors[val_i - mesh.numEl]
+          pos += 1
+        end
+      end
+    end
+  end
+
+  return nothing
+end
+
+
 
 function getPertEdgeNeighbors(mesh::PumiMeshDG2)
 
@@ -1905,7 +2075,7 @@ function getColors0(mesh, masks::AbstractArray{BitArray{1}, 1})
 end
 
 
-function getColors1{T, T2}(mesh, masks::AbstractArray{BitArray{1}, 1}, neighbor_colors::AbstractArray{T, 2}, neighbor_nums::AbstractArray{T2, 2}; verify=true )
+function getColors1{T, T2}(mesh, colordata::ColoringData, masks::AbstractArray{BitArray{1}, 1}, neighbor_colors::AbstractArray{T, 2}, neighbor_nums::AbstractArray{T2, 2}; verify=true )
 # verify edge neighbor faces have different colors (ie. distance-1 coloring
 # of graph where elements are the vertices connected by edges if 
 # there is a mesh edge connecting them
@@ -1917,8 +2087,13 @@ function getColors1{T, T2}(mesh, masks::AbstractArray{BitArray{1}, 1}, neighbor_
 # neighbor_nums is 4 by numEl array of integers holding the element numbers
 # of the neighbors + self
 
+println("entered getColors")
+
 adj = Array(Ptr{Void}, 4)   # pointers to element i + 3 neighbors
 adj_color = zeros(Int32, 4)  # element colors
+adj_elnum = zeros(Int32, 4)  # element numbers
+adj_dict = colordata.adj_dict
+nonlocal_colors = colordata.nonlocal_colors
 
 # initialize masks to 0 (false)
 for i=1:length(masks)
@@ -1932,22 +2107,45 @@ end
 
 cnt = 0
 for i=1:mesh.numEl
+  println("element ", i)
   el_i = mesh.elements[i]
+  elnum = getNumberJ(mesh.el_Nptr, el_i, 0, 0) + 1
 
   # check edge neighbors only
   num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
   @assert num_adj <= 3
-  getBridgeAdjacent(adj)
+  getBridgeAdjacent(adj)  
+  adj[num_adj + 1] = el_i  # insert the current elementa
 
-  adj[num_adj + 1] = el_i  # insert the current element
-  # get color, element numbers
-  for j=1:(num_adj + 1)
-    adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
-    neighbor_colors[j, i] = adj_color[j]
-    neighbor_nums[j, i] = getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
+  # get color, element numbers for non-local elements
+  pos = 1  #current index in the adj_color, adj_elnum arrays
+  if haskey(adj_dict, elnum)
+  nonlocal_els = adj_dict[elnum]
+    for j=1:2
+      nonlocal_elnum = nonlocal_els[j]
+      if nonlocal_elnum != 0  # if this is a real ghost neighbor
+        elcolor = nonlocal_colors[nonlocal_elnum - mesh.numEl]
+        adj_color[pos] = elcolor
+        adj_elnum[pos] = nonlocal_elnum
+        pos += 1
+      end
+    end
   end
 
-  color_i = adj_color[num_adj + 1]  # color of current element
+  # get color, element numbers for local elements + self
+  for j=1:(num_adj + 1)
+    adj_color[pos] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
+    adj_elnum[pos] = getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
+    pos += 1
+  end
+
+  # copy them into the global arrays
+  for j=1:4
+    neighbor_colors[j, i] = adj_color[j]
+    neighbor_nums[j, i] = adj_elnum[j]
+  end
+
+  color_i = adj_color[pos - 1]  # color of current element
   masks[color_i][i] = true  # indicate element i gets perturbed by color_i
 
   if verify
@@ -1962,7 +2160,7 @@ for i=1:mesh.numEl
       start_idx += 1
     end
 
-
+    #TODO: do this by comparing adjacent entries, without allocating memory
     if nz_arr != unique(nz_arr)
       println("element ", i, " has non unique colors")
       println("adj_color = ", nz_arr)
@@ -1970,6 +2168,7 @@ for i=1:mesh.numEl
     end
   end   # end if verify
   fill!(adj_color, 0)
+  fill!(adj_elnum, 0)
 end
 
 if verify
@@ -1978,9 +2177,40 @@ if verify
     println(STDERR, "Warning: non unique element coloring")
   end
   println("number of element with non unique coloring = ", cnt)
+  println("abc")
 end
 
-return cnt
+# now create color masks for non-local elements
+println("getting non-local color masks")
+nonlocal_masks = Array(Array{BitArray{1}, 1}, mesh.npeers)
+start_elnum = 1
+for i=1:mesh.npeers
+  println("Peer = ", i)
+  nonlocal_masks[i] = Array(BitArray{1}, mesh.numColors)
+  masks_i = nonlocal_masks[i]  # starting element number for this peer
+  numel_i = mesh.shared_element_offsets[i+1] - mesh.shared_element_offsets[i]
+
+  # create the masks BitArrays
+  for j=1:mesh.numColors
+    println("creating mask for color ", j)
+    masks_i[j] = falses(numel_i)
+  end
+
+  # set flag to true if the element has the color
+  for k=1:numel_i
+    println("getting color of element ", k)
+    global_elnum = start_elnum + k - 1
+    println("global elnum = ", global_elnum)
+    println("start_elnum = ", start_elnum)
+    color_k = nonlocal_colors[global_elnum]
+    masks_i[color_k][k] = true
+  end
+
+  start_elnum += numel_i
+end
+
+
+return cnt, nonlocal_masks
 
 end
 
@@ -2564,7 +2794,7 @@ function getDofNumbers(mesh::PumiMeshDG2)
 #println("in getDofNumbers")
 #println("numNodesPerElement = ", mesh.numNodesPerElement)
 
-mesh.dofs = Array(Int32, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
+mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.shared_element_offsets[end] - 1)
 
 for i=1:mesh.numEl
 #  println("element ", i)
@@ -2575,6 +2805,93 @@ for i=1:mesh.numEl
       mesh.dofs[k, j, i] = dofnums[k,j]
     end
   end
+end
+
+# get dof number of non-local elements
+# post receives first
+send_reqs = mesh.send_reqs
+recv_reqs = mesh.recv_reqs
+for i=1:mesh.npeers
+  # get the pointer of the start location
+  start_el = mesh.shared_element_offsets[i]
+  numel = mesh.shared_element_offsets[i+1] - start_el
+  ndata = mesh.numDofPerNode*mesh.numNodesPerElement*numel
+  lin_idx = sub2ind(size(mesh.dofs), 1, 1, start_el)
+  ptr_start_el = pointer(mesh.dofs, lin_idx)
+  peer_i = mesh.peer_parts[i]
+  recv_reqs[i] = MPI.Irecv!(ptr_start_el, ndata, peer_i, 1, mesh.comm)
+end
+
+# now send data
+dof_sendbuf = Array(Array{Int, 3}, mesh.npeers)
+for i=1:mesh.npeers
+  numel = mesh.shared_element_offsets[i+1] - mesh.shared_element_offsets[i]
+  dof_sendbuf[i] = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, numel)
+  sendbuf_i = dof_sendbuf[i]
+  elnums_i = mesh.local_element_lists[i]
+  for j=1:length(elnums_i)
+    elnum_j = elnums_i[j]
+    for k=1:mesh.numNodesPerElement
+      for p=1:mesh.numDofPerNode
+        sendbuf_i[p, k, j] = mesh.dofs[p, k, elnum_j]
+      end
+    end
+  end  # end loop over current list of elements
+
+  # now do the send
+  send_reqs[i] = MPI.Isend(sendbuf_i, mesh.peer_parts[i], 1, mesh.comm)
+end
+
+# figure out the local to global offset of the dof numbers
+# compute number of local dofs
+ndof = 0
+for i=1:3
+  ndof += mesh.numNodesPerType[i]*mesh.numEntitiesPerType[i]*mesh.numDofPerNode
+end
+
+# get all processes dof offsets
+dof_offsets = MPI.Allgather(ndof, mesh.comm)
+
+# figure out own dof_offset
+dof_offset = 0
+for i=1:mesh.myrank  # sum all dofs up to but *not* including self
+  dof_offset += dof_offsets[i]
+end
+mesh.dof_offset = dof_offset
+
+# figure out peer dof_offsets
+peer_dof_offsets = Array(Int, mesh.npeers)
+for i=1:mesh.npeers
+  dof_offset_i = 0
+  for j=1:mesh.peer_parts[i]
+    dof_offset_i += dof_offsets[i]
+  end
+  peer_dof_offsets[i] = dof_offset_i
+end
+
+# adjust other elements dof such that dof + dof_offset of this process = global
+# dof number
+# store local dof number + (offset of owner - offset of host) in dofs array
+dofs = mesh.dofs
+for i=1:mesh.npeers
+  idx, stat =  MPI.Waitany!(recv_reqs)
+  # do subtraction first to avoid overflow
+  offset = peer_dof_offsets[idx] - dof_offset
+  start_el = mesh.shared_element_offsets[idx]
+  end_el = mesh.shared_element_offsets[idx+1] - 1
+  for j=start_el:end_el
+    for k=1:mesh.numNodesPerElement
+      for p=1:mesh.numDofPerNode
+        dofs[p, k, j] += offset
+      end
+    end
+  end
+
+end  # end loop over peers
+
+# wait for the sends to finish before returning
+for i=1:mesh.npeers
+  MPI.Wait!(send_reqs[i])
 end
 
 #println("mesh.dof = ", mesh.dofs)

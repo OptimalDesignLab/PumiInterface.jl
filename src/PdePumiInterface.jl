@@ -220,6 +220,7 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
 					 # index (ie. edge 1,2, or 3)
   color_cnt::Array{Int32, 1}  # number of elements in each color
 
+  dof_offset::Int  # local to global dof offset
 
 
  function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts; dofpernode=1, shape_type=1, coloring_distance=2)
@@ -250,6 +251,7 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   mesh.numNodesPerElement = getNumNodes(order)
   mesh.shape_type = shape_type
   mesh.coloringDistance = coloring_distance
+  mesh.dof_offset = 0
   num_Entities, mesh.m_ptr, mesh.mshape_ptr = init2(dmg_name, smb_name, order, shape_type=shape_type)
   mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
                                          # field shape for CG
