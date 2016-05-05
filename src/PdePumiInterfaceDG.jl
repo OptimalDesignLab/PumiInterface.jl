@@ -512,7 +512,8 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 #  println("finished getting degree of freedom numbers")
 
 
-
+  MPI.Barrier(mesh.comm)
+  redirect_stderr(mesh.f)
   if coloring_distance == 2
     numc = colorMesh2(mesh, colordata)
     mesh.numColors = numc
@@ -607,7 +608,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
     end
   end
 
-  createSubtriangulatedMesh(mesh)
+  @time createSubtriangulatedMesh(mesh)
   println("finished creating sub mesh\n")
 
   println("printin main mesh statistics")
@@ -1896,8 +1897,8 @@ end
 # now color the parallel boundary elements and their neighbors
 numc = colorMeshBoundary2(mesh, colordata, numc, cnt_colors)
 
-println("number of colors = ", numc)
-println("number of each color = ", cnt_colors)
+println(mesh.f, "number of colors = ", numc)
+println(mesh.f, "number of each color = ", cnt_colors)
 mesh.color_cnt = cnt_colors
 
 return numc
@@ -1906,6 +1907,7 @@ end
 
 function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cnt_colors)
 
+  println(mesh.f, "----- Entered colorMeshBoundary2 -----")
   colordata.nonlocal_colors = zeros(Int32, mesh.numSharedEl)
   adj = Array(Ptr{Void}, 3)  # distance-1 edge neighbors
   adj2 = Array(Array{Ptr{Void}, 1}, 3)  # distance-2 edge neighbors + distance-1
@@ -1934,8 +1936,8 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
     el_i = mesh.elements[i]
     self[1] = el_i
 
-    getDistance2Colors(mesh, i, adj, adj2, local_colors)
-    getNonLocalColors(mesh, adj, colordata, nonlocal_d1neighborcolors)
+    num_adj = getDistance2Colors(mesh, i, adj, adj2, local_colors)
+    getNonLocalColors(mesh, view(adj, 1:num_adj), colordata, nonlocal_d1neighborcolors)
     getNonLocalColors(mesh, self, colordata, nonlocal_neighborcolors)
 
     min_color = getMinColor2(colors, numc)
@@ -1977,7 +1979,7 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
   return numc
 end
 
-function getDistance2Colors(mesh, elnum::Integer, adj, adj2, colors)
+function getDistance2Colors(mesh::PumiMeshDG2, elnum::Integer, adj, adj2, colors)
 # get the distance-2 neighbors of a given element
 # repeats included
 # adj : array to be populated with distance-1 edge neighbors
@@ -2021,10 +2023,10 @@ function getDistance2Colors(mesh, elnum::Integer, adj, adj2, colors)
   end
 
 
-  return nothing
+  return num_adj
 end
 
-function getNonLocalColors(mesh, adj::Array{Ptr{Void}}, colordata::ColoringData, colors::AbstractArray)
+function getNonLocalColors(mesh, adj::AbstractArray{Ptr{Void}}, colordata::ColoringData, colors::AbstractArray)
 # gets the colors of the non-local neighbors of the specified elements
 # adj holds the pointers to the elements
 
