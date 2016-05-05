@@ -513,7 +513,6 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 
 
   MPI.Barrier(mesh.comm)
-  redirect_stderr(mesh.f)
   if coloring_distance == 2
     numc = colorMesh2(mesh, colordata)
     mesh.numColors = numc
