@@ -285,9 +285,13 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   # each peer part, with the last element being 1 more than the highest element
   # number for the last peer
   shared_element_offsets::Array{Int, 1}
+  local_element_counts::Array{Int, 1}  # number of element on the local
+                                       # side of each peer boundary
+  remote_element_counts::Array{Int, 1}
 
   # element numbers of the elements on each peer boundary
   local_element_lists::Array{Array{Int32, 1}, 1}
+
   # color masks for the non-local elements, contains npeers x numColor
   # BitArrays, where each BitArray has length = the number of ghost elements
   # on the current peer boundary
@@ -327,11 +331,6 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 
   mesh.myrank = MPI.Comm_rank(mesh.comm)
   mesh.commsize = MPI.Comm_size(mesh.comm)
-
-  # for now, rk4 only in parallel
-  if mesh.commsize > 1
-    @assert opts["run_type"] == 1
-  end
 
   if sbp.numfacenodes == 0
     mesh.sbpface = sbpface
@@ -1035,6 +1034,13 @@ function getParallelInfo(mesh::PumiMeshDG2)
   mesh.numGlobalEl = curr_elnum - 1
   mesh.numSharedEl = curr_elnum -1 - mesh.numEl  # number of non-local shared
                                                  # elnums
+  mesh.local_element_counts = Array(Int, mesh.npeers)
+  mesh.remote_element_counts = Array(Int, mesh.npeers)
+  for i=1:mesh.npeers
+    mesh.remote_element_counts[i] = peer_offsets[i+1] - peer_offsets[i]
+    mesh.local_element_counts[i] = length(mesh.local_element_lists[i])
+  end
+
 
   # create the dictonary that maps from locally owned element's numbers
   # to their adjacent non-local neighbors
@@ -2107,7 +2113,6 @@ end
 
 cnt = 0
 for i=1:mesh.numEl
-  println("element ", i)
   el_i = mesh.elements[i]
   elnum = getNumberJ(mesh.el_Nptr, el_i, 0, 0) + 1
 
