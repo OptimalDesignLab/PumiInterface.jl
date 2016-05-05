@@ -247,6 +247,11 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   dofs::Array{Int, 3}  # store dof numbers of solution array to speed assembly
   sparsity_bnds::Array{Int32, 2}  # store max, min dofs for each dof
   sparsity_nodebnds::Array{Int32, 2}  # store min, max nodes for each node
+
+  sparsity_counts::Array{Int32, 2}  # store number of local, remote dofs 
+                                    # for each dof
+  sparsity_counts_node::Array{Int32, 2}  # store number of local, remote dofs
+                                         # for each node
   color_masks::Array{BitArray{1}, 1}  # array of bitarray masks used to control element perturbations when forming jacobian, number of arrays = number of colors
   neighbor_colors::Array{UInt8, 2}  # 4 by numEl array, holds colors of edge-neighbor elements + own color
   neighbor_nums::Array{Int32, 2}  # 4 by numEl array, holds element numbers of neighbors + own number, in same order as neighbor_colors
@@ -543,6 +548,14 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
     mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
     @time getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
     println("finished getting sparsity bounds")
+
+    mesh.sparsity_counts = zeros(Int32, 2, mesh.numDof)
+    mesh.sparsity_counts_node = zeros(Int32, 2, mesh.numNodes)
+    @time getSparsityCounts(mesh, mesh.sparsity_counts)
+    @time getSparsityCounts(mesh, mesh.sparsity_counts_node, getdofs=false)
+    println("finished getting sparsity counts")
+
+
   end
 
 
@@ -785,6 +798,11 @@ function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
   getSparsityBounds(mesh, mesh.sparsity_bnds)
   mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
   getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
+
+  mesh.sparsity_counts = zeros(Int32, 2, mesh.numDof)
+  mesh.sparsity_counts_node = zeros(Int32, 2, mesh.numNodes)
+  getSparsityCounts(mesh, mesh.sparsity_counts)
+  getSparsityCounts(mesh, mesh.sparsity_counts_node, getdofs=false)
 
   if opts["write_counts"]
     writeCounts(mesh, fname="countsp.txt")
@@ -1441,6 +1459,34 @@ function getEntityPointers(mesh::PumiMesh)
 
 end  # end getEntityPointers
 
+
+function getSparsityCounts(mesh::PumiMeshDG2, sparse_bnds::AbstractArray{Int32, 2}; getdofs=true)
+# count how many local, remote nodes/dofs each dof is related to
+
+  numNodesPerElement = mesh.numNodesPerElement
+  if getdofs
+    numDofPerNode = mesh.numDofPerNode
+  else
+    numDofPerNode = 1
+  end
+
+  for i=1:mesh.numEl
+    nlocal = 4  # 3 neighbors + 1
+    nremotes = countRemotes(mesh.m_ptr, mesh.elements[i])
+    nlocal = nlocal - nremotes
+
+    # apply this to all dofs on this element
+    for j=1:mesh.numNodesPerElement
+      for k =1:mesh.numDofPerNode
+        dof_k = mesh.dofs[k, j, i]
+        sparse_bnds[1, dof_k] = nlocal*numNodesPerElement*numDofPerNode
+        sparse_bnds[2, dof_k] = nremotes*numNodesPerElement*numDofPerNode
+      end
+    end
+  end
+
+  return nothing
+end
 
 
 
