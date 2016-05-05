@@ -1482,10 +1482,11 @@ for etype=1:3  # loop over mesh entity types
     for entity = 1:num_entities[etype]  # loop over all entities of this type
       entity_ptr = iterators_get[etype]()  # get pointer to mesh entity
 
+      min, max = getDofBounds(mesh, etype, getdofs=getdofs)
       for node = 1:num_nodes_entity[etype]  # loop over nodes on each entity
 	# get the minimum, maximum related dof numbers
-        min, max = getDofBounds(mesh, etype, getdofs=getdofs)
 	# use the same min, max for all dofs on this node
+
 	for dof = 1:numDofPerNode
 	  dofnum = getNumberJ(numbering_Nptr, entity_ptr, node - 1, dof-1)
           sparse_bnds[1, dofnum] = min
