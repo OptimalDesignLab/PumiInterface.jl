@@ -1932,16 +1932,12 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
 
 
   for i in keys(colordata.adj_dict)
-    println(mesh.f, "coloring local element ", i)
     el_i = mesh.elements[i]
     self[1] = el_i
 
     num_adj = getDistance2Colors(mesh, i, adj, adj2, local_colors)
     getNonLocalColors(mesh, view(adj, 1:num_adj), colordata, nonlocal_d1neighborcolors)
     getNonLocalColors(mesh, self, colordata, nonlocal_neighborcolors)
-
-    println(mesh.f, "local_colors = ", local_colors)
-    println(mesh.f, "nonlocal_d1neighborcolors = ", nonlocal_d1neighborcolors)
 
     min_color = getMinColor2(colors, numc)
 
@@ -1960,13 +1956,11 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
     vals = colordata.adj_dict[i]
     for i=1:length(vals)  # loop over the non-local neighbors
 
-      println(mesh.f, "nonlocal neighbors = ", vals)
       if vals[i] != 0  # only the ones that actually exist
         val_i = vals[i]  # the nonlocal element number
         if colordata.nonlocal_colors[val_i - mesh.numEl] == 0  # if not colored yeta
           min_color = getMinColor2(colors, numc)
 
-          println(mesh.f, "coloring nonlocal neighbor ", i, " with color " min_color)
           if min_color > numc
             resize!(cnt_colors, min_color)
             cnt_colors[min_color] = 0  # initialize new value to zero
