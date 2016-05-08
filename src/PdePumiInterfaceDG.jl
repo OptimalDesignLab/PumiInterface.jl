@@ -1466,10 +1466,14 @@ function getSparsityCounts(mesh::PumiMeshDG2, sparse_bnds::AbstractArray{Int32, 
 # count how many local, remote nodes/dofs each dof is related to
 
   numNodesPerElement = mesh.numNodesPerElement
-  if getdofs
+  if getdofs || mesh.numDofPerNode == 1
     numDofPerNode = mesh.numDofPerNode
+    div_factor = 1
+    add_factor = 0
   else
     numDofPerNode = 1
+    div_factor = mesh.numDofPerNode
+    add_factor = 1
   end
 
   edges = Array(Ptr{Void}, 3)
@@ -1487,8 +1491,9 @@ function getSparsityCounts(mesh::PumiMeshDG2, sparse_bnds::AbstractArray{Int32, 
 
     # apply this to all dofs on this element
     for j=1:mesh.numNodesPerElement
-      for k =1:mesh.numDofPerNode
+      for k =1:numDofPerNode
         dof_k = mesh.dofs[k, j, i]
+        dof_k = div(dof_k, div_factor) + add_factor
         sparse_bnds[1, dof_k] = nlocal*numNodesPerElement*numDofPerNode
         sparse_bnds[2, dof_k] = nremotes*numNodesPerElement*numDofPerNode
       end
