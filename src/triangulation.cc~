@@ -196,7 +196,6 @@ void printFields(apf::Mesh* m)
 // of the new mesh
 void transferNumberingToElements(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, apf::Numbering* numbering_old)
 {
-  std::cout << "entered transferNumberingToElements" << std::endl;
 
   apf::MeshIterator* itold = m->begin(2);
   apf::MeshIterator* itnew = m_new->begin(2);
@@ -229,7 +228,6 @@ void transferNumberingToElements(apf::Mesh* m, apf::Mesh* m_new, const int numtr
       }
   }
 
-  std::cout << "finished transferNumberingToElements" << std::endl;
 
 }  // end function
 
@@ -407,6 +405,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
     {
 //      std::cout << "copying vertices" << std::endl;
       triDG::transferVertices(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numbering_i, n_new);
+      triDG::completeNumbering(m_new, n_new);
       continue;
     }
 
@@ -414,6 +413,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
     {
 //      std::cout << "copying edges" << std::endl;
       triDG::transferEdges(m, mshape, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numbering_i, n_new);
+      triDG::completeNumbering(m_new, n_new);
       continue;
     }
 

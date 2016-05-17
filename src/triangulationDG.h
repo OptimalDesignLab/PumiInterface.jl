@@ -91,5 +91,15 @@ void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, co
  */
 void transferEdges(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* n_old, apf::Numbering* n_new);
 
+/* Assigns a default value to all unnumbered nodes of a numbering.
+ * Default value is the maximum value in the Numbering + 1
+ * Inputs:
+ *   m_new: new mesh
+ *   n_new: a Numbering* on the new mesh
+*/
+void completeNumbering(apf::Mesh* m_new, apf::Numbering* n_new);
+
+
+
 }
 #endif

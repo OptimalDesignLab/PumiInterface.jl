@@ -391,7 +391,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
     // if Numbering is the element numbering, copy it specially too
     if ( strcmp(name_i, "faceNums") == 0 || strcmp(name_i, "coloring") == 0)
     {
-//      std::cout << "Copying numbering " << name_i << " to elements of new mesh" << std::endl;
+      std::cout << "Copying numbering " << name_i << " to elements of new mesh" << std::endl;
       transferNumberingToElements(m, m_new, numtriangles, numbering_i);
       continue;
     }
@@ -403,19 +403,21 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
 
     if (nodes_on[0] == 1 && nodes_on[1] == 0 && nodes_on[2] == 0)
     {
-//      std::cout << "copying vertices" << std::endl;
+      std::cout << "copying vertices" << std::endl;
       triDG::transferVertices(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numbering_i, n_new);
+      triDG::completeNumbering(m_new, n_new);
       continue;
     }
 
     if (nodes_on[0] == 0 && nodes_on[1] == 1 && nodes_on[2] == 0)
     {
-//      std::cout << "copying edges" << std::endl;
+      std::cout << "copying edges" << std::endl;
       triDG::transferEdges(m, mshape, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numbering_i, n_new);
+      triDG::completeNumbering(m_new, n_new);
       continue;
     }
 
-//    std::cout << "copying elements" << std::endl;
+    std::cout << "copying everything" << std::endl;
     apf::MeshIterator* itold = m->begin(2);
     apf::MeshIterator* itnew = m_new->begin(2);
     while ( (e = m->iterate(itold)) ) // loop over elements in old mesh

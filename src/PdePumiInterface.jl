@@ -553,7 +553,7 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
     writeCounts(mesh)
   end
 
-  writeVtkFiles("mesh_complete", mesh.m_ptr)
+  writeVisFiles(mesh, "mesh_complete")
   return mesh
   # could use incomplete initilization to avoid copying arrays
 #  return PumiMesh2(m_ptr, mshape_ptr, f_ptr, vert_Nptr, edge_Nptr, el_Nptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)

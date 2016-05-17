@@ -193,13 +193,6 @@ void getVertLookupTables(const int triangulation[][3], const int numtriangles, i
 */
 void getFieldLookupTables(const int nnodes_per_el, const int triangulation[][3], const int numtriangles, int* subelements, int* subelement_verts);
 
-/* Assigns a default value to all unnumbered nodes of a numbering
- * Inputs:
- *   m_new: new mesh
- *   n_new: a Numbering* on the new mesh
-*/
-void completeNumbering(apf::Mesh* m_new, apf::Numbering* n_new);
-
 
 /* Gets the maximum number present in a Numbering
  * Inputs:
@@ -479,13 +472,14 @@ void transferNumberingToElements(apf::Mesh* m, apf::Mesh* m_new, const int numtr
 //    std::cout << "processing element " << e << std::endl;
       for (int i = 0; i < numtriangles; ++i)
       {
+        e_new = m_new->iterate(itnew);
+//          std::cout << "    e_new = " << e_new << std::endl;
+
 //        std::cout << "  triangle " << i << std::endl;
         for (int n = 0; n < numcomp; ++n)
         {
 //          std::cout << "    component " << n << std::endl;
           val = apf::getNumber(numbering_old, e, 0, n);
-          e_new = m_new->iterate(itnew);
-//          std::cout << "    e_new = " << e_new << std::endl;
           apf::number(numbering_new, e_new, 0, n, val);
         }
       }
@@ -614,28 +608,31 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
     // if Numbering is the element numbering, copy it specially too
     if ( strcmp(name_i, "faceNums") == 0 || strcmp(name_i, "coloring") == 0)
     {
-//      std::cout << "Copying numbering " << name_i << " to elements of new mesh" << std::endl;
+      std::cout << "transferring numbering to elements" << std::endl;
       transferNumberingToElements(m, m_new, numtriangles, numbering_i);
       continue;
     }
 
     // create new field and populate it
     apf::FieldShape* fshape_new = getNewShape(numbering_i_shape);
-//    std::cout << "creating new Numbering with name: " << fshape_new->getName() << std::endl;
+    std::cout << "creating new Numbering with name: " << fshape_new->getName() << std::endl;
     apf::Numbering* n_new = apf::createNumbering(m_new, name_i, fshape_new, numcomp);
 
     // if Numbering has values on vertices, transfer them here
     if (numbering_i_shape->hasNodesIn(0)) 
     {
+      std::cout << "transfering vertices" << std::endl;
       transferVertices(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numbering_i, n_new);
     }
 
     if (numbering_i_shape->hasNodesIn(1))
     {
+      std::cout << "transferring edges" << std::endl;
       transferEdges(m, mshape, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numbering_i, n_new);
     }
 
     // now transfer all non-vertex values
+    std::cout << "transferring elements" << std::endl;
     apf::MeshIterator* itold = m->begin(2);
     apf::MeshIterator* itnew = m_new->begin(2);
     while ( (e = m->iterate(itold)) ) // loop over elements in old mesh
@@ -746,8 +743,12 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
 */
   } // end loop over numberings
 
+  std::cout << "printing old mesh fields and numberings" << std::endl;
+  triDG::printFields(m);
+
   std::cout << "printing new mesh fields and numberings" << std::endl;
   triDG::printFields(m_new);
+
 }  // end function
 
 
@@ -1297,7 +1298,6 @@ void printArray(std::ostream& os, apf::MeshEntity** arr, const int si, const int
 }  // end function
 
 
-// get the maximum number present in a numbering on the new mesh (safely)
 void completeNumbering(apf::Mesh* m_new, apf::Numbering* n_new)
 {
   const int maxval = getMaxNumber(m_new, n_new) + 1;
