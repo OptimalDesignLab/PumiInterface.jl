@@ -1,5 +1,5 @@
-#ifndef TRIANGULATION_H
-#define TRIANGULATION_H
+#ifndef TRIANGULATIONDG_H
+#define TRIANGULATIONDG_H
 
 
 #include <iostream>
@@ -55,6 +55,41 @@ apf::Mesh2* createSubMeshDG(apf::Mesh* m, apf::FieldShape* mshape, const int num
  *  field_new: the field* on the new mesh (must already have been created)
 */
 void transferFieldDG(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3], double* interp_op, apf::Field* field_old, apf::Field* field_new);
+
 }
 
+namespace triDG {
+
+/* Figures out what the FieldShape on the new mesh should be for a given
+ * FieldShape on the old mesh
+ * Inputs:
+ *   fshape_old: fieldshape from the Numbering/Field on the old mesh
+ * Outputs:
+ *   the new FieldShape*
+ */
+apf::FieldShape* getNewShape(apf::FieldShape* fshape_old);
+
+
+
+/* Transfers Numbering values from the vertices of the old mesh to the new mesh
+ * Inputs:
+ *  m: old mesh
+ *  m_new: new mesh
+ *  numtriangles: see other explanations
+ *  triangulation: see other explanations
+ *  elementNOdeOffsets: the offsets used to remap nodes on shared entities
+ *  typeOffsetsPerElement[]: see other explanations
+ *  n_old: the Numbering* on the old mesh
+ *  n_new: the Numbering* on the new mesh
+*/
+void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* n_old, apf::Numbering* n_new);
+
+
+/* Transfers Numbering values from the edges of the old mesh to the edges of
+ * the new mesh.  Only works if every old mesh edge is has exactly 1 new
+ * mesh edge (ie. it is not subdivided)
+ */
+void transferEdges(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* n_old, apf::Numbering* n_new);
+
+}
 #endif

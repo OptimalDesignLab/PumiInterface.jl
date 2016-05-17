@@ -1487,7 +1487,7 @@ function getMinColor2{T}(adj::AbstractArray{T}, numc::Integer)
 # numc is the current number of colors
 
 mask = zeros(Bool, numc)
-
+sort!(adj)
 min_color = 0
 for i=1:length(adj) # identify already used colors
   if adj[i] != 0

@@ -228,14 +228,15 @@ void transferNumberingToElements(apf::Mesh* m, apf::Mesh* m_new, const int numtr
       }
   }
 
+
 }  // end function
 
 
 void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3])
 {
 
-  std::cout << "old mesh pointer = " << m << std::endl;
-  std::cout << "new mesh pointer = " << m_new << std::endl;
+//  std::cout << "old mesh pointer = " << m << std::endl;
+//  std::cout << "new mesh pointer = " << m_new << std::endl;
   // compute some quantities
   int nnodes_per_el = typeOffsetsPerElement[3] - 1;
   apf::FieldShape* mshape = m->getShape();
@@ -255,12 +256,12 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
     // get number of nodes on entities of this type 
     int num_nodes_d = mshape->countNodesOn(dimensionTypes[dim]);
     // loop over entities in this dimension
-    std::cout << "dim = " << dim << ", adjacentCount = " << m->adjacentCount[apf::Mesh::TRIANGLE][dim] << std::endl;
+//    std::cout << "dim = " << dim << ", adjacentCount = " << m->adjacentCount[apf::Mesh::TRIANGLE][dim] << std::endl;
     for (int i = 0; i < m->adjacentCount[apf::Mesh::TRIANGLE][dim]; ++i)
     { 
-      std::cout << "idx = " << idx << std::endl;
+//      std::cout << "idx = " << idx << std::endl;
       node_start[dim][i] = idx;
-      std::cout << "node_start[" << dim << "][" << i << "] = " << node_start[dim][i] << std::endl;
+//      std::cout << "node_start[" << dim << "][" << i << "] = " << node_start[dim][i] << std::endl;
       idx = idx + num_nodes_d;
     }
   }
@@ -299,7 +300,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
   int el = 0;  // store found element
   int vert = 0; // store found node
   bool breaknow = false;  // flag for breaking second loopa
-  std::cout << "Precalculating sub-triangle lookup tables" << std::endl;
+//  std::cout << "Precalculating sub-triangle lookup tables" << std::endl;
   for (int i = 0; i < nnodes_per_el; ++i)  // search for node i
   {
     // loop through the triangulation
@@ -334,10 +335,10 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
 
    // copy numberings
   int numnumberings = m->countNumberings();
-  apf::FieldShape* mnew_shape = apf::getLagrange(1);
 
   // store all the subtriangles corresponding to an old mesh element
   apf::MeshEntity* subtriangles[numtriangles];
+  int nodes_on[3];
   apf::MeshEntity* node_entity;  // entity actually containing the node
   int nodenum; // node within element index
   int elnum;
@@ -367,7 +368,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
     apf::FieldShape* numbering_i_shape = apf::getShape(numbering_i);
     const char* shape_name = numbering_i_shape->getName();
     std::cout << "Numbering Fieldshape name = " << shape_name << std::endl;
-    int num_numbered_nodes = apf::countNodes(numbering_i);
+//    int num_numbered_nodes = apf::countNodes(numbering_i);
 /*
     for (int s_dim=0; s_dim < 3; ++s_dim)
     {
@@ -375,8 +376,11 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
     }
 */
 
+    for (int j = 0; j < 3; ++j)
+      nodes_on[j] = numbering_i_shape->countNodesOn(j);
+
     int numbered_count = 0;
-    std::cout << "Number of nodes with assigned numbers = " << num_numbered_nodes << std::endl;
+//    std::cout << "Number of nodes with assigned numbers = " << num_numbered_nodes << std::endl;
     apf::Field* field_i = apf::getField(numbering_i);
     if (field_i != NULL)
     {
@@ -387,13 +391,31 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
     // if Numbering is the element numbering, copy it specially too
     if ( strcmp(name_i, "faceNums") == 0 || strcmp(name_i, "coloring") == 0)
     {
-      std::cout << "Copying numbering " << name_i << " to elements of new mesh" << std::endl;
+//      std::cout << "Copying numbering " << name_i << " to elements of new mesh" << std::endl;
       transferNumberingToElements(m, m_new, numtriangles, numbering_i);
+      continue;
     }
 
-    // create new field and populate it
-    apf::Numbering* n_new = apf::createNumbering(m_new, name_i, mnew_shape, numcomp);
+    apf::FieldShape* fshape_new = triDG::getNewShape(numbering_i_shape);
 
+    // create new field and populate it
+    apf::Numbering* n_new = apf::createNumbering(m_new, name_i, fshape_new, numcomp);
+
+    if (nodes_on[0] == 1 && nodes_on[1] == 0 && nodes_on[2] == 0)
+    {
+//      std::cout << "copying vertices" << std::endl;
+      triDG::transferVertices(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numbering_i, n_new);
+      continue;
+    }
+
+    if (nodes_on[0] == 0 && nodes_on[1] == 1 && nodes_on[2] == 0)
+    {
+//      std::cout << "copying edges" << std::endl;
+      triDG::transferEdges(m, mshape, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numbering_i, n_new);
+      continue;
+    }
+
+//    std::cout << "copying elements" << std::endl;
     apf::MeshIterator* itold = m->begin(2);
     apf::MeshIterator* itnew = m_new->begin(2);
     while ( (e = m->iterate(itold)) ) // loop over elements in old mesh
@@ -411,7 +433,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
 
       nodenum = 0;  //reset nodenum to beginning of element
 
-      for (int dim = 0; dim < 3; ++dim)  // loop all dimensions
+      for (int dim = 0; dim < 3; ++dim)  // loop over elements
       {
 
 //        std::cout << "  looping over dimension " << dim << std::endl;
@@ -481,8 +503,8 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
 
     } // end loop over old mesh elements
    
-    int num_numbered_nodes_new = apf::countNodes(n_new);
-    std::cout << "Actually copied " << num_numbered_nodes_new << " nodes" << std::endl; 
+//    int num_numbered_nodes_new = apf::countNodes(n_new);
+//    std::cout << "Actually copied " << num_numbered_nodes_new << " nodes" << std::endl; 
 /*  // this test doesn't work because numbering of an entity dimension
  *      gets mapped to all the nodes on that entity dimension
     if (num_numbered_nodes != num_numbered_nodes_new)

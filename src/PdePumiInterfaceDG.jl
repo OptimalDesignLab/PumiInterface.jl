@@ -1937,15 +1937,20 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
 
 
   for i in keys(colordata.adj_dict)
+    println(mesh.f, "processing element ", i)
     el_i = mesh.elements[i]
     self[1] = el_i
 
     num_adj = getDistance2Colors(mesh, i, adj, adj2, local_colors)
     getNonLocalColors(mesh, view(adj, 1:num_adj), colordata, nonlocal_d1neighborcolors)
-    getNonLocalColors(mesh, self, colordata, nonlocal_neighborcolors)
+#    getNonLocalColors(mesh, self, colordata, nonlocal_neighborcolors)
 
+    println(mesh.f, "local_colors = ", local_colors)
+    println(mesh.f, "nonlocal_d1neighborcolors = ", nonlocal_d1neighborcolors)
+    println(mesh.f, "nonlocal_neighborcolors = ", nonlocal_neighborcolors)
     min_color = getMinColor2(colors, numc)
-
+    println(mesh.f, "assigning color ", min_color)
+    println(mesh.f, "colors = ", colors)
     if min_color > numc
       resize!(cnt_colors, min_color)
       cnt_colors[min_color] = 0  # initialize new value to zero
@@ -1959,12 +1964,15 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
 
     # now do the coloring of the non-local neighbors
     vals = colordata.adj_dict[i]
-    for i=1:length(vals)  # loop over the non-local neighbors
+    println(mesh.f, "nonlocal neighbor elnums = ", vals)
+    for j=1:length(vals)  # loop over the non-local neighbors
 
-      if vals[i] != 0  # only the ones that actually exist
-        val_i = vals[i]  # the nonlocal element number
+      if vals[j] != 0  # only the ones that actually exist
+        val_i = vals[j]  # the nonlocal element number
         if colordata.nonlocal_colors[val_i - mesh.numEl] == 0  # if not colored yeta
           min_color = getMinColor2(colors, numc)
+          println(mesh.f, "assigning nonlocal neighbor ", j, " color ", min_color)
+          println(mesh.f, "colors = ", colors)
 
           if min_color > numc
             resize!(cnt_colors, min_color)
@@ -2299,14 +2307,14 @@ function getMinColor{T}(adj::AbstractArray{T})
 end
 
 
-
+#=
 function getMinColor2{T}(adj::AbstractArray{T}, numc::Integer)
 # ensure uniqueness of neighboring colors
 # adj is array of colors of adjacent faces
 # numc is the current number of colors
 
 mask = zeros(Bool, numc)
-
+sort!(adj)
 min_color = 0
 for i=1:length(adj) # identify already used colors
   if adj[i] != 0
@@ -2337,7 +2345,7 @@ end
 return min_color
 
 end
-
+=#
 
 function getPertNeighbors0(mesh::PumiMeshDG2)
 # get the element that is perturbed for each element for each color
