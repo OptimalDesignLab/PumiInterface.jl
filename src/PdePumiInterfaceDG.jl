@@ -730,7 +730,6 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   end
 
   writeVisFiles(mesh, "mesh_complete")
-  writeVtkFiles("mesh_complete_orig", mesh.m_ptr)
 
   myrank = mesh.myrank
   f = open("load_balance_$myrank.dat", "a+")

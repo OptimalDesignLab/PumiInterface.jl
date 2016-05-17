@@ -7,7 +7,9 @@
 #include <PCU.h>
 #include <apfNumbering.h>
 #include <apfShape.h>
+#include "dgSBPShape1.h"
 
+/*
 void printModelClassification(apf::Mesh * m)
 {
   apf::MeshEntity* e;
@@ -35,7 +37,7 @@ void printModelClassification(apf::Mesh * m)
         
 
 }  // end function
-
+*/
 int main ()
 {
 
@@ -51,15 +53,43 @@ int main ()
   gmi_model* g = gmi_load(".null");
   std::cout << "finished loading geometric model" << std::endl;
   // using the mesh vortex3_1.smb works fine
-  apf::Mesh2* m = apf::loadMdsMesh(g,"/users/creanj/meshcreate/meshfiles/.smb" );
+  apf::Mesh2* m = apf::loadMdsMesh(g,"tri8l.smb" );
 
   std::cout << "finished loading mesh" << std::endl;
+  apf::FieldShape* fshape = apf::getLagrange(1);
+  apf::changeMeshShape(m, fshape, false);
+  std::cout << "finished changing mesh shape" << std::endl;
+
+  // create a Numbering with 3 nodes, all classified on faces, with two 
+  // components on each node
+  int ncomp = 2;
+  fshape = apf::getDG1SBPShape(1);
+  int nnodes_per_el = fshape->countNodesOn(apf::Mesh::TRIANGLE);
+  apf::Numbering* n = apf::createNumbering(m, "dof numbers", fshape, ncomp);
+  apf::MeshIterator* it = m->begin(2);
+  apf::MeshEntity* e;
+
+  // populate the numbering sequentially
+  int val = 0;
+  while ( (e = m->iterate(it)) )
+  {
+    for (int node = 0; node < nnodes_per_el; ++node)
+    {
+      for (int comp = 0; comp < ncomp; ++comp)
+      {
+        apf::number(n, e, node, comp, val);
+        ++val;
+      }
+    }
+  }
+
+
 //  apf::writeASCIIVtkFiles("output_check", m);
   apf::writeVtkFiles("output_check", m);
 
   std::cout << "finished writing paraview files" << std::endl;
 
-  printModelClassification(m);
+//  printModelClassification(m);
 
   return 0;
 }

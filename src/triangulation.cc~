@@ -367,7 +367,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
     std::cout << "Numbering name is " << name_i << std::endl;
     apf::FieldShape* numbering_i_shape = apf::getShape(numbering_i);
     const char* shape_name = numbering_i_shape->getName();
-    std::cout << "Numbering Fieldshape name = " << shape_name << std::endl;
+//    std::cout << "Numbering Fieldshape name = " << shape_name << std::endl;
 //    int num_numbered_nodes = apf::countNodes(numbering_i);
 /*
     for (int s_dim=0; s_dim < 3; ++s_dim)
@@ -417,7 +417,7 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
       continue;
     }
 
-//    std::cout << "copying elements" << std::endl;
+//    std::cout << "copying everything" << std::endl;
     apf::MeshIterator* itold = m->begin(2);
     apf::MeshIterator* itnew = m_new->begin(2);
     while ( (e = m->iterate(itold)) ) // loop over elements in old mesh

@@ -608,31 +608,31 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
     // if Numbering is the element numbering, copy it specially too
     if ( strcmp(name_i, "faceNums") == 0 || strcmp(name_i, "coloring") == 0)
     {
-      std::cout << "transferring numbering to elements" << std::endl;
+//      std::cout << "transferring numbering to elements" << std::endl;
       transferNumberingToElements(m, m_new, numtriangles, numbering_i);
       continue;
     }
 
     // create new field and populate it
     apf::FieldShape* fshape_new = getNewShape(numbering_i_shape);
-    std::cout << "creating new Numbering with name: " << fshape_new->getName() << std::endl;
+//    std::cout << "creating new Numbering with name: " << fshape_new->getName() << std::endl;
     apf::Numbering* n_new = apf::createNumbering(m_new, name_i, fshape_new, numcomp);
 
     // if Numbering has values on vertices, transfer them here
     if (numbering_i_shape->hasNodesIn(0)) 
     {
-      std::cout << "transfering vertices" << std::endl;
+//      std::cout << "transfering vertices" << std::endl;
       transferVertices(m, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numbering_i, n_new);
     }
 
     if (numbering_i_shape->hasNodesIn(1))
     {
-      std::cout << "transferring edges" << std::endl;
+//      std::cout << "transferring edges" << std::endl;
       transferEdges(m, mshape, m_new, numtriangles, triangulation, elementNodeOffsets, typeOffsetsPerElement, numbering_i, n_new);
     }
 
     // now transfer all non-vertex values
-    std::cout << "transferring elements" << std::endl;
+//    std::cout << "transferring elements" << std::endl;
     apf::MeshIterator* itold = m->begin(2);
     apf::MeshIterator* itnew = m_new->begin(2);
     while ( (e = m->iterate(itold)) ) // loop over elements in old mesh
@@ -742,9 +742,6 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
     }
 */
   } // end loop over numberings
-
-  std::cout << "printing old mesh fields and numberings" << std::endl;
-  triDG::printFields(m);
 
   std::cout << "printing new mesh fields and numberings" << std::endl;
   triDG::printFields(m_new);
