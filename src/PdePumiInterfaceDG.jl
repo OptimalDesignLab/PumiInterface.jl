@@ -189,6 +189,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
                        # the boundaries
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
   numColors::Int  # number of colors
+  maxColors::Int  # maximum number of colors on any processor
   numBC::Int  # number of boundary conditions
 
   # hold pointers to mesh entities
@@ -516,7 +517,8 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   if coloring_distance == 2
     numc = colorMesh2(mesh, colordata)
     mesh.numColors = numc
-
+    mesh.maxColors = MPI.Allreduce(numc, MPI.MAX, mesh.comm)
+    println(mesh.f, "max colors = ", mesh.maxColors)
     mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
@@ -529,6 +531,7 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
     numc = colorMesh0(mesh)
     @assert numc == 1
     mesh.numColors = numc
+    mesh.maxColors = numc
     mesh.color_masks = Array(BitArray{1}, numc)
     mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
@@ -1818,6 +1821,7 @@ function colorMesh2(mesh::PumiMeshDG2, colordata::ColoringData)
 # each element must have a different color than its neighbors with which it 
 # shares and edge
 
+println(mesh.f, "----- Entered colorMesh2 -----")
 
 for i=1:mesh.numEl
   numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
@@ -1885,6 +1889,7 @@ for i=1:mesh.numEl
   min_color = getMinColor2(colors, numc)
 
   if min_color > numc
+    println(mesh.f, "adding color ", min_color)
     resize!(cnt_colors, min_color)
     cnt_colors[min_color] = 0  # initialize new value to zero
     numc = min_color
@@ -1937,7 +1942,6 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
 
 
   for i in keys(colordata.adj_dict)
-    println(mesh.f, "processing element ", i)
     el_i = mesh.elements[i]
     self[1] = el_i
 
@@ -1945,12 +1949,7 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
     getNonLocalColors(mesh, view(adj, 1:num_adj), colordata, nonlocal_d1neighborcolors)
 #    getNonLocalColors(mesh, self, colordata, nonlocal_neighborcolors)
 
-    println(mesh.f, "local_colors = ", local_colors)
-    println(mesh.f, "nonlocal_d1neighborcolors = ", nonlocal_d1neighborcolors)
-    println(mesh.f, "nonlocal_neighborcolors = ", nonlocal_neighborcolors)
     min_color = getMinColor2(colors, numc)
-    println(mesh.f, "assigning color ", min_color)
-    println(mesh.f, "colors = ", colors)
     if min_color > numc
       resize!(cnt_colors, min_color)
       cnt_colors[min_color] = 0  # initialize new value to zero
@@ -1964,17 +1963,15 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
 
     # now do the coloring of the non-local neighbors
     vals = colordata.adj_dict[i]
-    println(mesh.f, "nonlocal neighbor elnums = ", vals)
     for j=1:length(vals)  # loop over the non-local neighbors
 
       if vals[j] != 0  # only the ones that actually exist
         val_i = vals[j]  # the nonlocal element number
         if colordata.nonlocal_colors[val_i - mesh.numEl] == 0  # if not colored yeta
           min_color = getMinColor2(colors, numc)
-          println(mesh.f, "assigning nonlocal neighbor ", j, " color ", min_color)
-          println(mesh.f, "colors = ", colors)
 
           if min_color > numc
+            println(mesh.f, "adding color ", min_color)
             resize!(cnt_colors, min_color)
             cnt_colors[min_color] = 0  # initialize new value to zero
             numc = min_color

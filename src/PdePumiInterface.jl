@@ -167,6 +167,7 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   isInterpolated::Bool # is the field interpolated to the faces
   coloringDistance::Int  # distance between elements of the same color, measured in number of edges
   numColors::Int  # number of colors
+  maxColors::Int  # maximum number of colors on any process
   numBC::Int  # number of boundary conditions
 
   # hold pointers to mesh entities
@@ -585,6 +586,7 @@ function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts;
   if coloring_distance == 2
     numc = colorMesh2(mesh)
     mesh.numColors = numc
+    mesh.maxColors = numc
 
     mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)

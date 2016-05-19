@@ -836,7 +836,7 @@ void smallMatMat(const double* A, const double* x, double* b, const int m, const
 void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, const int triangulation[][3], uint8_t elementNodeOffsets[], int typeOffsetsPerElement[], apf::Numbering* numberings[3], apf::Field* field_old, double* interp_op, apf::Field* field_new)
 {
 
-  std::cout << "entered transferVertices" << std::endl;
+//  std::cout << "entered transferVertices" << std::endl;
   // the lookup tables
   int subelements[N_VERT_PER_EL];
   int subelement_verts[N_VERT_PER_EL];
