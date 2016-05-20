@@ -6,13 +6,16 @@ export AbstractMesh,PumiMeshDG2, PumiMeshDG2Preconditioning, reinitPumiMeshDG2, 
 
 # a type to hold data related to coloring the mesh
 type ColoringData
-  adj_dict::Dict{Int, NTuple{2,  Int}}
+  adj_dict::Dict{Int, NTuple{2,  Int}}  # map local element to non-locals
+  revadj::Array{Int32, 2}  # map non-local elements to local elements
+
   nonlocal_colors::Array{Int32, 1}
   # put other fields here
 
-  function ColoringData(dict)
+  function ColoringData(dict, revadj)
     obj = new()
     obj.adj_dict = dict
+    obj.revadj = revadj
     return obj
   end
 end
@@ -1067,8 +1070,8 @@ function getParallelInfo(mesh::PumiMeshDG2)
 
   # create the dictonary that maps from locally owned element's numbers
   # to their adjacent non-local neighbors
-  adj_dict = getLocalAdjacency(mesh)
-  colordata = ColoringData(adj_dict)
+  adj_dict, revadj = getLocalAdjacency(mesh)
+  colordata = ColoringData(adj_dict, revadj)
 
   # delete the dangerous Ptr{Void} -> Int MPI type
   delete!(MPI.mpitype_dict, Ptr{Void})
@@ -1173,6 +1176,9 @@ function getLocalAdjacency(mesh::PumiMeshDG2)
   adj_dict = Dict{Int, NTuple{2, Int}}()
   sizehint!(adj_dict, mesh.numSharedEl)
 
+  # map from non-local element to local neighbors
+  revadj = zeros(Int, mesh.numSharedEl, 2)
+
   for i=1:mesh.npeers
     ifaces_i = mesh.shared_interfaces[i]
     for j=1:length(ifaces_i)
@@ -1187,10 +1193,22 @@ function getLocalAdjacency(mesh::PumiMeshDG2)
         @assert old_tuple[2] == 0
         adj_dict[el_local] = (old_tuple[1], Int(el_nonlocal))
       end  # end if-else
+
+      nonlocal_idx = el_nonlocal - mesh.numEl
+      first_neighbor = revadj[nonlocal_idx, 1]
+      second_neighbor = revadj[nonlocal_idx, 2]
+      if first_neighbor == 0
+        revadj[nonlocal_idx, 1] = el_local
+      elseif second_neighbor == 0
+        revadj[nonlocal_idx, 2] = el_local
+      else
+        throw(ErrorException("Too many adjacent elements for peer $i interface $j"))
+      end
+
     end # end loop over interfaces
   end  # end loop over peers
 
-  return adj_dict
+  return adj_dict, revadj
 end
 
 

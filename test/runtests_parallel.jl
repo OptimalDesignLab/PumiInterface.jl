@@ -194,7 +194,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   end
 
   # check the adjacency dictonary
-  adj_dict = PdePumiInterface.getLocalAdjacency(mesh)
+  adj_dict, revadj = PdePumiInterface.getLocalAdjacency(mesh)
   @fact length(adj_dict) --> mesh.numSharedEl
   # now check that no element appears more than twice
   count_dict = Dict{Int, Int}()
@@ -215,6 +215,37 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact val  --> less_than(3)
     @fact val[1] --> not(0)
   end
+
+  # check the revadj
+  count_dict2 = Dict{Int, Int}()
+  for i=1:mesh.numSharedEl
+    val1 = revadj[i, 1]
+    val2 = revadj[i, 2]
+    @fact val1 --> not(0)
+    if !haskey(count_dict2, val1)
+      count_dict2[val1] = 1
+    else
+      count_dict2[val1] += 1
+    end
+
+    if val2 != 0
+      if !haskey(count_dict2, val2)
+        count_dict2[val1] = 1
+      else
+        count_dict2[val1] += 1
+      end
+    end
+
+  end
+
+  # check no value appears more than twice
+  for (key, val) in count_dict2
+    @fact val --> less_than(3)
+    @fact val --> not(0)
+  end
+
+
+
 
   # check neighbor_colors for uniqueness
   myrank = mesh.myrank
