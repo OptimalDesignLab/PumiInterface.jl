@@ -397,6 +397,7 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   if coloring_distance == 2
     numc = colorMesh2(mesh)
     mesh.numColors = numc
+    mesh.maxColors = numc
 
     mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
@@ -408,7 +409,9 @@ type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
   elseif coloring_distance == 0  # do a distance-0 coloring
     numc = colorMesh0(mesh)
     @assert numc == 1
+
     mesh.numColors = numc
+    mesh.maxColors = numc
     mesh.color_masks = Array(BitArray{1}, numc)
     mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
@@ -596,8 +599,10 @@ function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts;
 
   elseif coloring_distance == 0  # do a distance-0 coloring
     numc = colorMesh0(mesh)
+    println("distance-0 coloring numc = ", numc)
     @assert numc == 1
     mesh.numColors = numc
+    mesh.maxColors = numc
     mesh.color_masks = Array(BitArray{1}, numc)
     mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
