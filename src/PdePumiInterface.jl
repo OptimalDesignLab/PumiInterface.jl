@@ -3015,7 +3015,7 @@ end
 
 
 
-function writeCounts(mesh::PumiMesh2; fname="counts.txt")
+function writeCounts(mesh::PumiMesh2; fname="counts_0.txt")
 # write values needed for memory usage estimate
 vals = Array(Int, 9)
 vals[1] = mesh.numVert
