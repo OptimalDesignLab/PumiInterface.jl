@@ -1,5 +1,5 @@
 # perform a distance-0 coloring of the mesh (ie. all elements same color)
-function colorMesh0(mesh::PumiMeshDG2)
+function colorMesh0(mesh::PumiMesh)
 
   # make every element color 1
   for i=1:mesh.numEl

@@ -1,11 +1,11 @@
 # file for function used for node/dof numbering
 
-function populateDofNumbers(mesh::PumiMeshDG2)
+
+
+function populateDofNumbers(mesh::PumiMesh)
 # populate the dofnums_Nptr with values calculated from
 # nodenums_Nptr
 
-  println("Assigning dof numbers from node numbers")
-
   resetAllIts2()
   # mesh iterator increment, retreval functions
   # TODO: checks if using mutable arrays is causing dynamic dispatch
@@ -13,100 +13,6 @@ function populateDofNumbers(mesh::PumiMeshDG2)
   iterators_get = [getVert, getEdge, getFace]
   num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
   num_nodes_entity = mesh.numNodesPerType
-
-#  mesh.numNodesPerType = num_nodes_entity
-
-  println("num_entities = ", num_entities)
-  println("num_nodes_entity = ", num_nodes_entity)
-
-  for etype = 1:3 # loop over entity types
-#    println("etype = ", etype)
-    if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
-      for entity = 1:num_entities[etype]  # loop over all entities of this type
-#	println("  entity number: ", entity)
-	entity_ptr = iterators_get[etype]()  # get entity
-
-	for node = 1:num_nodes_entity[etype]
-#	  println("    node : ", node)
-          nodenum = getNumberJ(mesh.nodenums_Nptr, entity_ptr, node-1, 0)
-	  if nodenum != 0
-	    for i=1:mesh.numDofPerNode
-	      dofnum_i = (nodenum -1)*mesh.numDofPerNode + i
-#              println("entity type ", etype, ", entity number ", entity, ", node ", node, ", dof ", i, " is getting number ", dofnum_i)
-  	      numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, i-1, dofnum_i)
-	    end  # end loop over dofsPerNode
-	  end   # end if nodenum != 0
-	end  # end loop over node
-
-      iterators_inc[etype]()
-      end  # end loop over entitiesa
-    end  # end if 
-  end  # end loop over entity types
-
-  resetAllIts2()
-
-#  writeVtkFiles("dofs_numbered", mesh.m_ptr)
-  return nothing
-end
-
-
-
-function populateNodeStatus(mesh::PumiMesh)
-# populate the nodestatus_Nptr with values
-# currently we set all nodes to status 3 (free)
-
-  resetAllIts2()
-  # mesh iterator increment, retreval functions
-  # TODO: checks if using mutable arrays is causing dynamic dispatch
-  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
-  iterators_get = [getVert, getEdge, getFace]
-  num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
-  num_nodes_entity = mesh.numNodesPerType
-
-#  mesh.numNodesPerType = num_nodes_entity
-
-  println("num_entities = ", num_entities)
-  println("num_nodes_entity = ", num_nodes_entity)
-
-  for etype = 1:3 # loop over entity types
-#    println("etype = ", etype)
-    if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
-      for entity = 1:num_entities[etype]  # loop over all entities of this type
-#	println("  entity number: ", entity)
-	entity_ptr = iterators_get[etype]()  # get entity
-
-	for node = 1:num_nodes_entity[etype]
-#	  println("    node : ", node)
-	  numberJ(mesh.nodestatus_Nptr, entity_ptr, node-1, 0, 3)
-	end  # end loop over node
-
-      iterators_inc[etype]()
-      end  # end loop over entitiesa
-    end  # end if 
-  end  # end loop over entity types
-
-  resetAllIts2()
-  return nothing
-end
-
-
-function populateDofNumbers(mesh::PumiMesh2)
-# populate the dofnums_Nptr with values calculated from
-# nodenums_Nptr
-# currently we set all nodes to status 3 (free)
-
-  resetAllIts2()
-  # mesh iterator increment, retreval functions
-  # TODO: checks if using mutable arrays is causing dynamic dispatch
-  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
-  iterators_get = [getVert, getEdge, getFace]
-  num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
-  num_nodes_entity = mesh.numNodesPerType
-
-#  mesh.numNodesPerType = num_nodes_entity
-
-  println("num_entities = ", num_entities)
-  println("num_nodes_entity = ", num_nodes_entity)
 
   for etype = 1:3 # loop over entity types
 #    println("etype = ", etype)
@@ -181,7 +87,124 @@ end
 
 
 
-function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
+function getDofNumbers(mesh::PumiMeshDG2)
+# populate array of dof numbers, in same shape as solution array u (or q)
+
+#println("in getDofNumbers")
+#println("numNodesPerElement = ", mesh.numNodesPerElement)
+
+mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.shared_element_offsets[end] - 1)
+
+for i=1:mesh.numEl
+#  println("element ", i)
+  dofnums = getGlobalNodeNumbers(mesh, i)
+
+  for j=1:mesh.numNodesPerElement
+    for k=1:mesh.numDofPerNode  # loop over dofs on the node
+      mesh.dofs[k, j, i] = dofnums[k,j]
+    end
+  end
+end
+
+# get dof number of non-local elements
+# post receives first
+send_reqs = mesh.send_reqs
+recv_reqs = mesh.recv_reqs
+for i=1:mesh.npeers
+  # get the pointer of the start location
+  start_el = mesh.shared_element_offsets[i]
+  numel = mesh.shared_element_offsets[i+1] - start_el
+  ndata = mesh.numDofPerNode*mesh.numNodesPerElement*numel
+  lin_idx = sub2ind(size(mesh.dofs), 1, 1, start_el)
+  ptr_start_el = pointer(mesh.dofs, lin_idx)
+  peer_i = mesh.peer_parts[i]
+  recv_reqs[i] = MPI.Irecv!(ptr_start_el, ndata, peer_i, 1, mesh.comm)
+end
+
+# now send data
+dof_sendbuf = Array(Array{Int, 3}, mesh.npeers)
+for i=1:mesh.npeers
+  numel = mesh.shared_element_offsets[i+1] - mesh.shared_element_offsets[i]
+  dof_sendbuf[i] = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, numel)
+  sendbuf_i = dof_sendbuf[i]
+  elnums_i = mesh.local_element_lists[i]
+  for j=1:length(elnums_i)
+    elnum_j = elnums_i[j]
+    for k=1:mesh.numNodesPerElement
+      for p=1:mesh.numDofPerNode
+        sendbuf_i[p, k, j] = mesh.dofs[p, k, elnum_j]
+      end
+    end
+  end  # end loop over current list of elements
+
+  # now do the send
+  send_reqs[i] = MPI.Isend(sendbuf_i, mesh.peer_parts[i], 1, mesh.comm)
+end
+
+# figure out the local to global offset of the dof numbers
+# compute number of local dofs
+ndof = 0
+for i=1:3
+  ndof += mesh.numNodesPerType[i]*mesh.numEntitiesPerType[i]*mesh.numDofPerNode
+end
+println(mesh.f, "ndof = ", ndof)
+# get all processes dof offsets
+dof_offsets = MPI.Allgather(ndof, mesh.comm)
+println(mesh.f, "dof_offsets = ", dof_offsets)
+# figure out own dof_offset
+dof_offset = 0
+for i=1:mesh.myrank  # sum all dofs up to but *not* including self
+  dof_offset += dof_offsets[i]
+end
+mesh.dof_offset = dof_offset
+
+# figure out peer dof_offsets
+peer_dof_offsets = Array(Int, mesh.npeers)
+for i=1:mesh.npeers
+  dof_offset_i = 0
+  for j=1:mesh.peer_parts[i]
+    dof_offset_i += dof_offsets[j]
+  end
+  peer_dof_offsets[i] = dof_offset_i
+end
+
+println(mesh.f, "peer_parts = ", mesh.peer_parts)
+println(mesh.f, "peer_dof_offsets = ", peer_dof_offsets)
+# adjust other elements dof such that dof + dof_offset of this process = global
+# dof number
+# store local dof number + (offset of owner - offset of host) in dofs array
+dofs = mesh.dofs
+for i=1:mesh.npeers
+  idx, stat =  MPI.Waitany!(recv_reqs)
+  # do subtraction first to avoid overflow
+  offset = peer_dof_offsets[idx] - dof_offset
+  start_el = mesh.shared_element_offsets[idx]
+  end_el = mesh.shared_element_offsets[idx+1] - 1
+  for j=start_el:end_el
+    for k=1:mesh.numNodesPerElement
+      for p=1:mesh.numDofPerNode
+        dofs[p, k, j] += offset
+      end
+    end
+  end
+
+end  # end loop over peers
+
+# wait for the sends to finish before returning
+for i=1:mesh.npeers
+  MPI.Wait!(send_reqs[i])
+end
+
+#println("mesh.dof = ", mesh.dofs)
+
+return nothing
+
+end
+
+
+
+
+function numberNodes(mesh::PumiMesh, number_dofs=false)
 # assign node numbers to entire mesh, or dof numbers if number_dofs=true,
 # using the correct Numbering pointer
 # assumes mesh elements have already been reordered
@@ -345,123 +368,7 @@ function numberNodes(mesh::PumiMeshDG2, number_dofs=false)
 
 end
 
-function getDofNumbers(mesh::PumiMeshDG2)
-# populate array of dof numbers, in same shape as solution array u (or q)
-
-#println("in getDofNumbers")
-#println("numNodesPerElement = ", mesh.numNodesPerElement)
-
-mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.shared_element_offsets[end] - 1)
-
-for i=1:mesh.numEl
-#  println("element ", i)
-  dofnums = getGlobalNodeNumbers(mesh, i)
-
-  for j=1:mesh.numNodesPerElement
-    for k=1:mesh.numDofPerNode  # loop over dofs on the node
-      mesh.dofs[k, j, i] = dofnums[k,j]
-    end
-  end
-end
-
-# get dof number of non-local elements
-# post receives first
-send_reqs = mesh.send_reqs
-recv_reqs = mesh.recv_reqs
-for i=1:mesh.npeers
-  # get the pointer of the start location
-  start_el = mesh.shared_element_offsets[i]
-  numel = mesh.shared_element_offsets[i+1] - start_el
-  ndata = mesh.numDofPerNode*mesh.numNodesPerElement*numel
-  lin_idx = sub2ind(size(mesh.dofs), 1, 1, start_el)
-  ptr_start_el = pointer(mesh.dofs, lin_idx)
-  peer_i = mesh.peer_parts[i]
-  recv_reqs[i] = MPI.Irecv!(ptr_start_el, ndata, peer_i, 1, mesh.comm)
-end
-
-# now send data
-dof_sendbuf = Array(Array{Int, 3}, mesh.npeers)
-for i=1:mesh.npeers
-  numel = mesh.shared_element_offsets[i+1] - mesh.shared_element_offsets[i]
-  dof_sendbuf[i] = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, numel)
-  sendbuf_i = dof_sendbuf[i]
-  elnums_i = mesh.local_element_lists[i]
-  for j=1:length(elnums_i)
-    elnum_j = elnums_i[j]
-    for k=1:mesh.numNodesPerElement
-      for p=1:mesh.numDofPerNode
-        sendbuf_i[p, k, j] = mesh.dofs[p, k, elnum_j]
-      end
-    end
-  end  # end loop over current list of elements
-
-  # now do the send
-  send_reqs[i] = MPI.Isend(sendbuf_i, mesh.peer_parts[i], 1, mesh.comm)
-end
-
-# figure out the local to global offset of the dof numbers
-# compute number of local dofs
-ndof = 0
-for i=1:3
-  ndof += mesh.numNodesPerType[i]*mesh.numEntitiesPerType[i]*mesh.numDofPerNode
-end
-println(mesh.f, "ndof = ", ndof)
-# get all processes dof offsets
-dof_offsets = MPI.Allgather(ndof, mesh.comm)
-println(mesh.f, "dof_offsets = ", dof_offsets)
-# figure out own dof_offset
-dof_offset = 0
-for i=1:mesh.myrank  # sum all dofs up to but *not* including self
-  dof_offset += dof_offsets[i]
-end
-mesh.dof_offset = dof_offset
-
-# figure out peer dof_offsets
-peer_dof_offsets = Array(Int, mesh.npeers)
-for i=1:mesh.npeers
-  dof_offset_i = 0
-  for j=1:mesh.peer_parts[i]
-    dof_offset_i += dof_offsets[j]
-  end
-  peer_dof_offsets[i] = dof_offset_i
-end
-
-println(mesh.f, "peer_parts = ", mesh.peer_parts)
-println(mesh.f, "peer_dof_offsets = ", peer_dof_offsets)
-# adjust other elements dof such that dof + dof_offset of this process = global
-# dof number
-# store local dof number + (offset of owner - offset of host) in dofs array
-dofs = mesh.dofs
-for i=1:mesh.npeers
-  idx, stat =  MPI.Waitany!(recv_reqs)
-  # do subtraction first to avoid overflow
-  offset = peer_dof_offsets[idx] - dof_offset
-  start_el = mesh.shared_element_offsets[idx]
-  end_el = mesh.shared_element_offsets[idx+1] - 1
-  for j=start_el:end_el
-    for k=1:mesh.numNodesPerElement
-      for p=1:mesh.numDofPerNode
-        dofs[p, k, j] += offset
-      end
-    end
-  end
-
-end  # end loop over peers
-
-# wait for the sends to finish before returning
-for i=1:mesh.npeers
-  MPI.Wait!(send_reqs[i])
-end
-
-#println("mesh.dof = ", mesh.dofs)
-
-return nothing
-
-end
-
-
-
-
+#=
 function numberNodes(mesh::PumiMesh2, number_dofs=false)
 # assign node numbers to entire mesh, or dof numbers if number_dofs=true,
 # using the correct Numbering pointer
@@ -620,7 +527,7 @@ function numberNodes(mesh::PumiMesh2, number_dofs=false)
 
 end
 
-
+=#
 function getDofNumbers(mesh::PumiMesh2)
 # populate array of dof numbers, in same shape as solution array u (or q)
 
