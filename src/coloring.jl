@@ -170,7 +170,8 @@ function getMinColor2{T}(adj::AbstractArray{T}, numc::Integer)
 end
 
 
-# perform distance-1 coloring of mesh 
+# perform distance-1 coloring of mesh
+# this can be generalized to 3D via mesh.dim field
 function colorMesh2(mesh::PumiMeshDG2, colordata::ColoringData)
 # each element must have a different color than its neighbors with which it 
 # shares and edge

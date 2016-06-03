@@ -1,7 +1,7 @@
 # file for function used for node/dof numbering
 
 
-
+# this can be generalized to 3D trivially
 function populateDofNumbers(mesh::PumiMesh)
 # populate the dofnums_Nptr with values calculated from
 # nodenums_Nptr
@@ -44,7 +44,7 @@ function populateDofNumbers(mesh::PumiMesh)
 end
 
 
-
+# this can be generalized trivially
 function populateNodeStatus(mesh::PumiMesh)
 # populate the nodestatus_Nptr with values
 # currently we set all nodes to status 3 (free)
@@ -86,7 +86,7 @@ end
 
 
 
-
+# this can be generalized to 3D trivially
 function getDofNumbers(mesh::PumiMeshDG2)
 # populate array of dof numbers, in same shape as solution array u (or q)
 
@@ -203,7 +203,7 @@ end
 
 
 
-
+# this could be generalized with some clever array bookkeeping tricks
 function numberNodes(mesh::PumiMesh, number_dofs=false)
 # assign node numbers to entire mesh, or dof numbers if number_dofs=true,
 # using the correct Numbering pointer
@@ -368,166 +368,7 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
 
 end
 
-#=
-function numberNodes(mesh::PumiMesh2, number_dofs=false)
-# assign node numbers to entire mesh, or dof numbers if number_dofs=true,
-# using the correct Numbering pointer
-# assumes mesh elements have already been reordered
-# this works for high order elements
-  println("Entered numberDofs")
 
-  # calculate number of nodes, dofs
-  num_nodes_v = countNodesOn(mesh.mshape_ptr, 0) # on vert
-  # number of nodes on a vertex
-  num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
-  num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
-  println("num_nodes_v = ", num_nodes_v)
-  println("num_nodes_e = ", num_nodes_e)
-  println("num_nodes_f = ", num_nodes_f)
-  numnodes = num_nodes_v*mesh.numVert + num_nodes_e*mesh.numEdge + num_nodes_f*mesh.numEl
-
-
-
-  # initally number all dofs as numDof+1 to 2*numDof
-  # this allows quick check to see if somthing is labelled or not
-
-  resetAllIts2()
-  # mesh iterator increment, retreval functions
-  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
-  iterators_get = [getVert, getEdge, getFace]
-  num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
-  num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f]
-
-#  mesh.numNodesPerType = num_nodes_entity
-
-  if number_dofs
-    println("numbering degrees of freedom")
-    numbering_ptr = mesh.dofnums_Nptr
-    curr_dof = mesh.numDof + 1
-    dofpernode = mesh.numDofPerNode
-    numDof = mesh.numDofPerNode*numnodes
-  else  # do node numbering
-    println("numbering nodes")
-    numbering_ptr = mesh.nodenums_Nptr
-    curr_dof = mesh.numNodes + 1
-    dofpernode = 1
-    numDof = numnodes
-  end
-
-  println("expected number of dofs = ", numDof)
-  if (numDof > 2^30 || numDof < 0)
-    println("Warning: too many dofs, renumbering will fail")
-  end
-
-
-  println("num_entities = ", num_entities)
-  println("num_nodes_entity = ", num_nodes_entity)
-
-#  curr_dof = 1
-  curr_dof = numDof+1
-  for etype = 1:3 # loop over entity types
-#    println("etype = ", etype)
-    if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
-      for entity = 1:num_entities[etype]  # loop over all entities of this type
-#	println("  entity number: ", entity)
-	entity_ptr = iterators_get[etype]()  # get entity
-
-	for node = 1:num_nodes_entity[etype]
-#	  println("    node : ", node)
-	  for dof = 1:dofpernode
-	    numberJ(numbering_ptr, entity_ptr, node-1, dof-1, curr_dof)
-#	    println("      entity ", entity_ptr, " labelled ", curr_dof)
-	    curr_dof += 1
-	  end  # end loop over dof
-	end  # end loop over node
-
-      iterators_inc[etype]()
-      end  # end loop over entitiesa
-    end  # end if 
-  end  # end loop over entity types
-
-  println("Finished initial numbering of dofs") 
-
-
-  println("Performing final numbering of dofs")
-
-  verts_i = Array(Ptr{Void}, 12)
-  edges_i = Array(Ptr{Void}, 12)
-  resetAllIts2()
-  el_i_ptr = Ptr{Void}(0)  # hold current element
-# TODO: move all if statements out one for loop (check only first dof on each node)
-  curr_dof = 1
-  for i=1:mesh.numEl
-#    println("element number: ", i)
-    el_i_ptr = getFace()
-    incrementFaceIt()
-    # get vertices, edges for this element
-    numVert = getDownward(mesh.m_ptr, el_i_ptr, 0, verts_i)
-#    println("verts_i = ", verts_i)
-#    println("mesh.verts = ", mesh.verts)
-    numEdge = getDownward(mesh.m_ptr, el_i_ptr, 1, edges_i)
-    for j=1:3  # loop over vertices, edges
-#      println("  vertex and edge number: ", j)
-      vert_j = verts_i[j]
-      edge_j = edges_i[j]
-#      println("  vert_j = ", vert_j)
-#      println("  edge_j = ", edge_j)
-      for k=1:dofpernode # loop over vertex dofs
-#	println("    dof number: ", k)
-#	println("    vert_j = ", vert_j)
-        dofnum_k = getNumberJ(numbering_ptr, vert_j, 0, k-1)
-	if dofnum_k > numDof  # still has initial number
-	  # give it new (final) number
-	  numberJ(numbering_ptr, vert_j, 0, k-1, curr_dof)
-	  curr_dof += 1
-	end
-      end  # end loop over vertex dofs
-      
-      # loop over nodes on edge
-      for k=1:num_nodes_entity[2]  # loop over nodes
-	for p=1:dofpernode  # loop over dofs
-	  dofnum_p = getNumberJ(numbering_ptr, edge_j, k-1, p-1)
-	  if dofnum_p > numDof  # still has initial number
-	    # give it new (final) number
-	    numberJ(numbering_ptr, edge_j, k-1, p-1, curr_dof)
-	    curr_dof += 1
-	  end
-	end
-      end
-    end  # end loop over vertices, edges
-    # label face nodes
-    for k=1:num_nodes_entity[3]  # loop over nodes on face
-      for p=1:dofpernode  # loop over dofs
-	dofnum_p = getNumberJ(numbering_ptr, el_i_ptr, k-1, p-1)
-	if dofnum_p > numDof
-	  numberJ(numbering_ptr, el_i_ptr, k-1, p-1, curr_dof)
-	  curr_dof += 1
-	end
-      end
-    end  # end loop over face nodes
-  end  # end loop over elements
-
-  resetAllIts2()
-
-
-  println("finished performing final dof numbering")
-
-  println("number of dofs = ", curr_dof - 1)
-  if (curr_dof -1) != numDof 
-    println("Warning: number of dofs assigned is not equal to teh expected number")
-    println("number of dofs assigned = ", curr_dof-1, " ,expected number = ", numDof)
-  else
-    println("Dof numbering is sane")
-  end
-
-
-
-  resetAllIts2()
-  return nothing
-
-end
-
-=#
 function getDofNumbers(mesh::PumiMesh2)
 # populate array of dof numbers, in same shape as solution array u (or q)
 
