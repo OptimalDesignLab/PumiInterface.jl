@@ -3,22 +3,6 @@
 
 export AbstractMesh,PumiMeshDG2, PumiMeshDG2Preconditioning, reinitPumiMeshDG2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles
 
-# a type to hold data related to coloring the mesh
-type ColoringData
-  adj_dict::Dict{Int, NTuple{2,  Int}}  # map local element to non-locals
-  revadj::Array{Int32, 2}  # map non-local elements to local elements
-
-  nonlocal_colors::Array{Int32, 1}
-  # put other fields here
-
-  function ColoringData(dict, revadj)
-    obj = new()
-    obj.adj_dict = dict
-    obj.revadj = revadj
-    return obj
-  end
-end
-
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 
