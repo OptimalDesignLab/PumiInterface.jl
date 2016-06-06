@@ -1,5 +1,6 @@
 # visualization related functions
 
+# can be generalized with a few constants
 function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
 # saves the solution in the vector u to the mesh (in preparation for mesh adaptation
 # it uses mesh.elementNodeOffsets to access the pumi field values in the 

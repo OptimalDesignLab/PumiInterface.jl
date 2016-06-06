@@ -1,5 +1,6 @@
 # functions for gathering MeshEntity*s 
 
+# can be generalized trivially
 function getEdgeFaces(mesh::PumiMeshDG2, bndry_edges::AbstractArray{Int, 1})
 # get the faces corresponding to the boundary edges
 
@@ -19,6 +20,7 @@ return bndry_faces
 
 end
 
+# add if statements to generalized this to 3D
 function getEntityPointers(mesh::PumiMesh)
 # get the pointers to all the apf::MeshEntities and put them in arrays
 # uses the Numberings to determine what the index in the array of each
@@ -77,6 +79,7 @@ function getNodeIdx(e_type::Integer, e_idx::Integer, node_idx::Integer, typeOffs
 end
 
 #TODO: stop using slice notation
+# can be generalized with numVertsPerElement
 function getCoordinates(mesh::PumiMeshDG2, sbp::AbstractSBP)
 # populate the coords array of the mesh object
 
@@ -146,10 +149,7 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh},
   coords_i = zeros(3, 3)
   coords_it = zeros(3, 2)
   coords_edge = zeros(2, 2)
-#  facemap = [1 2 1; 2 3 3]
 
-  #TODO: undo once SBP node ordering convention is decided
-  facemap = [1 2 3; 2 3 1]
   for i=1:length(bndryfaces)
     bndry_i = bndryfaces[i]
 
@@ -194,6 +194,7 @@ function getElementVertCoords(mesh::PumiMesh, elnum::Integer, coords::AbstractAr
 
 end # end function
 
+# generalizes with numVertsPerElement (or just get rid of this?)
 function getElementVertCoords(mesh::PumiMesh,  elnums::Array{Int,1})
 # elnums = vector of element numbbers
 # return array of size 3x3xn, where each column (first index) contains the coordinates of a vertex
@@ -231,6 +232,7 @@ function getGlobalNodeNumbers(mesh::PumiMesh, elnum::Integer; getdofs=true)
   return dofnums
 end
 
+# should be generalizable with entity counts
 function getGlobalNodeNumbers(mesh::PumiMesh, elnum::Integer, dofnums::AbstractArray{Int32}; getdofs=true)
 # gets global node numbers of all dof on all nodes of the element
 # output formap is array [numdofpernode, nnodes]  (each column contains dof numbers for a node)
@@ -271,6 +273,8 @@ return nothing
 
 end
 
+
+# is this really needed?
 function getAdjacentEntityNums(mesh::PumiMesh, entity_index::Integer, input_dimension::Integer, output_dimension::Integer)
 # gets the numbers of the adjacent entities (upward or downward) of the given entity
 # entity_index specifies the index of the input entity
@@ -345,7 +349,7 @@ return adjacent_nums, num_adjacent
 
 end
 
-
+# this can be generalized with mesh.dim
 function getBoundaryEdgeLocalNum(mesh::PumiMesh, edge_num::Integer)
 # gets the local edge number of a specified edge that is on the boundary
 # of the mesh
@@ -371,7 +375,7 @@ function getBoundaryEdgeLocalNum(mesh::PumiMesh, edge_num::Integer)
 
 end
 
-
+# this can be generalized with some topology and dimension information
 function getEdgeLocalNum(mesh::PumiMesh, edge_num::Integer, element_num::Integer)
 # find the local edge number of a specified edge on a specified element
 

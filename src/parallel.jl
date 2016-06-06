@@ -210,6 +210,7 @@ function getEdgeBoundaries(mesh::PumiMeshDG2, edges::Array{Ptr{Void}},
   return nothing
 end
 
+# this can be generalized once edge orientation is generalized
 function numberBoundaryEls(startnum, bndries_local::Array{Boundary}, bndries_remote::Array{Boundary})
 # create Interfaces out of the local + remote Boundary arrays
 # also numbers the remote elements with numbers > numEl, storing them in
@@ -268,6 +269,7 @@ function isRepeated(bndries::Array{Boundary}, idx)
   return 0
 end
 
+# could be generalized with a few constants
 function getLocalAdjacency(mesh::PumiMeshDG2)
 
   # map from an element number of all the element numbers of the 

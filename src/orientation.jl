@@ -1,5 +1,5 @@
 # file for determining MeshEntity orientations
-
+# not generalizable (but may not be necessary for DG)
 function getEntityOrientations(mesh::PumiMesh)
 # get the offset for node access of each mesh entity of each element
 # to read/write from a Pumi field, accessing the data stored on an edge looks like:

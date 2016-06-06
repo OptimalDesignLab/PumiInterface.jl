@@ -1,5 +1,6 @@
 # file for functions related to calculating the sparsity pattern of a matrix
 
+# can be generalized with some topology constants
 function getSparsityCounts(mesh::PumiMeshDG2, sparse_bnds::AbstractArray{Int32, 2}; getdofs=true)
 # count how many local, remote nodes/dofs each dof is related to
 
@@ -41,7 +42,8 @@ function getSparsityCounts(mesh::PumiMeshDG2, sparse_bnds::AbstractArray{Int32, 
   return nothing
 end
 
-
+# or maybe replace this with a tighter sparsity bound function
+# can be generalized with a few if statements
 function getSparsityBounds(mesh::PumiMesh, sparse_bnds::AbstractArray{Int32, 2}; getdofs=true)
 # sparse_bnds : 2 by numDof array of the minimum, maximum dofs connected to 
 # a dof in the Jacobian
@@ -100,6 +102,7 @@ return nothing
 
 end
 
+# rewrite this because it is terrible
 # this could be generalized 3d?
 function getDofBounds(mesh::PumiMesh, etype::Integer; getdofs=true) 
 # gets the maximum, minimum dofs associated with the entity currently
