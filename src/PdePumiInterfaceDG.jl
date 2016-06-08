@@ -112,7 +112,7 @@ export PumiMeshDG2, PumiMeshDG
           The global dof number is the number stored in this array + 
           dof_offset  (even for the non-local elements)
 """->
-type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
+type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
   mshape_ptr::Ptr{Void} # pointer to the FieldShape of the node field

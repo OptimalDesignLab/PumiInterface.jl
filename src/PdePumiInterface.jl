@@ -39,23 +39,39 @@ export PumiMesh
 @doc """
 ### PdePumiInterface.PumiMeshCG
 
-  This is the abstract supertype for all pumi continuous galerkin type meshes
+  This is the abstract supertype for all pumi 2D continuous galerkin type meshes
 
   The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
   jac).
 """->
-abstract PumiMeshCG{T1} <: AbstractCGMesh{T1}
+abstract PumiMesh2CG{T1} <: AbstractCGMesh{T1}
 
 @doc """
 ### PdePumiInterface.PumiMeshDG
 
-  This abstract type is the supertype of all Pumi mesh objects for
+  This abstract type is the supertype of all 2D Pumi mesh objects for
   discontinuous Galerkin type meshes
 
   The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
   jac).
 """->
-abstract PumiMeshDG{T1} <: AbstractDGMesh{T1}
+abstract PumiMesh2DG{T1} <: AbstractDGMesh{T1}
+
+"""
+### PdePumiInterface.PumiMesh3CG
+
+  This abstract type is the supertype for all 3D Pumi Mesh object for 
+  continuous Galrerkin type meshes
+"""
+abstract PumiMesh3CG{T1} <: AbstractCGMesh{T1}
+
+"""
+### PdePumiInterface.PumiMesh3CG
+
+  This abstract type is the supertype of all 3D Pumi mesh object for discontinuous 
+  Galerkin type meshes
+"""
+abstract PumiMesh3DG{T1} <: AbstractDGMesh{T1}
 
 @doc """
 ### PumiInterface.PumiMesh
@@ -63,7 +79,35 @@ abstract PumiMeshDG{T1} <: AbstractDGMesh{T1}
   This type is the union of all Pumi mesh types
 
 """->
-typealias PumiMesh{T1} Union{PumiMeshCG{T1}, PumiMeshDG{T1}}
+typealias PumiMesh{T1} Union{PumiMesh2CG{T1}, PumiMesh2DG{T1}, PumiMesh3CG{T1}, PumiMesh3DG{T1}}
+
+"""
+### PumiInterface.PumiMesh2D
+
+  This type is the union of all 2D Pumi mesh types
+"""
+typealias PumiMesh2D{T1} Union{PumiMesh2CG{T1}, PumiMesh2DG{T1}}
+
+"""
+### PumiInterface.PumiMesh3D
+
+  This type is the union of all 3D Pumi mesh types
+"""
+typealias PumiMesh3D{T1} Union{PumiMesh3CG{T1}, PumiMesh3DG{T1}}
+
+"""
+### PumiInterface.PumiMeshCG
+
+  This type is the union of all CG Pumi meshes
+"""
+typealias PumiMeshCG{T1} Union{PumiMesh2CG{T1}, PumiMesh3CG{T1}}
+
+"""
+### PumiInterface.PumiMeshDG
+
+  This type is the union of all DG Pumi meshes
+"""
+typealias PumiMeshDG{T1} Union{PumiMesh2DG{T1}, PumiMesh3DG{T1}}
 
 include("./PdePumiInterface3.jl")
 include("PdePumiInterfaceDG.jl")
@@ -116,7 +160,7 @@ include("PdePumiInterfaceDG.jl")
                       color the elements (graph vertices are elements and graph
                       edges exist where elements share an edge)
 """->
-type PumiMesh2{T1} <: PumiMeshCG{T1}   # 2d pumi mesh, triangle only
+type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
