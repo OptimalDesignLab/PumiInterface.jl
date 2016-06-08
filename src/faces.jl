@@ -5,9 +5,9 @@ function getBoundaryArray(mesh::PumiMesh, boundary_nums::AbstractArray{Int, 2})
 # creating an an array of a user defined type seems like a waste of memory operations
 # bnd_array is a vector of type Boundary with length equal to the number of edges on the boundary of the mesh
 
-#  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
+#  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
 
-  for i=1:mesh.numBoundaryEdges
+  for i=1:mesh.numBoundaryFaces
     facenum = boundary_nums[i, 1]
     edgenum_global = boundary_nums[i, 2]
 #    println("edgenum_global = ", edgenum_global)

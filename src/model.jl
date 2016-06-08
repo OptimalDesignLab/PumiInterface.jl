@@ -6,7 +6,7 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh, medges::AbstractArray{Int, 1},
 # this allows populating the entire array without making temporary copies
 # offset should start as 1, not zero
 
-#  bndry_edges = zeros(Int, mesh.numBoundaryEdges)
+#  bndry_edges = zeros(Int, mesh.numBoundaryFaces)
   index = 0  # relative index in bndry_edges
   faces = Array(Ptr{Void}, 2)  # an edge can have maximum 2 faces using it
   for i=1:mesh.numEdge
@@ -87,7 +87,7 @@ function countBoundaryEdges(mesh::PumiMeshDG2, bndry_edges_all)
 
 
 #  mesh.boundary_nums = bnd_edges[1:bnd_edges_cnt, :] # copy, bad but unavoidable
-#  mesh.numBoundaryEdges = bnd_edges_cnt
+#  mesh.numBoundaryFaces = bnd_edges_cnt
 
 return bnd_edges_cnt, external_edges_cnt, internal_edge_cnt
 
@@ -140,7 +140,7 @@ function countBoundaryEdges(mesh::PumiMesh2, bndry_edges_all)
 
 
 #  mesh.boundary_nums = bnd_edges[1:bnd_edges_cnt, :] # copy, bad but unavoidable
-#  mesh.numBoundaryEdges = bnd_edges_cnt
+#  mesh.numBoundaryFaces = bnd_edges_cnt
 
 return bnd_edges_cnt, external_edges_cnt
 

@@ -139,7 +139,7 @@ include("PdePumiInterfaceDG.jl")
     numDof: total number of degrees of freedom
     numNodes: number of nodes in the mesh
     numDofPerNode: number of degrees of freedom on each node
-    numBoundaryEdges: number of edges on the boundary of the domain
+    numBoundaryFaces: number of edges on the boundary of the domain
     numInterfaces: number of internal edges (edges not on boundary)
     numNodesPerElements: number of nodes on an element
     numNodesPerType: array of length 3 that tells how many nodes are on a mesh
@@ -178,12 +178,13 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   entity_Nptrs::Array{Ptr{Void}, 1}  # [vert_Nptr, edge_Nptr, el_Nptr]
   numVert::Int  # number of vertices in the mesh
   numEdge::Int # number of edges in the mesh
+  numFace::Int # alias for numEdge
   numEl::Int  # number of elements (faces)
   order::Int # order of shape functions
   numDof::Int # number of degrees of freedom
   numNodes::Int  # number of nodes
   numDofPerNode::Int  # number of dofs per node
-  numBoundaryEdges::Int # number of edges on the exterior boundary
+  numBoundaryFaces::Int # number of edges on the exterior boundary
   numInterfaces::Int # number of internal interfaces
   numNodesPerElement::Int  # number of nodes per element
   numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
@@ -194,6 +195,10 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   typeOffsetsPerElement_::Array{Int32, 1}  # Int32 version of above
   nodemapSbpToPumi::Array{UInt8, 1}  # maps nodes of SBP to Pumi order
   nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
+
+  # constants needed by Pumi
+  el_type::Int  # apf::Type for the elements of the mesh
+  face_type::Int # apf::Type for the faces of the mesh
 
   # parallel info
   comm::MPI.Comm  # MPI Communicator
@@ -217,6 +222,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   # hold pointers to mesh entities
   verts::Array{Ptr{Void},1}  # holds pointers to mesh vertices
   edges::Array{Ptr{Void},1}  # pointers to mesh edges
+  face::Array{Ptr{Void}, 1}  # alias for edges
   elements::Array{Ptr{Void},1}  # pointers to faces
 
   # used for high order elements to determine the orientations of edges and 
@@ -309,6 +315,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])
   mesh.numEdge =convert(Int,  num_Entities[2])
+  mesh.numFace = mesh.numEdge
   mesh.numEl = convert(Int, num_Entities[3])
   mesh.numEntitiesPerType = [mesh.numVert, mesh.numEdge, mesh.numEl]
   mesh.numTypePerElement = [3, 3, 1]
@@ -405,13 +412,13 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     bndry_edges_all = [ bndry_edges_all; opts[key_i]]  # ugly but easy
   end
 
- mesh.numBoundaryEdges, num_ext_edges =  countBoundaryEdges(mesh, bndry_edges_all)
+ mesh.numBoundaryFaces, num_ext_edges =  countBoundaryEdges(mesh, bndry_edges_all)
 
   # populate mesh.bndry_faces from options dictionary
 #  mesh.bndry_faces = Array(Array{Int, 1}, mesh.numBC)
   mesh.bndry_offsets = Array(Int, mesh.numBC + 1)
   mesh.bndry_funcs = Array(BCType, mesh.numBC)
-  boundary_nums = Array(Int, mesh.numBoundaryEdges, 2)
+  boundary_nums = Array(Int, mesh.numBoundaryFaces, 2)
 
   offset = 1
   for i=1:mesh.numBC
@@ -486,7 +493,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   # get boundary information for entire mesh
   println("getting boundary info")
-  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
+  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
   getBoundaryArray(mesh, boundary_nums)
 
   # need to count the number of internal interfaces - do this during boundary edge counting
@@ -503,7 +510,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   mesh.min_el_size = getMinElementSize(mesh)
   # get face normals
-  mesh.bndry_normals = Array(T1, 2, sbp.numfacenodes, mesh.numBoundaryEdges)
+  mesh.bndry_normals = Array(T1, 2, sbp.numfacenodes, mesh.numBoundaryFaces)
   getBoundaryFaceNormals(mesh, sbp, mesh.bndryfaces, mesh.bndry_normals)
 
   mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
@@ -842,7 +849,7 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   mesh.numEl = numEl
   mesh.numDof = numdof
   mesh.numNodes= numnodes
-  mesh.numBoundaryEdges = bnd_edges_cnt
+  mesh.numBoundaryFaces = bnd_edges_cnt
   mesh.verts = verts  # does this need to be a deep copy?
   mesh.edges = edges
   mesh.elements = elements

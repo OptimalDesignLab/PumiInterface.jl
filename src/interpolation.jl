@@ -13,8 +13,8 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
   end
   jac_face = zeros(Tmsh, sbpface.numnodes, mesh.numInterfaces)
 
-  dxidx_bndry = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numBoundaryEdges)
-  jac_bndry = zeros(Tmsh, sbpface.numnodes, mesh.numBoundaryEdges)
+  dxidx_bndry = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numBoundaryFaces)
+  jac_bndry = zeros(Tmsh, sbpface.numnodes, mesh.numBoundaryFaces)
   jac_sharedface = Array(Array{Tmsh, 2}, mesh.npeers)
   for i=1:mesh.npeers
     jac_sharedface[i] = Array(Tmsh, sbpface.numnodes, mesh.peer_face_counts[i])
@@ -63,7 +63,7 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
   end
 
   # now do boundary
-  for i=1:mesh.numBoundaryEdges
+  for i=1:mesh.numBoundaryFaces
     bndry = mesh.bndryfaces[i]
 
     dxidx_i = view(dxidx_bndry, :, :, :, i)

@@ -34,11 +34,12 @@ facts("--- Testing PdePumiInterface --- ") do
     mesh =  PumiMesh2{Float64}(dmg_name, smb_name, order, sbp, opts, coloring_distance=2, dofpernode=4)
     @fact mesh.numVert --> 4
     @fact mesh.numEdge --> 5
+    @fact mesh.numFace --> mesh.numEdge
     @fact mesh.numEl --> 2
     @fact mesh.numEntitiesPerType --> [4, 5, 2]
     @fact mesh.numTypePerElement --> [3, 3, 1]
     @fact mesh.numDofPerNode --> 4
-    @fact mesh.numBoundaryEdges --> 4
+    @fact mesh.numBoundaryFaces --> 4
     @fact mesh.numInterfaces --> 1
 
     @fact mesh.bndryfaces[1].element --> 1
@@ -60,7 +61,7 @@ facts("--- Testing PdePumiInterface --- ") do
     @fact length(mesh.bndry_funcs) --> 1
     @fact mesh.bndry_offsets --> [1, 5]
 
-    for i=1:mesh.numBoundaryEdges
+    for i=1:mesh.numBoundaryFaces
       for j=1:(sum(mesh.numNodesPerType[1:2]))
         if i == 1
           @fact mesh.bndry_normals[:, j, i] --> roughly([-1.0, 1.0], atol=1e-13)
@@ -277,11 +278,12 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact mesh.mnew_ptr --> not(C_NULL)
    @fact mesh.numVert --> 4
    @fact mesh.numEdge --> 5
+   @fact mesh.numFace --> mesh.numEdge
    @fact mesh.numEl --> 2
    @fact mesh.numDof --> 24
    @fact mesh.numNodes --> 6
    @fact mesh.numDofPerNode --> 4
-   @fact mesh.numBoundaryEdges --> 4
+   @fact mesh.numBoundaryFaces --> 4
    @fact mesh.numInterfaces --> 1
    @fact mesh.numNodesPerElement --> 3
    @fact mesh.numNodesPerType --> [0, 0, 3]
@@ -371,7 +373,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
    # check dxidx_bndry
    # for straight sided elements, dxidx is constant
-   for i=1:mesh.numBoundaryEdges
+   for i=1:mesh.numBoundaryFaces
      el = mesh.bndryfaces[i].element
      dxidx_test = mesh.dxidx[:, :, 1, el]
      jac_test = mesh.jac[1, el]

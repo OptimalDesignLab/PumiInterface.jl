@@ -19,7 +19,7 @@ println("global node number = ", i)
 
 bnd_array = getBoundaryArray(mesh::PumiMesh2)
 
-for i=1:mesh.numBoundaryEdges
+for i=1:mesh.numBoundaryFaces
   bndry = bnd_array[i]
   println("element ", bndry.element, " has local edge number ", bndry.face, " on the external boundary")
 end
