@@ -38,11 +38,12 @@ extern "C" {
 int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type );
 
 
-int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type );
+int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], int order, int load_mesh, int shape_type );
 
 // these functions are not user accessible
 void cleanup(apf::Mesh* m_local);
 void destroyNumberings(int dim); 
+apf::FieldShape* getFieldShape(int shape_type, int dim, int order, bool& change_shape);
 
 // these functions do pass pointers
 extern apf::Mesh2* getMeshPtr();

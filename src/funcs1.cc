@@ -185,12 +185,11 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
 // PCU appears to not want a Communicator object?
-int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type )
+int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], int order, int load_mesh, int shape_type )
 {
   std::cout << "Entered init2\n" << std::endl;
 
   // various startup options
-
   // initilize communications if needed
   int flag;
   MPI_Initialized(&flag);
@@ -205,7 +204,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3],
     PCU_Comm_Init();   // initilize PUMI's communication
   }
  
-
+  int dim;
   if (load_mesh)  // if the user said to load a new mesh
   {
     if ( meshloaded)  // if a mesh has been loaded before
@@ -232,63 +231,49 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3],
       m = apf::loadMdsMesh(dmg_name, smb_name);
     }
 
+    dim = m->getDimension();
     meshloaded = true;  // record the fact that a mesh is now loaded
     apf::reorderMdsMesh(m);
 
-  apf::FieldShape* fshape; // variable to hold field shape
-  bool change_shape = false;
-  if ( shape_type == 0)  // use lagrange
-  {
-    fshape = apf::getLagrange(order);
-    change_shape = true;
-  } else if ( shape_type == 1)  // use SBP shape functions
-  {
-      fshape = apf::getSBPShape(order);
-      change_shape = true;
-  } else if ( shape_type == 2)  // use SBP DG1 shape functions
-  {
-    fshape = apf::getDG1SBPShape(order);
-    change_shape = true;
-  } else  // default to lagrange shape functions
-  {
-    std::cout << "Warning: unrecognized shape_type, not changing mesh shape" << std::endl;
-    fshape = apf::getLagrange(1); // unused, but avoids compiler warning
-  }
+    bool change_shape;
+    apf::FieldShape* fshape = getFieldShape(shape_type, dim, order, change_shape);
 
-
-  // check if the coordinates have been moved into tags
-  // this is a result of the mesh shape having been changed previously
-  apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
-  std::cout << "coords_tag = " << coords_tag << std::endl;
-  
-  if (coords_tag != 0 && change_shape)  // if the tag exists
-  {
-    apf::changeMeshShape(m, apf::getLagrange(1), false);
-    std::cout << "finished first mesh shape change" << std::endl;
-  }
-  
-  if (change_shape)
-  {
-    std::cout << "about to perform final mesh shape change" << std::endl;
-    if ( order == 1 )
+    // check if the coordinates have been moved into tags
+    // this is a result of the mesh shape having been changed previously
+    apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
+    std::cout << "coords_tag = " << coords_tag << std::endl;
+    
+    if (coords_tag != 0 && change_shape)  // if the tag exists
     {
-      apf::changeMeshShape(m, fshape, true);
+      apf::changeMeshShape(m, apf::getLagrange(1), false);
+      std::cout << "finished first mesh shape change" << std::endl;
+    }
+    
+    if (change_shape)
+    {
+      std::cout << "about to perform final mesh shape change" << std::endl;
+      if ( order == 1 )
+      {
+        apf::changeMeshShape(m, fshape, true);
+      } else
+      {
+        apf::changeMeshShape(m, fshape, true);
+      }
+
+      std::cout << "finished loading mesh, changing shape" << std::endl;
+      std::cout << "new shape name is " << m->getShape()->getName() << std::endl;
     } else
     {
-      apf::changeMeshShape(m, fshape, true);
+      std::cout << "finished loading mesh" << std::endl;
     }
 
-    std::cout << "finished loading mesh, changing shape" << std::endl;
-    std::cout << "new shape name is " << m->getShape()->getName() << std::endl;
-  } else
-  {
-    std::cout << "finished loading mesh" << std::endl;
-  }
-
   } else {  // if not loading a mesh
+    dim = m->getDimension();
     destroyNumberings(2);  // destroy the numberings before creating new ones
     std::cout << "finished destroying numberings of existing mesh" << std::endl;
   }
+
+  dim_ret[0] = dim; // return to julia
 
   // this should have a new filename everytime
 //  apf::writeASCIIVtkFiles("output_check", m);
@@ -301,40 +286,32 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3],
   std::cout << "initilized library global variables" << std::endl;
   
   // initilize  number of each type of entity
-  for (int i = 0; i < 3; ++i)
+  for (int i = 0; i < (dim+1); ++i)
   {
     numEntity[i] = (m->count(i));
 //      apf::countOwned(m, i);
     number_entities[i] = numEntity[i];
   }
 
-  std::cout << "counted number of mesh each type of mesh entities" << std::endl;
-
-/*
-  // initilize numberings
-  numberings[0] = numberOwnedDimension(m, "vertNums", 0);
-  numberings[1] = numberOwnedDimension(m, "edgeNums", 1);
-  numberings[2] = numberOwnedDimension(m, "faceNums", 2);
-//  numberings[3] = numberOwnedDimension(m, "elNums", 3);
-*/
-
   // create numberings
   numberings[0] = apf::createNumbering(m, "vertNums", apf::getConstant(0), 1);
   numberings[1] = apf::createNumbering(m, "edgeNums", apf::getConstant(1), 1);
   numberings[2] = apf::createNumbering(m, "faceNums", apf::getConstant(2), 1);
+  if (dim == 3)
+    numberings[3] = apf::createNumbering(m, "regionNums", apf::getConstant(3), 1);
 
 
 
-  std::cout << " finished creating tag field" << std::endl;
 
   // initilize iterators
   its[0] = m->begin(0);
   its[1] = m->begin(1);
   its[2] = m->begin(2);
-//  its[3] = m->begin(3);
+  if (dim == 3)
+    its[3] = m->begin(3);
 
 
-  for (int i = 0; i < 3; ++i)  // loop over dimensions
+  for (int i = 0; i < (dim+1); ++i)  // loop over dimensions
   {
     int curr_num = 0;
     apf::MeshEntity* e_local;
@@ -349,7 +326,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3],
    
   std::cout << "Finished numbering mesh entities" << std::endl; 
 
-  for (int i = 0; i < 3; ++i)
+  for (int i = 0; i < (dim+1); ++i)
   {
     int type = m->getType(m->deref(its[i]));
     std::cout << "type of its[" << i << "] = " << type;
@@ -359,7 +336,9 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3],
   std::cout << std::endl;
 
   std::cout << "numV = " << numEntity[0] << " , numEdge = " << numEntity[1];
-  std::cout << " , numFace = " << numEntity[2] << std::endl;
+  std::cout << " , numFace = " << numEntity[2];
+  if (dim == 3)
+    std::cout << ",  numRegion = " << numEntity[3];
   std::cout << std::endl;
 
   resetFaceIt();
@@ -401,6 +380,30 @@ void destroyNumberings(int dim)
  
 }
  
+apf::FieldShape* getFieldShape(int shape_type, int dim, int order, bool& change_shape)
+{
+  apf::FieldShape* fshape;
+  if ( shape_type == 0)  // use lagrange
+  {
+    fshape = apf::getLagrange(order);
+    change_shape = true;
+  } else if ( shape_type == 1)  // use SBP shape functions
+  {
+      fshape = apf::getSBPShape(order);
+      change_shape = true;
+  } else if ( shape_type == 2)  // use SBP DG1 shape functions
+  {
+    fshape = apf::getDG1SBPShape(order);
+    change_shape = true;
+  } else  // default to lagrange shape functions
+  {
+    std::cout << "Warning: unrecognized shape_type, not changing mesh shape" << std::endl;
+    fshape = apf::getLagrange(1); // unused, but avoids compiler warning
+    change_shape = false;
+  }
+
+  return fshape;
+}
 
 apf::Mesh2* getMeshPtr()
 {

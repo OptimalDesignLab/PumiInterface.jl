@@ -217,16 +217,15 @@ num_Entities = zeros(Int32, 4, 1)
 
 m_ptr_array = Array(Ptr{Void}, 1)
 mshape_ptr_array = Array(Ptr{Void}, 1)
-
-i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, order, load_mesh, shape_type )  # call init in interface library
+dim = Ref{Cint}()
+i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Ptr{Cint}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, dim, order, load_mesh, shape_type )  # call init in interface library
 
 if ( i != 0)
-  println("init failed, exiting ...")
-  exit()
+  throw(ErrorException("Init failed"))
 end
 
 
-return num_Entities, m_ptr_array[1], mshape_ptr_array[1]
+return num_Entities, m_ptr_array[1], mshape_ptr_array[1], dim[]
 end
 
 

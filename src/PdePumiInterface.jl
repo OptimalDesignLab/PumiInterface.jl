@@ -302,9 +302,13 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   mesh.shape_type = shape_type
   mesh.coloringDistance = coloring_distance
   mesh.dof_offset = 0
-  num_Entities, mesh.m_ptr, mesh.mshape_ptr = init2(dmg_name, smb_name, order, shape_type=shape_type)
+  num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim = init2(dmg_name, smb_name, order, shape_type=shape_type)
   mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
                                          # field shape for CG
+  if dim != mesh.dim
+    throw(ErrorException("loaded mesh is not 2 dimensions"))
+  end
+
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
   mesh.comm = MPI.COMM_WORLD
@@ -758,7 +762,7 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   dmg_name = "b"
   order = mesh.order
   dofpernode = mesh.numDofPerNode
-  tmp, num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
+  tmp, num_Entities, m_ptr, mshape_ptr, dim = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
   f_ptr = mesh.f_ptr  # use existing solution field
 
   numVert = convert(Int, num_Entities[1])
