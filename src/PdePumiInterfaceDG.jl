@@ -533,11 +533,12 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
   #TODO: make getting sparsity bounds faster
   if opts["run_type"] != 1  # no a rk4 run
     println("getting sparsity bounds")
-    mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
-    @time getSparsityBounds(mesh, mesh.sparsity_bnds)
-    mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
-    @time getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
-    println("finished getting sparsity bounds")
+    mesh.sparsity_bnds = zeros(Int32, 0, 0)
+#    mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
+#    @time getSparsityBounds(mesh, mesh.sparsity_bnds)
+#    mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
+#    @time getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
+#    println("finished getting sparsity bounds")
 
     mesh.sparsity_counts = zeros(Int32, 2, mesh.numDof)
     mesh.sparsity_counts_node = zeros(Int32, 2, mesh.numNodes)
@@ -661,15 +662,15 @@ type PumiMeshDG2{T1} <: PumiMeshDG{T1}   # 2d pumi mesh, triangle only
 
   if opts["write_sparsity"]
     rmfile("sparsity_bnds_$myrank.dat")
-    writedlm("sparsity_bnds_$myrank.dat", mesh.sparsity_bnds.')
+    writedlm("sparsity_bnds_$myrank.dat", mesh.pertNeighborEls)
   end
-
+#=
   if opts["write_sparsity_nodebnds"]
     println("writing sparsiy node bounds")
     rmfile("sparsity_nodebnds_$myrank.dat")
     writedlm("sparsity_nodebnds_$myrank.dat", mesh.sparsity_nodebnds)
   end
-
+=#
   if opts["write_offsets"]
     rmfile("entity_offsets_$myrank.dat")
     writedlm("entity_offsets_$myrank.dat", mesh.elementNodeOffsets)

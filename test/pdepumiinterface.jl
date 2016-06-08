@@ -156,6 +156,7 @@ facts("--- Testing PdePumiInterface --- ") do
     @fact mesh.jac --> roughly(ones(mesh.numNodesPerElement ,2))
 
 
+    fnames = ["boundary_nums", "face_vertnums", "edge_vertnums"]
     for name in fnames
       name_code = string(name, ".dat")
       name_ref = string(name, "_p", order, "true.dat")
@@ -306,15 +307,6 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact mesh.coords[:, :, 1] --> roughly([-2/3 -2/3 1/3; 2/3 -1/3 2/3], atol=1e-13)
    @fact mesh.coords[:, :, 2] --> roughly([2/3 -1/3 2/3; 1/3 -2/3 -2/3], atol=1e-13)
    @fact sort(unique(mesh.dofs)) --> collect(1:mesh.numDof)
-   for i=1:size(mesh.sparsity_bnds, 2)
-     @fact mesh.sparsity_bnds[1,i] --> 1
-     @fact mesh.sparsity_bnds[2,i] --> 24
-   end
-
-   for i=1:size((mesh.sparsity_nodebnds), 2)
-     @fact mesh.sparsity_nodebnds[1,i] --> 1
-     @fact mesh.sparsity_nodebnds[2,i] --> 6
-   end
 
    @fact mesh.color_masks[1][1] --> true
    @fact mesh.color_masks[1][2] --> false

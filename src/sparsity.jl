@@ -42,6 +42,86 @@ function getSparsityCounts(mesh::PumiMeshDG2, sparse_bnds::AbstractArray{Int32, 
   return nothing
 end
 
+# WIP: tighter sparsity bounds for CG
+#=
+function getDofConnectivity(mesh::PumiMesh2)
+
+  # find the maximum number of elements a dof is related to
+  max_el = 0
+  up_cnt = 400 # maximum number of upward adjacencies
+  up = Array(Ptr{Void}, up_cnt)  # equivalent of apf::Up
+  verts = Array(Ptr{Void}, 3)
+  nel = 0
+  els_all = Array(Ptr{Void}, 3*up_cnt)
+  els_tmp = Array(Ptr{Void}, 3*up_cnt)
+  for i=1:mesh.numEl
+    getDownward(mesh.m_ptr, 0, verts)
+    pos = 1
+    for j=1:3
+      nel[j] = countAdjacent(mesh.m_ptr, verts[j], 2)
+      getAdjacent(up)
+      # copy element pointer into a single array
+      for k=1:nel[j]
+        els_all[pos] = up[k]
+        pos += 1
+      end
+    end
+    numel = pos - 1
+    
+    # count number of non duplicates
+    els_used = view(els_all, 1:numel);
+    sort!(els_used)
+    cnt = 1
+    for j=2:length(els_used)
+      if els_used[j] != els_used[j-1]
+        cnt += 1
+      end
+    end
+    if cnt > max_el
+      max_el = cnt
+    end
+  end
+
+  dof_elements = zeros(Int32, max_el, mesh.numNodes)
+  # now get the element numbers
+  for i=1:mesh.numEl
+    getDownward(mesh.m_ptr, 0, verts)
+    pos = 1
+    for j=1:3
+      nel[j] = countAdjacent(mesh.m_ptr, verts[j], 2)
+      getAdjacent(up)
+      # copy element pointer into a single array
+      for k=1:nel[j]
+        els_all[pos] = up[k]
+        pos += 1
+      end
+    end
+    numel = pos - 1
+
+    # de-duplicate whle copying into node_elements
+    els_used = view(els_all, 1:numel);
+    sort!(els_used)
+    els_tmp[1] = els_used[1]
+    pos = 2
+    for j=1:length(els_used)
+      if els_used[j] != els_used[j-1]
+        els_tmp[pos] = els_used[j]
+      end
+    end
+
+  end
+end
+=#
+ 
+
+
+
+
+
+    # copy the element pointers into a single array
+
+
+    
 # or maybe replace this with a tighter sparsity bound function
 # can be generalized with a few if statements
 function getSparsityBounds(mesh::PumiMesh, sparse_bnds::AbstractArray{Int32, 2}; getdofs=true)
