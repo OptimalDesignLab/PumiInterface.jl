@@ -187,6 +187,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   numBoundaryFaces::Int # number of edges on the exterior boundary
   numInterfaces::Int # number of internal interfaces
   numNodesPerElement::Int  # number of nodes per element
+  numFacesPerElement::Int  # number of faces per element
   numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
   numNodesPerFace::Int  # number of nodes per face
   numEntitiesPerType::Array{Int, 1} # [numVert, numEdge, numEl]
@@ -323,6 +324,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   mesh.numEl = convert(Int, num_Entities[3])
   mesh.numEntitiesPerType = [mesh.numVert, mesh.numEdge, mesh.numEl]
   mesh.numTypePerElement = [3, 3, 1]
+  mesh.numFacesPerElement = mesh.numTypePerElement[end-1]
 
   num_nodes_v = countNodesOn(mesh.mshape_ptr, 0) # on vert
   num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge

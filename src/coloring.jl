@@ -14,6 +14,10 @@ type ColoringData
   end
 end
 
+#------------------------------------------------------------------------------
+# Distance-0 coloring
+#------------------------------------------------------------------------------
+
 # perform a distance-0 coloring of the mesh (ie. all elements same color)
 function colorMesh0(mesh::PumiMesh)
 
@@ -26,9 +30,13 @@ function colorMesh0(mesh::PumiMesh)
 end
 
 
+#------------------------------------------------------------------------------
+# Distance- coloring
+#------------------------------------------------------------------------------
 
 # perform distance-1 coloring of mesh 
 # not sure if this works correctly
+#=
 function colorMesh1(mesh::PumiMesh, masks::Array{BitArray{1}})
 # each element must have a different color than its neighbors with which it 
 # shares and edge
@@ -102,73 +110,14 @@ mesh.color_cnt = cnt_colors
 return nothing
 
 end
-
-
-function getColors0(mesh, masks::AbstractArray{BitArray{1}, 1})
-# populate the masks that indicate which elements are perturbed by which
-# colors
-# for a distance-0 coloring, every element is perturbed and there is only
-# 1 color
-
-  masks[1] = trues(mesh.numEl)
-  return nothing
-end
+=#
 
 
 
-function getMinColor{T}(adj::AbstractArray{T})
-# adj contains colors of adjacent elements
-  min_color = 1
-  sort!(adj)  # adj must be in increasing order for this to work
-  for i=1:length(adj)
-    if min_color < adj[i]
-      continue
-    elseif min_color == adj[i]
-	min_color = adj[i] + 1
-    end  # if min_color > adj[i] do nothing
-  end  # end for loop
 
-  return min_color
-end
-
-function getMinColor2{T}(adj::AbstractArray{T}, numc::Integer)
-# ensure uniqueness of neighboring colors
-# adj is array of colors of adjacent faces
-# numc is the current number of colors
-
-  mask = zeros(Bool, numc)
-  sort!(adj)
-  min_color = 0
-  for i=1:length(adj) # identify already used colors
-    if adj[i] != 0
-      mask[adj[i]] = true
-    end
-  end
-
-  mask_sum = sum(mask)
-
-  if mask_sum == numc  # all existing colors used, so add another
-    println("adding color ", numc + 1)
-    min_color = numc + 1
-  elseif mask_sum == (numc - 1)  # there is exactly 1 color remaining
-  #  println("exactly 1 color remaining")
-    # find out which color is missing and use it
-    for i=1:numc
-      if !mask[i]  # if mask is false
-        min_color = i
-      end
-    end
-  else  # some colors are missing
-  #  println("getting minimum color")
-    min_color = getMinColor(adj)  # get the minimum
-  end
-
-  @assert min_color != 0
-
-  return min_color
-
-end
-
+#------------------------------------------------------------------------------
+# Distance-2 coloring
+#------------------------------------------------------------------------------
 
 # perform distance-1 coloring of mesh
 # this can be generalized to 3D via mesh.dim field
@@ -182,13 +131,14 @@ for i=1:mesh.numEl
   numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
 end
 
-numc = 4  # guess number of colors
+nfaces = mesh.numFacesPerElement
+numc = nfaces + 1  # guess number of colors
 
-adj = Array(Ptr{Void}, 3)  # distance-1 edge neighbors
-adj2 = Array(Array{Ptr{Void}, 1}, 3)  # distance-2 edge neighbors + distance-1 
+adj = Array(Ptr{Void}, nfaces)  # distance-1 edge neighbors
+adj2 = Array(Array{Ptr{Void}, 1}, nfaces)  # distance-2 edge neighbors + distance-1 
 
-for i=1:3
-  adj2[i] = Array(Ptr{Void}, 4)
+for i=1:nfaces
+  adj2[i] = Array(Ptr{Void}, nfaces+1)
 end
 
 colors = zeros(Int32, 3*4)
@@ -249,7 +199,7 @@ return numc
 
 end
 
-# perform distance-1 coloring of mesh 
+# perform distance-2 coloring of mesh 
 function colorMesh2(mesh::PumiMesh2)
 # each element must have a different color than its neighbors with which it 
 # shares and edge
@@ -261,19 +211,22 @@ for i=1:mesh.numEl
   numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
 end
 
+nfaces = mesh.numFacesPerElement
+
 #adj_size = 6  # guess number of neighboring faces
-numc = 4  # guess number of colors
+numc = nfaces + 1  # guess number of colors
 #adj = Array(Ptr{Void}, adj_size)  # hold neighboring faces
 #adj_color =zeros(Int32, adj_size)  # colors of neighboring faces
 
-adj = Array(Ptr{Void}, 3)  # distance-1 edge neighbors
-adj2 = Array(Array{Ptr{Void}, 1}, 3)  # distance-2 edge neighbors + distance-1 
+adj = Array(Ptr{Void}, nfaces)  # distance-1 edge neighbors
+adj2 = Array(Array{Ptr{Void}, 1}, nfaces)  # distance-2 edge neighbors + distance-1 
 
 for i=1:3
-  adj2[i] = Array(Ptr{Void}, 4)
+  adj2[i] = Array(Ptr{Void}, nfaces+1)
 end
 
-colors = zeros(Int32, 3*4)
+# space for distance-2 neighbors + self
+colors = zeros(Int32, nfaces*(nfaces+1))
 
 cnt_colors = zeros(Int32, numc)  # count how many of each color
 for i=1:mesh.numEl
@@ -319,68 +272,36 @@ return numc
 
 end
 
-
-function getPertEdgeNeighbors(mesh::PumiMesh)
-
-  neighbor_nums = zeros(Int32, mesh.numEl, 3)
-
-  edges = Array(Ptr{Void}, 3)  # hold element edges
-  adj = Array(Ptr{Void}, 2)  # hold adjacent elements
-
-  for i=1:mesh.numEl
-    el_i = mesh.elements[i]
-
-    getDownward(mesh.m_ptr, el_i, 1, edges)
-
-
-    #=
-    # check edge neighbors only
-    num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
-    @assert num_adj <= 3
-    getBridgeAdjacent(adj)
-    =#
-
-    # get color, element numbers
-    for j=1:3 # loop over edges
-      # in use, this array is traveres by numEl first, so we have to 
-      # populate it by rows here
-      num_adj = countAdjacent(mesh.m_ptr, edges[j], 2)
-      @assert num_adj <= 2
-      if num_adj == 2  # if there is another adjacnet element
-	getAdjacent(adj)
-
-	# figure out which adjacent element is the *other* one
-	if adj[1] == el_i
-	  other_el = adj[2]
-	else
-	  other_el = adj[1]
-	end
-
-        neighbor_nums[i, j] = getNumberJ(mesh.el_Nptr, other_el, 0, 0) + 1
-      end  # end if num_adj == 2
-    end  # end loop j=1:3
-  end  # end i=1:mesh.numEl
-
-  return neighbor_nums
-
-end  # end getPertEdgeNeighbors
-
-
+#TODO: investigate whether duplicating any non-local elements that share a face
+#      with more than one local elements produces better coloring
 function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cnt_colors)
 
   println(mesh.f, "----- Entered colorMeshBoundary2 -----")
+  nfaces = mesh.numFacesPerElement
   colordata.nonlocal_colors = zeros(Int32, mesh.numSharedEl)
-  adj = Array(Ptr{Void}, 3)  # distance-1 edge neighbors
-  adj2 = Array(Array{Ptr{Void}, 1}, 3)  # distance-2 edge neighbors + distance-1
+  adj = Array(Ptr{Void}, nfaces)  # distance-1 edge neighbors
+  adj2 = Array(Array{Ptr{Void}, 1}, nfaces)  # distance-2 edge neighbors + distance-1
   self = Array(Ptr{Void}, 1)  # the current element pointer
-  for i=1:3
-    adj2[i] = Array(Ptr{Void}, 4)
+  for i=1:nfaces
+    adj2[i] = Array(Ptr{Void}, nfaces+1)
   end
 
   const local_start = 1
-  const nonlocal_start = 12
+  const nonlocal_start = nfaces*(nfaces+1) + local_start
+  const nonlocal_d2_start = (nfaces-1)*nfaces + nonlocal_start
+  const final_start = (nfaces-2)*(nfaces-1) + nonlocal_d2_start
 
-  colors = zeros(Int32, 5*4 + 2)  
+  println("local_start = ", local_start)
+  println("nonlocal_start = ", nonlocal_start)
+  println("nonlocal_d2_start = ", nonlocal_d2_start)
+  println("final-start = ", final_start)
+
+  #TODO: remove this
+  if mesh.dim == 2
+    @assert final_start-1 == 20
+  end
+
+  colors = zeros(Int32, final_start-1)  
   # the first 3 sets of four elements are for the colors of the distance-2 
   # neighbors + their common distance-2 neighbor
   # the last 2*3 entries are for the non-local neighbors of the distance-1 
@@ -388,9 +309,9 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
   # the last two entries are for the local distance-2 neighbors connected by a
   # non-local element
   # (for the case where a single element has 2 non local neighbors)
-  local_colors = view(colors, 1:12)
-  nonlocal_d1neighborcolors = view(colors, 13:18)
-  nonlocal_neighborcolors = view(colors, 20:22)
+  local_colors = view(colors, local_start:(nonlocal_start-1))
+  nonlocal_d1neighborcolors = view(colors, nonlocal_start:(nonlocal_d2_start-1))
+  nonlocal_neighborcolors = view(colors, nonlocal_d2_start:(final_start-1))
 
 
   for i in keys(colordata.adj_dict)
@@ -422,8 +343,8 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
   # get a lower color by doing coloring all the boundary elements first
 
   revadj = colordata.revadj
-  colors = zeros(Int32, 3*4)
-  first_neighborcolors = view(colors, 1:4)
+  colors = zeros(Int32, nfaces*(nfaces+1))
+  first_neighborcolors = view(colors, 1:(nfaces+1))
   second_neighborcolors = view(colors, 5:8)
   first_nonlocal_neighborcolors = view(colors, 9:10)
   second_nonlocal_neighborcolors = view(colors, 11:12)
@@ -573,10 +494,73 @@ function getNonLocalColors(mesh, adj::AbstractArray{Ptr{Void}}, colordata::Color
 end
 
 
+function getMinColor{T}(adj::AbstractArray{T})
+# adj contains colors of adjacent elements
+  min_color = 1
+  sort!(adj)  # adj must be in increasing order for this to work
+  for i=1:length(adj)
+    if min_color < adj[i]
+      continue
+    elseif min_color == adj[i]
+	min_color = adj[i] + 1
+    end  # if min_color > adj[i] do nothing
+  end  # end for loop
 
+  return min_color
+end
+
+function getMinColor2{T}(adj::AbstractArray{T}, numc::Integer)
+# ensure uniqueness of neighboring colors
+# adj is array of colors of adjacent faces
+# numc is the current number of colors
+
+  mask = zeros(Bool, numc)
+  sort!(adj)
+  min_color = 0
+  for i=1:length(adj) # identify already used colors
+    if adj[i] != 0
+      mask[adj[i]] = true
+    end
+  end
+
+  mask_sum = sum(mask)
+
+  if mask_sum == numc  # all existing colors used, so add another
+    println("adding color ", numc + 1)
+    min_color = numc + 1
+  elseif mask_sum == (numc - 1)  # there is exactly 1 color remaining
+  #  println("exactly 1 color remaining")
+    # find out which color is missing and use it
+    for i=1:numc
+      if !mask[i]  # if mask is false
+        min_color = i
+      end
+    end
+  else  # some colors are missing
+  #  println("getting minimum color")
+    min_color = getMinColor(adj)  # get the minimum
+  end
+
+  @assert min_color != 0
+
+  return min_color
+
+end
 
 #------------------------------------------------------------------------------
 # functions that get the bookkeeping information after coloring is done
+#------------------------------------------------------------------------------
+
+function getColors0(mesh, masks::AbstractArray{BitArray{1}, 1})
+# populate the masks that indicate which elements are perturbed by which
+# colors
+# for a distance-0 coloring, every element is perturbed and there is only
+# 1 color
+
+  masks[1] = trues(mesh.numEl)
+  return nothing
+end
+
 
 function getColors1{T, T2}(mesh, masks::AbstractArray{BitArray{1}, 1}, neighbor_colors::AbstractArray{T, 2}, neighbor_nums::AbstractArray{T2, 2}; verify=true )
 # verify edge neighbor faces have different colors (ie. distance-1 coloring
@@ -843,5 +827,51 @@ end  # end loop over colors
   return pertNeighborEls
 end
 
+
+# perterubed neighbors for edge-based residual
+function getPertEdgeNeighbors(mesh::PumiMesh)
+
+  neighbor_nums = zeros(Int32, mesh.numEl, 3)
+
+  edges = Array(Ptr{Void}, 3)  # hold element edges
+  adj = Array(Ptr{Void}, 2)  # hold adjacent elements
+
+  for i=1:mesh.numEl
+    el_i = mesh.elements[i]
+
+    getDownward(mesh.m_ptr, el_i, 1, edges)
+
+
+    #=
+    # check edge neighbors only
+    num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
+    @assert num_adj <= 3
+    getBridgeAdjacent(adj)
+    =#
+
+    # get color, element numbers
+    for j=1:3 # loop over edges
+      # in use, this array is traveres by numEl first, so we have to 
+      # populate it by rows here
+      num_adj = countAdjacent(mesh.m_ptr, edges[j], 2)
+      @assert num_adj <= 2
+      if num_adj == 2  # if there is another adjacnet element
+	getAdjacent(adj)
+
+	# figure out which adjacent element is the *other* one
+	if adj[1] == el_i
+	  other_el = adj[2]
+	else
+	  other_el = adj[1]
+	end
+
+        neighbor_nums[i, j] = getNumberJ(mesh.el_Nptr, other_el, 0, 0) + 1
+      end  # end if num_adj == 2
+    end  # end loop j=1:3
+  end  # end i=1:mesh.numEl
+
+  return neighbor_nums
+
+end  # end getPertEdgeNeighbors
 
 
