@@ -291,16 +291,6 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
   const nonlocal_d2_start = (nfaces-1)*nfaces + nonlocal_start
   const final_start = (nfaces-2)*(nfaces-1) + nonlocal_d2_start
 
-  println("local_start = ", local_start)
-  println("nonlocal_start = ", nonlocal_start)
-  println("nonlocal_d2_start = ", nonlocal_d2_start)
-  println("final-start = ", final_start)
-
-  #TODO: remove this
-  if mesh.dim == 2
-    @assert final_start-1 == 20
-  end
-
   colors = zeros(Int32, final_start-1)  
   # the first 3 sets of four elements are for the colors of the distance-2 
   # neighbors + their common distance-2 neighbor
@@ -359,31 +349,20 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
   nonlocal_d2_neighbors = Array(ContiguousView{Int32,1, Array{Int32, 1}}, nfaces-1)
   pos = 1
   for i=1:nfaces-1
-    println("setting up storage for face ", i)
     # local d2 neighbor + d1 neighbor
     section_start = nfaces + pos
     local_d2_neighbors[i] = view(colors, pos:(section_start-1))
-    println("local range = ", pos:(section_start-1))
 
     # nonloca d2 neighbors
     pos = section_start
     section_start = nfaces - 1 + pos
     nonlocal_d2_neighbors[i] = view(colors, pos:(section_start-1))
-    println("nonlocal range = ", pos:(section_start-1))
     pos = section_start
   end
 
-  println("pos = ", pos)
   if mesh.dim == 2
     @assert pos-1 == 10
   end
-
-
-
-  first_neighborcolors = view(colors, 1:(nfaces))
-  second_neighborcolors = view(colors, 5:7)
-  first_nonlocal_neighborcolors = view(colors, 9:10)
-  second_nonlocal_neighborcolors = view(colors, 11:12)
 
   d1_ptr = Array(Ptr{Void}, 1)
   for i=1:mesh.numSharedEl
