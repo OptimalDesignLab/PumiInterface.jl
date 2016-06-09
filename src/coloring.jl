@@ -432,7 +432,7 @@ function getDistance2Colors(mesh::PumiMesh, elnum::Integer, adj, adj2, colors)
 
   el_i = mesh.elements[elnum]
 
-  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
+  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
 #  adj = Array(Ptr{Void}, 3)
   getBridgeAdjacent(adj)
 
@@ -440,7 +440,7 @@ function getDistance2Colors(mesh::PumiMesh, elnum::Integer, adj, adj2, colors)
 
   adj_cnt = zeros(Int, num_adj)
   for j=1:num_adj
-    num_adj_j = countBridgeAdjacent(mesh.m_ptr, adj[j], 1, 2)
+    num_adj_j = countBridgeAdjacent(mesh.m_ptr, adj[j], mesh.dim-1, mesh.dim)
     adj_cnt[j] = num_adj_j + 1
  #   adj2[j] = Array(Ptr{Void}, num_adj_j + 1)
     getBridgeAdjacent(adj2[j])
@@ -470,12 +470,13 @@ function getNonlocalDistance2Colors(mesh::PumiMeshDG2, elnum::Integer, colordata
 # get the distance 2 neighbors of a local element that are connected via a non-local element
 
   el = mesh.elements[elnum]
+  nfaces = mesh.numFacesPerElement
   pos = 1
   if haskey(colordata.adj_dict, elnum)
     vals = colordata.adj_dict[elnum]
     for i=1:length(vals)
       if (vals[i] != 0)
-        for j=1:2
+        for j=1:(nfaces-1)
           neighbor = colordata.revadj[vals[i] - mesh.numEl, j]
           if neighbor != 0
             neighbor_ptr = mesh.elements[neighbor]
@@ -494,7 +495,7 @@ function getDistance1Colors(mesh::PumiMeshDG2, elnum::Integer, adj, colors)
 # get the distance1 colors of a specified element
 
   el = mesh.elements[elnum]
-  num_adj = countBridgeAdjacent(mesh.m_ptr, el, 1, 2)
+  num_adj = countBridgeAdjacent(mesh.m_ptr, el, mesh.dim-1, mesh.dim)
   getBridgeAdjacent(adj)
 
   for i=1:num_adj
@@ -543,6 +544,7 @@ function getMinColor{T}(adj::AbstractArray{T})
   return min_color
 end
 
+#TODO: see if output can be removed
 function getMinColor2{T}(adj::AbstractArray{T}, numc::Integer)
 # ensure uniqueness of neighboring colors
 # adj is array of colors of adjacent faces
@@ -608,8 +610,9 @@ function getColors1{T, T2}(mesh, masks::AbstractArray{BitArray{1}, 1}, neighbor_
 # neighbor_nums is 4 by numEl array of integers holding the element numbers
 # of the neighbors + self
 
-adj = Array(Ptr{Void}, 4)   # pointers to element i + 3 neighbors
-adj_color = zeros(Int32, 4)  # element colors
+nfaces = mesh.numFacesPerElement
+adj = Array(Ptr{Void}, nfaces + 1) # pointers to element i + 3 neighbors
+adj_color = zeros(Int32, nfaces + 1)  # element colors
 
 # initialize masks to 0 (false)
 for i=1:length(masks)
@@ -626,8 +629,8 @@ for i=1:mesh.numEl
   el_i = mesh.elements[i]
 
   # check edge neighbors only
-  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
-  @assert num_adj <= 3
+  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
+  @assert num_adj <= nfaces
   getBridgeAdjacent(adj)
 
   adj[num_adj + 1] = el_i  # insert the current element
@@ -653,7 +656,8 @@ for i=1:mesh.numEl
       start_idx += 1
     end
 
-
+    #TODO: do this by verifying adjacent values are not equal, rather than
+    #      calling unique which allocates memory
     if nz_arr != unique(nz_arr)
       println("element ", i, " has non unique colors")
       println("adj_color = ", nz_arr)
@@ -689,9 +693,10 @@ function getColors1{T, T2}(mesh, colordata::ColoringData, masks::AbstractArray{B
 
 println(mesh.f, "entered getColors")
 
-adj = Array(Ptr{Void}, 4)   # pointers to element i + 3 neighbors
-adj_color = zeros(Int32, 4)  # element colors
-adj_elnum = zeros(Int32, 4)  # element numbers
+nfaces = mesh.numFacesPerElement
+adj = Array(Ptr{Void}, nfaces + 1)   # pointers to element i + 3 neighbors
+adj_color = zeros(Int32, nfaces + 1)  # element colors
+adj_elnum = zeros(Int32, nfaces + 1)  # element numbers
 adj_dict = colordata.adj_dict
 nonlocal_colors = colordata.nonlocal_colors
 
@@ -711,8 +716,8 @@ for i=1:mesh.numEl
   elnum = getNumberJ(mesh.el_Nptr, el_i, 0, 0) + 1
 
   # check edge neighbors only
-  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
-  @assert num_adj <= 3
+  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
+  @assert num_adj <= nfaces
   getBridgeAdjacent(adj)  
   adj[num_adj + 1] = el_i  # insert the current elementa
 
@@ -720,7 +725,7 @@ for i=1:mesh.numEl
   pos = 1  #current index in the adj_color, adj_elnum arrays
   if haskey(adj_dict, elnum)
   nonlocal_els = adj_dict[elnum]
-    for j=1:2
+    for j=1:(nfaces-1)
       nonlocal_elnum = nonlocal_els[j]
       if nonlocal_elnum != 0  # if this is a real ghost neighbor
         elcolor = nonlocal_colors[nonlocal_elnum - mesh.numEl]
@@ -739,7 +744,7 @@ for i=1:mesh.numEl
   end
 
   # copy them into the global arrays
-  for j=1:4
+  for j=1:(nfaces + 1)
     neighbor_colors[j, i] = adj_color[j]
     neighbor_nums[j, i] = adj_elnum[j]
   end
@@ -863,6 +868,7 @@ end
 
 
 # perterubed neighbors for edge-based residual
+# TODO: make this 3d
 function getPertEdgeNeighbors(mesh::PumiMesh)
 
   neighbor_nums = zeros(Int32, mesh.numEl, 3)
