@@ -342,29 +342,63 @@ function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cn
   # adjacent elements than other elemenets, so the odds are better they can 
   # get a lower color by doing coloring all the boundary elements first
 
+  # store local d1 adjacencies in adj (there are nfaces-1 maximum)
+  # store colors of their local d1 neighbors + self color in next 
+  # (nfaces-1)(nfaces) entries of colors
+  # store their nonlocal d1 neighbors in next (nfaces-1)(nfaces-1) entries of
+  # colors
   revadj = colordata.revadj
-  colors = zeros(Int32, nfaces*(nfaces+1))
-  first_neighborcolors = view(colors, 1:(nfaces+1))
-  second_neighborcolors = view(colors, 5:8)
+  colors = zeros(Int32, (nfaces-1)*nfaces + (nfaces-1)*(nfaces))
+
+  if mesh.dim == 2
+    @assert length(colors) == nfaces*(nfaces+1)
+  end
+
+  d1_neighbors = Array(Int32, nfaces-1)
+  local_d2_neighbors = Array(ContiguousView{Int32,1, Array{Int32, 1}}, nfaces-1)
+  nonlocal_d2_neighbors = Array(ContiguousView{Int32,1, Array{Int32, 1}}, nfaces-1)
+  pos = 1
+  for i=1:nfaces-1
+    println("setting up storage for face ", i)
+    # local d2 neighbor + d1 neighbor
+    section_start = nfaces + pos
+    local_d2_neighbors[i] = view(colors, pos:(section_start-1))
+    println("local range = ", pos:(section_start-1))
+
+    # nonloca d2 neighbors
+    pos = section_start
+    section_start = nfaces - 1 + pos
+    nonlocal_d2_neighbors[i] = view(colors, pos:(section_start-1))
+    println("nonlocal range = ", pos:(section_start-1))
+    pos = section_start
+  end
+
+  println("pos = ", pos)
+  if mesh.dim == 2
+    @assert pos-1 == 10
+  end
+
+
+
+  first_neighborcolors = view(colors, 1:(nfaces))
+  second_neighborcolors = view(colors, 5:7)
   first_nonlocal_neighborcolors = view(colors, 9:10)
   second_nonlocal_neighborcolors = view(colors, 11:12)
 
   d1_ptr = Array(Ptr{Void}, 1)
   for i=1:mesh.numSharedEl
 
-    # get the neighbors
-    neighbor1 = revadj[i, 1]
-    neighbor2 = revadj[i, 2]
-    getDistance1Colors(mesh, neighbor1, adj, first_neighborcolors)
-    d1_ptr[1] = mesh.elements[neighbor1]
-    first_neighborcolors[4] = getNumberJ(mesh.coloring_Nptr, d1_ptr[1], 0, 0)
-    getNonLocalColors(mesh, d1_ptr, colordata, first_nonlocal_neighborcolors)
+    for j=1:(nfaces-1)
+      neighbor = revadj[i, j]
+      if neighbor != 0
+        d2_local = local_d2_neighbors[j]
+        d2_nonlocal = nonlocal_d2_neighbors[j]
 
-    if neighbor2 != 0
-      getDistance1Colors(mesh, neighbor2, adj, second_neighborcolors)
-      d1_ptr[1] = mesh.elemenets[neighbor2]
-      second_neighborcolors[4] = getNumberJ(mesh.coloring_Nptr, d1_ptr[1], 0, 0)
-      getNonLocalColors(mesh, d1_ptr, colordata, second_nonloca_neighborcolors)
+        getDistance1Colors(mesh, neighbor, adj, d2_local)
+        d1_ptr[1] = mesh.elements[neighbor]
+        d2_local[end] = getNumberJ(mesh.coloring_Nptr, d1_ptr[1], 0, 0)
+        getNonLocalColors(mesh, d1_ptr, colordata, d2_nonlocal)
+      end
     end
 
     min_color = getMinColor2(colors, numc)
@@ -467,7 +501,7 @@ function getDistance1Colors(mesh::PumiMeshDG2, elnum::Integer, adj, colors)
     colors[i] = getNumberJ(mesh.coloring_Nptr, adj[i], 0, 0)
   end
 
-  return nothing
+  return num_adj
 end
 
 function getNonLocalColors(mesh, adj::AbstractArray{Ptr{Void}}, colordata::ColoringData, colors::AbstractArray)
