@@ -110,7 +110,7 @@ function printEdgeVertNumbers(edgeN_ptr, vertN_ptr; fstream=STDOUT)
 
 end
 
-function printEdgeVertNumbers(edges::AbstractArray{Ptr{Void}}, edgeN_ptr, vertN_ptr; fstream=STDOUT)
+function printFaceVertNumbers(edges::AbstractArray{Ptr{Void}}, edgeN_ptr, vertN_ptr; fstream=STDOUT)
 
   m_ptr = getMesh(edgeN_ptr)
   m = length(edges)
@@ -118,11 +118,13 @@ function printEdgeVertNumbers(edges::AbstractArray{Ptr{Void}}, edgeN_ptr, vertN_
   for i=1:m
     edge_i = edges[i]
     edge_num = getNumberJ(edgeN_ptr, edge_i, 0, 0)
-
+    print(fstream, "face ", edge_num, " has vertices ")
     (verts, nverts) = getDownward(m_ptr, edge_i, 0)
-    n1 = getNumberJ(vertN_ptr, verts[1], 0, 0)
-    n2 = getNumberJ(vertN_ptr, verts[2], 0, 0)
-    println(fstream, "edge ", edge_num, " has vertices ", n1, " , ", n2 )
+    for j=1:nverts
+      n = getNumberJ(vert_Nptr, verts[j], 0, 0)
+      print(fstream, n1, ", ")
+    end
+    print(fstream, "\n")
   end
 
 end

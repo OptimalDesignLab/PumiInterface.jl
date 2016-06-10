@@ -33,8 +33,43 @@ writedlm(fname2, vals)
 return nothing
 end
 
+function writeCounts(mesh::PumiMesh3D; fname="counts")
+# write values needed for memory usage estimate
+vals = Array(Int, 9)
+vals[1] = mesh.numVert
+vals[2] = mesh.numEdge
+vals[3] = mesh.numFace
+vals[4] = mesh.numEl
+vals[5] = mesh.numBoundaryFaces
+vals[6] = mesh.numNodesPerType[1]
+vals[7] = mesh.numNodesPerType[2]
+vals[8] = mesh.numNodesPerType[3]
+vals[9] = mesh.numDofPerNode
 
-function printBoundaryEdgeNums(mesh::PumiMesh)
+#=
+# estimate jacobian storage size
+acc = 0
+for i=1:mesh.numDof
+  acc += mesh.sparsity_bnds[2, i] - mesh.sparsity_bnds[1, i]
+end
+
+size_nz = 64*acc
+size_rowval = 64*acc
+size_colptr = 64*mesh.numDof
+
+vals[9] = size_nz + size_rowval + size_colptr
+=#
+# append mpi_rank, file extension
+myrank = mesh.myrank
+fname2 = string(fname, "_", myrank, ".txt")
+writedlm(fname2, vals)
+			  
+return nothing
+end
+
+
+
+function printBoundaryFaceNums(mesh::PumiMesh2D)
 
   n = mesh.numBC
 
@@ -55,12 +90,12 @@ function printBoundaryEdgeNums(mesh::PumiMesh)
       el = mesh.bndryfaces[bndry].element
       local_face = mesh.bndryfaces[bndry].face
       el_ptr = mesh.elements[el]
-      getDownward(mesh.m_ptr, el_ptr, 1, edges)
+      getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, edges)
       arr[i] = edges[local_face]
       bndry += 1
     end
     
-    printEdgeVertNumbers(arr, mesh.edge_Nptr, mesh.vert_Nptr; fstream=f)
+    printFaceVertNumbers(arr, mesh.edge_Nptr, mesh.vert_Nptr; fstream=f)
     close(f)
   end
 
@@ -77,7 +112,7 @@ f = open(name, "a+")
 
 for i=1:n  # loop over elements
   for j=1:m  # loop over nodes on an element
-    println(f, "el ", i, " node ", j, " xi_vec = ", mat[1, :, j, i], " eta_vec = ", mat[2, :, j, i])
+    println(f, "el ", i, " node ", j, " dxidx = ", mat[:, :, j, i])
   end
 end
 
