@@ -1,6 +1,6 @@
 # a type to hold data related to coloring the mesh
 type ColoringData
-  adj_dict::Dict{Int, NTuple{2,  Int}}  # map local element to non-locals
+  adj_dict::Dict{Int, Array{Int, 1}}  # map local element to non-locals
   revadj::Array{Int32, 2}  # map non-local elements to local elements
 
   nonlocal_colors::Array{Int32, 1}

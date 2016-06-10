@@ -23,8 +23,8 @@ function getParallelInfo(mesh::PumiMeshDG2)
   remotes = Array(Ptr{Void}, 1)
   counts = zeros(Int, npeers)  # hold the counts of the number of edges shared
                                # with each peer
-  for i=1:mesh.numEdge
-    edge = mesh.edges[i]
+  for i=1:mesh.numFace
+    edge = mesh.faces[i]
     if isShared(mesh.m_ptr, edge)
       nremotes = countRemotes(mesh.m_ptr, edge)
       @assert nremotes == 1
@@ -36,7 +36,7 @@ function getParallelInfo(mesh::PumiMeshDG2)
   end
   mesh.peer_face_counts = counts
 
-  # get the edges
+  # allocate memory
   edges_local = Array(Array{Ptr{Void}, 1}, npeers)
   edges_remote = Array(Array{Ptr{Void}, 1}, npeers)  # is this still used?
   mesh.bndries_local = bndries_local = Array(Array{Boundary,1}, npeers)
@@ -52,8 +52,8 @@ function getParallelInfo(mesh::PumiMeshDG2)
   # get all the (local pointers to) edges in a single pass, 
   # even though they might not be needed
   curr_pos = ones(Int, npeers)  # hold the current position in each edge array
-  for i=1:mesh.numEdge
-    edge_i = mesh.edges[i]
+  for i=1:mesh.numFace
+    edge_i = mesh.faces[i]
     if isShared(mesh.m_ptr, edge_i)
       nremotes = countRemotes(mesh.m_ptr, edge_i)
       getRemotes(partnums, remotes)
@@ -88,7 +88,7 @@ function getParallelInfo(mesh::PumiMeshDG2)
         bndry_j = bndries_i[j]
         # get the edge
         el_j = mesh.elements[bndry_j.element]
-        getDownward(mesh.m_ptr, el_j, apfEDGE, down)
+        getDownward(mesh.m_ptr, el_j, mesh.dim-1, down)
         edge_j = down[bndry_j.face]
 
         # get the remote edge pointer
@@ -195,13 +195,15 @@ function getEdgeBoundaries(mesh::PumiMeshDG2, edges::Array{Ptr{Void}},
   for i=1:length(edges)
     edge_i = edges[i]
 
-    numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
+    numFace = countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward
 
     @assert( numFace == 1)
 
     getAdjacent(faces)
-    facenum = getFaceNumber2(faces[1]) + 1
-    edgenum = getEdgeNumber2(edge_i) + 1  # unneeded?
+    facenum = getNumberJ(mesh.el_Nptr, faces[1], 0, 0) + 1
+    edgenum = getNumberJ(mesh.face_Nptr, edge_i, 0, 0) + 1
+#    facenum = getFaceNumber2(faces[1]) + 1
+#    edgenum = getEdgeNumber2(edge_i) + 1  # unneeded?
     edgenum_local = getEdgeLocalNum(mesh, edgenum, facenum)
 
     bndries[i] = Boundary(facenum, edgenum_local)
@@ -275,11 +277,11 @@ function getLocalAdjacency(mesh::PumiMeshDG2)
   # map from an element number of all the element numbers of the 
   # non-local elements
   # an element can have a maximum of 2 non-local neighbor elements
-  adj_dict = Dict{Int, NTuple{2, Int}}()
+  adj_dict = Dict{Int, Array{Int, 1}}()
   sizehint!(adj_dict, mesh.numSharedEl)
 
   # map from non-local element to local neighbors
-  revadj = zeros(Int, mesh.numSharedEl, 2)
+  revadj = zeros(Int, mesh.numSharedEl, 5)
 
   for i=1:mesh.npeers
     ifaces_i = mesh.shared_interfaces[i]
@@ -289,14 +291,23 @@ function getLocalAdjacency(mesh::PumiMeshDG2)
       el_nonlocal = iface_j.elementR
 
       if !haskey(adj_dict, el_local)
-        adj_dict[el_local] = (Int(el_nonlocal), 0)
+        adj_dict[el_local] = Int[el_nonlocal, 0, 0, 0, 0]
       else
         old_tuple = adj_dict[el_local]
-        @assert old_tuple[2] == 0
-        adj_dict[el_local] = (old_tuple[1], Int(el_nonlocal))
+        @assert old_tuple[5] == 0
+        idx = findfirst(old_tuple, 0)
+        old_tuple[idx] = Int(el_nonlocal)
+#        adj_dict[el_local] = (old_tuple[1], Int(el_nonlocal))
       end  # end if-else
 
       nonlocal_idx = el_nonlocal - mesh.numEl
+      for k=1:5
+        if revadj[nonlocal_idx, k] == 0
+          revadj[nonlocal_idx, k] = el_local
+          break
+        end
+      end
+      #=
       first_neighbor = revadj[nonlocal_idx, 1]
       second_neighbor = revadj[nonlocal_idx, 2]
       if first_neighbor == 0
@@ -306,6 +317,7 @@ function getLocalAdjacency(mesh::PumiMeshDG2)
       else
         throw(ErrorException("Too many adjacent elements for peer $i interface $j"))
       end
+      =#
 
     end # end loop over interfaces
   end  # end loop over peers
