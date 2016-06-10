@@ -289,9 +289,8 @@ end
 node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
 
 # get node offsets in the SBP order
-node_offsets = view(mesh.elementNodeOffsets[:, elnum])
-
-num_entities = [3, 3, 1] # number of vertices, edges, faces
+node_offsets = view(mesh.elementNodeOffsets, :, elnum)
+#node_offsets = view(mesh.elementNodeOffsets[:, elnum])
 
 PumiInterface.getDofNumbers(numbering_ptr, node_entities, node_offsets, mesh.nodemapPumiToSbp, el_i, dofnums)  # C implimentation
 
@@ -382,23 +381,23 @@ function getBoundaryEdgeLocalNum(mesh::PumiMesh, edge_num::Integer)
 # of the mesh
 # edge_num is an edge num from the output of getBoundaryEdgeNums() (ie. the global edge number)
 # the local edge number is the edge number within the element (1st,s 2nd, 3rd...)
-  edge_i = mesh.edges[edge_num]
+  face_i = mesh.faces[edge_num]
 
   # get mesh face associated with edge
-  countAdjacent(mesh.m_ptr, edge_i, 2)
+  countAdjacent(mesh.m_ptr, face_i, mesh.dim)
   face = getAdjacent(1)[1]  # get the single face (not an array)
-
-  facenum_i = getFaceNumber2(face) + 1  # convert to 1 based indexing
-  down_edges = Array(Ptr{Void}, 3)
-  numedges = getDownward(mesh.m_ptr, face, 1, down_edges)
-  edgenum_local = 0
-  for j = 1:3  # find which local edge is edge_i
-    if down_edges[j] == edge_i
-      edgenum_local = j
+  facenum_i = getNumberJ(mesh.face_Nptr, face, 0, 0) + 1
+#  facenum_i = getFaceNumber2(face) + 1  # convert to 1 based indexing
+  down_faces = Array(Ptr{Void}, 12)
+  numedges = getDownward(mesh.m_ptr, face, mesh.dim-1, down_faces)
+  facenum_local = 0
+  for j = 1:mesh.numFacesPerElement  # find which local edge is edge_i
+    if down_faces[j] == face_i
+      facenum_local = j
     end
   end
 
-  return edgenum_local
+  return facenum_local
 
 end
 
@@ -406,14 +405,14 @@ end
 function getEdgeLocalNum(mesh::PumiMesh, edge_num::Integer, element_num::Integer)
 # find the local edge number of a specified edge on a specified element
 
-  edge = mesh.edges[edge_num]
+  edge = mesh.faces[edge_num]
   element = mesh.elements[element_num]
 
-  down_edges = Array(Ptr{Void}, 3)
-   numedges = getDownward(mesh.m_ptr, element, 1, down_edges)
+  down_edges = Array(Ptr{Void}, 12)
+   numedges = getDownward(mesh.m_ptr, element, mesh.dim-1, down_edges)
 
   edgenum_local = 0
-   for j = 1:3  # find which local edge is edge_i
+   for j = 1:mesh.numFacesPerElement  # find which local edge is edge_i
     if down_edges[j] == edge
       edgenum_local = j
     end

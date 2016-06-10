@@ -125,6 +125,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   f::IOStream
   vert_Nptr::Ptr{Void}  # numbering of vertices (zero based)
   edge_Nptr::Ptr{Void}  # numbering of edges (zero based)
+  face_Nptr::Ptr{Void}  # number of face s(edges), (zero based)
   el_Nptr::Ptr{Void}  # numbering of elements (faces)  (zero based)
   coloring_Nptr::Ptr{Void}  # coloring of mesh for sparse jacobian calculation
   entity_Nptrs::Array{Ptr{Void}, 1}  # [vert_Nptr, edge_Nptr, el_Nptr], 0-based
@@ -405,6 +406,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   # get pointers to mesh entity numberings
   mesh.vert_Nptr = getVertNumbering()
   mesh.edge_Nptr = getEdgeNumbering()
+  mesh.face_Nptr = mesh.edge_Nptr
   mesh.el_Nptr = getFaceNumbering()
   mesh.entity_Nptrs = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
 
