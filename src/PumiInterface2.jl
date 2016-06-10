@@ -43,6 +43,7 @@ function resetAllIts2()
  return nothing
 end
 
+
 function countDownwards(m_ptr, entity)
 # gets an array containing the number of downward adjacencies of each type for
 # the given entity, in ascending order

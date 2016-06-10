@@ -1,7 +1,6 @@
 # PdePumiInterfaceDG.jl: implements AbstractMesh for a 2D Discontinuous
 #                        Galerkin mesh
 
-export AbstractMesh,PumiMeshDG2, PumiMeshDG2Preconditioning, reinitPumiMeshDG2, getElementVertCoords, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryEdgeLocalNum, getEdgeLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles
 
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
@@ -42,7 +41,7 @@ export AbstractMesh,PumiMeshDG2, PumiMeshDG2Preconditioning, reinitPumiMeshDG2, 
 # having an explicitly defined node ordering convention and a general
 # mechanism to convert from Pumi to SBP ordering is a better interface
 #         
-export PumiMeshDG2, PumiMeshDG
+export PumiMeshDG2
 #abstract AbstractMesh
 @doc """
 ### PumiInterface.PumiMeshDG2
@@ -440,7 +439,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 =#
 # elseif opts["reordering_algorithm"] == "default"
 #    println("about to number nodes")
-  numberNodes(mesh)
+  numberNodesElement(mesh)
 
 #  else
 #    println(STDERR, "Error: invalid dof reordering algorithm requested")
@@ -456,7 +455,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   # get entity pointers
 #  println("about to get entity pointers")
-  mesh.verts, mesh.edges, mesh.elements = getEntityPointers(mesh)
+  mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
 #  println("finished getting entity pointers")
 
 #  println("about to get boundary edge list")

@@ -7,8 +7,6 @@ smb_name = "tri8l.smb"
 
 mesh = PumiMesh2(dmg_name, smb_name, 1)
 
-el_coords = getElementVertCoords(mesh, [1])
-println("el_coords = ", el_coords)
 
 i = getShapeFunctionOrder(mesh)
 println("shape function order = ", i)

@@ -9,12 +9,12 @@ function populateDofNumbers(mesh::PumiMesh)
   resetAllIts2()
   # mesh iterator increment, retreval functions
   # TODO: checks if using mutable arrays is causing dynamic dispatch
-  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
-  iterators_get = [getVert, getEdge, getFace]
-  num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
+  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
+  iterators_get = [getVert, getEdge, getFace, getEl]
+  num_entities = mesh.numEntitiesPerType
   num_nodes_entity = mesh.numNodesPerType
 
-  for etype = 1:3 # loop over entity types
+  for etype = 1:(mesh.dim+1) # loop over entity types
 #    println("etype = ", etype)
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
       for entity = 1:num_entities[etype]  # loop over all entities of this type
@@ -52,9 +52,9 @@ function populateNodeStatus(mesh::PumiMesh)
   resetAllIts2()
   # mesh iterator increment, retreval functions
   # TODO: checks if using mutable arrays is causing dynamic dispatch
-  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
-  iterators_get = [getVert, getEdge, getFace]
-  num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
+  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
+  iterators_get = [getVert, getEdge, getFace, getEl]
+  num_entities = mesh.numEntitiesPerType
   num_nodes_entity = mesh.numNodesPerType
 
 #  mesh.numNodesPerType = num_nodes_entity
@@ -97,6 +97,7 @@ mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.shared_
 
 for i=1:mesh.numEl
 #  println("element ", i)
+  #TODO: use the non-allocating version
   dofnums = getGlobalNodeNumbers(mesh, i)
 
   for j=1:mesh.numNodesPerElement
@@ -144,7 +145,7 @@ end
 # figure out the local to global offset of the dof numbers
 # compute number of local dofs
 ndof = 0
-for i=1:3
+for i=1:(mesh.dim + 1)
   ndof += mesh.numNodesPerType[i]*mesh.numEntitiesPerType[i]*mesh.numDofPerNode
 end
 println(mesh.f, "ndof = ", ndof)
@@ -211,24 +212,24 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
 # this works for high order elements
   println("Entered numberNodes")
 
+  println("Finished initial numbering of dofs") 
+
+  numberNodesElement(mesh, number_dofs=number_dofs, start_at_one=false)
+
+  println("Performing final numbering of dofs")
+
   # calculate number of nodes, dofs
-  num_nodes_v = countNodesOn(mesh.mshape_ptr, 0) # on vert
-  # number of nodes on a vertex
-  num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
-  num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
-  numnodes = num_nodes_v*mesh.numVert + num_nodes_e*mesh.numEdge + num_nodes_f*mesh.numEl
-
-
+  numnodes = mesh.numNodes
 
   # initally number all dofs as numDof+1 to 2*numDof
   # this allows quick check to see if somthing is labelled or not
 
   resetAllIts2()
   # mesh iterator increment, retreval functions
-  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
-  iterators_get = [getVert, getEdge, getFace]
-  num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
-  num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f]
+  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
+  iterators_get = [getVert, getEdge, getFace, getEl]
+  num_entities = mesh.numEntitiesPerType
+  num_nodes_entity = mesh.numNodesPerType
 
 #  mesh.numNodesPerType = num_nodes_entity
 
@@ -246,42 +247,6 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
     numDof = numnodes
   end
 
-  println("expected number of dofs = ", numDof)
-  if (numDof > 2^30 || numDof < 0)
-    println("Warning: too many dofs, renumbering will fail")
-  end
-
-
-#  println("num_entities = ", num_entities)
-#  println("num_nodes_entity = ", num_nodes_entity)
-
-#  curr_dof = 1
-  curr_dof = numDof+1
-  for etype = 1:3 # loop over entity types
-#    println("etype = ", etype)
-    if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
-      for entity = 1:num_entities[etype]  # loop over all entities of this type
-#	println("  entity number: ", entity)
-	entity_ptr = iterators_get[etype]()  # get entity
-
-	for node = 1:num_nodes_entity[etype]
-#	  println("    node : ", node)
-	  for dof = 1:dofpernode
-	    numberJ(numbering_ptr, entity_ptr, node-1, dof-1, curr_dof)
-#	    println("      entity ", entity_ptr, " labelled ", curr_dof)
-	    curr_dof += 1
-	  end  # end loop over dof
-	end  # end loop over node
-
-      iterators_inc[etype]()
-      end  # end loop over entitiesa
-    end  # end if 
-  end  # end loop over entity types
-
-  println("Finished initial numbering of dofs") 
-
-
-  println("Performing final numbering of dofs")
 
   verts_i = Array(Ptr{Void}, 12)
   edges_i = Array(Ptr{Void}, 12)
@@ -336,12 +301,11 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
         # node number
         # this only works when there are no nodes on edges or vertices, because
         # we would have to do additional translation to take them into account
-        pumi_node = mesh.nodemapSbpToPumi[k]
 
       for p=1:dofpernode  # loop over dofs
-	dofnum_p = getNumberJ(numbering_ptr, el_i_ptr, pumi_node-1, p-1)
+	dofnum_p = getNumberJ(numbering_ptr, el_i_ptr, k-1, p-1)
 	if dofnum_p > numDof
-	  numberJ(numbering_ptr, el_i_ptr, pumi_node-1, p-1, curr_dof)
+	  numberJ(numbering_ptr, el_i_ptr, k-1, p-1, curr_dof)
 	  curr_dof += 1
 	end
       end
@@ -361,11 +325,89 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
     println("Dof numbering is sane")
   end
 
-
-
-  resetAllIts2()
   return nothing
 
+end
+
+function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true)
+
+  # calculate number of nodes, dofs
+  numnodes = mesh.numNodes
+
+  # initally number all dofs as numDof+1 to 2*numDof
+  # this allows quick check to see if somthing is labelled or not
+
+  resetAllIts2()
+  # mesh iterator increment, retreval functions
+  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
+  iterators_get = [getVert, getEdge, getFace, getEl]
+  num_entities = mesh.numEntitiesPerType
+  num_nodes_entity = mesh.numNodesPerType
+
+  println("num_entities = ", num_entities)
+  println("num_nodes_entity = ", num_nodes_entity)
+
+#  mesh.numNodesPerType = num_nodes_entity
+
+  if number_dofs
+    println("numbering degrees of freedom")
+    numbering_ptr = mesh.dofnums_Nptr
+    curr_dof = mesh.numDof + 1
+    dofpernode = mesh.numDofPerNode
+    numDof = mesh.numDofPerNode*numnodes
+  else  # do node numbering
+    println("numbering nodes")
+    numbering_ptr = mesh.nodenums_Nptr
+    curr_dof = mesh.numNodes + 1
+    dofpernode = 1
+    numDof = numnodes
+  end
+
+  println("expected number of dofs = ", numDof)
+  if (numDof > 2^30 || numDof < 0)
+    println("Warning: too many dofs, renumbering will fail")
+  end
+
+
+#  println("num_entities = ", num_entities)
+#  println("num_nodes_entity = ", num_nodes_entity)
+
+  if start_at_one
+    curr_dof = 1
+  else
+    curr_dof = numDof+1
+  end
+
+  if mesh.isDG
+    nodemap =  mesh.nodemapSbpToPumi
+  else
+    nodemap = collect(eltype(mesh.nodemapSbpToPumi), 1:mesh.numNodesPerElement)
+  end
+
+  for etype = 1:(mesh.dim + 1) # loop over entity types
+#    println("etype = ", etype)
+    if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
+      for entity = 1:num_entities[etype]  # loop over all entities of this type
+#	println("  entity number: ", entity)
+	entity_ptr = iterators_get[etype]()  # get entity
+
+	for node = 1:num_nodes_entity[etype]
+
+          pumi_node = nodemap[node]
+#	  println("    node : ", node)
+	  for dof = 1:dofpernode
+	    numberJ(numbering_ptr, entity_ptr, pumi_node-1, dof-1, curr_dof)
+#	    println("      entity ", entity_ptr, " labelled ", curr_dof)
+	    curr_dof += 1
+	  end  # end loop over dof
+	end  # end loop over node
+
+      iterators_inc[etype]()
+      end  # end loop over entitiesa
+    end  # end if 
+  end  # end loop over entity types
+
+  return nothing
 end
 
 

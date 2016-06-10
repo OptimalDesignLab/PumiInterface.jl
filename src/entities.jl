@@ -6,12 +6,14 @@ function getEdgeFaces(mesh::PumiMeshDG2, bndry_edges::AbstractArray{Int, 1})
 
 bndry_faces = zeros(bndry_edges)
 faces = Array(Ptr{Void}, 400)  # equivilent to apf::Up
+numbering = mesh.entity_Nptrs[mesh.dim + 1]
 for i=1:bndry_edges
   edgenum_i = bndry_edges[i]
-  edge_i = mesh.edges[edgenum_i]
-  numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
+  face_i = mesh.faces[edgenum_i]
+  numFace = countAdjacent(mesh.m_ptr, face_i, mesh.dim)  # should be count upward
   getAdjacent(faces)
-  facenum = getFaceNumber2(faces[1]) + 1
+  facenum = getNumberJ(numbering, face_i, 0, 0) + 1
+#  facenum = getFaceNumber2(faces[1]) + 1
 
   bndry_faces[i] = facenum
 end
@@ -50,6 +52,21 @@ function getEntityPointers(mesh::PumiMesh)
     incrementEdgeIt()
   end
 
+  if mesh.dim == 3
+    faces = Array(Ptr{Void}, mesh.numFace)
+    for i=1:mesh.numFace
+      entity = getFace()
+      idx = getNumberJ(mesh.face_Nptr, entity, 0, 0) + 1
+      faces[idx] = entity
+      incrementFaceIt()
+    end
+  else
+    faces = edges
+  end
+
+
+   
+
   for i=1:mesh.numEl
     entity = getFace()
     idx = getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
@@ -59,7 +76,7 @@ function getEntityPointers(mesh::PumiMesh)
 
   resetAllIts2()
 
-  return verts, edges, elements
+  return verts, edges, faces, elements
 
 end  # end getEntityPointers
 
@@ -80,52 +97,61 @@ end
 
 #TODO: stop using slice notation
 # can be generalized with numVertsPerElement
-function getCoordinates(mesh::PumiMeshDG2, sbp::AbstractSBP)
+function getCoordinates(mesh::PumiMeshDG, sbp::AbstractSBP)
 # populate the coords array of the mesh object
 
 mesh.coords = Array(Float64, 2, sbp.numnodes, mesh.numEl)
 
 #println("entered getCoordinates")
-
-coords_i = zeros(3,3)
-coords_it = zeros(3,2)
+numVertsPerElement = mesh.numTypePerElement[1]
+coords_i = zeros(3,numVertsPerElement)
+coords_it = zeros(numVertsPerElement, mesh.dim)
 for i=1:mesh.numEl  # loop over elements
   
   el_i = mesh.elements[i]
-  (sizex, sizey) = size(coords_i)
-  getFaceCoords(el_i, coords_i, sizex, sizey)  # populate coords
+  getElementCoords(mesh, el_i, coords_i)
 
-#  println("coords_i = ", coords_i)
-
-  coords_it[:,:] = coords_i[1:2, :].'
-#  println("coords_it = ", coords_it)
+  coords_it[:,:] = coords_i[1:mesh.dim, :].'
   mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
-#  println("mesh.coords[:,:,i] = ", mesh.coords[:,:,i])
 end
 
 return nothing
 
 end
 
+function getElementCoords(mesh::PumiMesh2D, entity::Ptr{Void}, coords::AbstractMatrix)
+
+  sx, sy = size(coords)
+  getFaceCoords(entity, coords, sx, sy)
+end
+
+
+function getElementCoords(mesh::PumiMesh3D, entity::Ptr{Void}, coords::AbstractMatrix)
+
+  sx, sy = size(coords)
+  getElCoords(entity, coords, sx, sy)
+end
+
+
+
 #TODO: stop using slice notation
-function getCoordinates(mesh::PumiMesh2, sbp::AbstractSBP)
+function getCoordinates(mesh::PumiMeshCG, sbp::AbstractSBP)
 # populate the coords array of the mesh object
 
 mesh.coords = Array(Float64, 2, sbp.numnodes, mesh.numEl)
 
 #println("entered getCoordinates")
 
-coords_i = zeros(3,3)
-coords_it = zeros(3,2)
+numVertsPerElement = mesh.numTypePerElement[1]
+coords_i = zeros(3,numVertsPerElement)
+coords_it = zeros(numVertsPerElement, mesh.dim)
 for i=1:mesh.numEl  # loop over elements
   
   el_i = mesh.elements[i]
-  (sizex, sizey) = size(coords_i)
-  getFaceCoords(el_i, coords_i, sizex, sizey)  # populate coords
+  getElementCoords(mesh, el_i, coords_i)
 
-#  println("coords_i = ", coords_i)
 
-  coords_it[:,:] = coords_i[1:2, :].'
+  coords_it[:,:] = coords_i[1:mesh.dim, :].'
 #  println("coords_it = ", coords_it)
   mesh.coords[:, :, i] = calcnodes(sbp, coords_it)
 #  println("mesh.coords[:,:,i] = ", mesh.coords[:,:,i])
@@ -136,7 +162,7 @@ return nothing
 end
 
 
-
+#TODO: do this once face ordering is known
 function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh}, 
                              bndryfaces::Array{Boundary}, 
                              coords_bndry::Array{Tmsh, 3})
@@ -178,7 +204,7 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh},
 
 end
 
-
+#=
 function getElementVertCoords(mesh::PumiMesh, elnum::Integer, coords::AbstractArray{Float64,2})
 # get the coordinates of the vertices of an element
 # elnum is the number of the element
@@ -218,6 +244,7 @@ end
 return coords
 
 end
+=#
 
 function getGlobalNodeNumbers(mesh::PumiMesh, elnum::Integer; getdofs=true)
 
