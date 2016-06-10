@@ -88,7 +88,7 @@ function interpolateFace(bndry::Boundary, sbpface, dxidx_hat_in, jac_in, dxdxi_e
     dxidx_hat = view(dxidx_hat_in, :, :, j)
     detJ = jac_in[j]
 
-    # dxdxi = inv(dxidx) = adj(dxidx_hat)
+    # dxdxi = inv(dxidx) = adj(dxidx_hat), recalling that dxidx_hat = dxidx/|J|
     dxdxi_node[1,1] = dxidx_hat[2,2]
     dxdxi_node[1,2] = -dxidx_hat[1,2]
     dxdxi_node[2,1] = -dxidx_hat[2,1]
@@ -134,6 +134,43 @@ function interpolateFace(bndry::Boundary, sbpface, dxidx_hat_in, jac_in, dxdxi_e
 
   return nothing
 
+end
+
+function det2(A::AbstractMatrix)
+# determinet of 2x2 matrix
+
+  return A[1,1]*A[2,2] - A[1,2]*A[2,1]
+end
+
+function det3(A::AbstractMatrix)
+# determinent of 3x3 matrix
+# cofactor expansion about first column
+  val1 = A[1,1]*(A[2,2]*A[3,3] - A[2,3]*A[3,2])
+  val2 = -A[2,1]*(A[1,2]*A[3,3] - A[1,3]*A[3,2])
+  val3 = A[3,1]*(A[1,2]*A[2,3] - A[1,3]*A[2,2])
+  return val1 + val2 + val3
+end
+
+function adjugate2(A::AbstractMatrix, B::AbstractMatrix)
+  B[1,1] = A[2,2]
+  B[1,2] = -A[1,2]
+  B[2,1] = -A[2,1]
+  B[2,2] = A[1,1]
+end
+
+function adjugate3(A::AbstractMatrix, B::AbstractMatrix)
+
+  B[1,1] = A[2,2]*A[3,3] - A[2,3]*A[3,2]
+  B[1,2] = A[1,2]*A[3,3] - A[1,3]*A[3,2]
+  B[1,3] = A[1,2]*A[2,3] - A[1,3]*A[2,2]
+
+  B[2,1] = A[2,1]*A[3,3] - A[2,3]*A[3,1]
+  B[2,2] = A[1,1]*A[3,3] - A[1,3]*A[3,1]
+  B[2,3] = A[1,1]*A[2,3] - A[1,3]*A[2,1]
+
+  B[3,1] = A[2,1]*A[3,2] - A[2,2]*A[3,1]
+  B[3,2] = A[1,1]*A[3,2] - A[1,2]*A[3,1]
+  B[3,3] = A[1,1]*A[2,2] - A[1,2]*A[2,1]
 end
 
 

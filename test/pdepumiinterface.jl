@@ -181,6 +181,22 @@ facts("--- Testing PdePumiInterface --- ") do
 
   end  # end loop over p=1:4
 
+  # verify adj and det are correct
+  for i=1:10  # 10 random matrices
+    A2 = rand(2,2)
+    d = det(A2)
+    @fact PdePumiInterface.det2(A2) --> roughly(d, atol=1e-12)
+    B2 = zeros(A2)
+    PdePumiInterface.adjugate2(A2, B2)
+    @fact B2./d --> roughly(inv(A2), atol=1e-12)
+
+    A3 = rand(3,3)
+    d = det(A3)
+    @fact PdePumiInterface.det3(A3) --> roughly(d, atol=1e-12)
+    B3 = zero(A3)
+    PdePumiInterface.adjugate3(A3, B3)
+    @fact B3/d --> roughly(inv(A3), atol=1e-12)
+  end
 
   # now test on a fully unstructured mesh
   smb_name = "vortex.smb"
