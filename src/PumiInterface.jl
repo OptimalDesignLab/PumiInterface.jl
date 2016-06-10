@@ -150,8 +150,8 @@ export createSubMeshDG, transferFieldDG, getSBPShapes
 export toModel, getModelType, getModelTag
 export countPeers, getPeers
 # iterator functors
-export VertIterator, EdgeIterator, FaceIterator
-export VertGetter, EdgeGetter, FaceGetter
+export VertIterator, EdgeIterator, FaceIterator, ElIterator
+export VertGetter, EdgeGetter, FaceGetter, ElGetter
 export countPeers, getPeers, countRemotes, getRemotes, isShared
 
 @doc """
@@ -391,6 +391,13 @@ return nothing
 end
 
 
+type ElIterator
+end
+
+function call(obj::ElIterator)
+  incrementElIt()
+end
+
 
 
 function incrementElIt()
@@ -517,6 +524,15 @@ function getFace()
 
   return entity
 end
+
+type ElGetter
+end
+
+function call(obj::ElGetter)
+  getEl()
+end
+
+
 
 function getEl()
 # get pointer to current element

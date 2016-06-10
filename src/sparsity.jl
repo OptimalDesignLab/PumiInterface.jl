@@ -1,7 +1,7 @@
 # file for functions related to calculating the sparsity pattern of a matrix
 
 # can be generalized with some topology constants
-function getSparsityCounts(mesh::PumiMeshDG2, sparse_bnds::AbstractArray{Int32, 2}; getdofs=true)
+function getSparsityCounts(mesh::PumiMeshDG, sparse_bnds::AbstractArray{Int32, 2}; getdofs=true)
 # count how many local, remote nodes/dofs each dof is related to
 
   numNodesPerElement = mesh.numNodesPerElement
@@ -15,17 +15,17 @@ function getSparsityCounts(mesh::PumiMeshDG2, sparse_bnds::AbstractArray{Int32, 
     add_factor = 1
   end
 
-  edges = Array(Ptr{Void}, 3)
+  edges = Array(Ptr{Void}, 6)
   for i=1:mesh.numEl
     el_ptr = mesh.elements[i]
-    getDownward(mesh.m_ptr, el_ptr, 1, edges)
+    getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, edges)
     nremotes = 0
-    for j=1:3
+    for j=1:mesh.numFacesPerElement
       edge_j = edges[j]
       nremotes += countRemotes(mesh.m_ptr, edge_j)
     end
 
-    nlocal = 4  # 3 neighbors + 1
+    nlocal = mesh.numFacesPerElement + 1  # 3 neighbors + 1
     nlocal = nlocal - nremotes
 
     # apply this to all dofs on this element
@@ -136,11 +136,12 @@ function getSparsityBounds(mesh::PumiMesh, sparse_bnds::AbstractArray{Int32, 2};
 resetAllIts2()
 # mesh iterator increment, retreval functions
 #iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
-iterators_inc = (VertIterator(), EdgeIterator(), FaceIterator())
+iterators_inc = (VertIterator(), EdgeIterator(), FaceIterator(), ElIterator())
 
 #iterators_get = [getVert, getEdge, getFace]
-iterators_get = (VertGetter(), EdgeGetter(), FaceGetter())
-num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
+iterators_get = (VertGetter(), EdgeGetter(), FaceGetter(), ElGetter)
+num_entities = mesh.numEntitiesPerType
+#num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
 num_nodes_entity = mesh.numNodesPerType  # number of nodes on each type
                                          # of mesh entity
 
@@ -154,9 +155,8 @@ else
   @assert size(sparse_bnds, 2) == mesh.numNodes
 end
 
-for etype=1:3  # loop over mesh entity types
-
-  
+for etype=1:(mesh.dim+1)  # loop over mesh entity types
+ 
   if (num_nodes_entity[etype] != 0)  # there are nodes here
     for entity = 1:num_entities[etype]  # loop over all entities of this type
       entity_ptr = iterators_get[etype]()  # get pointer to mesh entity
@@ -184,7 +184,7 @@ end
 
 # rewrite this because it is terrible
 # this could be generalized 3d?
-function getDofBounds(mesh::PumiMesh, etype::Integer; getdofs=true) 
+function getDofBounds(mesh::PumiMesh2D, etype::Integer; getdofs=true) 
 # gets the maximum, minimum dofs associated with the entity currently
 # pointed to by the iterator specified by etype
 # getDofs = true -> get dof numbers, false -> get node numbers

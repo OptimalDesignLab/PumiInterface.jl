@@ -52,7 +52,7 @@ end  # end function saveSolutionToMesh
 
 
 
-function writeVisFiles(mesh::PumiMeshDG2, fname::AbstractString)
+function writeVisFiles(mesh::PumiMesh2DG, fname::AbstractString)
   # writes vtk files 
 
     writeVtkFiles(fname, mesh.mnew_ptr)
@@ -61,7 +61,7 @@ function writeVisFiles(mesh::PumiMeshDG2, fname::AbstractString)
 end
 
 
-function writeVisFiles(mesh::PumiMesh, fname::AbstractString)
+function writeVisFiles(mesh::PumiMesh2CG, fname::AbstractString)
   # writes vtk files 
 
   if mesh.order <= 2

@@ -1,4 +1,5 @@
 # a type to hold data related to coloring the mesh
+#TODO: reverse dimensions of revadj
 type ColoringData
   adj_dict::Dict{Int, Array{Int, 1}}  # map local element to non-locals
   revadj::Array{Int32, 2}  # map non-local elements to local elements
