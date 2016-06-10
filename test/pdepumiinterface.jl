@@ -60,7 +60,7 @@ facts("--- Testing PdePumiInterface --- ") do
     @fact mesh.order --> order
     @fact length(mesh.bndry_funcs) --> 1
     @fact mesh.bndry_offsets --> [1, 5]
-
+#=
     for i=1:mesh.numBoundaryFaces
       for j=1:(sum(mesh.numNodesPerType[1:2]))
         if i == 1
@@ -74,15 +74,15 @@ facts("--- Testing PdePumiInterface --- ") do
         end
       end
     end
-
-
+=#
+#=
     for i=1:mesh.numInterfaces
       for j=1:sbp.numfacenodes
         @fact mesh.interface_normals[:, 1, j, i] --> roughly([1.0, -2.0], atol=1e-13)
         @fact mesh.interface_normals[:, 2, j, i] --> roughly([-2.0, 1.0], atol=1e-13)
       end
     end
-
+=#
     # verify that dofs on a node are numbered consecutively
     for i=1:mesh.numEl
       for j=1:mesh.numNodesPerElement

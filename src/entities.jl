@@ -385,11 +385,12 @@ function getBoundaryEdgeLocalNum(mesh::PumiMesh, edge_num::Integer)
 
   # get mesh face associated with edge
   countAdjacent(mesh.m_ptr, face_i, mesh.dim)
-  face = getAdjacent(1)[1]  # get the single face (not an array)
-  facenum_i = getNumberJ(mesh.face_Nptr, face, 0, 0) + 1
+  el = getAdjacent(1)[1]  # get the single face (not an array)
+
+#  elnum_i = getNumberJ(mesh.el_Nptr, face, 0, 0) + 1
 #  facenum_i = getFaceNumber2(face) + 1  # convert to 1 based indexing
   down_faces = Array(Ptr{Void}, 12)
-  numedges = getDownward(mesh.m_ptr, face, mesh.dim-1, down_faces)
+  numedges = getDownward(mesh.m_ptr, el, mesh.dim-1, down_faces)
   facenum_local = 0
   for j = 1:mesh.numFacesPerElement  # find which local edge is edge_i
     if down_faces[j] == face_i

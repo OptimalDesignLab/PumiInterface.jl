@@ -518,11 +518,13 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   mesh.min_el_size = getMinElementSize(mesh)
   # get face normals
-  mesh.bndry_normals = Array(T1, 2, sbp.numfacenodes, mesh.numBoundaryFaces)
-  getBoundaryFaceNormals(mesh, sbp, mesh.bndryfaces, mesh.bndry_normals)
+  mesh.bndry_normals = Array(T1, 0, 0, 0)
+#  mesh.bndry_normals = Array(T1, 2, sbp.numfacenodes, mesh.numBoundaryFaces)
+#  getBoundaryFaceNormals(mesh, sbp, mesh.bndryfaces, mesh.bndry_normals)
 
-  mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
-  getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
+  mesh.interface_normals = Array(T1, 0, 0, 0, 0)
+#  mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
+#  getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   # create subtriangulated mesh
   createSubtriangulatedMesh(mesh)

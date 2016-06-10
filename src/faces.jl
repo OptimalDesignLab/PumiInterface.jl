@@ -20,8 +20,8 @@ end
 
 
 
-
-function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh, sbp::AbstractSBP, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
+# deprecated
+function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2D, sbp::AbstractSBP, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
 
   nfaces = length(bndry_faces)
 
@@ -50,8 +50,8 @@ function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh, sbp::AbstractSBP, bndry_fa
   return nothing
 end
 
-
-function getInternalFaceNormals{Tmsh}(mesh::PumiMesh, sbp::AbstractSBP, internal_faces::AbstractArray{Interface, 1}, face_normals::Array{Tmsh, 4})
+# deprecated
+function getInternalFaceNormals{Tmsh}(mesh::PumiMesh2D, sbp::AbstractSBP, internal_faces::AbstractArray{Interface, 1}, face_normals::Array{Tmsh, 4})
 
   nfaces = length(internal_faces)
 
@@ -100,7 +100,7 @@ function getInternalFaceNormals{Tmsh}(mesh::PumiMesh, sbp::AbstractSBP, internal
 end
 
 
-function getInterfaceArray(mesh::PumiMesh)
+function getInterfaceArray(mesh::PumiMesh2D)
 # get array of [elementL, elementR, edgeL, edgeR] for each internal edge,
 # where elementL and R are the elements that use the edge, edgeL R are the
 # local number of the edge within the element
