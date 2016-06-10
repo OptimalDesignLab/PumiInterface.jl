@@ -34,23 +34,24 @@ end
 # only do this for elementL of each interface
 function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
   sbpface = mesh.sbpface
-
-  dxidx_face = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numInterfaces)
+  dim = mesh.dim
+  dxidx_face = zeros(Tmsh, dim, dim, sbpface.numnodes, mesh.numInterfaces)
   dxidx_sharedface = Array(Array{Tmsh, 4}, mesh.npeers)
   for i=1:mesh.npeers
-    dxidx_sharedface[i] = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.peer_face_counts[i])
+    dxidx_sharedface[i] = zeros(Tmsh, dim, dim, sbpface.numnodes, mesh.peer_face_counts[i])
   end
   jac_face = zeros(Tmsh, sbpface.numnodes, mesh.numInterfaces)
 
-  dxidx_bndry = zeros(Tmsh, 2, 2, sbpface.numnodes, mesh.numBoundaryFaces)
+  dxidx_bndry = zeros(Tmsh, dim, dim, sbpface.numnodes, mesh.numBoundaryFaces)
   jac_bndry = zeros(Tmsh, sbpface.numnodes, mesh.numBoundaryFaces)
   jac_sharedface = Array(Array{Tmsh, 2}, mesh.npeers)
   for i=1:mesh.npeers
     jac_sharedface[i] = Array(Tmsh, sbpface.numnodes, mesh.peer_face_counts[i])
   end
 
+  # temporary storage
   interp_data = Interpolation(mesh)
-#  bndry_arr = Array(Boundary, 1)
+
   for i=1:mesh.numInterfaces
     dxidx_i = view(dxidx_face, :, :, :, i)
     jac_i = view(jac_face, :, i)
