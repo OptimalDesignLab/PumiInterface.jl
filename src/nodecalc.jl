@@ -1,6 +1,6 @@
 using SummationByParts
 
-function nodecalc(sbp, isDG::Bool)
+function nodecalc(sbp::TriSBP, isDG::Bool)
   vtx = [0.0 0; 1 0; 0 1]
   r1 = vtx[1, :]
   r2 = vtx[2, :]
