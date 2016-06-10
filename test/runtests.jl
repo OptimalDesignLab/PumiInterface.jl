@@ -405,3 +405,5 @@ end
 =#
 
 include("pdepumiinterface.jl")
+
+FactCheck.exitstatus()

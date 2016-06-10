@@ -80,61 +80,114 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG2{Tmsh})
 
 end  # end function
 
+# 2D version
 function interpolateFace(bndry::Boundary, sbpface, dxidx_hat_in, jac_in, dxdxi_el, dxdxi_elface, dxdxi_node, dxidx_node, dxidx_i, jac_i)
 
+  dim = 2
   numNodesPerElement = size(dxidx_hat_in, 3)
   # get the data
   for j=1:numNodesPerElement
     dxidx_hat = view(dxidx_hat_in, :, :, j)
     detJ = jac_in[j]
 
-    # dxdxi = inv(dxidx) = adj(dxidx_hat), recalling that dxidx_hat = dxidx/|J|
-    dxdxi_node[1,1] = dxidx_hat[2,2]
-    dxdxi_node[1,2] = -dxidx_hat[1,2]
-    dxdxi_node[2,1] = -dxidx_hat[2,1]
-    dxdxi_node[2,2] = dxidx_hat[1,1]
-
-    dxdxi_el[1,j,1] = dxdxi_node[1,1]
-    dxdxi_el[2,j,1] = dxdxi_node[1,2]
-    dxdxi_el[3,j,1] = dxdxi_node[2,1]
-    dxdxi_el[4,j,1] = dxdxi_node[2,2]
-
+    adjugate2(dxidx_hat, dxidx_node)
+    for k=1:dim
+      for p=1:dim
+        pos = p + dim*(k-1)
+        dxdxi_el[pos,j,1] = dxidx_node[k, p]
+      end
+    end
   end
 
 
   # interpolate to the face
   face = bndry.face
   bndry_arr = [Boundary(1, face)]
-#    bndry_arr[1] = Boundary(1, face)
   boundaryinterpolate!(sbpface, bndry_arr, dxdxi_el, dxdxi_elface)
 
 
-  # now store dxidx, |J| at the boundary nodes
+  # now store dxidx, |J| at the boundary nodesa
   for j=1:sbpface.numnodes
-    dxdxi_node[1,1] = dxdxi_elface[1, j, 1]
-    dxdxi_node[1,2] = dxdxi_elface[2, j, 1]
-    dxdxi_node[2,1] = dxdxi_elface[3, j, 1]
-    dxdxi_node[2,2] = dxdxi_elface[4, j, 1]
-
+    for k=1:dim
+      for p=1:dim
+        pos = p + dim*(k-1)
+        dxdxi_node[k,p] = dxdxi_elface[pos, j, 1]
+      end
+    end
 
     # inv(A) = adj(A)/|A|
-    det_dxdxi = dxdxi_node[1,1]*dxdxi_node[2,2] - dxdxi_node[1,2]*dxdxi_node[2,1]
-    dxidx_node[1,1] = dxdxi_node[2,2]/det_dxdxi
-    dxidx_node[1,2] = -dxdxi_node[1,2]/det_dxdxi
-    dxidx_node[2,1] = -dxdxi_node[2,1] /det_dxdxi
-    dxidx_node[2,2] = dxdxi_node[1,1]/det_dxdxi
+    det_dxdxi = det2(dxdxi_node)
+    adjugate2(dxdxi_node, dxidx_node)
+    scale!(dxidx_node, 1./det_dxdxi)
 
-    detJ = dxidx_node[1,1]*dxidx_node[2,2] - dxidx_node[1,2]*dxidx_node[2,1]
-    dxidx_i[1,1,j] = dxidx_node[1,1]/detJ
-    dxidx_i[1,2,j] = dxidx_node[1,2]/detJ
-    dxidx_i[2,1,j] = dxidx_node[2,1]/detJ
-    dxidx_i[2,2,j] = dxidx_node[2,2]/detJ
+    detJ = det2(dxidx_node)
+    fac = 1./detJ
+    for k=1:dim
+      for p=1:dim
+        dxidx_i[p, k, j] = dxidx_node[p, k]*fac
+      end
+    end
     jac_i[j] = detJ
   end
 
   return nothing
 
 end
+
+# 3d version
+function interpolateFace3(bndry::Boundary, sbpface, dxidx_hat_in, jac_in, dxdxi_el, dxdxi_elface, dxdxi_node, dxidx_node, dxidx_i, jac_i)
+
+  dim = 3
+  numNodesPerElement = size(dxidx_hat_in, 3)
+  # get the data
+  for j=1:numNodesPerElement
+    dxidx_hat = view(dxidx_hat_in, :, :, j)
+    detJ = jac_in[j]
+
+    adjugate3(dxidx_hat, dxidx_node)
+    for k=1:dim
+      for p=1:dim
+        pos = p + dim*(k-1)
+        dxdxi_el[pos,j,1] = dxidx_node[k, p]
+      end
+    end
+  end
+
+
+  # interpolate to the face
+  face = bndry.face
+  bndry_arr = [Boundary(1, face)]
+  boundaryinterpolate!(sbpface, bndry_arr, dxdxi_el, dxdxi_elface)
+
+
+  # now store dxidx, |J| at the boundary nodesa
+  for j=1:sbpface.numnodes
+    for k=1:dim
+      for p=1:dim
+        pos = p + dim*(k-1)
+        dxdxi_node[k,p] = dxdxi_elface[pos, j, 1]
+      end
+    end
+
+    # inv(A) = adj(A)/|A|
+    det_dxdxi = det3(dxdxi_node)
+    adjugate3(dxdxi_node, dxidx_node)
+    scale!(dxidx_node, 1./det_dxdxi)
+
+    detJ = det3(dxidx_node)
+    fac = 1./detJ
+    for k=1:dim
+      for p=1:dim
+        dxidx_i[p, k, j] = dxidx_node[p, k]*fac
+      end
+    end
+    jac_i[j] = detJ
+  end
+
+  return nothing
+
+end
+
 
 function det2(A::AbstractMatrix)
 # determinet of 2x2 matrix
@@ -161,15 +214,15 @@ end
 function adjugate3(A::AbstractMatrix, B::AbstractMatrix)
 
   B[1,1] = A[2,2]*A[3,3] - A[2,3]*A[3,2]
-  B[1,2] = A[1,2]*A[3,3] - A[1,3]*A[3,2]
+  B[1,2] = -(A[1,2]*A[3,3] - A[1,3]*A[3,2])
   B[1,3] = A[1,2]*A[2,3] - A[1,3]*A[2,2]
 
-  B[2,1] = A[2,1]*A[3,3] - A[2,3]*A[3,1]
+  B[2,1] = -(A[2,1]*A[3,3] - A[2,3]*A[3,1])
   B[2,2] = A[1,1]*A[3,3] - A[1,3]*A[3,1]
-  B[2,3] = A[1,1]*A[2,3] - A[1,3]*A[2,1]
+  B[2,3] = -(A[1,1]*A[2,3] - A[1,3]*A[2,1])
 
   B[3,1] = A[2,1]*A[3,2] - A[2,2]*A[3,1]
-  B[3,2] = A[1,1]*A[3,2] - A[1,2]*A[3,1]
+  B[3,2] = -(A[1,1]*A[3,2] - A[1,2]*A[3,1])
   B[3,3] = A[1,1]*A[2,2] - A[1,2]*A[2,1]
 end
 
