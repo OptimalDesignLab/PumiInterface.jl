@@ -289,3 +289,6 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
 end
 MPI.Barrier( MPI.COMM_WORLD)
+if MPI.Initialized()
+  MPI.Finalize()
+end
