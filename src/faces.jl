@@ -186,12 +186,72 @@ function getInterfaceArray(mesh::PumiMesh2D)
 #     print("\n")
   end  # end loop over edges
 
-  #TODO: sort the interfaces to be in order of increasing element number
-  #      for cache efficiency in accessing the data associated with the
-  #      edges
-
-
   return nothing
 
 end  # end function
 
+
+function getInterfaceArray(mesh::PumiMesh3D)
+
+  adj_elements = Array(Ptr{Void}, 2)
+  coords1 = zeros(3, 3)
+  coords2 = zeros(3, 3)
+  for i=1:mesh.numFaces
+    face_i = mesh.faces[i]
+    num_adjacent = countAdjacent(mesh, face_i, mesh.dim)
+
+    if num_adjacent == 2  # this is a shared interface
+      getAdjacent(adj_elements)
+      el1 = adj_elements[1]
+      el2 = adj_elements[2]
+      elnum1 = getNumberJ(mesh.el_Nptr, el1, 0, 0) + 1
+      elnum2 = getNumberJ(mesh.el_Nptr, el2, 0, 0) + 1
+
+      # decide which one is elementL
+      getElementCoords(mesh, el1, coords1)
+      getElementCoords(mesh, el2, coords2)
+
+      flag = getLR(coords1, coords)
+      if flag
+        coordsL = coords2
+        elnumL = elnum2
+        coordsR = coords1
+        elnumR = elnum1
+      else
+        coordsL = coords1
+        elnumL = elnum1
+        coordsR = coords2
+        elnumR = elnum2
+      end
+
+    end
+  end
+
+end
+
+function getLR(coordsL, coordsR)
+# return true if coords should be reversed
+  tol = 1e-10
+
+  if abs(coordsL[1] - coordsR[1]) > tol
+    if coordsL[1] > coordsR[1]
+      return false
+    else
+      return true
+    end
+  elseif abs(coordsL[2] - coordsR[2]) > tol
+    if coordsL[2] > coordsR[2]
+      return false
+    else
+      return true
+    end
+  else  # if the first two coordinates are not decisive, use the last one
+    if coordsL[3] > coordsR[3]
+      return false
+    else
+      return true
+    end
+  end
+
+  return false  # this should never be reached
+end

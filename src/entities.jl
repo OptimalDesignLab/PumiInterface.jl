@@ -402,6 +402,7 @@ function getBoundaryEdgeLocalNum(mesh::PumiMesh, edge_num::Integer)
 
 end
 
+#TODO: rename
 # this can be generalized with some topology and dimension information
 function getEdgeLocalNum(mesh::PumiMesh, edge_num::Integer, element_num::Integer)
 # find the local edge number of a specified edge on a specified element

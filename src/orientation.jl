@@ -143,4 +143,83 @@ function getEdgeOrientation(mesh::PumiMesh, elnum::Integer, edgenum::Integer)
  
 end  # end function
 
+immutable EntityOrientation
+  which::Cint
+  flip::Bool
+  rotate::Cint
+end
+
+
+
+function getRelRotate(mesh::PumiMesh3, elementL::Integer, elementR::Integer, facenum::Integer)
+# calculate the rotation of faceR relative to faceL, where faceL and faceR
+# are shared between the two element
+# this uses getAligmnet, which describes how to transform the face from
+# its current orientation to the canonical orientation as part of its parent
+# element
+# the difference in the required rotations is the relative rotation
+# elementL : global element index
+# elementR : global element index
+# faceL : local face number of shared face on elementL
+# faceR : local face number of shared face on elementR
+# face : global face number of the shared face
+
+eL = mesh.elements[elementL]
+eR = mesh.elements[elementR]
+face = mesh.faces[facenum]
+
+# get rotations to bring faces into canonical orientation
+# for each element
+# we can ignore flip because one of the faces will always be flipped
+whichL, flipL, rotateL = getAlignment(mesh.m_ptr, eL, face)
+whichR, flipR, rotateR = getAlignment(mesh.m_ptr, eR, face)
+
+r1 = EntityOrientation(whichL, flipL, rotateL)
+r2 = EntityOrientation(whichR, flipR, rotateR)
+
+rel_rotate = calcRelRotation(mesh, r1, r2)
+return rel_rotate
+
+end  # end function
+
+# calculate the relative rotation of 2 faces
+function calcRelRotation(mesh::PumiMeshDG, r1::EntityOrientation, 
+                         r2::EntityOrientation)
+
+  if r1.flip == r2.flip
+    throw(ErrorException("Both faces cannot be flipped"))
+  end
+
+  # sum rotations because they each rotate ccw in their parent
+  # element's orientation, so they rotate in opposite directions
+  rel_rotate = rotateR + rotateL
+  #println("rel_rotate before wrapping = ", rel_rotate)
+  rel_rotate = wrapNumber(rel_rotate, 0, 2)
+  #println("rel_rotate after wrapping = ", rel_rotate)
+
+  return rel_rotate + 1  # plus 1 to scale result into range [1, 3]
+end
+ 
+function wrapNumber(num::Integer, lower::Integer, upper::Integer)
+# make num perioid, where upper and lower are the max and min values allowable
+# ie. num can only be in the range [1 3], if num == 0, then it gets mapped to 3
+# similarly, 4 gets mapped to 1
+
+
+
+range = upper - lower + 1
+
+if num < lower
+  diff = lower - num
+  return upper - (diff % range) + 1
+  
+elseif  num > upper
+  diff = num - upper
+  return lower + (diff % range) - 1
+else
+  return num
+end
+
+end
+
 
