@@ -196,6 +196,7 @@ function getInterfaceArray(mesh::PumiMesh3D)
   adj_elements = Array(Ptr{Void}, 2)
   coords1 = zeros(3, 3)
   coords2 = zeros(3, 3)
+  pos = 1 # position in mesh.interfaces
   for i=1:mesh.numFaces
     face_i = mesh.faces[i]
     num_adjacent = countAdjacent(mesh, face_i, mesh.dim)
@@ -214,18 +215,30 @@ function getInterfaceArray(mesh::PumiMesh3D)
       flag = getLR(coords1, coords)
       if flag
         coordsL = coords2
-        elnumL = elnum2
         coordsR = coords1
+        elnumL = elnum2
         elnumR = elnum1
       else
         coordsL = coords1
-        elnumL = elnum1
         coordsR = coords2
+        elnumL = elnum1
         elnumR = elnum2
       end
 
-    end
+      whichL, flipL, rotateL = getAlignment(mesh.m_ptr, el1, face_i)
+      r1 = EntityOrientation(whichL, flipL, rotateL)
+      whichR, flipR, rotateR = getAlignment(mesh.m_ptr, el2, face_i)
+      r2 = EntityOrientation(whichr, flipR, rotateR)
+
+      rel_rotate = calcRelRotation(mesh, r1, r2)
+
+      mesh.interfaces[pos] = Inteface(el1, el2, whichL, whichR, UInt8(rel_rotate))
+      pos += 1
+
+    end  # end if 
   end
+
+  return nothing
 
 end
 
