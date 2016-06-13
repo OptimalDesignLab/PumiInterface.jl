@@ -133,6 +133,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact interface_i.elementL --> less_than(mesh.numEl + 1)
     @fact interface_i.elementR --> greater_than(mesh.numEl)
     @fact interface_i.elementR --> less_than(mesh.numEl + 3)
+    @fact interface_i.orient --> 1
   end
 
   @fact mesh.shared_element_offsets[1] --> (mesh.numEl + 1)

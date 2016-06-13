@@ -42,11 +42,15 @@ function getParallelInfo(mesh::PumiMeshDG2)
   mesh.bndries_local = bndries_local = Array(Array{Boundary,1}, npeers)
   mesh.bndries_remote = bndries_remote = Array(Array{Boundary,1}, npeers)
   mesh.shared_interfaces = shared_interfaces = Array(Array{Interface,1}, npeers)
+  orientations_local = Array(Array{EntityOrientation, 1}, npeers)
+  orientations_remote = Array(Array{EntityOrientation, 1}, npeers)
   for i=1:npeers
     edges_local[i] = Array(Ptr{Void}, counts[i])
     edges_remote[i] = Array(Ptr{Void}, counts[i])
     bndries_local[i] = Array(Boundary, counts[i])
     bndries_remote[i] = Array(Boundary, counts[i])
+    orientations_local[i] = Array(EntityOrientation, counts[i])
+    orientations_remote[i] = Array(EntityOrientation, counts[i])
   end
 
   # get all the (local pointers to) edges in a single pass, 
@@ -121,25 +125,35 @@ function getParallelInfo(mesh::PumiMeshDG2)
 
   # wait for all communication to finish
   for i=1:npeers
-    if mesh.myrank > peer_nums[i]
+    if mesh.myrank > peer_nums[i]  # wait for send to finish
       mesh.send_stats[i] = MPI.Wait!(mesh.send_reqs[i])
-    else
+      getBndryOrientations(mesh, bndries_local[i], orientations_local[i])
+      # get edge orientations
+    else  # wait for receive to finish
       j, stat = MPI.Waitany!(recv_reqs_reduced)
       mesh.recv_stats[j] = stat
       peernum = recv_peers[j]
       getEdgeBoundaries(mesh, edges_remote[peernum], bndries_local[peernum])
+      getBndryOrientations(mesh, bndries_local[peernum], orientations_local[peernum])
+      # get edge orientations
     end
   end
 
-  # now send Boundary info
+  # now send Boundary and orientation info
+  send_reqs2 = Array(MPI.Request, npeers)
+  recv_reqs2 = Array(MPI.Request, npeers)
   MPI.type_create(Boundary)
+  MPI.type_create(EntityOrientation)
   for i=1:npeers
     mesh.send_reqs[i] = MPI.Isend(bndries_local[i], peer_nums[i], 1, mesh.comm)
     mesh.recv_reqs[i] = MPI.Irecv!(bndries_remote[i], peer_nums[i], 1, mesh.comm)
+    send_reqs2[i] = MPI.Isend(orientations_local[i], peer_nums[i], 2, mesh.comm)
+    recv_reqs2[i] = MPI.Irecv!(orientations_remote[i], peer_nums[i], 2, mesh.comm)
   end
 
   for i=1:npeers
     mesh.recv_stats[i] = MPI.Wait!(mesh.recv_reqs[i])
+    MPI.Wait!(recv_reqs2[i])
   end
 
   # now create Interfaces from the two Boundary arrays
@@ -149,8 +163,9 @@ function getParallelInfo(mesh::PumiMeshDG2)
   curr_elnum = mesh.numEl + 1
   for i=1:npeers
     peer_offsets[i] = curr_elnum
-    curr_elnum, shared_interfaces[i] = numberBoundaryEls(curr_elnum, 
-                                 bndries_local[i], bndries_remote[i])
+    curr_elnum, shared_interfaces[i] = numberBoundaryEls(mesh, curr_elnum, 
+                                 bndries_local[i], bndries_remote[i], 
+                                 orientations_local[i], orientations_remote[i])
     curr_elnum += 1
 
     mesh.local_element_lists[i] = getBoundaryElList(bndries_local[i])
@@ -179,13 +194,14 @@ function getParallelInfo(mesh::PumiMeshDG2)
   # wait for the sends to finish before exiting
   for i=1:npeers
     mesh.send_stats[i] = MPI.Wait!(mesh.send_reqs[i])
+    MPI.Wait!(send_reqs2[i])
   end
 
   return colordata
 end
 
 
-function getEdgeBoundaries(mesh::PumiMeshDG2, edges::Array{Ptr{Void}}, 
+function getEdgeBoundaries(mesh::PumiMeshDG, edges::Array{Ptr{Void}}, 
                            bndries::Array{Boundary})
 # get the array of Boundaryies for an array of edges
 # edges is the array of the edge MeshEnities
@@ -212,8 +228,27 @@ function getEdgeBoundaries(mesh::PumiMeshDG2, edges::Array{Ptr{Void}},
   return nothing
 end
 
+function getBndryOrientations(mesh::PumiMeshDG, bndries::AbstractArray{Boundary}, 
+                             orientations::AbstractArray{EntityOrientation})
+  nfaces = length(bndries)
+  myrank = mesh.myrank
+  downward = Array(Ptr{Void}, 12)
+  for i=1:nfaces
+    bndry_i = bndries[i]
+    el_i = mesh.elements[bndry_i.element]
+    facelocal_i = bndry_i.face
+    getDownward(mesh.m_ptr, el_i, mesh.dim-1, downward)
+    face_i = downward[facelocal_i]
+    which, flip, rotate = getAlignment(mesh.m_ptr, el_i, face_i)
+    orientations[i] = EntityOrientation(which, flip, rotate)
+  end
+
+  return nothing
+end
+
 # this can be generalized once edge orientation is generalized
-function numberBoundaryEls(startnum, bndries_local::Array{Boundary}, bndries_remote::Array{Boundary})
+function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary}, bndries_remote::Array{Boundary}, orientations_local::AbstractArray{EntityOrientation}, 
+orientations_remote::AbstractArray{EntityOrientation})
 # create Interfaces out of the local + remote Boundary arrays
 # also numbers the remote elements with numbers > numEl, storing them in
 # the elementR field of the Interface
@@ -233,7 +268,11 @@ function numberBoundaryEls(startnum, bndries_local::Array{Boundary}, bndries_rem
       new_elR = interfaces[old_iface_idx].elementR
     end
 
-    interfaces[i] = Interface(bndry_l.element, new_elR,  bndry_l.face, bndry_r.face, UInt8(1))
+    r1 = orientations_local[i]
+    r2 = orientations_remote[i]
+    orient = calcRelRotation(mesh, r1, r2, false)
+
+    interfaces[i] = Interface(bndry_l.element, new_elR,  bndry_l.face, bndry_r.face, UInt8(orient))
   end
 
   last_elnum = curr_elnum - 1

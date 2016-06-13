@@ -194,21 +194,22 @@ return rel_rotate
 end  # end function
 
 # calculate the relative rotation of 2 faces
-function calcRelRotation(mesh::PumiMeshDG, r1::EntityOrientation, 
-                         r2::EntityOrientation)
+function calcRelRotation(mesh::PumiMesh, r1::EntityOrientation, 
+                         r2::EntityOrientation, localfaces=true)
 
-  if r1.flip == r2.flip
+  if r1.flip == r2.flip && localfaces
     throw(ErrorException("Both faces cannot be flipped"))
   end
 
   # sum rotations because they each rotate ccw in their parent
   # element's orientation, so they rotate in opposite directions
-  rel_rotate = rotateR + rotateL
+  rel_rotate = r1.rotate + r2.rotate
   #println("rel_rotate before wrapping = ", rel_rotate)
   rel_rotate = wrapNumber(rel_rotate, 0, 2)
   #println("rel_rotate after wrapping = ", rel_rotate)
 
-  return rel_rotate + 1  # plus 1 to scale result into range [1, 3]
+  # add 1 so output is in range [1,3]
+  return rel_rotate + 1
 end
  
 function wrapNumber(num::Integer, lower::Integer, upper::Integer)
