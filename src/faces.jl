@@ -11,7 +11,7 @@ function getBoundaryArray(mesh::PumiMesh, boundary_nums::AbstractArray{Int, 2})
     facenum = boundary_nums[i, 1]
     edgenum_global = boundary_nums[i, 2]
 #    println("edgenum_global = ", edgenum_global)
-    edgenum_local = getBoundaryEdgeLocalNum(mesh, edgenum_global)
+    edgenum_local = getBoundaryFaceLocalNum(mesh, edgenum_global)
     mesh.bndryfaces[i] = Boundary(facenum, edgenum_local)
   end
 
@@ -170,8 +170,8 @@ function getInterfaceArray(mesh::PumiMesh2D)
         end
       end
 
-      edgeL = getEdgeLocalNum(mesh, i, elementL)
-      edgeR = getEdgeLocalNum(mesh, i, elementR)
+      edgeL = getFaceLocalNum(mesh, i, elementL)
+      edgeR = getFaceLocalNum(mesh, i, elementR)
 
       # here we set the orientation flag to 1 for all edges, because in 2D
       # the edges always have opposite orientation

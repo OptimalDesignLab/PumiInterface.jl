@@ -27,7 +27,7 @@ printEdgeVertNumbers(mesh.edge_Nptr, mesh.vert_Nptr)
 adjacent_nums, num_adjacent = getAdjacentEntityNums(mesh, 1, 1, 2)
 println("adjacent_nums = ", adjacent_nums, " num_adjacent = ", num_adjacent)
 
-edgenum_local = getEdgeLocalNum(mesh, 1, adjacent_nums[1])
+edgenum_local = getFaceLocalNum(mesh, 1, adjacent_nums[1])
 println("edgenum_local = ", edgenum_local)
 
 

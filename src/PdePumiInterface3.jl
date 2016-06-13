@@ -634,8 +634,8 @@ function getInterfaceArray(mesh::PumiMesh3)
 
       faceL = getEntityLocalNumber(mesh.m_ptr, mesh.faces[i], mesh.elements[elementL], 2, 3)
       faceR = getEntityLocalNumber(mesh.m_ptr, mesh.faces[i], mesh.elements[elementR], 2, 3)
-#      edgeL = getEdgeLocalNum(mesh, i, elementL)
-#      edgeR = getEdgeLocalNum(mesh, i, elementR)
+#      edgeL = getFaceLocalNum(mesh, i, elementL)
+#      edgeR = getFaceLocalNum(mesh, i, elementR)
 
       # construct nodemap if needed
       rel_rotate = calcRelRotate(mesh, elementL, elementR, i)

@@ -1,7 +1,7 @@
 # functions for gathering MeshEntity*s 
 
 # can be generalized trivially
-function getEdgeFaces(mesh::PumiMeshDG2, bndry_edges::AbstractArray{Int, 1})
+function getBoundaryElements(mesh::PumiMeshDG2, bndry_edges::AbstractArray{Int, 1})
 # get the faces corresponding to the boundary edges
 
 bndry_faces = zeros(bndry_edges)
@@ -376,7 +376,7 @@ return adjacent_nums, num_adjacent
 end
 
 # this can be generalized with mesh.dim
-function getBoundaryEdgeLocalNum(mesh::PumiMesh, edge_num::Integer)
+function getBoundaryFaceLocalNum(mesh::PumiMesh, edge_num::Integer)
 # gets the local edge number of a specified edge that is on the boundary
 # of the mesh
 # edge_num is an edge num from the output of getBoundaryEdgeNums() (ie. the global edge number)
@@ -402,9 +402,8 @@ function getBoundaryEdgeLocalNum(mesh::PumiMesh, edge_num::Integer)
 
 end
 
-#TODO: rename
 # this can be generalized with some topology and dimension information
-function getEdgeLocalNum(mesh::PumiMesh, edge_num::Integer, element_num::Integer)
+function getFaceLocalNum(mesh::PumiMesh, edge_num::Integer, element_num::Integer)
 # find the local edge number of a specified edge on a specified element
 
   edge = mesh.faces[edge_num]

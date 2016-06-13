@@ -204,7 +204,7 @@ function getEdgeBoundaries(mesh::PumiMeshDG2, edges::Array{Ptr{Void}},
     edgenum = getNumberJ(mesh.face_Nptr, edge_i, 0, 0) + 1
 #    facenum = getFaceNumber2(faces[1]) + 1
 #    edgenum = getEdgeNumber2(edge_i) + 1  # unneeded?
-    edgenum_local = getEdgeLocalNum(mesh, edgenum, facenum)
+    edgenum_local = getFaceLocalNum(mesh, edgenum, facenum)
 
     bndries[i] = Boundary(facenum, edgenum_local)
   end

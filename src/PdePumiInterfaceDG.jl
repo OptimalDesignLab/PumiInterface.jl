@@ -499,7 +499,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   # get array of all boundary mesh edges in the same order as in mesh.bndry_faces
 #  boundary_nums = flattenArray(mesh.bndry_faces[i])
-#  boundary_edge_faces = getEdgeFaces(mesh, mesh.bndry_faces)
+#  boundary_edge_faces = getBoundaryElements(mesh, mesh.bndry_faces)
   # use partially constructed mesh object to populate arrays
 
 #  println("about to get entity orientations")
