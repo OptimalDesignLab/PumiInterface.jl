@@ -150,6 +150,17 @@ immutable EntityOrientation
 end
 
 
+function getEntityOrientations(mesh::PumiMesh3DG)
+# for DG (without subtriangulation), these shouldn't ever be needed
+
+  offsets = zeros(UInt8, mesh.numNodesPerElement, mesh.numEl)
+  flags = Array(BitArray{2}, 4)  # on array for Verts, edges, faces, regiosn
+  for i=1:4
+    flags[i] = falses(mesh.numTypePerElement[i], mesh.numEl)
+  end
+
+  return offsets, flags
+end
 
 function getRelRotate(mesh::PumiMesh3, elementL::Integer, elementR::Integer, facenum::Integer)
 # calculate the rotation of faceR relative to faceL, where faceL and faceR
