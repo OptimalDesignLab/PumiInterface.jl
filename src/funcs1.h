@@ -22,6 +22,7 @@
 #include "apfSBPShape.h"
 #include "apfSBPShape3.h"
 #include "dgSBPShape1.h"
+#include "dgSBP3Shape1.h"
 #include "triangulation.h"
 #include "triangulationDG.h"
 
@@ -43,7 +44,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3],
 // these functions are not user accessible
 void cleanup(apf::Mesh* m_local);
 void destroyNumberings(int dim); 
-apf::FieldShape* getFieldShape(int shape_type, int dim, int order, bool& change_shape);
+apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_shape);
 
 // these functions do pass pointers
 extern apf::Mesh2* getMeshPtr();

@@ -2,7 +2,7 @@
 #include "apfMesh.h"
 #include "apfVector.h"
 #include "apfMatrix.h"
-#include "dg3SBPShape1.h"
+#include "dgSBPShape1.h"
 
 namespace apf {
 
@@ -1004,10 +1004,10 @@ class DG1SBP3Quartic : public FieldShape
 
 FieldShape* getDG1SBP3Shape(int order)
 {
-  static SBP3Linear linear1;
-  static SBP3Quadratic quadratic1;
-  static SBP3Cubic cubic1;
-  static SBP3Quartic quartic1;
+  static DG1SBP3Linear linear1;
+  static DG1SBP3Quadratic quadratic1;
+  static DG1SBP3Cubic cubic1;
+  static DG1SBP3Quartic quartic1;
   switch (order) {
     case 1:
 	  return &linear1;

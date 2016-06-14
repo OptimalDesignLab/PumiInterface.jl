@@ -236,7 +236,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
     apf::reorderMdsMesh(m);
 
     bool change_shape;
-    apf::FieldShape* fshape = getFieldShape(shape_type, dim, order, change_shape);
+    apf::FieldShape* fshape = getFieldShape(shape_type, order, dim, change_shape);
 
     // check if the coordinates have been moved into tags
     // this is a result of the mesh shape having been changed previously
@@ -380,7 +380,7 @@ void destroyNumberings(int dim)
  
 }
  
-apf::FieldShape* getFieldShape(int shape_type, int dim, int order, bool& change_shape)
+apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_shape)
 {
   apf::FieldShape* fshape;
   if (dim == 2)
@@ -419,6 +419,11 @@ apf::FieldShape* getFieldShape(int shape_type, int dim, int order, bool& change_
       fshape = apf::getLagrange(1);
       change_shape = false;
     }
+  } else
+  {
+    std::cout << "Warning: unrecognized dimension, not changing mesh shape" << std::endl;
+    fshape = apf::getLagrange(1);
+    change_shape = false;
   }
      
   return fshape;

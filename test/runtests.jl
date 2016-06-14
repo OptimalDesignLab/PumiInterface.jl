@@ -287,7 +287,8 @@ facts("Testing PUMIInterface.jl") do
   @fact adj_num --> [1, 3]
 
 
-  mshape2 = getSBPShapes(1, 4)
+  mshape2 = getFieldShape(1, 4, 2)
+  println("mshape2 = ", mshape2)
   node_entities = getNodeEntities(m_ptr, mshape2, face)
   verts = node_entities[1:3]
   edges = node_entities[4:12]
