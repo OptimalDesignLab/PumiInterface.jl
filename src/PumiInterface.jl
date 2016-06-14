@@ -132,7 +132,7 @@ global const transferField_name = "transferField"
 global const createSubMeshDG_name = "createSubMeshDG"
 global const transferFieldDG_name = "transferFieldDG"
 
-global const getSBPShapes_name = "getSBPShapes"
+global const getSBPShapes_name = "getFieldShape"
 
 global const countPeers_name = "countPeers"
 global const getPeers_name = "getPeers"
@@ -1347,10 +1347,11 @@ end
 
 
 
-function getSBPShapes(shape_type::Integer, order::Integer)
+function getSBPShapes(shape_type::Integer, order::Integer, dim::Integer)
 # shape_type: 1 = SBP, 2 = SBPDG1
 
-  ccall( (getSBPShapes_name, pumi_libname), Ptr{Void}, (Cint, Cint), shape_type, order)
+  change_shape = Ref{Bool}()
+  ccall( (getSBPShapes_name, pumi_libname), Ptr{Void}, (Cint, Cint, Cint, Ref{Bool}), shape_type, order, dim, change_shape)
 
 end
 

@@ -44,7 +44,7 @@ IsotropicFunctionJ isofunc;  // declare isotropic function at global scope
 AnisotropicFunctionJ anisofunc; // declare anisotropic function at global scope
 
 
-// init for 2d mesh
+// init for 3d mesh
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
 // shape_type: type of shape functions, 0 =  lagrange, 1 = SBP
@@ -383,25 +383,44 @@ void destroyNumberings(int dim)
 apf::FieldShape* getFieldShape(int shape_type, int dim, int order, bool& change_shape)
 {
   apf::FieldShape* fshape;
-  if ( shape_type == 0)  // use lagrange
+  if (dim == 2)
   {
-    fshape = apf::getLagrange(order);
-    change_shape = true;
-  } else if ( shape_type == 1)  // use SBP shape functions
-  {
-      fshape = apf::getSBPShape(order);
+    if ( shape_type == 0)  // use lagrange
+    {
+      fshape = apf::getLagrange(order);
       change_shape = true;
-  } else if ( shape_type == 2)  // use SBP DG1 shape functions
+    } else if ( shape_type == 1)  // use SBP shape functions
+    {
+        fshape = apf::getSBPShape(order);
+        change_shape = true;
+    } else if ( shape_type == 2)  // use SBP DG1 shape functions
+    {
+      fshape = apf::getDG1SBPShape(order);
+      change_shape = true;
+    } else  // default to lagrange shape functions
+    {
+      std::cout << "Warning: unrecognized shape_type, not changing mesh shape" << std::endl;
+      fshape = apf::getLagrange(1); // unused, but avoids compiler warning
+      change_shape = false;
+    }
+  } else if (dim == 3)
   {
-    fshape = apf::getDG1SBPShape(order);
-    change_shape = true;
-  } else  // default to lagrange shape functions
-  {
-    std::cout << "Warning: unrecognized shape_type, not changing mesh shape" << std::endl;
-    fshape = apf::getLagrange(1); // unused, but avoids compiler warning
-    change_shape = false;
+    if (shape_type == 0) // use lagrange
+    {
+      fshape = apf::getLagrange(order);
+      change_shape = true;
+    } else if (shape_type == 2)  // use SBP DG1 shape functions
+    {
+      fshape = apf::getDG1SBP3Shape(order);
+      change_shape = true;
+    } else  // default to lagrange shape functions
+    {
+      std::cout << "Warning: unrecognizes shape_type, not changing mesh shape" << std::endl;
+      fshape = apf::getLagrange(1);
+      change_shape = false;
+    }
   }
-
+     
   return fshape;
 }
 
