@@ -62,7 +62,7 @@ function populateNodeStatus(mesh::PumiMesh)
   println("num_entities = ", num_entities)
   println("num_nodes_entity = ", num_nodes_entity)
 
-  for etype = 1:3 # loop over entity types
+  for etype = 1:(mesh.dim + 1) # loop over entity types
 #    println("etype = ", etype)
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
       for entity = 1:num_entities[etype]  # loop over all entities of this type
@@ -87,7 +87,7 @@ end
 
 
 # this can be generalized to 3D trivially
-function getDofNumbers(mesh::PumiMeshDG2)
+function getDofNumbers(mesh::PumiMeshDG)
 # populate array of dof numbers, in same shape as solution array u (or q)
 
 #println("in getDofNumbers")
@@ -96,9 +96,10 @@ function getDofNumbers(mesh::PumiMeshDG2)
 mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.shared_element_offsets[end] - 1)
 
 for i=1:mesh.numEl
-#  println("element ", i)
+  println("element ", i)
   #TODO: use the non-allocating version
   dofnums = getGlobalNodeNumbers(mesh, i)
+  println("dofs = ", dofnums)
 
   for j=1:mesh.numNodesPerElement
     for k=1:mesh.numDofPerNode  # loop over dofs on the node
@@ -106,6 +107,8 @@ for i=1:mesh.numEl
     end
   end
 end
+
+println("mesh.dofs = ", mesh.dofs)
 
 # get dof number of non-local elements
 # post receives first

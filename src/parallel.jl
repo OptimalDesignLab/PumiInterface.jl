@@ -1,6 +1,6 @@
 # file for functions related to parallel bookkeeping
 
-function getParallelInfo(mesh::PumiMeshDG2)
+function getParallelInfo(mesh::PumiMeshDG)
 # get information on number of shared entities
 #TODO: update fields of mesh
 
@@ -311,7 +311,7 @@ function isRepeated(bndries::Array{Boundary}, idx)
 end
 
 # could be generalized with a few constants
-function getLocalAdjacency(mesh::PumiMeshDG2)
+function getLocalAdjacency(mesh::PumiMeshDG)
 
   # map from an element number of all the element numbers of the 
   # non-local elements

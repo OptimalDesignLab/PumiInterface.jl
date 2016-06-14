@@ -2,7 +2,8 @@
 #include "apfMesh.h"
 #include "apfVector.h"
 #include "apfMatrix.h"
-#include "dgSBPShape1.h"
+#include <iostream>
+#include "dgSBP3Shape1.h"
 
 namespace apf {
 

@@ -122,7 +122,7 @@ end
 
 # perform distance-1 coloring of mesh
 # this can be generalized to 3D via mesh.dim field
-function colorMesh2(mesh::PumiMeshDG2, colordata::ColoringData)
+function colorMesh2(mesh::PumiMeshDG, colordata::ColoringData)
 # each element must have a different color than its neighbors with which it 
 # shares and edge
 
@@ -275,7 +275,7 @@ end
 
 #TODO: investigate whether duplicating any non-local elements that share a face
 #      with more than one local elements produces better coloring
-function colorMeshBoundary2(mesh::PumiMeshDG2, colordata::ColoringData, numc, cnt_colors)
+function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt_colors)
 
   println(mesh.f, "----- Entered colorMeshBoundary2 -----")
   nfaces = mesh.numFacesPerElement

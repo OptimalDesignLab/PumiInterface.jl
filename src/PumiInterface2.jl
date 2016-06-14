@@ -204,7 +204,7 @@ function getNodeEntities(m_ptr, mshape_ptr, entity)
     num_type_per_entity = [4, 6, 4, 1]
     numRegions = num_type_per_entity[4]
   else
-    println(STDERR, "Error: unsupported entity type in getNodeEntites")
+    println(STDERR, "Error: unsupported entity type in getNodeEntites, entity type = $entity_type")
   end
 
   numVerts = num_type_per_entity[1]
@@ -243,9 +243,8 @@ function getNodeEntities(m_ptr, mshape_ptr, entity)
   end
 
   if has_region_nodes
-     numRegions = getDownward(m_ptr, entity, 4, retrieved_entities)
     for i=1:numRegions
-      insertN(downward_entities, retrieved_entities[i], vert_offset + num_edge_nodes*numEdges + num_face_nodes*numFaces + num_region_nodes*(i-1) + 1, num_region_nodes)
+      insertN(downward_entities, entity, vert_offset + num_edge_nodes*numEdges + num_face_nodes*numFaces + num_region_nodes*(i-1) + 1, num_region_nodes)
     end
   end
 

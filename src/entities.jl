@@ -29,6 +29,7 @@ function getEntityPointers(mesh::PumiMesh)
 # entity
 
 
+  println("mesh.numVerts = ", mesh.numVert)
   verts = Array(Ptr{Void}, mesh.numVert)
   edges = Array(Ptr{Void}, mesh.numEdge)
   elements = Array(Ptr{Void}, mesh.numEl)
@@ -40,6 +41,7 @@ function getEntityPointers(mesh::PumiMesh)
 #  comps = zeros(dofpernode)
   for i=1:mesh.numVert
     entity = getVert()
+    println("i = ", i, ", vert = ", entity)
     idx = getNumberJ(mesh.vert_Nptr, entity, 0, 0) + 1
     verts[idx] = entity
     incrementVertIt()
@@ -47,11 +49,13 @@ function getEntityPointers(mesh::PumiMesh)
 
   for i=1:mesh.numEdge
     entity = getEdge()
+    println("i = ", i, ", edge = ", entity)
     idx = getNumberJ(mesh.edge_Nptr, entity, 0, 0) + 1
     edges[idx] = entity
     incrementEdgeIt()
   end
 
+  println("finished getting edges")
   if mesh.dim == 3
     faces = Array(Ptr{Void}, mesh.numFace)
     for i=1:mesh.numFace
@@ -60,19 +64,32 @@ function getEntityPointers(mesh::PumiMesh)
       faces[idx] = entity
       incrementFaceIt()
     end
+    for i=1:mesh.numEl
+      entity = getEl()
+      println("i = ", i, ", element = ", entity)
+      idx = getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
+      elements[idx] = entity
+      incrementElIt()
+    end
+
+
   else
     faces = edges
+    for i=1:mesh.numEl
+      entity = getFace()
+      println("i = ", i, ", element = ", entity)
+      idx = getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
+      elements[idx] = entity
+      incrementFaceIt()
+    end
+
+
   end
 
 
    
 
-  for i=1:mesh.numEl
-    entity = getFace()
-    idx = getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
-    elements[idx] = entity
-    incrementFaceIt()
-  end
+  println("finished getting elements")
 
   resetAllIts2()
 
@@ -119,6 +136,7 @@ for i=1:mesh.numEl  # loop over elements
     # this is a temporary hack to test PdePumiInterface until SBP has 3D
     # routines ready
     mesh.coords[:, :, i] = calc3dnodes(coords_it)
+  end
 end
 
 return nothing

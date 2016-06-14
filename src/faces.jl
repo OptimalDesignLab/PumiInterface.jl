@@ -192,14 +192,18 @@ end  # end function
 
 
 function getInterfaceArray(mesh::PumiMesh3D)
+  println("----- entered getInterfaceArray -----")
 
   adj_elements = Array(Ptr{Void}, 2)
-  coords1 = zeros(3, 3)
-  coords2 = zeros(3, 3)
+  coords1 = zeros(3, 4)
+  coords2 = zeros(3, 4)
+  centroid1 = zeros(3)
+  centroid2 = zeros(3)
   pos = 1 # position in mesh.interfaces
-  for i=1:mesh.numFaces
+  for i=1:mesh.numFace
+    println("face ", i)
     face_i = mesh.faces[i]
-    num_adjacent = countAdjacent(mesh, face_i, mesh.dim)
+    num_adjacent = countAdjacent(mesh.m_ptr, face_i, mesh.dim)
 
     if num_adjacent == 2  # this is a shared interface
       getAdjacent(adj_elements)
@@ -212,7 +216,14 @@ function getInterfaceArray(mesh::PumiMesh3D)
       getElementCoords(mesh, el1, coords1)
       getElementCoords(mesh, el2, coords2)
 
-      flag = getLR(coords1, coords)
+      for j=1:4
+        for k=1:3
+          centroid1[k] += coords1[k, j]
+          centroid2[k] += coords2[k, j]
+        end
+      end
+
+      flag = getLR(centroid1, centroid2)
       if flag
         coordsL = coords2
         coordsR = coords1
@@ -228,12 +239,15 @@ function getInterfaceArray(mesh::PumiMesh3D)
       whichL, flipL, rotateL = getAlignment(mesh.m_ptr, el1, face_i)
       r1 = EntityOrientation(whichL, flipL, rotateL)
       whichR, flipR, rotateR = getAlignment(mesh.m_ptr, el2, face_i)
-      r2 = EntityOrientation(whichr, flipR, rotateR)
+      r2 = EntityOrientation(whichR, flipR, rotateR)
 
       rel_rotate = calcRelRotation(mesh, r1, r2)
 
       mesh.interfaces[pos] = Inteface(el1, el2, whichL, whichR, UInt8(rel_rotate))
       pos += 1
+
+      fill!(centroid1, 0.0)
+      fill!(centroid2, 0.0)
 
     end  # end if 
   end

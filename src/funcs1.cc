@@ -425,6 +425,8 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     fshape = apf::getLagrange(1);
     change_shape = false;
   }
+
+  std::cout << "returning FieldShape " << fshape->getName() << std::endl;
      
   return fshape;
 }
@@ -1267,6 +1269,7 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
   fshape_local = apf::getShape(n);
   e = entities[0];
 
+//  std::cout << "fshape = " << fshape_local->getName() << std::endl;
   col = 0;
   ptr = 0;  // pointer to linear address in entities
   uint8_t offset_k = 0; // narrowing conversion error?
@@ -1277,10 +1280,11 @@ int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t node_o
 //    std::cout << "looping over dimension " << i << std::endl;
     for (int j=0; j < m_local->adjacentCount[el_type][i]; j++)  // loop over all entities of this type
     {
+      int type = apf::Mesh::simplexTypes[i];
 //      std::cout << "  entity number " << j << std::endl;
-//      std::cout << "  this entity has " << fshape_local->countNodesOn(i) << " nodes " << std::endl;
+//      std::cout << "  this entity has " << fshape_local->countNodesOn(type) << " nodes " << std::endl;
 
-      for (int k=0; k < fshape_local->countNodesOn(i); k++)
+      for (int k=0; k < fshape_local->countNodesOn(type); k++)
       {
 //        std::cout << "    node number " << k << std::endl;
         e = entities[col];  // get current entity

@@ -54,7 +54,7 @@ function countBoundaryEdges(mesh::PumiMeshDG, bndry_edges_all)
   internal_edge_cnt = 0 # count the number of internal interfaces
   bnd_edges = Array(Int, mesh.numEdge, 2)
   elements = Array(Ptr{Void}, 2)  # edge has maximum 2 faces
-  for i=1:mesh.numEdge
+  for i=1:mesh.numFace
     edge_i = mesh.faces[i]
 #    edge_i = getEdge()
 

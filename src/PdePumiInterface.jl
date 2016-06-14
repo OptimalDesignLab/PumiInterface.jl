@@ -10,6 +10,7 @@ using MPI
 include("nodecalc.jl")
 include("elements.jl")
 include("bary.jl")
+include("options.jl")
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
 export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryFaceLocalNum, getFaceLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles
@@ -112,6 +113,7 @@ typealias PumiMeshDG{T1} Union{PumiMesh2DG{T1}, PumiMesh3DG{T1}}
 
 include("./PdePumiInterface3.jl")
 include("PdePumiInterfaceDG.jl")
+include("PdePumiInterface3DG.jl")
 @doc """
 ### PumiInterface.PumiMesh2
 

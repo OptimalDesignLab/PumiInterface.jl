@@ -896,8 +896,7 @@ function getEdgeCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
 i = ccall( (getEdgeCoords_name, pumi_libname), Int, (Ptr{Float64}, Int32, Int32), coords, n, m);
 
 if ( i != 0)
-  println("Error in getEdgeCoords... exiting")
-  exit()
+  throw(ErrorException("Error in getEdgeCoords"))
 end
 
 #println("in julia, coords = ", coords)
@@ -911,8 +910,7 @@ function getEdgeCoords(entity, coords::Array{Float64, 2}, m::Integer, n::Integer
 i = ccall( (getEdgeCoords2_name, pumi_libname), Int, (Ptr{Void}, Ptr{Float64}, Int32, Int32), entity, coords, n, m);
 
 if ( i != 0)
-  println("Error in getEdgeCoords... exiting")
-  exit()
+  throw(ErrorException("Error in getEdgeCoords"))
 end
 
 #println("in julia, coords = ", coords)
@@ -933,7 +931,7 @@ function getFaceCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
 i = ccall( (getFaceCoords_name, pumi_libname), Int32, (Ptr{Float64}, Int32, Int32), coords, n, m);
 
 if ( i != 0)
-  println("Error in getEdgeCoords... exiting")
+  throw(ErrorException("Error in getFaceCoords"))
   exit()
 end
 
@@ -952,8 +950,7 @@ function getFaceCoords(entity, coords::AbstractMatrix, m::Integer, n::Integer)
 i = ccall( (getFaceCoords2_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Float64}, Int32, Int32), entity, coords, n, m);
 
 if ( i != 0)
-  println("Error in getEdgeCoords... exiting")
-  exit()
+  throw(ErrorException("Error in getFaceCoords"))
 end
 
 #println("in julia, coords = ", coords)
@@ -971,8 +968,7 @@ function getElCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
 i = ccall( (getElCoords_name, pumi_libname), Int, (Ptr{Float64}, Int32, Int32), coords, n, m);
 
 if ( i != 0)
-  println("Error in getEdgeCoords... exiting")
-  exit()
+  throw(ErrorException("Error in getElCoords"))
 end
 
 #println("in julia, coords = ", coords)
@@ -989,16 +985,12 @@ function getElCoords(entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
 i = ccall( (getElCoords2_name, pumi_libname), Int, (Ptr{Void}, Ptr{Float64}, Int32, Int32),entity, coords, n, m);
 
 if ( i != 0)
-  println("Error in getEdgeCoords... exiting")
-  exit()
+  throw(ErrorException("Error in getElCoords"))
 end
 
 #println("in julia, coords = ", coords)
 
 end
-
-
-
 
 
 function createNumberingJ(m_ptr, name::AbstractString, field, components::Integer)
