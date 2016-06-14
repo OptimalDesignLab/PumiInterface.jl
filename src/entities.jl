@@ -112,7 +112,13 @@ for i=1:mesh.numEl  # loop over elements
   getElementCoords(mesh, el_i, coords_i)
 
   coords_it[:,:] = coords_i[1:mesh.dim, :].'
-  mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
+
+  if mesh.dim == 2
+    mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
+  else # 3D
+    # this is a temporary hack to test PdePumiInterface until SBP has 3D
+    # routines ready
+    mesh.coords[:, :, i] = calc3dnodes(coords_it)
 end
 
 return nothing
@@ -203,6 +209,12 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh},
   end
 
 end
+
+function getBndryCoordinates{Tmsh}(mesh::PumiMesh3DG{Tmsh}, bndryfaces::Array{Boundary}, coords_bndry::Array{Tmsh, 3})
+
+  println(STDERR, "\nWarning: getBndryCoordinates not implemented for 3D DG methods yet\n")
+end
+
 
 #=
 function getElementVertCoords(mesh::PumiMesh, elnum::Integer, coords::AbstractArray{Float64,2})
