@@ -1418,24 +1418,6 @@ void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components
 }
 
 
-// get the SBP FieldShapes
-// type = 1 => regular (CG) SBP
-// type = 2 => DG1SBP
-apf::FieldShape* getSBPShapes(int type, int order)
-{
-  switch (type)
-  {
-    case 1: { return apf::getSBPShape(order); }
-    case 2: { return apf::getDG1SBPShape(order); }
-    default: 
-      { 
-        std::cerr << "Warning: unsupported SBP FieldShape requested" << std::endl;
-        return NULL;
-      }
-
-  }
-}  // end function
-
 
 //-----------------------------------------------------------------------------
 // Parallelization function

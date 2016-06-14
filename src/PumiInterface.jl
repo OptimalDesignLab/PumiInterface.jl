@@ -132,7 +132,7 @@ global const transferField_name = "transferField"
 global const createSubMeshDG_name = "createSubMeshDG"
 global const transferFieldDG_name = "transferFieldDG"
 
-global const getSBPShapes_name = "getFieldShape"
+global const getFieldShape_name = "getFieldShape"
 
 global const countPeers_name = "countPeers"
 global const getPeers_name = "getPeers"
@@ -145,7 +145,7 @@ end
 # export low level interface functions
 export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
-export createSubMeshDG, transferFieldDG, getSBPShapes
+export createSubMeshDG, transferFieldDG, getFieldShape
 
 export toModel, getModelType, getModelTag
 export countPeers, getPeers
@@ -1347,11 +1347,11 @@ end
 
 
 
-function getSBPShapes(shape_type::Integer, order::Integer, dim::Integer)
+function getFieldShape(shape_type::Integer, order::Integer, dim::Integer)
 # shape_type: 1 = SBP, 2 = SBPDG1
 
   change_shape = Ref{Bool}()
-  ccall( (getSBPShapes_name, pumi_libname), Ptr{Void}, (Cint, Cint, Cint, Ref{Bool}), shape_type, order, dim, change_shape)
+  ccall( (getFieldShape_name, pumi_libname), Ptr{Void}, (Cint, Cint, Cint, Ref{Bool}), shape_type, order, dim, change_shape)
 
 end
 
