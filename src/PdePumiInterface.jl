@@ -620,6 +620,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     writeCounts(mesh)
   end
 
+  println("about to write mesh_complete")
   writeVisFiles(mesh, "mesh_complete")
   return mesh
   # could use incomplete initilization to avoid copying arrays

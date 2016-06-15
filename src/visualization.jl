@@ -65,12 +65,18 @@ function writeVisFiles(mesh::PumiMesh2CG, fname::AbstractString)
   # writes vtk files 
 
   if mesh.order <= 2
+    println("writing original mesh vtk file")
     writeVtkFiles(fname, mesh.m_ptr)
   else
+    println("writing subtriangulated mesh vtk file")
     writeVtkFiles(fname, mesh.mnew_ptr)
   end
 
   return nothing
+end
+
+function writeVisFiles(mesh::PumiMesh3DG, fname::AbstractString)
+  println(STDERR, "Not writing vtu files for 3d mesh")
 end
 
 

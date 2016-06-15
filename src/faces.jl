@@ -199,6 +199,10 @@ function getInterfaceArray(mesh::PumiMesh3D)
   coords2 = zeros(3, 4)
   centroid1 = zeros(3)
   centroid2 = zeros(3)
+  vertsL = Array(Ptr{Void}, 4)
+  vertsR = Array(Ptr{Void}, 4)
+  facevertsL = Array(Ptr{Void}, 3)
+  facevertsR = Array(Ptr{Void}, 3)
   pos = 1 # position in mesh.interfaces
   for i=1:mesh.numFace
     println("face ", i)
@@ -229,21 +233,24 @@ function getInterfaceArray(mesh::PumiMesh3D)
         coordsR = coords1
         elnumL = elnum2
         elnumR = elnum1
+        elL = el2
+        elR = el1
       else
         coordsL = coords1
         coordsR = coords2
         elnumL = elnum1
         elnumR = elnum2
+        elL = el1
+        elR = el2
       end
 
-      whichL, flipL, rotateL = getAlignment(mesh.m_ptr, el1, face_i)
-      r1 = EntityOrientation(whichL, flipL, rotateL)
-      whichR, flipR, rotateR = getAlignment(mesh.m_ptr, el2, face_i)
-      r2 = EntityOrientation(whichR, flipR, rotateR)
+      localfacenumL = getFaceLocalNum(mesh, i, elnumL)
+      localfacenumR = getFaceLocalNum(mesh, i, elnumR)
+      fdata = FaceData(elnumL, elL, elnumR, elR, localfacenumL, localfacenumR,
+                       vertsL, vertsR, facevertsL, facevertsR)
 
-      rel_rotate = calcRelRotation(mesh, r1, r2)
-
-      mesh.interfaces[pos] = Inteface(el1, el2, whichL, whichR, UInt8(rel_rotate))
+      rel_rotate = calcRelativeOrientation(fdata, mesh)
+      mesh.interfaces[pos] = Interface(el1, el2, localfacenumL, localfacenumR, UInt8(rel_rotate))
       pos += 1
 
       fill!(centroid1, 0.0)

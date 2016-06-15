@@ -404,7 +404,7 @@ facts("Testing PdePumiInterface3.jl") do
 
 end
 =#
-
+println("about to test pdepumiinterface")
 include("pdepumiinterface.jl")
 
 FactCheck.exitstatus()

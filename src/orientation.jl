@@ -233,5 +233,68 @@ else
 end
 
 end
+"""
+  Type to hold data about 2 elements that share a face, along with some 
+  arrays needed by calcRelativeOrientation
+"""
+immutable FaceData
+  elnumL::Int
+  elL::Ptr{Void}
+  elnumR::Int
+  elR::Ptr{Void}
+  faceL::Int  # local face numbers
+  faceR::Int
+  vertsL::Array{Ptr{Void}, 1}
+  vertsR::Array{Ptr{Void}, 1}
+  facevertsL::Array{Ptr{Void}, 1}
+  facevertsR::Array{Ptr{Void}, 1}
+end
+
+"""
+  Maps the position where vertex 1 of faceL is found in faceR to the relative 
+  rotation of the face
+"""
+global const pos_to_rotation = [1, 3, 2]
+
+
+"""
+  This function takes the data from element that share a face and determines 
+  the relative orientation of the shared face (ie. how many rotations ccw 
+  faceR is from faceL when looking from the perspective of faceL).  The 
+  user supplied topology information is used to determine the ordering of the 
+  vertices on both faces, therefore the relative orientation is consistent with
+  the users definition of the faces
+"""
+function calcRelativeOrientation(fdata::FaceData, mesh::PumiMesh3DG)
+
+  faceL = fdata.faceL
+  faceR = fdata.faceR
+  vertmap = mesh.topo.face_verts
+
+  # get all vertices of the tet
+  getDownward(mesh.m_ptr, fdata.elL, 0, fdata.vertsL)
+  getDownward(mesh.m_ptr, fdata.elR, 0, fdata.vertsR)
+
+  # extract the face vertices 
+  # uses the user suppied topology information to order the face verts
+  for i=1:3
+    fdata.facevertsL[i] = fdata.vertsL[vertmap[i, faceL]]
+    fdata.facevertsR[i] = fdata.vertsR[vertmap[i, faceR]]
+  end
+
+  # find vert1 of faceL in faceR
+  idx = 0
+  v1 = fdata.facevertsL[1]
+  for i=1:3
+    if fdata.facevertsL[i] == v1
+      idx = i
+      break
+    end
+  end
+
+  return pos_to_rotation[idx]
+end
+
+
 
 

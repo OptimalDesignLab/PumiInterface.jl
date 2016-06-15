@@ -548,8 +548,9 @@ int count(apf::Mesh2* m_local, int dimension)
 void writeVtkFiles(char* name, apf::Mesh2* m_local)
 {
 
-   apf::writeASCIIVtkFiles(name, m_local);
+//   apf::writeASCIIVtkFiles(name, m_local);
     
+   apf::writeVtkFiles(name, m_local);
 /*
     apf::FieldShape* mshape = m->getShape();
     crv::writeControlPointVtuFiles(m, name);

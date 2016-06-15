@@ -117,7 +117,7 @@ end
 function getCoordinates(mesh::PumiMeshDG, sbp::AbstractSBP)
 # populate the coords array of the mesh object
 
-mesh.coords = Array(Float64, 2, sbp.numnodes, mesh.numEl)
+mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
 
 #println("entered getCoordinates")
 numVertsPerElement = mesh.numTypePerElement[1]
@@ -135,7 +135,7 @@ for i=1:mesh.numEl  # loop over elements
   else # 3D
     # this is a temporary hack to test PdePumiInterface until SBP has 3D
     # routines ready
-    mesh.coords[:, :, i] = calc3dnodes(coords_it)
+    mesh.coords[:, :, i] = calc3dnodes(coords_i)
   end
 end
 

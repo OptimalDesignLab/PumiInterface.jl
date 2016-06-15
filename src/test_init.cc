@@ -8,6 +8,7 @@
 #include <apfNumbering.h>
 #include <apfShape.h>
 #include "dgSBPShape1.h"
+#include "apfSBPShape.h"
 
 /*
 void printModelClassification(apf::Mesh * m)
@@ -53,11 +54,13 @@ int main ()
   gmi_model* g = gmi_load(".null");
   std::cout << "finished loading geometric model" << std::endl;
   // using the mesh vortex3_1.smb works fine
-  apf::Mesh2* m = apf::loadMdsMesh(g,"tri8l.smb" );
+  apf::Mesh2* m = apf::loadMdsMesh(g,"tri2l.smb" );
 
   std::cout << "finished loading mesh" << std::endl;
-  apf::FieldShape* fshape = apf::getLagrange(1);
-  apf::changeMeshShape(m, fshape, false);
+
+  // changing this to getLagrange makes everything work
+  apf::FieldShape* fshape = apf::getSBPShape(1);
+  apf::changeMeshShape(m, fshape, true);
   std::cout << "finished changing mesh shape" << std::endl;
 
   // create a Numbering with 3 nodes, all classified on faces, with two 

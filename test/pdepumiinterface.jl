@@ -28,7 +28,7 @@ facts("--- Testing PdePumiInterface --- ") do
     smb_name = "tri2l.smb"
     dmg_name = ".null"
     for order = 1:4
-      println("testing order ", order, " mesh")
+      println("testing order ", order, "CG mesh")
       sbp = TriSBP{Float64}(degree=order)
 
     mesh =  PumiMesh2{Float64}(dmg_name, smb_name, order, sbp, opts, coloring_distance=2, dofpernode=4)
@@ -227,7 +227,7 @@ facts("--- Testing PdePumiInterface --- ") do
 
 
   for order = 1:4
-    println("testing order ", order, " mesh")
+    println("testing order ", order, "DG mesh")
     sbp = TriSBP{Float64}(degree=order)
 
     mesh =  PumiMesh2{Float64}(dmg_name, smb_name, order, sbp, opts, coloring_distance=2, dofpernode=4)

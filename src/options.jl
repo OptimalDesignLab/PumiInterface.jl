@@ -17,6 +17,8 @@ function set_defaults(opts)
   get!(opts, "write_interfaces", false)
   get!(opts, "write_boundaries", false)
   get!(opts, "write_sharedboundaries", false)
+  get!(opts, "write_face_vertnums", false)
+  get!(opts, "write_coords", false)
 
   return nothing
 end
