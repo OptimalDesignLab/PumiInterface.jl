@@ -151,6 +151,7 @@ int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);
 // these function pass pointers
 // create a generally defined numbering from julia
 extern  apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShape* field, int components);
+apf::FieldShape* getNumberingShape(apf::Numbering* n);
 extern int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number);
 extern  int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component);
 

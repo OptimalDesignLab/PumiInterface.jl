@@ -1223,6 +1223,11 @@ apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShap
     return apf::createNumbering(m_local, name, field, components);
 }
 
+apf::FieldShape* getNumberingShape(apf::Numbering* n)
+{
+  return apf::getShape(n);
+}
+
 // number an entity in a given numbering from julia
 int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number)
 {
