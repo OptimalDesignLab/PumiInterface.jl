@@ -161,15 +161,21 @@ function getParallelInfo(mesh::PumiMeshDG)
                                        # of the elements belonging to each peer
   mesh.local_element_lists = Array(Array{Int32, 1}, mesh.npeers)
   curr_elnum = mesh.numEl + 1
+  myrank = mesh.myrank
+  f = open("parallel_$myrank.dat", "w")
   for i=1:npeers
+    println(f, "peer ", i)
     peer_offsets[i] = curr_elnum
+    println(f, "peer_offset[i] = ", peer_offsets[i])
     curr_elnum, shared_interfaces[i] = numberBoundaryEls(mesh, curr_elnum, 
                                  bndries_local[i], bndries_remote[i], 
-                                 orientations_local[i], orientations_remote[i])
+                                 orientations_local[i], orientations_remote[i], f)
     curr_elnum += 1
 
-    mesh.local_element_lists[i] = getBoundaryElList(bndries_local[i])
+    mesh.local_element_lists[i] = getBoundaryElList(bndries_local[i], f)
+    println(f, "length(local_element_list) = ", length(mesh.local_element_lists[i]))
   end
+  close(f)
   peer_offsets[npeers+1] = curr_elnum
   mesh.shared_element_offsets = peer_offsets
   mesh.numGlobalEl = curr_elnum - 1
@@ -248,10 +254,12 @@ end
 
 # this can be generalized once edge orientation is generalized
 function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary}, bndries_remote::Array{Boundary}, orientations_local::AbstractArray{EntityOrientation}, 
-orientations_remote::AbstractArray{EntityOrientation})
+orientations_remote::AbstractArray{EntityOrientation}, f=STDOUT)
 # create Interfaces out of the local + remote Boundary arrays
 # also numbers the remote elements with numbers > numEl, storing them in
 # the elementR field of the Interface
+
+  println(f, "----- entered numberBoundaryEls -----")
 
   ninterfaces = length(bndries_local)
   interfaces = Array(Interface, ninterfaces)
@@ -265,9 +273,11 @@ orientations_remote::AbstractArray{EntityOrientation})
       new_elR = curr_elnum
       curr_elnum += 1
     else
+      println(f, "interface ", i, " is repeated at index ", old_iface_idx)
       new_elR = interfaces[old_iface_idx].elementR
     end
 
+    #TODO: fix this for 3D
     r1 = orientations_local[i]
     r2 = orientations_remote[i]
     orient = calcRelRotation(mesh, r1, r2, false)
@@ -279,9 +289,9 @@ orientations_remote::AbstractArray{EntityOrientation})
   return last_elnum, interfaces
 end
 
-function getBoundaryElList(bndries_local::Array{Boundary})
+function getBoundaryElList(bndries_local::Array{Boundary}, f=STDOUT)
 # get the list of elemements on the boundary
-
+  println(f, "----- entered getBoundaryElList -----")
   nfaces = length(bndries_local)
   elnums = Array(Int32, nfaces)  # nfaces is the upper bound on 
                                  # the number of elements
@@ -291,6 +301,8 @@ function getBoundaryElList(bndries_local::Array{Boundary})
     if old_iface_idx == 0
       elnums[pos] = bndries_local[i].element
       pos += 1
+    else
+      println(f, "interface ", i, " is repeated at index ", old_iface_idx)
     end
   end
 

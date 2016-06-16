@@ -107,9 +107,10 @@ for i=1:mesh.numEl
     end
   end
 end
-
-println("mesh.dofs = ", mesh.dofs)
-
+myrank = mesh.myrank
+f = open("dofnumbering_$myrank.dat", "w")
+println(f, "mesh.numEl = ", mesh.numEl)
+println(f, "mesh.numGlobalEl = ", mesh.numGlobalEl)
 # get dof number of non-local elements
 # post receives first
 send_reqs = mesh.send_reqs
@@ -128,12 +129,16 @@ end
 # now send data
 dof_sendbuf = Array(Array{Int, 3}, mesh.npeers)
 for i=1:mesh.npeers
-  numel = mesh.shared_element_offsets[i+1] - mesh.shared_element_offsets[i]
-  dof_sendbuf[i] = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, numel)
-  sendbuf_i = dof_sendbuf[i]
+  println(f, "sending data to peer ", i)
   elnums_i = mesh.local_element_lists[i]
+  numel = length(elnums_i)
+  dof_sendbuf[i] = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, numel)
+  println(f, "numel = ", numel)
+  sendbuf_i = dof_sendbuf[i]
+  println(f, "length(elnums_i) = ", length(elnums_i))
   for j=1:length(elnums_i)
     elnum_j = elnums_i[j]
+    println(f, "element ", j, " elnum = ", elnum_j)
     for k=1:mesh.numNodesPerElement
       for p=1:mesh.numDofPerNode
         sendbuf_i[p, k, j] = mesh.dofs[p, k, elnum_j]
@@ -145,6 +150,7 @@ for i=1:mesh.npeers
   send_reqs[i] = MPI.Isend(sendbuf_i, mesh.peer_parts[i], 1, mesh.comm)
 end
 
+close(f)
 # figure out the local to global offset of the dof numbers
 # compute number of local dofs
 ndof = 0

@@ -4,18 +4,7 @@ using PdePumiInterface
 using ODLCommonTools
 using SummationByParts
 using PumiInterface
-
-immutable MySBP{Tsbp} <: AbstractSBP{Tsbp}
-  degree::Int
-  numnodes::Int
-  numfacenodes::Int
-end
-
-immutable MyFace{Tsbp} <: SummationByParts.AbstractFace{Tsbp}
-  degree::Int
-  numnodes::Int
-  stencilsize::Int
-end
+include("defs.jl")
 
 facts("----- Testing PdePumiInterface3DG -----") do
   degree = 1

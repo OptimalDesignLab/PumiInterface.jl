@@ -142,7 +142,7 @@ for i=1:nfaces
   adj2[i] = Array(Ptr{Void}, nfaces+1)
 end
 
-colors = zeros(Int32, 3*4)
+colors = zeros(Int32, mesh.numFacesPerElement*(mesh.numFacesPerElement+1))
 
 cnt_colors = zeros(Int32, numc)  # count how many of each color
 adj_dict = colordata.adj_dict
@@ -446,7 +446,7 @@ function getDistance2Colors(mesh::PumiMesh, elnum::Integer, adj, adj2, colors)
 end
 
 
-function getNonlocalDistance2Colors(mesh::PumiMeshDG2, elnum::Integer, colordata::ColoringData, colors)
+function getNonlocalDistance2Colors(mesh::PumiMeshDG, elnum::Integer, colordata::ColoringData, colors)
 # get the distance 2 neighbors of a local element that are connected via a non-local element
 
   el = mesh.elements[elnum]
@@ -461,6 +461,7 @@ function getNonlocalDistance2Colors(mesh::PumiMeshDG2, elnum::Integer, colordata
           if neighbor != 0
             neighbor_ptr = mesh.elements[neighbor]
             colors[pos] = getNumberJ(mesh.coloring_Nptr, neighbor_ptr, 0, 0)
+            pos += 1
           end
         end
       end
@@ -471,7 +472,7 @@ function getNonlocalDistance2Colors(mesh::PumiMeshDG2, elnum::Integer, colordata
 end
             
 
-function getDistance1Colors(mesh::PumiMeshDG2, elnum::Integer, adj, colors)
+function getDistance1Colors(mesh::PumiMeshDG, elnum::Integer, adj, colors)
 # get the distance1 colors of a specified element
 
   el = mesh.elements[elnum]

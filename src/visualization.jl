@@ -76,7 +76,7 @@ function writeVisFiles(mesh::PumiMesh2CG, fname::AbstractString)
 end
 
 function writeVisFiles(mesh::PumiMesh3DG, fname::AbstractString)
-  println(STDERR, "Not writing vtu files for 3d mesh")
+  writeVtkFiles(fname, mesh.m_ptr)
 end
 
 

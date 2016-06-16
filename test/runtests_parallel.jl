@@ -4,7 +4,7 @@ using PumiInterface
 using ODLCommonTools
 using SummationByParts
 using PdePumiInterface
-
+include("defs.jl")
 
 
   dmg_name = "parallel2.dmg"
@@ -287,6 +287,52 @@ facts("----- Testing PdePumiInterfaceDG -----") do
       end
     end
   end
+
+end
+
+
+facts("----- Testing PdePumiInterface3DG -----") do
+
+  degree = 1
+  numnodes = 4
+  Tsbp = Float64
+  sbp = MySBP{Tsbp}(degree, numnodes, 0)
+  sbpface = MyFace{Tsbp}(degree, 3, numnodes)
+  topo = ElementTopology3()
+
+  dmg_name = ".null"
+  smb_name = "pcube2.smb"
+
+  opts = PdePumiInterface.get_defaults()
+  opts["numBC"] = 1
+  opts["BC1"] = [0,1,2,3,4,5]
+
+  interp_op = eye(4)
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+
+  println("finished")
+
+  @fact mesh.numEl --> 12
+  @fact mesh.numGlobalEl --> 16
+#  @fact mesh.numBoundaryFaces --> 4
+  @fact mesh.numInterfaces --> 14
+  @fact mesh.numBoundaryFaces --> 16
+  @fact mesh.myrank --> MPI.Comm_rank(mesh.comm)
+  @fact mesh.commsize --> MPI.Comm_size(mesh.comm)
+  
+  if mesh.myrank == 0
+    @fact mesh.peer_parts --> [1]
+  else
+    @fact mesh.peer_parts --> [0]
+  end
+
+  @fact mesh.peer_face_counts[1] --> 4
+
+
+  # TODO: test dxidx, jac sharedface
+
+
+
 
 end
 MPI.Barrier( MPI.COMM_WORLD)
