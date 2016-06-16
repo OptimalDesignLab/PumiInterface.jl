@@ -235,7 +235,7 @@ end
 end
 """
   Type to hold data about 2 elements that share a face, along with some 
-  arrays needed by calcRelativeOrientation
+  arrays needed by getRelativeOrientation
 """
 immutable FaceData
   elnumL::Int
@@ -265,7 +265,7 @@ global const pos_to_rotation = [1, 3, 2]
   vertices on both faces, therefore the relative orientation is consistent with
   the users definition of the faces
 """
-function calcRelativeOrientation(fdata::FaceData, mesh::PumiMesh3DG)
+function getRelativeOrientation(fdata::FaceData, mesh::PumiMesh3DG)
 
   faceL = fdata.faceL
   faceR = fdata.faceR
@@ -282,17 +282,29 @@ function calcRelativeOrientation(fdata::FaceData, mesh::PumiMesh3DG)
     fdata.facevertsR[i] = fdata.vertsR[vertmap[i, faceR]]
   end
 
+  return calcRelativeOrientation(fdata.facevertsL, fdata.facevertsR)
+
+end
+
+function calcRelativeOrientation(facevertsL::AbstractArray, facevertsR::AbstractArray)
+
   # find vert1 of faceL in faceR
   idx = 0
-  v1 = fdata.facevertsL[1]
+  v1 = facevertsL[1]
   for i=1:3
-    if fdata.facevertsL[i] == v1
+    if facevertsL[i] == v1
       idx = i
       break
     end
   end
 
   return pos_to_rotation[idx]
+end
+
+
+function getRelativeOrientation(fdata::FaceData, mesh::PumiMesh2DG)
+
+  return 1
 end
 
 

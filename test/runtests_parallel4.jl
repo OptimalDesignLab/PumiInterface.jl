@@ -30,6 +30,12 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   @fact mesh.numColors --> less_than(mesh.maxColors+1)
   @fact mesh.numColors --> greater_than(6)
 
+  for i=1:mesh.numEl
+    el_i = mesh.elements[i]
+    cnt = countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
+    @fact countnz(mesh.pertNeighborEls[i, :]) --> greater_than(cnt)
+  end
+
 
 end
 

@@ -296,6 +296,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   # on the current peer boundary
   shared_element_colormasks::Array{Array{BitArray{1}, 1}, 1}                               
   sbpface::TriFace{Float64}  # SBP object needed to do interpolation
+  topo::ElementTopology{2}
 
 
  function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, interp_op, sbpface; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
@@ -322,6 +323,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   mesh.ref_verts = [0.0 1 0; 0 0 1]  # ???
   mesh.numNodesPerFace = sbpface.numnodes
   mesh.comm = comm
+  mesh.topo = ElementTopology2() # create default topology because it isn't
+                                  # important for 2D
 
   if !MPI.Initialized()
     MPI.Init()

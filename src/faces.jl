@@ -249,7 +249,7 @@ function getInterfaceArray(mesh::PumiMesh3D)
       fdata = FaceData(elnumL, elL, elnumR, elR, localfacenumL, localfacenumR,
                        vertsL, vertsR, facevertsL, facevertsR)
 
-      rel_rotate = calcRelativeOrientation(fdata, mesh)
+      rel_rotate = getRelativeOrientation(fdata, mesh)
       mesh.interfaces[pos] = Interface(el1, el2, localfacenumL, localfacenumR, UInt8(rel_rotate))
       pos += 1
 

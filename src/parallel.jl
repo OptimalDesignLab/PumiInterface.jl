@@ -42,15 +42,15 @@ function getParallelInfo(mesh::PumiMeshDG)
   mesh.bndries_local = bndries_local = Array(Array{Boundary,1}, npeers)
   mesh.bndries_remote = bndries_remote = Array(Array{Boundary,1}, npeers)
   mesh.shared_interfaces = shared_interfaces = Array(Array{Interface,1}, npeers)
-  orientations_local = Array(Array{EntityOrientation, 1}, npeers)
-  orientations_remote = Array(Array{EntityOrientation, 1}, npeers)
+  orientations_local = Array(Array{Ptr{Void}, 2}, npeers)
+  orientations_remote = Array(Array{Ptr{Void}, 2}, npeers)
   for i=1:npeers
     edges_local[i] = Array(Ptr{Void}, counts[i])
     edges_remote[i] = Array(Ptr{Void}, counts[i])
     bndries_local[i] = Array(Boundary, counts[i])
     bndries_remote[i] = Array(Boundary, counts[i])
-    orientations_local[i] = Array(EntityOrientation, counts[i])
-    orientations_remote[i] = Array(EntityOrientation, counts[i])
+    orientations_local[i] = Array(Ptr{Void}, mesh.dim, counts[i])
+    orientations_remote[i] = Array(Ptr{Void}, mesh.dim, counts[i])
   end
 
   # get all the (local pointers to) edges in a single pass, 
@@ -125,16 +125,17 @@ function getParallelInfo(mesh::PumiMeshDG)
 
   # wait for all communication to finish
   for i=1:npeers
+    peernum = peer_nums[i]
     if mesh.myrank > peer_nums[i]  # wait for send to finish
       mesh.send_stats[i] = MPI.Wait!(mesh.send_reqs[i])
-      getBndryOrientations(mesh, bndries_local[i], orientations_local[i])
+      getBndryOrientations(mesh, peernum, bndries_local[i], orientations_local[i])
       # get edge orientations
     else  # wait for receive to finish
       j, stat = MPI.Waitany!(recv_reqs_reduced)
       mesh.recv_stats[j] = stat
       peernum = recv_peers[j]
       getEdgeBoundaries(mesh, edges_remote[peernum], bndries_local[peernum])
-      getBndryOrientations(mesh, bndries_local[peernum], orientations_local[peernum])
+      getBndryOrientations(mesh, peernum, bndries_local[peernum], orientations_local[peernum])
       # get edge orientations
     end
   end
@@ -234,27 +235,39 @@ function getEdgeBoundaries(mesh::PumiMeshDG, edges::Array{Ptr{Void}},
   return nothing
 end
 
-function getBndryOrientations(mesh::PumiMeshDG, bndries::AbstractArray{Boundary}, 
-                             orientations::AbstractArray{EntityOrientation})
+function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::AbstractArray{Boundary}, 
+                             orientations::AbstractArray{Ptr{Void}, 2})
+# peer_num is the MPI rank of the peer process
+
   nfaces = length(bndries)
   myrank = mesh.myrank
-  downward = Array(Ptr{Void}, 12)
+  downward = Array(Ptr{Void}, 4)
+  remote_partnums = Array(Cint, 400)  # equivalent of apf::up
+  remote_ptrs = Array(Ptr{Void}, 400)  
+  vertmap = mesh.topo.face_verts
   for i=1:nfaces
     bndry_i = bndries[i]
     el_i = mesh.elements[bndry_i.element]
     facelocal_i = bndry_i.face
-    getDownward(mesh.m_ptr, el_i, mesh.dim-1, downward)
-    face_i = downward[facelocal_i]
-    which, flip, rotate = getAlignment(mesh.m_ptr, el_i, face_i)
-    orientations[i] = EntityOrientation(which, flip, rotate)
+    getDownward(mesh.m_ptr, el_i, 0, downward)
+    verts_i = view(orientations, :, i)
+    for j=1:(mesh.dim)  # dim = number of verts on a face
+      vert_j = downward[vertmap[j, facelocal_i]]
+      # get the remote pointer for this vert
+      nremotes = countRemotes(mesh.m_ptr, vert_j)
+      @assert nremotes <= 400
+      getRemotes(remote_partnums, remote_ptrs)
+      idx = findfirst(remote_partnums, peer_num)
+      verts_i[j] = remote_ptrs[idx]
+    end
   end
 
   return nothing
 end
 
 # this can be generalized once edge orientation is generalized
-function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary}, bndries_remote::Array{Boundary}, orientations_local::AbstractArray{EntityOrientation}, 
-orientations_remote::AbstractArray{EntityOrientation}, f=STDOUT)
+function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary}, bndries_remote::Array{Boundary}, orientations_local::AbstractArray{Ptr{Void}, 2}, 
+orientations_remote::AbstractArray{Ptr{Void}, 2}, f=STDOUT)
 # create Interfaces out of the local + remote Boundary arrays
 # also numbers the remote elements with numbers > numEl, storing them in
 # the elementR field of the Interface
@@ -277,10 +290,9 @@ orientations_remote::AbstractArray{EntityOrientation}, f=STDOUT)
       new_elR = interfaces[old_iface_idx].elementR
     end
 
-    #TODO: fix this for 3D
-    r1 = orientations_local[i]
-    r2 = orientations_remote[i]
-    orient = calcRelRotation(mesh, r1, r2, false)
+    facevertsL = view(orientations_local, :, i)
+    facevertsR = view(orientations_remote, :, i)
+    orient = calcRelativeOrientation(facevertsL, facevertsR)
 
     interfaces[i] = Interface(bndry_l.element, new_elR,  bndry_l.face, bndry_r.face, UInt8(orient))
   end

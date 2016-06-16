@@ -277,7 +277,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   color_cnt::Array{Int32, 1}  # number of elements in each color
 
   dof_offset::Int  # local to global dof offset
-
+  topo::ElementTopology{2}
 
  function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts; dofpernode=1, shape_type=1, coloring_distance=2)
   # construct pumi mesh by loading the files named
@@ -307,6 +307,8 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   mesh.shape_type = shape_type
   mesh.coloringDistance = coloring_distance
   mesh.dof_offset = 0
+  mesh.topo = ElementTopology2()  # get default topology because it isn't
+                                  # important for 2d
   num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim = init2(dmg_name, smb_name, order, shape_type=shape_type)
   mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
                                          # field shape for CG
