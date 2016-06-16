@@ -163,18 +163,14 @@ function getParallelInfo(mesh::PumiMeshDG)
   mesh.local_element_lists = Array(Array{Int32, 1}, mesh.npeers)
   curr_elnum = mesh.numEl + 1
   myrank = mesh.myrank
-  f = open("parallel_$myrank.dat", "w")
   for i=1:npeers
-    println(f, "peer ", i)
     peer_offsets[i] = curr_elnum
-    println(f, "peer_offset[i] = ", peer_offsets[i])
     curr_elnum, shared_interfaces[i] = numberBoundaryEls(mesh, curr_elnum, 
                                  bndries_local[i], bndries_remote[i], 
-                                 orientations_local[i], orientations_remote[i], f)
+                                 orientations_local[i], orientations_remote[i])
     curr_elnum += 1
 
-    mesh.local_element_lists[i] = getBoundaryElList(bndries_local[i], f)
-    println(f, "length(local_element_list) = ", length(mesh.local_element_lists[i]))
+    mesh.local_element_lists[i] = getBoundaryElList(bndries_local[i])
   end
   close(f)
   peer_offsets[npeers+1] = curr_elnum
@@ -272,8 +268,6 @@ orientations_remote::AbstractArray{Ptr{Void}, 2}, f=STDOUT)
 # also numbers the remote elements with numbers > numEl, storing them in
 # the elementR field of the Interface
 
-  println(f, "----- entered numberBoundaryEls -----")
-
   ninterfaces = length(bndries_local)
   interfaces = Array(Interface, ninterfaces)
   curr_elnum = startnum  # counter for 
@@ -286,7 +280,6 @@ orientations_remote::AbstractArray{Ptr{Void}, 2}, f=STDOUT)
       new_elR = curr_elnum
       curr_elnum += 1
     else
-      println(f, "interface ", i, " is repeated at index ", old_iface_idx)
       new_elR = interfaces[old_iface_idx].elementR
     end
 
@@ -303,7 +296,6 @@ end
 
 function getBoundaryElList(bndries_local::Array{Boundary}, f=STDOUT)
 # get the list of elemements on the boundary
-  println(f, "----- entered getBoundaryElList -----")
   nfaces = length(bndries_local)
   elnums = Array(Int32, nfaces)  # nfaces is the upper bound on 
                                  # the number of elements
@@ -313,8 +305,6 @@ function getBoundaryElList(bndries_local::Array{Boundary}, f=STDOUT)
     if old_iface_idx == 0
       elnums[pos] = bndries_local[i].element
       pos += 1
-    else
-      println(f, "interface ", i, " is repeated at index ", old_iface_idx)
     end
   end
 
