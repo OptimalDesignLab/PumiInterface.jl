@@ -113,18 +113,6 @@ function getInterfaceArray(mesh::PumiMesh2D)
 # node from the perspective of elementL
 
   # only need internal boundaries (not external)
-#  num_ext_edges = size(getBoundaryEdgeNums(mesh))[1]  # bad memory efficiency
-#  num_int_edges = getNumEdges(mesh) - num_ext_edges
-
-#  new_bndry = Boundary(2, 3)
-#   println("new_bndry = ", new_bndry)
-
-#  new_interface = Interface(1, 2, 3, 4)
-#   println("new_interface = ", new_interface)
-
-#   println("num_int_edges = ", num_int_edges)
-
-#  interfaces = Array(typeof(new_interface), num_int_edges)
   # get number of nodes affecting an edge
   num_edge_nodes = countAllNodes(mesh.mshape_ptr, 1)
 
@@ -139,9 +127,6 @@ function getInterfaceArray(mesh::PumiMesh2D)
 #       println("this is an internal edge")
       element1 = adjacent_nums[1]
       element2 = adjacent_nums[2]
-
-#      coords_1 = x[:, :, element1]
-#      coords_2 = x[:, :, element2]
 
       coords_1 = zeros(3,3)
       coords_2 = zeros(3,3)
@@ -192,7 +177,6 @@ end  # end function
 
 
 function getInterfaceArray(mesh::PumiMesh3D)
-  println("----- entered getInterfaceArray -----")
 
   adj_elements = Array(Ptr{Void}, 2)
   coords1 = zeros(3, 4)
@@ -205,7 +189,6 @@ function getInterfaceArray(mesh::PumiMesh3D)
   facevertsR = Array(Ptr{Void}, 3)
   pos = 1 # position in mesh.interfaces
   for i=1:mesh.numFace
-    println("face ", i)
     face_i = mesh.faces[i]
     num_adjacent = countAdjacent(mesh.m_ptr, face_i, mesh.dim)
 

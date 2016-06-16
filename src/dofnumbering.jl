@@ -96,10 +96,8 @@ function getDofNumbers(mesh::PumiMeshDG)
 mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.shared_element_offsets[end] - 1)
 
 for i=1:mesh.numEl
-  println("element ", i)
   #TODO: use the non-allocating version
   dofnums = getGlobalNodeNumbers(mesh, i)
-  println("dofs = ", dofnums)
 
   for j=1:mesh.numNodesPerElement
     for k=1:mesh.numDofPerNode  # loop over dofs on the node
@@ -142,7 +140,6 @@ for i=1:mesh.npeers
   send_reqs[i] = MPI.Isend(sendbuf_i, mesh.peer_parts[i], 1, mesh.comm)
 end
 
-close(f)
 # figure out the local to global offset of the dof numbers
 # compute number of local dofs
 ndof = 0

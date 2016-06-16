@@ -172,7 +172,6 @@ function getParallelInfo(mesh::PumiMeshDG)
 
     mesh.local_element_lists[i] = getBoundaryElList(bndries_local[i])
   end
-  close(f)
   peer_offsets[npeers+1] = curr_elnum
   mesh.shared_element_offsets = peer_offsets
   mesh.numGlobalEl = curr_elnum - 1
