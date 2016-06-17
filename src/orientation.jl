@@ -252,14 +252,14 @@ end
 
 """
   Maps the position where vertex 1 of faceL is found in faceR to the relative 
-  rotation of the face
+  rotation of the face.
 """
-global const pos_to_rotation = [1, 3, 2]
+global const pos_to_rotation = [1, 2, 3]
 
 
 """
   This function takes the data from element that share a face and determines 
-  the relative orientation of the shared face (ie. how many rotations ccw 
+  the relative orientation of the shared face (ie. how many rotations cw 
   faceR is from faceL when looking from the perspective of faceL).  The 
   user supplied topology information is used to determine the ordering of the 
   vertices on both faces, therefore the relative orientation is consistent with
