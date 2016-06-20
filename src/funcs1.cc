@@ -487,10 +487,19 @@ void resetElIt()
   its[3] = m->begin(3);
 }
 
+void resetIt(int dim)
+{
+  its[dim] = m->begin(dim);
+}
 
 void incrementVertIt()
 {
   m->iterate(its[0]);
+}
+
+void incrementIt(int dim)
+{
+  m->iterate(its[dim]);
 }
 
 // increment vertex iterator n times
@@ -642,6 +651,11 @@ apf::MeshEntity* getEl()
   return e;
 }
 
+apf::MeshEntity* getEntity(int dim)
+{
+  apf::MeshEntity* e = m->deref(its[dim]);
+  return e;
+}
 
 // get number of the vertex MeshEntity* e
 int getVertNumber2(apf::MeshEntity* e)

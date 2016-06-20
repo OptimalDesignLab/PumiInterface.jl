@@ -71,7 +71,13 @@ extern void incrementFaceItn(int n);
 extern void incrementElIt();
 extern void incrementElItn(int n);
 
+extern void incrementIt(int dim);
+
 extern void resetElIt();
+
+extern void resetIt(int dim);
+
+
 extern int count(apf::Mesh2* m_local, int dimension);
 extern void writeVtkFiles(char* name, apf::Mesh2* m_local);
 
@@ -87,6 +93,7 @@ extern apf::MeshEntity* getVert();
 extern apf::MeshEntity* getEdge();
 extern apf::MeshEntity* getFace();
 extern apf::MeshEntity* getEl();
+extern apf::MeshEntity* getEntity(int dim);
 
 // these functions are deprecated, use getNumberJ insteady
 extern int getVertNumber2(apf::MeshEntity* e);

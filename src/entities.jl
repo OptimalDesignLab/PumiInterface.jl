@@ -132,7 +132,7 @@ return nothing
 end
 
 function getElementCoords(mesh::PumiMesh2D, entity::Ptr{Void}, coords::AbstractMatrix)
-
+  # coords must be 3 x numVertsPerElement
   sx, sy = size(coords)
   getFaceCoords(entity, coords, sx, sy)
 end

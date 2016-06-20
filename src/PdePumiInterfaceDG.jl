@@ -312,6 +312,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   println("\nConstructing PumiMeshDG2 Object")
   println("  sbp_name = ", smb_name)
   println("  dmg_name = ", dmg_name)
+  set_defaults(opts)  # get default arguments
   mesh = new()
   mesh.isDG = true
   mesh.dim = 2
@@ -433,22 +434,24 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
 
   # do node reordering
-#=
+
  if opts["reordering_algorithm"] == "adjacency"
     start_coords = opts["reordering_start_coords"]
+    numberNodesWindy(mesh, start_coords)
     # tell the algorithm there is only 1 dof per node because we only
     # want to label nodes
-    reorder(mesh.m_ptr, mesh.numNodes, 1, 
-            mesh.nodestatus_Nptr, mesh.nodenums_Nptr, mesh.el_Nptr, 
-	    start_coords[1], start_coords[2])
-=#
-# elseif opts["reordering_algorithm"] == "default"
+
+#    reorder(mesh.m_ptr, mesh.numNodes, 1, 
+#            mesh.nodestatus_Nptr, mesh.nodenums_Nptr, mesh.el_Nptr, 
+#	    start_coords[1], start_coords[2])
+
+ elseif opts["reordering_algorithm"] == "default"
 #    println("about to number nodes")
   numberNodesElement(mesh)
 
-#  else
-#    println(STDERR, "Error: invalid dof reordering algorithm requested")
-#  end
+  else
+    throw(ErrorException("invalid dof reordering algorithm requested"))
+  end
 
 #  println("finished numbering nodes")
 

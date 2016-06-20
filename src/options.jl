@@ -19,6 +19,7 @@ function set_defaults(opts)
   get!(opts, "write_sharedboundaries", false)
   get!(opts, "write_face_vertnums", false)
   get!(opts, "write_coords", false)
+  get!(opts, "reordering_algorithm", "default")
 
   return nothing
 end

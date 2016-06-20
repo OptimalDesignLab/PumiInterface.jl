@@ -431,6 +431,9 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact y_i --> roughly(slope*x_i + b, atol=1e-13)
    end
 
+   # check adjacency reordering algorithm doesn't error out
+   PdePumiInterface.numberNodesWindy(mesh, [0.0, 0.0, 0.0])
+
 
 
 

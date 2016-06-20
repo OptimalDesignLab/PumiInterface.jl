@@ -328,6 +328,8 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
 end
 
 function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true)
+# number all nodes (or dofs) by iterating over all entities, from lowest
+# dimension to highest, and numbering the nodes in order
 
   # calculate number of nodes, dofs
   numnodes = mesh.numNodes
@@ -429,4 +431,150 @@ end
 return nothing
 
 end
+
+
+function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
+# number nodes and elements starting from a particular location
+
+  println("Entered numberNodesWindy")
+
+  # calculate number of nodes, dofs
+  numDof = mesh.numDof
+  println("expected number of dofs = ", numDof)
+  if (numDof > 2^30 || numDof < 0)
+    println("Warning: too many dofs, renumbering will fail")
+  end
+
+
+  if number_dofs
+    println("numbering degrees of freedom")
+    numbering_ptr = mesh.dofnums_Nptr
+    dofpernode = mesh.numDofPerNode
+    numDof = mesh.numDofPerNode*numnodes
+  else  # do node numbering
+    println("numbering nodes")
+    numbering_ptr = mesh.nodenums_Nptr
+    dofpernode = 1
+    numDof = mesh.numNodes
+  end
+  dim = mesh.dim
+  el_Nptr = mesh.el_Nptr
+  adj_els = Array(Ptr{Void}, mesh.numFacesPerElement)
+  nodemap = mesh.nodemapSbpToPumi
+  
+  # initially number all components in range (numEl+1):(2*numEl)
+  curr_elnum = mesh.numEl+1
+  resetIt(dim)
+  for i=1:mesh.numEl
+    el_i = getEntity(dim)
+
+    numberJ(el_Nptr, el_i, 0, 0, curr_elnum)
+    curr_elnum += 1
+    incrementIt(dim)
+  end
+  @assert (curr_elnum - 1) == 2*mesh.numEl
+
+  # do the final numbering
+  start_el = getStartEl(mesh, start_coords)
+  que = FIFOQueue{Ptr{Void}}(size_hint = div(mesh.numEl, 2))
+  push!(que, start_el)
+
+  curr_elnum = 1
+  curr_dof = 1
+  # the dreaded while loop
+  while (!isempty(que))
+    print("\n")
+    curr_el = pop!(que)
+
+    # only unlabelled entities are added to the que, and they are added 
+    # exactly once, so no need to check here
+    numberJ(el_Nptr, curr_el, 0, 0, curr_elnum)
+    curr_elnum += 1
+
+    # now label dofs
+    for i=1:mesh.numNodesPerElement
+      pumi_node = nodemap[i]
+      for j=1:dofpernode
+        numberJ(numbering_ptr, curr_el, pumi_node-1, j-1, curr_dof)
+        curr_dof += 1
+      end
+    end
+
+    # add face adjacent neighbor elements to the que
+    numadj = countBridgeAdjacent(mesh.m_ptr, curr_el, dim-1, dim)
+    getBridgeAdjacent(adj_els)
+
+    for i=1:numadj
+      el_i = adj_els[i]
+      elnum = getNumberJ(el_Nptr, el_i, 0, 0)
+
+       # if not numbered and not in que
+       # when adding to que, scale elnum so it is in range (2*numEl+1):3*numEl
+       # as long as there are at least 3 nodes per element, node numbers will
+       # overflow before this
+      if (elnum > mesh.numEl) && (elnum <= 2*mesh.numEl)
+        numberJ(el_Nptr, el_i, 0, 0, elnum + mesh.numEl)
+        push!(que, el_i)
+      end
+    end  # end loop over adjacent elements
+
+  end  # end while loop 
+
+  println("number of dofs = ", curr_dof - 1)
+  if (curr_dof -1) != numDof 
+    println("Warning: number of dofs assigned is not equal to the expected number")
+    println("number of dofs assigned = ", curr_dof-1, " ,expected number = ", numDof)
+    throw(ErrorException("dof numbering failed"))
+  else
+    println("Dof numbering is sane")
+  end
+
+  return nothing
+end
+
+
+function getStartEl(mesh::PumiMeshDG, start_coords)
+# find the element with centroid closest to start_coords
+
+  numVertsPerElement = mesh.numTypePerElement[1]
+  coords = zeros(3, numVertsPerElement)
+  centroid = zeros(3)
+  dim = mesh.dim  # hoist the lookup
+
+  resetIt(dim)
+
+  min_norm = typemin(Float64)
+  min_el = Ptr{Void}(0)
+
+  for i=1:mesh.numEl
+    el_i = getEntity(dim)
+    getElementCoords(mesh, el_i, coords)
+
+    # compute centroid
+    for j=1:dim
+      for k=1:numVertsPerElement
+        centroid[j] += coords[k, j]
+      end
+      centroid[j] = coords[j]/numVertsPerElement
+    end
+    
+    # compute norm of distance from start_coords
+    nrm = 0.0
+    for j=1:dim
+      nrm += (centroid[j] - start_coords[j])*(centroid[j] - start_coords[j])
+    end
+    # skip the square root because it doesn't affect the comparison
+
+    if nrm > min_norm
+      min_norm = nrm
+      min_el = el_i
+    end
+
+    fill!(centroid, 0.0)
+    incrementIt(dim)
+  end
+
+  return min_el
+end
+
 

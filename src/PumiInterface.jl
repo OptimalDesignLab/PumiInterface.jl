@@ -32,6 +32,7 @@ global const resetVertIt_name = "resetVertIt"
 global const resetEdgeIt_name = "resetEdgeIt"
 global const resetFaceIt_name = "resetFaceIt"
 global const resetElIt_name  = "resetElIt"
+global const resetIt_name = "resetIt"
 global const incrementVertIt_name = "incrementVertIt"
 global const incrementVertItn_name = "incrementVertItn"
 
@@ -43,6 +44,8 @@ global const incrementFaceItn_name = "incrementFaceItn"
 
 global const incrementElIt_name = "incrementElIt"
 global const incrementElItn_name = "incrementElItn"
+
+global const incrementIt_name = "incrementIt"
 
 global const count_name = "count"
 global const writeVtkFiles_name = "writeVtkFiles"
@@ -57,6 +60,7 @@ global const getVert_name = "getVert"
 global const getEdge_name = "getEdge"
 global const getFace_name = "getFace"
 global const getEl_name = "getEl"
+global const getEntity_name = "getEntity"
 global const getVertNumber2_name = "getVertNumber2"
 global const getEdgeNumber2_name = "getEdgeNumber2"
 global const getFaceNumber2_name = "getFaceNumber2"
@@ -154,7 +158,7 @@ export countPeers, getPeers
 export VertIterator, EdgeIterator, FaceIterator, ElIterator
 export VertGetter, EdgeGetter, FaceGetter, ElGetter
 export countPeers, getPeers, countRemotes, getRemotes, isShared
-
+export getEntity, incrementIt, resetIt,
 @doc """
   initilize the state of the interface library
 
@@ -314,6 +318,11 @@ return nothing
 
 end
 
+function resetIt(dim::Integer)
+
+  ccall( (resetIt_name, pumi_libname), Void, (Cint,), dim );
+end
+
 
 type VertIterator
 end
@@ -415,6 +424,11 @@ function incrementElItn(n::Integer)
 ccall( (incrementElItn_name, pumi_libname), Void, (Int32,), n );
 return nothing
 
+end
+
+function incrementIt(dim::Integer)
+
+  ccall( (incrementIt_name, pumi_libname), Void, (Cint,), dim)
 end
 
 
@@ -542,6 +556,10 @@ function getEl()
   return entity
 end
 
+function getEntity(dim::Integer)
+
+  ccall( (getEntity_name, pumi_libname), Ptr{Void}, (Cint,), dim)
+end
 
 
 
