@@ -125,8 +125,7 @@ function getEdgeOrientation(mesh::PumiMesh, elnum::Integer, edgenum::Integer)
     elseif pos2 - pos1 < 0  # negatively oriented
       return -1, edge_idx
     else
-      println(STDERR, "Warning, bad orientation determination in PdePumiInterface getEdgeOrientation")
-      return 0, edge_idx
+      throw(ErrorException("bad orientation determination"))
     end
   elseif edge_idx == 3  # ordering is reversed for 3rd edge
     if -(pos2 - pos1) > 0  # positively oriented
@@ -134,11 +133,10 @@ function getEdgeOrientation(mesh::PumiMesh, elnum::Integer, edgenum::Integer)
     elseif -(pos2 - pos1) < 0  # negatively oriented
       return -1, edge_idx
     else
-      println(STDERR, "Warning, bad orientation determination in PdePumiInterface getEdgeOrientation")
-      return 0, edge_idx
+      throw(ErrorException("bad orientation determination"))
     end
   else
-    println(STDERR, "Warning, bad edge index determination inf PdePumiInterface getEdgeOrientation")
+    throw(ErrorException("bad orientation determination"))
   end
  
 end  # end function

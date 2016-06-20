@@ -96,8 +96,6 @@ function createSubtriangulatedMesh(mesh::AbstractMesh)
     if order >= 3
 
       mesh.triangulation = getTriangulation(order, shape_type)
-      flush(STDOUT)
-      flush(STDERR)
       mesh.mnew_ptr = createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
 
       println("creating solution field on new mesh")
@@ -112,8 +110,6 @@ function createSubtriangulatedMesh(mesh::AbstractMesh)
     if order >= 1
 
       mesh.triangulation = getTriangulation(order, shape_type)
-      flush(STDOUT)
-      flush(STDERR)
       println("size(mesh.triangulation) = ", size(mesh.triangulation))
       mesh.mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, mesh.coords)
 

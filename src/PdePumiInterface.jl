@@ -692,7 +692,7 @@ function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts;
     mesh.pertNeighborEls = getPertNeighbors0(mesh)
 
   else
-    println(STDERR, "Error: unsupported coloring distance requested")
+    throw(ErrorException("unsupported coloring distance requested"))
   end
 
   # get sparsity information

@@ -204,7 +204,7 @@ function getNodeEntities(m_ptr, mshape_ptr, entity)
     num_type_per_entity = [4, 6, 4, 1]
     numRegions = num_type_per_entity[4]
   else
-    println(STDERR, "Error: unsupported entity type in getNodeEntites, entity type = $entity_type")
+    throw(ErrorException("unsupported entity type in getNodeEntites, entity type = $entity_type"))
   end
 
   numVerts = num_type_per_entity[1]

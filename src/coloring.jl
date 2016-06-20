@@ -651,9 +651,9 @@ end
 if verify
   println("color-1 verification finished")
   if cnt != 0
-    println(STDERR, "Warning: non unique element coloring")
+    println(STDERR, "number of element with non unique coloring = ", cnt)
+    throw(ErrorException("non unique element coloring"))
   end
-  println("number of element with non unique coloring = ", cnt)
 end
 
 return cnt
