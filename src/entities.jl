@@ -149,7 +149,7 @@ end
 #TODO: stop using slice notation
 function getCoordinates(mesh::PumiMeshCG, sbp::AbstractSBP)
 # populate the coords array of the mesh object
-
+println("----- entered getCoordinates -----")
 mesh.coords = Array(Float64, 2, sbp.numnodes, mesh.numEl)
 
 #println("entered getCoordinates")
@@ -158,15 +158,15 @@ numVertsPerElement = mesh.numTypePerElement[1]
 coords_i = zeros(3,numVertsPerElement)
 coords_it = zeros(numVertsPerElement, mesh.dim)
 for i=1:mesh.numEl  # loop over elements
-  
+  println("i = ", i)  
   el_i = mesh.elements[i]
   getElementCoords(mesh, el_i, coords_i)
 
 
   coords_it[:,:] = coords_i[1:mesh.dim, :].'
-#  println("coords_it = ", coords_it)
+  println("coords_it = ", coords_it)
   mesh.coords[:, :, i] = calcnodes(sbp, coords_it)
-#  println("mesh.coords[:,:,i] = ", mesh.coords[:,:,i])
+  println("mesh.coords[:,:,i] = ", mesh.coords[:,:,i])
 end
 
 return nothing

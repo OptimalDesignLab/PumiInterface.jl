@@ -277,9 +277,10 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   color_cnt::Array{Int32, 1}  # number of elements in each color
 
   dof_offset::Int  # local to global dof offset
+  sbpface::TriFace{Float64}
   topo::ElementTopology{2}
 
- function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts; dofpernode=1, shape_type=1, coloring_distance=2)
+ function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface; dofpernode=1, shape_type=1, coloring_distance=2)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -315,6 +316,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   if dim != mesh.dim
     throw(ErrorException("loaded mesh is not 2 dimensions"))
   end
+  mesh.sbpface = sbpface
 
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
@@ -519,6 +521,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   mesh.dxidx = Array(T1, 2, 2, sbp.numnodes, mesh.numEl)
   mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
+  println("mesh.coords = ", mesh.coords)
   mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
 
   mesh.min_el_size = getMinElementSize(mesh)

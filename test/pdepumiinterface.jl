@@ -28,10 +28,13 @@ facts("--- Testing PdePumiInterface --- ") do
     smb_name = "tri2l.smb"
     dmg_name = ".null"
     for order = 1:4
-      println("testing order ", order, "CG mesh")
-      sbp = TriSBP{Float64}(degree=order)
+      println("testing order ", order, " CG mesh")
+      sbp = TriSBP{Float64}(degree=order, reorder=true)
+      ref_verts = [-1. 1 -1; -1 -1 1]
+      sbpface = TriFace{Float64}(order, sbp.cub, ref_verts.')
 
-    mesh =  PumiMesh2{Float64}(dmg_name, smb_name, order, sbp, opts, coloring_distance=2, dofpernode=4)
+
+    mesh =  PumiMesh2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
     @fact mesh.numVert --> 4
     @fact mesh.numEdge --> 5
     @fact mesh.numFace --> mesh.numEdge
@@ -153,6 +156,8 @@ facts("--- Testing PdePumiInterface --- ") do
     @fact length(mesh.edges) --> mesh.numEdge
     @fact length(mesh.elements) --> mesh.numEl
 
+    println("mesh.coords = ", mesh.coords)
+    println("size(mesh.coords) = ", size(mesh.coords))
     
     @fact mesh.jac --> roughly(ones(mesh.numNodesPerElement ,2))
 
@@ -227,10 +232,13 @@ facts("--- Testing PdePumiInterface --- ") do
 
 
   for order = 1:4
-    println("testing order ", order, "DG mesh")
-    sbp = TriSBP{Float64}(degree=order)
+    println("testing order ", order, " CG mesh against files")
+    sbp = TriSBP{Float64}(degree=order, reorder=true)
+    ref_verts = [-1. 1 -1; -1 -1 1]
+    sbpface = TriFace{Float64}(order, sbp.cub, ref_verts.')
 
-    mesh =  PumiMesh2{Float64}(dmg_name, smb_name, order, sbp, opts, coloring_distance=2, dofpernode=4)
+
+    mesh =  PumiMesh2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
     
     for name in fnames
@@ -349,6 +357,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact mesh.color_cnt[2] --> 1
 
  
+  @fact mesh.jac --> roughly(ones(mesh.numNodesPerElement ,2))
+
    function test_interp{Tmsh}(mesh::AbstractMesh{Tmsh})
      sbpface = mesh.sbpface
      dxdxi_element = zeros(2, 2, mesh.numNodesPerElement, 1)
