@@ -38,6 +38,30 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
     @fact countnz(mesh.pertNeighborEls[i, :]) --> greater_than(cnt)
   end
 
+  # check mapping interpolation
+  for i=1:mesh.npeers
+
+    dxidx_peer = mesh.dxidx_sharedface[i]
+    jac_peer = mesh.jac_sharedface[i]
+    for j=1:mesh.peer_face_counts[i]
+      iface_i = mesh.shared_interfaces[i][j]
+      el_j = iface_i.elementL
+      dxidx_el = mesh.dxidx[:, :, 1, el_j]
+      jac_el = mesh.jac[:, el_j]
+      jac_face = jac_peer[:, j]
+
+      for k=1:mesh.numNodesPerFace
+        dxidx_face = dxidx_peer[:, :, k, j]
+        for p=1:3
+          for n=1:3
+            @fact dxidx_face[n, p] --> roughly(dxidx_el[n, p], atol=1e-13)
+          end
+        end
+        @fact jac_face[k] --> roughly(jac_el[k], atol=1e-13)
+      end
+    end   # end loop over peer faces
+  end  # end loop over peers
+
 
 
 end

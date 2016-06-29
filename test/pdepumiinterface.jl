@@ -384,6 +384,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     for j=1:sbpface.numnodes
       dxidx = inv(dxdxi_face_rshape[:, :, j])
       jac_face[j] = det(dxidx)
+      println("jac = ", mesh.jac_face[j,i])
       dxidx_face[:, :, j] = dxidx/det(dxidx)
 
       @fact jac_face[j] --> roughly(mesh.jac_face[j, i], atol=1e-13)
@@ -444,6 +445,28 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    # check adjacency reordering algorithm doesn't error out
    PdePumiInterface.numberNodesWindy(mesh, [0.0, 0.0, 0.0])
 
+    smb_name = "tri8l.smb"
+    mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface, coloring_distance=2, dofpernode=4)
+
+  # check mapping interpolation
+  # should be constant within an element for straight-sided elements
+  for i=1:mesh.numInterfaces
+    iface_i = mesh.interfaces[i]
+    el_i = iface_i.elementL
+    dxidx_el = mesh.dxidx[:, :, 1, el_i]
+    jac_el = mesh.jac[:, el_i]
+    jac_face = mesh.jac_face[:, i]
+
+    for j=1:mesh.numNodesPerFace
+      dxidx_face = mesh.dxidx_face[:, :, j, i]
+      for k=1:3
+        for p=1:3
+          @fact dxidx_face[p, k] --> roughly(dxidx_el[p, k], atol=1e-13)
+        end
+      end
+      @fact jac_face[j] --> roughly(jac_el[j], atol=1e-13)
+    end
+  end  # end loop over interfaces
 
 
 

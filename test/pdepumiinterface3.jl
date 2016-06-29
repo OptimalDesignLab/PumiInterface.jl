@@ -17,7 +17,8 @@ facts("----- Testing PdePumiInterface3DG -----") do
   sbpface = TetFace{Tsbp}(degree, sbp.cub, ref_verts)
 
   dmg_name = ".null"
-  smb_name = "tet1.smb"
+#  smb_name = "tet1.smb"
+  smb_name = "unitcube.smb"
 
   opts = PdePumiInterface.get_defaults()
   opts["numBC"] = 1
