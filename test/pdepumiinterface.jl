@@ -459,8 +459,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
     for j=1:mesh.numNodesPerFace
       dxidx_face = mesh.dxidx_face[:, :, j, i]
-      for k=1:3
-        for p=1:3
+      for k=1:2
+        for p=1:2
           @fact dxidx_face[p, k] --> roughly(dxidx_el[p, k], atol=1e-13)
         end
       end

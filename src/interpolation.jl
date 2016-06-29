@@ -200,6 +200,7 @@ function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 3}, sbpface, dxi
     adjugate3(dxidx_hat, dxidx_node)
     for k=1:dim
       for p=1:dim
+        dxidx_node[k, p] *= detJ
         pos = p + dim*(k-1)
         dxdxi_el[pos,j,1] = dxidx_node[k, p]
       end

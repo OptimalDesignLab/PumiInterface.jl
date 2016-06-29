@@ -356,7 +356,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
     @fact bndry_i.face --> greater_than(0)
     @fact bndry_i.face --> less_than(5)
   end
-#=
+
   # check mapping interpolation
   # should be constant within an element for straight-sided elements
   for i=1:mesh.numInterfaces
@@ -376,9 +376,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
       @fact jac_face[j] --> roughly(jac_el[j], atol=1e-13)
     end
   end  # end loop over interfaces
-=#
 
-#=
   # check mapping interpolation
   for i=1:mesh.npeers
 
@@ -402,10 +400,6 @@ facts("----- Testing PdePumiInterface3DG -----") do
       end
     end   # end loop over peer faces
   end  # end loop over peers
-=#
-
-
-
 
 end
 MPI.Barrier( MPI.COMM_WORLD)
