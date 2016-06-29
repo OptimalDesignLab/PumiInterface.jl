@@ -8,11 +8,13 @@ include("defs.jl")
 
 facts("----- Testing PdePumiInterface3DG -----") do
   degree = 1
-  numnodes = 4
   Tsbp = Float64
-  sbp = MySBP{Tsbp}(degree, numnodes, 0)
-  sbpface = MyFace{Tsbp}(degree, 3, numnodes)
-  topo = ElementTopology3()
+  sbp = TetSBP{Tsbp}(degree=degree, reorder=false, internal=true)
+  ref_verts = sbp.vtx
+  interp_op = SummationByParts.buildinterpolation(sbp, ref_verts)
+  face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)
+  topo = ElementTopology{3}(face_verts)
+  sbpface = TetFace{Tsbp}(degree, sbp.cub, ref_verts)
 
   dmg_name = ".null"
   smb_name = "tet1.smb"
@@ -99,6 +101,72 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   @fact size(mesh.neighbor_colors, 1) --> 5
   @fact size(mesh.neighbor_nums, 1) --> 5
+
+
+  # check interface array
+  for i=1:mesh.numInterfaces
+    iface_i = mesh.interfaces[i]
+    @fact iface_i.elementL --> greater_than(0)
+    @fact iface_i.elementL --> less_than(mesh.numEl+1)
+    @fact iface_i.elementR --> greater_than(0)
+    @fact iface_i.elementR --> less_than(mesh.numEl+1)
+    @fact iface_i.faceL --> greater_than(0)
+    @fact iface_i.faceL --> less_than(5)
+    @fact iface_i.faceR --> greater_than(0)
+    @fact iface_i.faceR --> less_than(5)
+    @fact iface_i.orient --> greater_than(0)
+    @fact iface_i.orient --> less_than(4)
+  end
+
+  # check boundary array
+  for i=1:mesh.numBoundaryFaces
+    bndry_i = mesh.bndryfaces[i]
+    @fact bndry_i.element --> greater_than(0)
+    @fact bndry_i.element --> less_than(mesh.numEl + 1)
+    @fact bndry_i.face --> greater_than(0)
+    @fact bndry_i.face --> less_than(5)
+  end
+
+  # check mapping interpolation
+  # should be constant within an element for straight-sided elements
+  for i=1:mesh.numInterfaces
+    iface_i = mesh.interfaces[i]
+    el_i = iface_i.elementL
+    dxidx_el = mesh.dxidx[:, :, 1, el_i]
+    jac_el = mesh.jac[:, el_i]
+    jac_face = mesh.jac_face[:, i]
+
+    for j=1:mesh.numNodesPerFace
+      dxidx_face = mesh.dxidx_face[:, :, j, i]
+      for k=1:3
+        for p=1:3
+          @fact dxidx_face[p, k] --> roughly(dxidx_el[p, k], atol=1e-13)
+        end
+      end
+      @fact jac_face[j] --> roughly(jac_el[j], atol=1e-13)
+    end
+  end  # end loop over interfaces
+
+  for i=1:mesh.numBoundaryFaces
+    bndry_i = mesh.bndryfaces[i]
+    el_i = bndry_i.element
+    dxidx_el = mesh.dxidx[:, :, 1, el_i]
+    jac_el = mesh.jac[:, el_i]
+    jac_face = mesh.jac_bndry[:, i]
+
+    for j=1:mesh.numNodesPerFace
+      dxidx_face = mesh.dxidx_bndry[:, :, j, i]
+      for k=1:3
+        for p=1:3
+          @fact dxidx_face[p, k] --> roughly(dxidx_el[p, k], atol=1e-13)
+        end
+      end
+      @fact jac_face[j] --> roughly(jac_el[j], atol=1e-13)
+    end
+  end  # end loop over interfaces
+
+
+
 
 
 

@@ -177,7 +177,7 @@ end  # end function
 
 
 function getInterfaceArray(mesh::PumiMesh3D)
-
+  println("----- entered getInterfaceArray -----")
   adj_elements = Array(Ptr{Void}, 2)
   coords1 = zeros(3, 4)
   coords2 = zeros(3, 4)
@@ -193,11 +193,14 @@ function getInterfaceArray(mesh::PumiMesh3D)
     num_adjacent = countAdjacent(mesh.m_ptr, face_i, mesh.dim)
 
     if num_adjacent == 2  # this is a shared interface
+
+      println("interfaceface ", pos)
       getAdjacent(adj_elements)
       el1 = adj_elements[1]
       el2 = adj_elements[2]
       elnum1 = getNumberJ(mesh.el_Nptr, el1, 0, 0) + 1
       elnum2 = getNumberJ(mesh.el_Nptr, el2, 0, 0) + 1
+      println("elnum1 = ", elnum1, ", elnum2 = ", elnum2)
 
       # decide which one is elementL
       getElementCoords(mesh, el1, coords1)
@@ -227,13 +230,16 @@ function getInterfaceArray(mesh::PumiMesh3D)
         elR = el2
       end
 
+      println("elnumL = ", elnumL)
+      println("elnumR = ", elnumR)
+
       localfacenumL = getFaceLocalNum(mesh, i, elnumL)
       localfacenumR = getFaceLocalNum(mesh, i, elnumR)
       fdata = FaceData(elnumL, elL, elnumR, elR, localfacenumL, localfacenumR,
                        vertsL, vertsR, facevertsL, facevertsR)
 
       rel_rotate = getRelativeOrientation(fdata, mesh)
-      mesh.interfaces[pos] = Interface(el1, el2, localfacenumL, localfacenumR, UInt8(rel_rotate))
+      mesh.interfaces[pos] = Interface(elnumL, elnumR, localfacenumL, localfacenumR, UInt8(rel_rotate))
       pos += 1
 
       fill!(centroid1, 0.0)

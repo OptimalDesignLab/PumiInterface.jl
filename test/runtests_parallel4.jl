@@ -9,11 +9,13 @@ include("defs.jl")
 
 facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   degree = 1
-  numnodes = 4
   Tsbp = Float64
-  sbp = MySBP{Tsbp}(degree, numnodes, 0)
-  sbpface = MyFace{Tsbp}(degree, 3, numnodes)
-  topo = ElementTopology3()
+  sbp = TetSBP{Tsbp}(degree=degree, reorder=false, internal=true)
+  ref_verts = sbp.vtx
+  interp_op = SummationByParts.buildinterpolation(sbp, ref_verts)
+  face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)
+  topo = ElementTopology{3}(face_verts)
+  sbpface = TetFace{Tsbp}(degree, sbp.cub, ref_verts)
 
   dmg_name = ".null"
   smb_name = "pcube10.smb"
@@ -35,6 +37,7 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
     cnt = countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
     @fact countnz(mesh.pertNeighborEls[i, :]) --> greater_than(cnt)
   end
+
 
 
 end

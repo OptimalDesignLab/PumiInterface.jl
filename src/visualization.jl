@@ -50,6 +50,66 @@ function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
   return nothing
 end  # end function saveSolutionToMesh
 
+function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
+# interpolate solution to the vertices 
+# u is the vector containing the solution, even though for DG the vector and the 
+# 3D array forms of the solution have identical memory layout
+# change this in the future with ReshapedArrays?
+
+  interp = mesh.interp_op
+  u_el = zeros(Float64, mesh.numNodesPerElement, mesh.numDofPerNode)
+  u_verts = zeros(Float64, size(interp, 1), mesh.numDofPerNode)
+  u_node = zeros(Float64, mesh.numDofPerNode)
+  dofs = mesh.dofs
+  numEntitiesPerType = mesh.numTypePerElement
+  fshape_ptr = mesh.coordshape_ptr
+
+  # count nodes on solution field 
+  numNodesPerType = Array(Int, 4)
+  numNodesPerType[1] = countNodesOn(fshape_ptr, 0)
+  numNodesPerType[2] = countNodesOn(fshape_ptr, 1)
+  numNodesPerType[3] = countNodesOn(fshape_ptr, 2)
+  numNodesPerType[4] = countNodesOn(fshape_ptr, 4) # tetrahedron
+ 
+  for el=1:mesh.numEl
+    el_i = mesh.elements[i]
+
+    # get the solution values out of u
+    for j=1:mesh.numNodesPerElement
+      for k=1:mesh.numDofPerNode
+        dof_k = dofs[k, j, el]
+        u_el[j, k] = real(u[dof_k])
+      end
+    end
+
+    # interpolate
+    smallmatvec!(interp, u_el, u_verts)
+
+    # save values to mesh
+    # assumes the solution fieldshape is the same as the coordinate fieldshape
+    node_entities = getNodeEntities(mesh.m_ptr, fshape_ptr, el_i)
+    col = 1  # current node of the element
+
+    for i=1:(mesh.dim+1)
+      for j=1:numEntitiesPerType[i]
+        for k=1:numNodesPerType[i]
+          entity = node_entities[col]
+          # skip elementNodeOffsets - maximum of 1 node per entity
+          for p=1:mesh.numDofPerNode
+            u_node[p] = u_verts[col, p]
+          end
+
+          setComponents(mesh.f_ptr, entity, 0, u_node)
+          col += 1
+        end
+      end
+    end  # end loop over entity dimensions
+
+  end  # end loop over elements
+
+
+  return nothing
+end  # end function
 
 
 function writeVisFiles(mesh::PumiMesh2DG, fname::AbstractString)

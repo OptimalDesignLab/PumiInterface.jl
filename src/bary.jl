@@ -1,3 +1,6 @@
+# function for converting back and forth between xyz and barycentric coordinates
+
+#=
 function calc3dnodes(vtx::Array{Float64, 2})
 # the columns of vtx are the x, y, and z coordinates of the nodes
 
@@ -27,4 +30,5 @@ vtx = [1. 2 1 1;
 coords = calcnodes(vtx)
 println("vtx = \n", vtx)
 println("coords = \n", coords)
+=#
 =#

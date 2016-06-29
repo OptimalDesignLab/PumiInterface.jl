@@ -118,13 +118,7 @@ for i=1:mesh.numEl  # loop over elements
 
   coords_it[:,:] = coords_i[1:mesh.dim, :].'
 
-  if mesh.dim == 2
-    mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
-  else # 3D
-    # this is a temporary hack to test PdePumiInterface until SBP has 3D
-    # routines ready
-    mesh.coords[:, :, i] = calc3dnodes(coords_i)
-  end
+  mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
 end
 
 return nothing
@@ -149,7 +143,6 @@ end
 #TODO: stop using slice notation
 function getCoordinates(mesh::PumiMeshCG, sbp::AbstractSBP)
 # populate the coords array of the mesh object
-println("----- entered getCoordinates -----")
 mesh.coords = Array(Float64, 2, sbp.numnodes, mesh.numEl)
 
 #println("entered getCoordinates")
@@ -158,15 +151,12 @@ numVertsPerElement = mesh.numTypePerElement[1]
 coords_i = zeros(3,numVertsPerElement)
 coords_it = zeros(numVertsPerElement, mesh.dim)
 for i=1:mesh.numEl  # loop over elements
-  println("i = ", i)  
   el_i = mesh.elements[i]
   getElementCoords(mesh, el_i, coords_i)
 
 
   coords_it[:,:] = coords_i[1:mesh.dim, :].'
-  println("coords_it = ", coords_it)
   mesh.coords[:, :, i] = calcnodes(sbp, coords_it)
-  println("mesh.coords[:,:,i] = ", mesh.coords[:,:,i])
 end
 
 return nothing
@@ -218,7 +208,30 @@ end
 
 function getBndryCoordinates{Tmsh}(mesh::PumiMesh3DG{Tmsh}, bndryfaces::Array{Boundary}, coords_bndry::Array{Tmsh, 3})
 
-  println(STDERR, "\nWarning: getBndryCoordinates not implemented for 3D DG methods yet\n")
+  sbpface = mesh.sbpface
+  coords_i = zeros(3, mesh.numEntitiesPerType[1])
+  coords_face = zeros(3, 3)
+  vertmap = mesh.topo.face_verts
+  for i=1:length(bndryfaces)
+    bndry_i = bndryfaces[i]
+    el = bndry_i.element
+    el_ptr = mesh.elements[el]
+    face = bndry_i.face
+
+    getElementCoords(mesh, el_ptr, coords_i)
+
+    # extract the vertices of the face
+    for v=1:3
+      vidx = vertmap[v, face]
+      for dim=1:3
+        coords_face[v, dim] = coords_i[dim, vidx]
+      end
+    end
+
+    coords_bndry[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbpface.cub, coords_face)
+  end
+
+  return nothing
 end
 
 
