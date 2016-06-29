@@ -51,8 +51,6 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
 
   # temporary storage
   interp_data = Interpolation(mesh)
-  myrank = mesh.myrank
-  f = open("interpolation$myrank.dat", "w")
 
   for i=1:mesh.numInterfaces
     dxidx_i = view(dxidx_face, :, :, :, i)
@@ -61,17 +59,12 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
     interface_i = mesh.interfaces[i]
     el = interface_i.elementL
     face = interface_i.faceL
-    println(f, "interface ", i, ": element ", el, ", face ", face)
     interp_data.bndry_arr[1] =  Boundary(1, face)
 
     dxidx_in = view(mesh.dxidx, :, :, :, el)
     jac_in = view(mesh.jac, :, el)
 
     interpolateFace(interp_data, mesh.sbpface, dxidx_in, jac_in, dxidx_i, jac_i)
-    println(f, "dxidx_in = ", dxidx_in)
-    println(f, "dxidx_interp = ", dxidx_i)
-    println(f, "jac_in = ", jac_in)
-    println(f, "jac_interp = ", jac_i)
 
   end
   # now do shared edges
@@ -80,7 +73,6 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
     jac_p = jac_sharedface[peer]
     interfaces_p = mesh.shared_interfaces[peer]
     for i=1:mesh.peer_face_counts[peer]
-      println(f, "peer ", peer, ", face ", i)
       dxidx_i = view(dxidx_p, :, :, :, i)
       jac_i = view(jac_p, :, i)
 
@@ -88,7 +80,6 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
       el = interface_i.elementL
       face = interface_i.faceL
 
-      println(f, "element ", el, ", face ", face)
       interp_data.bndry_arr[1] = Boundary(1, face)
 
 
@@ -96,13 +87,8 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
       jac_in = view(mesh.jac, :, el)
 
       interpolateFace(interp_data, mesh.sbpface, dxidx_in, jac_in, dxidx_i, jac_i)
-      println(f, "dxidx_in = ", dxidx_in)
-      println(f, "dxidx_interp = ", dxidx_i)
-      println(f, "jac_in = ", jac_in)
-      println(f, "jac_interp = ", jac_i)
     end
   end
-  close(f)
 
   # now do boundary
   for i=1:mesh.numBoundaryFaces

@@ -716,7 +716,6 @@ end
 
 
 function getMinElementSize(mesh::AbstractMesh)
-  println("mesh.jac = ", mesh.jac)
   return sqrt(1./maximum(mesh.jac))*mesh.min_node_dist
 end
 
