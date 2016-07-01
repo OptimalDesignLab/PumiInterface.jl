@@ -290,11 +290,13 @@ function calcRelativeOrientation(facevertsL::AbstractArray, facevertsR::Abstract
   idx = 0
   v1 = facevertsL[1]
   for i=1:3
-    if facevertsL[i] == v1
+    if facevertsR[i] == v1
       idx = i
       break
     end
   end
+
+  println("idx = ", idx)
 
   return pos_to_rotation[idx]
 end
