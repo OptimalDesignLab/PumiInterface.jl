@@ -105,7 +105,9 @@ end
 function getCoordinates(mesh::PumiMeshDG, sbp::AbstractSBP)
 # populate the coords array of the mesh object
 
+nvert_per_el = mesh.numTypePerElement[1]
 mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
+mesh.vert_coords = Array(Float64, mesh.dim, nvert_per_el, mesh.numEl)
 
 #println("entered getCoordinates")
 numVertsPerElement = mesh.numTypePerElement[1]
@@ -115,9 +117,8 @@ for i=1:mesh.numEl  # loop over elements
   
   el_i = mesh.elements[i]
   getElementCoords(mesh, el_i, coords_i)
-
+  mesh.vert_coords[:, :, i] = coords_i[1:mesh.dim, :]
   coords_it[:,:] = coords_i[1:mesh.dim, :].'
-
   mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
 end
 
@@ -164,7 +165,6 @@ return nothing
 end
 
 
-#TODO: do this once face ordering is known
 function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh}, 
                              bndryfaces::Array{Boundary}, 
                              coords_bndry::Array{Tmsh, 3})

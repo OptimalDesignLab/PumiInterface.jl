@@ -217,6 +217,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   interface_normals::Array{T1, 4}  # array of interior face normals, 
                                    # indexing: [norm_component, Left or right, left face node, left face element]
 
+  vert_coords::Array{T1, 3}  # dim x numVertsPerElement x numEl array of 
+                             # coordinates of vertices of each element
   coords::Array{T1, 3}  # store coordinates of all nodes
   coords_bndry::Array{T1, 3}  # store coordinates of nodes on boundary,
                               # 2 x numFaceNodes x numBoundaryFaces

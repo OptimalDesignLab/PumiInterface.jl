@@ -12,7 +12,7 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   Tsbp = Float64
   sbp = TetSBP{Tsbp}(degree=degree, reorder=false, internal=true)
   ref_verts = sbp.vtx
-  interp_op = SummationByParts.buildinterpolation(sbp, ref_verts)
+  interp_op = SummationByParts.buildinterpolation(sbp, ref_verts.')
   face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)
   topo = ElementTopology{3}(face_verts)
   sbpface = TetFace{Tsbp}(degree, sbp.cub, ref_verts)

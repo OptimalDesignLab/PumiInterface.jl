@@ -57,12 +57,16 @@ function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
 # change this in the future with ReshapedArrays?
 
   interp = mesh.interp_op
+  println("size(interp, 1) = ", size(interp, 1))
   u_el = zeros(Float64, mesh.numNodesPerElement, mesh.numDofPerNode)
   u_verts = zeros(Float64, size(interp, 1), mesh.numDofPerNode)
   u_node = zeros(Float64, mesh.numDofPerNode)
   dofs = mesh.dofs
   numEntitiesPerType = mesh.numTypePerElement
   fshape_ptr = mesh.coordshape_ptr
+
+  println("size(u_verts) = ", size(u_verts))
+  println("size(u_node) = ", size(u_node))
 
   # count nodes on solution field 
   numNodesPerType = Array(Int, 4)
@@ -72,7 +76,7 @@ function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
   numNodesPerType[4] = countNodesOn(fshape_ptr, 4) # tetrahedron
  
   for el=1:mesh.numEl
-    el_i = mesh.elements[i]
+    el_i = mesh.elements[el]
 
     # get the solution values out of u
     for j=1:mesh.numNodesPerElement
@@ -83,7 +87,7 @@ function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
     end
 
     # interpolate
-    smallmatvec!(interp, u_el, u_verts)
+    smallmatmat!(interp, u_el, u_verts)
 
     # save values to mesh
     # assumes the solution fieldshape is the same as the coordinate fieldshape
