@@ -296,8 +296,6 @@ function calcRelativeOrientation(facevertsL::AbstractArray, facevertsR::Abstract
     end
   end
 
-  println("idx = ", idx)
-
   return pos_to_rotation[idx]
 end
 
