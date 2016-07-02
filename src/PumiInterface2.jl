@@ -2,7 +2,7 @@
 # function
 
 
-export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities, getEntityLocalNumber
+export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities, getEntityLocalNumber, printElementVertNumbers
 export apfVERTEX, apfEDGE, apfTRIANGLE, apfQUAD, apfTET, apfHEX, apfPRISM, apfPYRAMIX, simplexTypes
 
 # declare the enums
@@ -150,6 +150,26 @@ println("numFaces = ", m)
  end
 
  return nothing
+end
+
+function printElementVertNumbers(el_Nptr, vert_Nptr; fstream=STDOUT)
+  resetElIt()
+  m_ptr = getMesh(el_Nptr)
+  m = countJ(m_ptr, 3)  # count number of element
+
+  for i=1:m
+    el_i = getEl()
+    elnum = getNumberJ(el_NPtr, el_i, 0, 0)
+    (verts, nverts) = getDownward(m_ptr, el_i, 0)
+    vertnums = zeros(Int, nverts)
+    for j=1:nverts
+      vertnums[j] = getNumberJ(vert_Nptr, verts[j], 0, 0)
+    end
+    println(fstream, "element ", elnum, " has vertices $vertnums")
+    incrementElIt()
+  end
+
+  return nothing
 end
 
 function getValues2(eshape_ptr, coords::Array{Float64,1})

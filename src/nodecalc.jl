@@ -27,6 +27,40 @@ function nodecalc(sbp::TriSBP, isDG::Bool)
   return xi, coords
 end
 
+function nodecalc(sbp::TetSBP, isDG::Bool)
+
+  vtx = [-1.0 -1.0 -1.0
+        1.0 -1.0 -1.0
+       -1.0 1.0 -1.0
+       -1.0 -1.0 1.0]
+
+  r1 = vtx[1, :]
+  r2 = vtx[2, :]
+  r3 = vtx[3, :]
+  r4 = vtx[4, :]
+  T = zeros(3,3)
+  T[:, 1] = r2 - r1
+  T[:, 2] = r3 - r1
+  T[:, 3] = r4 - r1
+
+
+  if isDG
+    println("getting DG mesh coordinates")
+    coords = SummationByParts.SymCubatures.calcnodes(sbp.cub, vtx)
+  else
+    coords = calcnodes(sbp, vtx)
+  end
+
+  xi = zeros(coords)
+
+  for i=1:size(coords,2)
+    xi[:, i] = T\(coords[:, i] - r1.')
+  end
+
+  return xi, coords
+end
+
+
 function minNodeDist(sbp, isDG::Bool)
 # get the minimum distance between nodes on a reference element of degree p
 

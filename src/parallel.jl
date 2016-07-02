@@ -42,15 +42,15 @@ function getParallelInfo(mesh::PumiMeshDG)
   mesh.bndries_local = bndries_local = Array(Array{Boundary,1}, npeers)
   mesh.bndries_remote = bndries_remote = Array(Array{Boundary,1}, npeers)
   mesh.shared_interfaces = shared_interfaces = Array(Array{Interface,1}, npeers)
-  orientations_local = Array(Array{Ptr{Void}, 2}, npeers)
-  orientations_remote = Array(Array{Ptr{Void}, 2}, npeers)
+  orientations_send = Array(Array{Ptr{Void}, 2}, npeers)
+  orientations_recv = Array(Array{Ptr{Void}, 2}, npeers)
   for i=1:npeers
     edges_local[i] = Array(Ptr{Void}, counts[i])
     edges_remote[i] = Array(Ptr{Void}, counts[i])
     bndries_local[i] = Array(Boundary, counts[i])
     bndries_remote[i] = Array(Boundary, counts[i])
-    orientations_local[i] = Array(Ptr{Void}, mesh.dim, counts[i])
-    orientations_remote[i] = Array(Ptr{Void}, mesh.dim, counts[i])
+    orientations_send[i] = Array(Ptr{Void}, mesh.dim, counts[i])
+    orientations_recv[i] = Array(Ptr{Void}, mesh.dim, counts[i])
   end
 
   # get all the (local pointers to) edges in a single pass, 
@@ -128,14 +128,15 @@ function getParallelInfo(mesh::PumiMeshDG)
     peernum = peer_nums[i]
     if mesh.myrank > peer_nums[i]  # wait for send to finish
       mesh.send_stats[i] = MPI.Wait!(mesh.send_reqs[i])
-      getBndryOrientations(mesh, peernum, bndries_local[i], orientations_local[i])
+      getBndryOrientations(mesh, peernum, bndries_local[i], orientations_send[i])
       # get edge orientations
     else  # wait for receive to finish
       j, stat = MPI.Waitany!(recv_reqs_reduced)
       mesh.recv_stats[j] = stat
-      peernum = recv_peers[j]
-      getEdgeBoundaries(mesh, edges_remote[peernum], bndries_local[peernum])
-      getBndryOrientations(mesh, peernum, bndries_local[peernum], orientations_local[peernum])
+      peeridx = recv_peers[j]
+      peernum = peer_nums[peeridx]
+      getEdgeBoundaries(mesh, edges_remote[peeridx], bndries_local[peeridx])
+      getBndryOrientations(mesh, peernum, bndries_local[peeridx], orientations_send[peeridx])
       # get edge orientations
     end
   end
@@ -148,8 +149,8 @@ function getParallelInfo(mesh::PumiMeshDG)
   for i=1:npeers
     mesh.send_reqs[i] = MPI.Isend(bndries_local[i], peer_nums[i], 1, mesh.comm)
     mesh.recv_reqs[i] = MPI.Irecv!(bndries_remote[i], peer_nums[i], 1, mesh.comm)
-    send_reqs2[i] = MPI.Isend(orientations_local[i], peer_nums[i], 2, mesh.comm)
-    recv_reqs2[i] = MPI.Irecv!(orientations_remote[i], peer_nums[i], 2, mesh.comm)
+    send_reqs2[i] = MPI.Isend(orientations_send[i], peer_nums[i], 2, mesh.comm)
+    recv_reqs2[i] = MPI.Irecv!(orientations_recv[i], peer_nums[i], 2, mesh.comm)
   end
 
   for i=1:npeers
@@ -163,11 +164,13 @@ function getParallelInfo(mesh::PumiMeshDG)
   mesh.local_element_lists = Array(Array{Int32, 1}, mesh.npeers)
   curr_elnum = mesh.numEl + 1
   myrank = mesh.myrank
+
+  
   for i=1:npeers
     peer_offsets[i] = curr_elnum
     curr_elnum, shared_interfaces[i] = numberBoundaryEls(mesh, curr_elnum, 
                                  bndries_local[i], bndries_remote[i], 
-                                 orientations_local[i], orientations_remote[i])
+                                 orientations_recv[i])
     curr_elnum += 1
 
     mesh.local_element_lists[i] = getBoundaryElList(bndries_local[i])
@@ -224,6 +227,10 @@ function getEdgeBoundaries(mesh::PumiMeshDG, edges::Array{Ptr{Void}},
 #    edgenum = getEdgeNumber2(edge_i) + 1  # unneeded?
     edgenum_local = getFaceLocalNum(mesh, edgenum, facenum)
 
+    # verify
+    down, numdown = getDownward(mesh.m_ptr, mesh.elements[facenum], mesh.dim-1)
+    @assert down[edgenum_local] == edge_i
+
     bndries[i] = Boundary(facenum, edgenum_local)
   end
 
@@ -251,6 +258,7 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
       # get the remote pointer for this vert
       nremotes = countRemotes(mesh.m_ptr, vert_j)
       @assert nremotes <= 400
+      @assert nremotes >= 1
       getRemotes(remote_partnums, remote_ptrs)
       idx = findfirst(remote_partnums, peer_num)
       verts_i[j] = remote_ptrs[idx]
@@ -261,8 +269,10 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
 end
 
 # this can be generalized once edge orientation is generalized
-function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary}, bndries_remote::Array{Boundary}, orientations_local::AbstractArray{Ptr{Void}, 2}, 
-orientations_remote::AbstractArray{Ptr{Void}, 2}, f=STDOUT)
+function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary}, 
+                           bndries_remote::Array{Boundary}, 
+                           orientations_recv::AbstractArray{Ptr{Void}, 2}, 
+                           f=STDOUT)
 # create Interfaces out of the local + remote Boundary arrays
 # also numbers the remote elements with numbers > numEl, storing them in
 # the elementR field of the Interface
@@ -271,9 +281,14 @@ orientations_remote::AbstractArray{Ptr{Void}, 2}, f=STDOUT)
   interfaces = Array(Interface, ninterfaces)
   curr_elnum = startnum  # counter for 
   new_elR = 0 # number of new element to create
+  face_vertmap = mesh.topo.face_verts
+  el_verts = Array(Ptr{Void}, 4)
+  face_verts = Array(Ptr{Void}, 3)
   for i=1:ninterfaces
     bndry_l = bndries_local[i]
     bndry_r = bndries_remote[i]
+
+    # figure out elementR number
     old_iface_idx = isRepeated(bndries_remote, i)
     if old_iface_idx == 0
       new_elR = curr_elnum
@@ -282,9 +297,21 @@ orientations_remote::AbstractArray{Ptr{Void}, 2}, f=STDOUT)
       new_elR = interfaces[old_iface_idx].elementR
     end
 
-    facevertsL = view(orientations_local, :, i)
-    facevertsR = view(orientations_remote, :, i)
-    orient = calcRelativeOrientation(facevertsL, facevertsR)
+    # figure out orientation
+    if mesh.dim == 2
+      orient = 1
+    else
+      # get the local face vertices
+      el_ptr = mesh.elements[bndry_l.element]
+      face_local = bndry_l.face
+      getDownward(mesh.m_ptr, el_ptr, 0, el_verts)
+      for j=1:3
+        face_verts[j] = el_verts[face_vertmap[j, face_local]]
+      end
+      facevertsR = view(orientations_recv, :, i)
+
+      orient = calcRelativeOrientation(face_verts, facevertsR)
+    end
 
     interfaces[i] = Interface(bndry_l.element, new_elR,  bndry_l.face, bndry_r.face, UInt8(orient))
   end

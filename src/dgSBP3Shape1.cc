@@ -211,7 +211,7 @@ class DG1SBP3Quadratic : public FieldShape
 {
   public:
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
-    const char* getName() const { return "SBP3Quadratic"; }
+    const char* getName() const { return "dgSBP3Quadratic"; }
 	
     class Vertex : public EntityShape
     // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
@@ -234,7 +234,7 @@ class DG1SBP3Quadratic : public FieldShape
            fail("unimplimented getValues called");
         }
 		
-        int countNodes() const {return 1;}
+        int countNodes() const {return 0;}
     };
     class Edge : public EntityShape
     {
@@ -262,7 +262,7 @@ class DG1SBP3Quadratic : public FieldShape
           fail("unimplimented getLocaGradients() called");
         }
 		
-        int countNodes() const {return 3;}
+        int countNodes() const {return 0;}
 		
 
     };
@@ -293,7 +293,7 @@ class DG1SBP3Quadratic : public FieldShape
           fail("unimplimented getLocalGradients() called");
         }
 		
-        int countNodes() const {return 6;}
+        int countNodes() const {return 0;}
 // no nodes on face, so no need to align them		
 /*		
 		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
@@ -340,7 +340,7 @@ class DG1SBP3Quadratic : public FieldShape
           fail("unimplimented getLocalGradients() called");
         }
     
-        int countNodes() const {return 11;}
+        int countNodes() const {return 10;}
     
     void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
     // elem is the triangle 
@@ -348,11 +348,8 @@ class DG1SBP3Quadratic : public FieldShape
     // order[] contains the mapping such that order[i], where i is the local node number, give
     // the position of that node in the canonical ordering
     {
-      // vertex does not have orientation, only one node on edge
-	  if (m->getType(shared) == Mesh::EDGE)
-	  {
-		  order[0] = 0;
-	  }
+
+      // no need to do this for DG
     
     }
     };	
@@ -380,7 +377,7 @@ class DG1SBP3Quadratic : public FieldShape
     }
     bool hasNodesIn(int dimension)
     {
-      if (dimension <= 1 || dimension == 3)
+      if (dimension == 3)
         return true;
       else
         return false;
@@ -389,19 +386,19 @@ class DG1SBP3Quadratic : public FieldShape
     {
       if (type == Mesh::VERTEX)
 	  {
-        return 1;
+            return 0;
 	  } else if ( type == Mesh::EDGE) 
 	  {
-	    return 1;
+	    return 0;
 	  } else if ( type == Mesh::TRIANGLE)
 	  {
 	    return 0;
 	  }  else if ( type == Mesh::TET)
 	  {
-		  return 1;
+	     return 10;
 	  } else
 	  {
-        return 0;
+            return 0;
 	  }
     }
     int getOrder() {return 2;}
@@ -410,20 +407,32 @@ class DG1SBP3Quadratic : public FieldShape
 	  // return the xi coordinates of the specified node of the specified type
 	  // *in the coordinate system of that type*
 	  // which makes this function not useful, because the user could define the origins differently
-	  if (type == Mesh::VERTEX)
-	  {
-        xi = Vector3(0,0,0);
-	  } else if (type == Mesh::EDGE)
-	  {  
-	    xi = Vector3(0,0,0);
-	  }  else if (type == Mesh::TET)
-	  {
-	    xi = Vector3(0.25, 0.25, 0.25);
-	  } else
-	  {
-	    xi = Vector3(0,0,0);
-	  }
-	  
+        switch (node)
+        {
+        case 0:
+          { xi = Vector3(0.0750393849651953,0.0750393849651953,0.7748818451044142); break; }
+        case 1:
+          { xi = Vector3(0.0750393849651953,0.7748818451044142,0.0750393849651953); break; }
+        case 2:
+          { xi = Vector3(0.0750393849651953,0.0750393849651953,0.0750393849651953); break; }
+        case 3:
+          { xi = Vector3(0.7748818451044142,0.0750393849651953,0.0750393849651953); break; }
+        case 4:
+          { xi = Vector3(0.0938565760644175,0.4061434239355825,0.40614342393558245); break; }
+        case 5:
+          { xi = Vector3(0.4061434239355825,0.0938565760644175,0.40614342393558245); break; }
+        case 6:
+          { xi = Vector3(0.4061434239355825,0.4061434239355825,0.0938565760644175); break; }
+        case 7:
+          { xi = Vector3(0.0938565760644175,0.0938565760644175,0.40614342393558245); break; }
+        case 8:
+          { xi = Vector3(0.0938565760644175,0.4061434239355825,0.0938565760644175); break; }
+        case 9:
+          { xi = Vector3(0.4061434239355825,0.0938565760644175,0.0938565760644175); break; }
+        default: 
+          { xi = Vector3(0, 0,0); break; }
+        }
+
     }
 };  // class SBPQuadratic
 
@@ -1012,8 +1021,8 @@ FieldShape* getDG1SBP3Shape(int order)
   switch (order) {
     case 1:
 	  return &linear1;
-//	case 2:
-//	  return &quadratic1;
+	case 2:
+	  return &quadratic1;
 //	case 3:
 //	  return &cubic1;
 //	case 4:
