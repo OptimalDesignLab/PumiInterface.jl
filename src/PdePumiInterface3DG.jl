@@ -302,6 +302,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   # opts: dictionary of options
   # dofpernode = number of dof per node, default = 1
   # shape_type = type of shape functions, 0 = lagrange, 1 = SBP, 2 = SBP DG1
+  #              3 = DG2
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
   println("\nConstructing PumiMeshDG2 Object")
@@ -363,7 +364,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh.mshape_ptr = getFieldShape(field_shape_type, order, mesh.dim)
   # use coordinate fieldshape for solution, because it will be interpolated
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.coordshape_ptr)
-  # TODO: undo this once SBP is figured out
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
 
   # count the number of all the different mesh attributes

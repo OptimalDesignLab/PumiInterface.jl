@@ -30,12 +30,35 @@ function nodecalc(sbp::TetSBP, isDG::Bool)
   return xi, coords
 end
 
-#=
+function printCaseStatement(xi)
+  nnodes = size(xi, 2)
+  
+  f = open("caseout.txt", "w")
+  for i=1:nnodes
+    xi1 = xi[1, i]
+    xi2 = xi[2, i]
+    if size(xi, 1) == 2
+      xi3 = 0.0
+    else
+      xi3 = xi[3, i]
+    end
+    println(f, "case $(i-1):")
+    println(f, "  {xi = Vector3($xi1, $xi2, $xi3); break; }")
+  end
+
+  println(f, "default:")
+  println(f, "  {xi = Vector3(0, 0, 0); break; }")
+  close(f)
+end
+
+
+sbp = TetSBP{Float64}(degree=4, reorder=false, internal=false)
+xi, coords = nodecalc(sbp, true)
 (tmp, nnodes) = size(xi)
 
 
 for i=1:nnodes
-  println("node ", i, " coords: ", coords[:,i])
+  println("node ", i, " coords: ", coords[1,i], ", ", coords[2,i], ", ", coords[3, i])
 end
 
 print("\n")
@@ -44,4 +67,5 @@ for i=1:nnodes
   xi4 = 1 - sum(xi[:,i])
   println("node ", i, " coords: ", xi[:,i], " , xi4 = ", xi4)
 end
-=#
+
+printCaseStatement(xi)
