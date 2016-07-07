@@ -382,6 +382,7 @@ void destroyNumberings(int dim)
  
 apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_shape)
 {
+  std::cout << "dimension " << dim << " mesh requests shape type " << shape_type << " of order " << order << std::endl;
   apf::FieldShape* fshape;
   if (dim == 2)
   {
@@ -396,6 +397,10 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     } else if ( shape_type == 2)  // use SBP DG1 shape functions
     {
       fshape = apf::getDG1SBPShape(order);
+      change_shape = true;
+    } else if ( shape_type == 3) // use SBP DG2 shape functions
+    {
+      fshape = apf::getDG2SBPShape(order);
       change_shape = true;
     } else  // default to lagrange shape functions
     {
@@ -415,7 +420,7 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
       change_shape = true;
     } else if (shape_type == 3)
     {
-      fshape = apf::getDG1SBP3Shape(order);
+      fshape = apf::getDG2SBP3Shape(order);
       change_shape = true;
     } else  // default to lagrange shape functions
     {
@@ -1207,7 +1212,7 @@ int getElCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
 
   apf::Downward verts; // hold vertices
   int numDownward = m->getDownward(e, 0, verts); // populate verts
-
+//  std::cout << "entity e is of type " << m->getType(e) << std::endl;
   if ( sx < numDownward || sy != 3)
   {
     std::cout << " Warning, array not right size ";

@@ -309,6 +309,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   # opts: dictionary of options
   # dofpernode = number of dof per node, default = 1
   # shape_type = type of shape functions, 0 = lagrange, 1 = SBP, 2 = SBP DG1
+  #              3 = DG2
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
   println("\nConstructing PumiMeshDG2 Object")
@@ -338,19 +339,20 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   myrank = mesh.myrank
   mesh.f = open("meshlog_$myrank.dat", "w")
 
-  if sbp.numfacenodes == 0
+  # temporary testing of SBP-Gamma DG
+#  if sbp.numfacenodes == 0
     mesh.sbpface = sbpface
     mesh.isInterpolated = true
-  else
-    mesh.isInterpolated = false
-    # leave mesh.sbpface undefined - bad practice
-  end
+#  else
+#    mesh.isInterpolated = false
+#    # leave mesh.sbpface undefined - bad practice
+#  end
 
   # figure out coordinate FieldShape, node FieldShape
   coord_shape_type = 0 # integer to indicate the FieldShape of the coordinates
   field_shape_type = 0 # integer to indicate the FieldShape of the nodes
   mesh_order = order  # order of the coordinate field
-  if shape_type == 2
+  if shape_type == 2 || shape_type == 3
     coord_shape_type = 0  # lagrange
     field_shape_type = shape_type
     mesh_order = 1
@@ -702,6 +704,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     writedlm("entity_offsets_$myrank.dat", mesh.elementNodeOffsets)
   end
 
+  println("about to write dofs")
+
   if opts["write_dofs"]
     rmfile("dofs_$myrank.dat")
     println("size(mesh.dofs) = ", size(mesh.dofs))
@@ -745,7 +749,10 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     end
   end
 
+  println("about to write visualization files")
   writeVisFiles(mesh, "mesh_complete")
+
+  println("finished writing visualization files")
 
   myrank = mesh.myrank
   f = open("load_balance_$myrank.dat", "a+")

@@ -51,21 +51,26 @@ function printCaseStatement(xi)
   close(f)
 end
 
+function printBaryCoords(xi, coords)
 
+  (tmp, nnodes) = size(xi)
+
+  for i=1:nnodes
+    println("node ", i, " coords: ", coords[:,i])
+  end
+
+  print("\n")
+
+  for i=1:nnodes
+    xi4 = 1 - sum(xi[:,i])
+    println("node ", i, " coords: ", xi[:,i], " , xi4 = ", xi4)
+  end
+end
+
+
+#=
 sbp = TetSBP{Float64}(degree=4, reorder=false, internal=false)
 xi, coords = nodecalc(sbp, true)
-(tmp, nnodes) = size(xi)
-
-
-for i=1:nnodes
-  println("node ", i, " coords: ", coords[1,i], ", ", coords[2,i], ", ", coords[3, i])
-end
-
-print("\n")
-
-for i=1:nnodes
-  xi4 = 1 - sum(xi[:,i])
-  println("node ", i, " coords: ", xi[:,i], " , xi4 = ", xi4)
-end
 
 printCaseStatement(xi)
+=#

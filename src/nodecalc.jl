@@ -1,4 +1,5 @@
 using SummationByParts
+include("nodecalc3.jl")
 
 function nodecalc(sbp::TriSBP, isDG::Bool)
   vtx = [0.0 0; 1 0; 0 1]
@@ -84,4 +85,11 @@ function minNodeDist(sbp, isDG::Bool)
   return min_dist
 end
 
+
+sbp = TriSBP{Float64}(degree=1, reorder=false, internal=false)
+xi, coords = nodecalc(sbp, true)
+printCaseStatement(xi)
+printBaryCoords(xi, coords)
+writedlm("coordsout.dat", coords, ' ')
 #minNodeDist(2)
+

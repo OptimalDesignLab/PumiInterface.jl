@@ -331,19 +331,20 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   myrank = mesh.myrank
   mesh.f = open("meshlog_$myrank.dat", "w")
 
-  if sbp.numfacenodes == 0
+  # force mesh to be interpolated
+#  if sbp.numfacenodes == 0
     mesh.sbpface = sbpface
     mesh.isInterpolated = true
-  else
-    mesh.isInterpolated = false
-    # leave mesh.sbpface undefined - bad practice
-  end
+#  else
+#    mesh.isInterpolated = false
+#    # leave mesh.sbpface undefined - bad practice
+#  end
 
   # figure out coordinate FieldShape, node FieldShape
   coord_shape_type = 0 # integer to indicate the FieldShape of the coordinates
   field_shape_type = 0 # integer to indicate the FieldShape of the nodes
   mesh_order = order  # order of the coordinate field
-  if shape_type == 2
+  if shape_type == 2 || shape_type == 3
     coord_shape_type = 0  # lagrange
     field_shape_type = shape_type
     mesh_order = 1

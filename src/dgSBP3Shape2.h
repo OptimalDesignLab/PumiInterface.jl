@@ -1,5 +1,5 @@
-#ifndef DGSBP3SHAPE1_H
-#define DGSBP3SHAPE1_H
+#ifndef DGSBP3SHAPE2_H
+#define DGSBP3SHAPE2_H
 
 #include"apf.h"
 #include "apfNew.h"

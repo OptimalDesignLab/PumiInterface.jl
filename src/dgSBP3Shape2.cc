@@ -341,7 +341,7 @@ class DG2SBP3Quadratic : public FieldShape
           fail("unimplimented getLocalGradients() called");
         }
     
-        int countNodes() const {return 10;}
+        int countNodes() const {return 11;}
     
     void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
     // elem is the triangle 
@@ -385,23 +385,12 @@ class DG2SBP3Quadratic : public FieldShape
     }
     int countNodesOn(int type)
     {
-      if (type == Mesh::VERTEX)
-	  {
-            return 0;
-	  } else if ( type == Mesh::EDGE) 
-	  {
-	    return 0;
-	  } else if ( type == Mesh::TRIANGLE)
-	  {
-	    return 0;
-	  }  else if ( type == Mesh::TET)
-	  {
-	     return 11;
-	  } else
-	  {
-            return 0;
-	  }
+      if (type == Mesh::TET)
+        return 11;
+      else
+        return 0;
     }
+
     int getOrder() {return 2;}
     void getNodeXi(int type, int node, Vector3& xi)
     {

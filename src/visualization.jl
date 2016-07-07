@@ -45,7 +45,9 @@ function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
     end  # end loop over entity types
   end  # end loop over elements
 
-  transferFieldToSubmesh(mesh)
+  if !(mesh.isDG && mesh.shape_type == 3)
+    transferFieldToSubmesh(mesh)
+  end
 
   return nothing
 end  # end function saveSolutionToMesh
@@ -119,7 +121,11 @@ end  # end function
 function writeVisFiles(mesh::PumiMesh2DG, fname::AbstractString)
   # writes vtk files 
 
+  if mesh.shape_type != 3
     writeVtkFiles(fname, mesh.mnew_ptr)
+  else
+    println(STDERR, "Warning: not printing visualization file for 2D SBP-Gamma")
+  end
 
   return nothing
 end
