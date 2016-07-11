@@ -9,6 +9,7 @@ namespace apf {
 class DG1SBPLinear : public FieldShape
 {
   public:
+    DG1SBPLinear() { registerSelf(apf::DG1SBPLinear::getName()); }
     const char* getName() const  {return "DG1SBPLinear"; }
     class Vertex : public EntityShape
     // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
@@ -205,6 +206,7 @@ class DG1SBPLinear : public FieldShape
 class DG1SBPQuadratic : public FieldShape
 {
   public:
+    DG1SBPQuadratic() { registerSelf(apf::DG1SBPQuadratic::getName()); }
     const char* getName() const { return "DG1SBPQuadratic"; }
     class Vertex : public EntityShape
     // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
@@ -421,6 +423,7 @@ class DG1SBPQuadratic : public FieldShape
 class DG1SBPCubic : public FieldShape
 {
   public:
+    DG1SBPCubic() { registerSelf(apf::DG1SBPCubic::getName()); }
     const char* getName() const { return "DG1SBPCubic"; }
     class Vertex : public EntityShape
     // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
@@ -692,6 +695,7 @@ class DG1SBPCubic : public FieldShape
 class DG1SBPQuartic : public FieldShape
 {
   public:
+    DG1SBPQuartic() { registerSelf(apf::DG1SBPQuartic::getName()); }
     const char* getName() const { return "DG1SBPQuartic"; }
 	
 	

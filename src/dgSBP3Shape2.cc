@@ -11,6 +11,8 @@ namespace apf {
 class DG2SBP3Linear : public FieldShape
 {
   public:
+
+    DG2SBP3Linear() { registerSelf(apf::DG2SBP3Linear::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "DG2SBP3Linear"; }
 
@@ -211,6 +213,7 @@ class DG2SBP3Linear : public FieldShape
 class DG2SBP3Quadratic : public FieldShape
 {
   public:
+    DG2SBP3Quadratic() { registerSelf(apf::DG2SBP3Quadratic::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "DG2SBP3Quadratic"; }
 	
@@ -434,6 +437,7 @@ class DG2SBP3Quadratic : public FieldShape
 class DG2SBP3Cubic : public FieldShape
 {
   public:
+    DG2SBP3Cubic() { registerSelf(apf::DG2SBP3Cubic::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "DG2SBP3Cubic"; }
 	
@@ -656,6 +660,7 @@ class DG2SBP3Cubic : public FieldShape
 class DG2SBP3Quartic : public FieldShape
 {
   public:
+    DG2SBP3Quartic() { registerSelf(apf::DG2SBP3Quartic::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "DG2SBP3Quartic"; }
 	

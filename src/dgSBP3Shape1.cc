@@ -10,6 +10,8 @@ namespace apf {
 class DG1SBP3Linear : public FieldShape
 {
   public:
+
+    DG1SBP3Linear() { registerSelf(apf::DG1SBP3Linear::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "dg1SBP3Linear"; }
 
@@ -210,8 +212,9 @@ class DG1SBP3Linear : public FieldShape
 class DG1SBP3Quadratic : public FieldShape
 {
   public:
+    DG1SBP3Quadratic() { registerSelf(apf::DG1SBP3Quadratic::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
-    const char* getName() const { return "dgSBP3Quadratic"; }
+    const char* getName() const { return "DG1SBP3Quadratic"; }
 	
     class Vertex : public EntityShape
     // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
@@ -442,6 +445,7 @@ class DG1SBP3Quadratic : public FieldShape
 class DG1SBP3Cubic : public FieldShape
 {
   public:
+    DG1SBP3Cubic() { registerSelf(apf::DG1SBP3Cubic::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "SBP3Cubic"; }
 	
@@ -702,6 +706,7 @@ class DG1SBP3Cubic : public FieldShape
 class DG1SBP3Quartic : public FieldShape
 {
   public:
+    DG1SBP3Quartic() { registerSelf(apf::DG1SBP3Quartic::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "SBP3Quartic"; }
 	
@@ -1028,7 +1033,7 @@ FieldShape* getDG1SBP3Shape(int order)
 //	case 4:
 //	  return &quartic1;
 	default:
-	  std::cout << "order " << order << " is not supported by dgSBP3Shape1.cc" << std::endl;
+	  std::cout << "order " << order << " is not supported by DG1SBP3Shape1.cc" << std::endl;
 	  return NULL;
     }
 }
