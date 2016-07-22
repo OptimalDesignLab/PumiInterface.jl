@@ -181,7 +181,7 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 
 
 
-// init for 2d mesh
+// init for 2d mesh or 3d mesh
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
 // PCU appears to not want a Communicator object?
@@ -1455,7 +1455,10 @@ void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components
   apf::getComponents(f, e, node, components);
 }
 
-
+void zeroField(apf::Field* f)
+{
+  apf::zeroField(f);
+}
 
 //-----------------------------------------------------------------------------
 // Parallelization function

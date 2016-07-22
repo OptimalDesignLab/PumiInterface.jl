@@ -305,7 +305,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   #              3 = DG2
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
-  println("\nConstructing PumiMeshDG2 Object")
+  println("\nConstructing PumiMeshDG3 Object")
   println("  sbp_name = ", smb_name)
   println("  dmg_name = ", dmg_name)
   set_defaults(opts)

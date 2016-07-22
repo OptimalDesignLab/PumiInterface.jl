@@ -59,16 +59,14 @@ function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
 # change this in the future with ReshapedArrays?
 
   interp = mesh.interp_op
-  println("size(interp, 1) = ", size(interp, 1))
   u_el = zeros(Float64, mesh.numNodesPerElement, mesh.numDofPerNode)
   u_verts = zeros(Float64, size(interp, 1), mesh.numDofPerNode)
-  u_node = zeros(Float64, mesh.numDofPerNode)
+  u_node = zeros(Float64, mesh.numDofPerNode)  # hold new node values
+  u_node2 = zeros(u_node)  # hold existing node values
   dofs = mesh.dofs
-  numEntitiesPerType = mesh.numTypePerElement
+  numTypePerElement = mesh.numTypePerElement
+  numEntitiesPerType = mesh.numEntitiesPerType
   fshape_ptr = mesh.coordshape_ptr
-
-  println("size(u_verts) = ", size(u_verts))
-  println("size(u_node) = ", size(u_node))
 
   # count nodes on solution field 
   numNodesPerType = Array(Int, 4)
@@ -76,7 +74,9 @@ function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
   numNodesPerType[2] = countNodesOn(fshape_ptr, 1)
   numNodesPerType[3] = countNodesOn(fshape_ptr, 2)
   numNodesPerType[4] = countNodesOn(fshape_ptr, 4) # tetrahedron
- 
+
+  zeroField(mesh.f_ptr)
+
   for el=1:mesh.numEl
     el_i = mesh.elements[el]
 
@@ -97,12 +97,13 @@ function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
     col = 1  # current node of the element
 
     for i=1:(mesh.dim+1)
-      for j=1:numEntitiesPerType[i]
+      for j=1:numTypePerElement[i]
         for k=1:numNodesPerType[i]
           entity = node_entities[col]
           # skip elementNodeOffsets - maximum of 1 node per entity
+          getComponents(mesh.f_ptr, entity, 0, u_node2)
           for p=1:mesh.numDofPerNode
-            u_node[p] = u_verts[col, p]
+            u_node[p] = u_verts[col, p] + u_node2[p]
           end
 
           setComponents(mesh.f_ptr, entity, 0, u_node)
@@ -112,6 +113,28 @@ function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
     end  # end loop over entity dimensions
 
   end  # end loop over elements
+
+  # divide by number of elements that contributed to each node
+  # so the result is the average value
+  for dim=1:(mesh.dim + 1)
+    if numNodesPerType[dim] > 0
+      resetIt(dim - 1)
+      for i=1:numEntitiesPerType[dim]
+        entity_i = getEntity(dim - 1)
+        nel = countAdjacent(mesh.m_ptr, entity_i, mesh.dim)
+        getComponents(mesh.f_ptr, entity_i, 0, u_node)
+        fac = 1/nel
+        for p=1:mesh.numDofPerNode
+          u_node[p] = fac*u_node[p]
+        end
+        setComponents(mesh.f_ptr, entity_i, 0, u_node)
+        incrementIt(dim - 1)
+      end
+    end
+  end
+
+
+
 
 
   return nothing
