@@ -14,8 +14,7 @@ function getTriangulation(order::Integer, shape_type::Integer)
     elseif order == 4
       triangulation = Int32[1 1 4 5 5 6 6 2 7 7 15 14 14 8 8 9 17 11 18 13 13 18; 4 13 5 14 6 15 2 7 8 16 16 16 18 17 9 3 3 17 17 18 11 16; 13 12 13 13 14 14 15 15 16 15 14 18 13 16 17 17 10 10 11 11 12 17]
     else
-      println(STDERR, "Warning, unsupported triangulation requested")
-      triangulation = zeros(Int32, 0, 0)
+      throw(ErrorException("unsupported triangulation requested"))
     end
      
   elseif shape_type == 2
@@ -31,53 +30,68 @@ function getTriangulation(order::Integer, shape_type::Integer)
       2 9 7 14 7 15 5 17 16 5 14 9 14 13 10 9 15 10 13 8 10 11 6 11 8 7 1 18 1 2 18;
       17 16 2 8 18 16 1 8 9 16 3 3 4 4 13 13 11 9 10 17 8 8 17 15 11 12 7 17 2 3 2]
     else
-      println(STDERR, "Warning, unsupported triangulation requested")
-      triangulation = zeros(Int32, 0, 0)
+      throw(ErrorException("unsupported triangulation requested"))
     end
+  elseif shape_type == 3
+#    if order  == 1
+#      triangulation = Int32 [ 3 1 2;].'
+#    else
+       triangulation = zeros(Int32, 0, 0)
+#      throw(ErrorException("unsupported triangulation requested"))
+#    end
+  else
+      throw(ErrorException("unsupported triangulation requested"))
   end  # end if shape_type
 
   return triangulation
 end
 
-function getNodeMaps(order::Integer, shape_type::Integer, numNodesPerElement)
+function getNodeMaps(order::Integer, shape_type::Integer, numNodesPerElement, dim=2)
 # get the mappings between the SBP and Pumi node orderings
 # having to do the mapping at all is inelegent to say the least
 # store mappings in both directions in case they are needed
 # use UInt8s to save cache space during loops
 
-  if shape_type == 1
-    if order == 1
-      sbpToPumi = UInt8[1,2,3]
-      pumiToSbp = UInt8[1,2,3]
-    elseif order == 2
-      sbpToPumi = UInt8[1,2,3,4,5,6,7]
-      pumiToSbp = UInt8[1,2,3,4,5,6,7]
-    elseif order == 3
-      sbpToPumi = UInt8[1,2,3,4,5,6,7,9,8,12,10,11]
-      pumiToSbp= UInt8[1,2,3,4,5,6,7,9,8,11,12,10]
-    elseif order == 4 
-      sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,17,13,15,14,16,18]
-      pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,14,16,15,17,13,18]
-    else
-      println(STDERR, "Warning: Unsupported element order requestion in getNodeMaps")
+  if dim == 2
+    println("getting node maps for 2D mesh")
+    if shape_type == 1
+      if order == 1
+        sbpToPumi = UInt8[1,2,3]
+        pumiToSbp = UInt8[1,2,3]
+      elseif order == 2
+        sbpToPumi = UInt8[1,2,3,4,5,6,7]
+        pumiToSbp = UInt8[1,2,3,4,5,6,7]
+      elseif order == 3
+        sbpToPumi = UInt8[1,2,3,4,5,6,7,9,8,12,10,11]
+        pumiToSbp= UInt8[1,2,3,4,5,6,7,9,8,11,12,10]
+      elseif order == 4 
+        sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,17,13,15,14,16,18]
+        pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,14,16,15,17,13,18]
+      else
+        println(STDERR, "Warning: Unsupported element order requestion in getNodeMaps")
 
-      # default to 1:1 mapping
-      sbpToPumi = UInt8[1:numNodesPerElement]
-      pumiToSbp = UInt8[1:numNodesPerElement]
-    end
+        # default to 1:1 mapping
+        sbpToPumi = UInt8[1:numNodesPerElement]
+        pumiToSbp = UInt8[1:numNodesPerElement]
+      end
 
-  elseif shape_type == 2
-    if order <= 4
-      sbpToPumi = collect(UInt8, 1:numNodesPerElement)
-      pumiToSbp = collect(UInt8, 1:numNodesPerElement)
-    else
+    elseif shape_type == 2 || shape_type == 3
+      if order <= 4
+        sbpToPumi = collect(UInt8, 1:numNodesPerElement)
+        pumiToSbp = collect(UInt8, 1:numNodesPerElement)
+      else
 
-      println(STDERR, "Warning: Unsupported element order requestion in getFaceOffsets")
-      # default to 1:1 mapping
-      sbpToPumi = UInt8[1:numNodesPerElement;]
-      pumiToSbp = UInt8[1:numNodesPerElement;]
-    end
-  end  # end if shape_type
+        println(STDERR, "Warning: Unsupported element order requestion in getFaceOffsets")
+        # default to 1:1 mapping
+        sbpToPumi = UInt8[1:numNodesPerElement;]
+        pumiToSbp = UInt8[1:numNodesPerElement;]
+      end
+
+    end  # end if shape_type
+  else  # dim == 3
+    sbpToPumi = collect(UInt8, 1:numNodesPerElement)
+    pumiToSbp = collect(UInt8, 1:numNodesPerElement)
+  end
 
   return sbpToPumi, pumiToSbp
 end  # end getNodeMaps
@@ -91,8 +105,6 @@ function createSubtriangulatedMesh(mesh::AbstractMesh)
     if order >= 3
 
       mesh.triangulation = getTriangulation(order, shape_type)
-      flush(STDOUT)
-      flush(STDERR)
       mesh.mnew_ptr = createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
 
       println("creating solution field on new mesh")
@@ -107,17 +119,13 @@ function createSubtriangulatedMesh(mesh::AbstractMesh)
     if order >= 1
 
       mesh.triangulation = getTriangulation(order, shape_type)
-      flush(STDOUT)
-      flush(STDERR)
       println("size(mesh.triangulation) = ", size(mesh.triangulation))
       mesh.mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, mesh.coords)
 
       println("creating solution field on new mesh")
       mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
     else
-      mesh.triangulation = zeros(Int32, 0, 0)
-      mesh.mnew_ptr = C_NULL
-      mesh.fnew_ptr = C_NULL
+      throw(ErrorException("Congratulations: you have reached and unreachable case"))
     end
 
   end  # end if mesh.shape_type 

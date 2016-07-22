@@ -28,17 +28,21 @@ facts("--- Testing PdePumiInterface --- ") do
     smb_name = "tri2l.smb"
     dmg_name = ".null"
     for order = 1:4
-      println("testing order ", order, " mesh")
-      sbp = TriSBP{Float64}(degree=order)
+      println("testing order ", order, " CG mesh")
+      sbp = TriSBP{Float64}(degree=order, reorder=true)
+      ref_verts = [-1. 1 -1; -1 -1 1]
+      sbpface = TriFace{Float64}(order, sbp.cub, ref_verts.')
 
-    mesh =  PumiMesh2{Float64}(dmg_name, smb_name, order, sbp, opts, coloring_distance=2, dofpernode=4)
+
+    mesh =  PumiMesh2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
     @fact mesh.numVert --> 4
     @fact mesh.numEdge --> 5
+    @fact mesh.numFace --> mesh.numEdge
     @fact mesh.numEl --> 2
     @fact mesh.numEntitiesPerType --> [4, 5, 2]
     @fact mesh.numTypePerElement --> [3, 3, 1]
     @fact mesh.numDofPerNode --> 4
-    @fact mesh.numBoundaryEdges --> 4
+    @fact mesh.numBoundaryFaces --> 4
     @fact mesh.numInterfaces --> 1
 
     @fact mesh.bndryfaces[1].element --> 1
@@ -59,8 +63,8 @@ facts("--- Testing PdePumiInterface --- ") do
     @fact mesh.order --> order
     @fact length(mesh.bndry_funcs) --> 1
     @fact mesh.bndry_offsets --> [1, 5]
-
-    for i=1:mesh.numBoundaryEdges
+#=
+    for i=1:mesh.numBoundaryFaces
       for j=1:(sum(mesh.numNodesPerType[1:2]))
         if i == 1
           @fact mesh.bndry_normals[:, j, i] --> roughly([-1.0, 1.0], atol=1e-13)
@@ -73,15 +77,15 @@ facts("--- Testing PdePumiInterface --- ") do
         end
       end
     end
-
-
+=#
+#=
     for i=1:mesh.numInterfaces
       for j=1:sbp.numfacenodes
         @fact mesh.interface_normals[:, 1, j, i] --> roughly([1.0, -2.0], atol=1e-13)
         @fact mesh.interface_normals[:, 2, j, i] --> roughly([-2.0, 1.0], atol=1e-13)
       end
     end
-
+=#
     # verify that dofs on a node are numbered consecutively
     for i=1:mesh.numEl
       for j=1:mesh.numNodesPerElement
@@ -152,10 +156,13 @@ facts("--- Testing PdePumiInterface --- ") do
     @fact length(mesh.edges) --> mesh.numEdge
     @fact length(mesh.elements) --> mesh.numEl
 
+    println("mesh.coords = ", mesh.coords)
+    println("size(mesh.coords) = ", size(mesh.coords))
     
     @fact mesh.jac --> roughly(ones(mesh.numNodesPerElement ,2))
 
 
+    fnames = ["boundary_nums", "face_vertnums", "edge_vertnums"]
     for name in fnames
       name_code = string(name, ".dat")
       name_ref = string(name, "_p", order, "true.dat")
@@ -179,6 +186,22 @@ facts("--- Testing PdePumiInterface --- ") do
 
   end  # end loop over p=1:4
 
+  # verify adj and det are correct
+  for i=1:10  # 10 random matrices
+    A2 = rand(2,2)
+    d = det(A2)
+    @fact PdePumiInterface.det2(A2) --> roughly(d, atol=1e-12)
+    B2 = zeros(A2)
+    PdePumiInterface.adjugate2(A2, B2)
+    @fact B2./d --> roughly(inv(A2), atol=1e-12)
+
+    A3 = rand(3,3)
+    d = det(A3)
+    @fact PdePumiInterface.det3(A3) --> roughly(d, atol=1e-12)
+    B3 = zero(A3)
+    PdePumiInterface.adjugate3(A3, B3)
+    @fact B3/d --> roughly(inv(A3), atol=1e-12)
+  end
 
   # now test on a fully unstructured mesh
   smb_name = "vortex.smb"
@@ -209,10 +232,13 @@ facts("--- Testing PdePumiInterface --- ") do
 
 
   for order = 1:4
-    println("testing order ", order, " mesh")
-    sbp = TriSBP{Float64}(degree=order)
+    println("testing order ", order, " CG mesh against files")
+    sbp = TriSBP{Float64}(degree=order, reorder=true)
+    ref_verts = [-1. 1 -1; -1 -1 1]
+    sbpface = TriFace{Float64}(order, sbp.cub, ref_verts.')
 
-    mesh =  PumiMesh2{Float64}(dmg_name, smb_name, order, sbp, opts, coloring_distance=2, dofpernode=4)
+
+    mesh =  PumiMesh2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
     
     for name in fnames
@@ -276,11 +302,12 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact mesh.mnew_ptr --> not(C_NULL)
    @fact mesh.numVert --> 4
    @fact mesh.numEdge --> 5
+   @fact mesh.numFace --> mesh.numEdge
    @fact mesh.numEl --> 2
    @fact mesh.numDof --> 24
    @fact mesh.numNodes --> 6
    @fact mesh.numDofPerNode --> 4
-   @fact mesh.numBoundaryEdges --> 4
+   @fact mesh.numBoundaryFaces --> 4
    @fact mesh.numInterfaces --> 1
    @fact mesh.numNodesPerElement --> 3
    @fact mesh.numNodesPerType --> [0, 0, 3]
@@ -306,15 +333,6 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact mesh.coords[:, :, 1] --> roughly([-2/3 -2/3 1/3; 2/3 -1/3 2/3], atol=1e-13)
    @fact mesh.coords[:, :, 2] --> roughly([2/3 -1/3 2/3; 1/3 -2/3 -2/3], atol=1e-13)
    @fact sort(unique(mesh.dofs)) --> collect(1:mesh.numDof)
-   for i=1:size(mesh.sparsity_bnds, 2)
-     @fact mesh.sparsity_bnds[1,i] --> 1
-     @fact mesh.sparsity_bnds[2,i] --> 24
-   end
-
-   for i=1:size((mesh.sparsity_nodebnds), 2)
-     @fact mesh.sparsity_nodebnds[1,i] --> 1
-     @fact mesh.sparsity_nodebnds[2,i] --> 6
-   end
 
    @fact mesh.color_masks[1][1] --> true
    @fact mesh.color_masks[1][2] --> false
@@ -339,6 +357,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact mesh.color_cnt[2] --> 1
 
  
+  @fact mesh.jac --> roughly(ones(mesh.numNodesPerElement ,2))
+
    function test_interp{Tmsh}(mesh::AbstractMesh{Tmsh})
      sbpface = mesh.sbpface
      dxdxi_element = zeros(2, 2, mesh.numNodesPerElement, 1)
@@ -379,7 +399,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
    # check dxidx_bndry
    # for straight sided elements, dxidx is constant
-   for i=1:mesh.numBoundaryEdges
+   for i=1:mesh.numBoundaryFaces
      el = mesh.bndryfaces[i].element
      dxidx_test = mesh.dxidx[:, :, 1, el]
      jac_test = mesh.jac[1, el]
@@ -421,6 +441,31 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact y_i --> roughly(slope*x_i + b, atol=1e-13)
    end
 
+   # check adjacency reordering algorithm doesn't error out
+   PdePumiInterface.numberNodesWindy(mesh, [0.0, 0.0, 0.0])
+
+    smb_name = "tri8l.smb"
+    mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface, coloring_distance=2, dofpernode=4)
+
+  # check mapping interpolation
+  # should be constant within an element for straight-sided elements
+  for i=1:mesh.numInterfaces
+    iface_i = mesh.interfaces[i]
+    el_i = iface_i.elementL
+    dxidx_el = mesh.dxidx[:, :, 1, el_i]
+    jac_el = mesh.jac[:, el_i]
+    jac_face = mesh.jac_face[:, i]
+
+    for j=1:mesh.numNodesPerFace
+      dxidx_face = mesh.dxidx_face[:, :, j, i]
+      for k=1:2
+        for p=1:2
+          @fact dxidx_face[p, k] --> roughly(dxidx_el[p, k], atol=1e-13)
+        end
+      end
+      @fact jac_face[j] --> roughly(jac_el[j], atol=1e-13)
+    end
+  end  # end loop over interfaces
 
 
 

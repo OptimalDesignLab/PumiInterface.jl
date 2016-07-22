@@ -9,6 +9,7 @@ namespace apf {
 class SBPLinear : public FieldShape
 {
   public:
+    SBPLinear() { registerSelf(apf::SBPLinear::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "SBPLinear"; }
     class Vertex : public EntityShape
@@ -195,6 +196,8 @@ class SBPLinear : public FieldShape
 class SBPQuadratic : public FieldShape
 {
   public:
+
+    SBPQuadratic() { registerSelf(apf::SBPQuadratic::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "SBPQuadratic"; }
     class Vertex : public EntityShape
@@ -408,6 +411,8 @@ class SBPQuadratic : public FieldShape
 class SBPCubic : public FieldShape
 {
   public:
+
+    SBPCubic() { registerSelf(apf::SBPCubic::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "SBPCubic"; }
     class Vertex : public EntityShape
@@ -683,6 +688,8 @@ class SBPCubic : public FieldShape
 class SBPQuartic : public FieldShape
 {
   public:
+
+    SBPQuartic() { registerSelf(apf::SBPQuartic::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "SBPQuartic"; }
 	

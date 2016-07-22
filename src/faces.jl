@@ -5,13 +5,13 @@ function getBoundaryArray(mesh::PumiMesh, boundary_nums::AbstractArray{Int, 2})
 # creating an an array of a user defined type seems like a waste of memory operations
 # bnd_array is a vector of type Boundary with length equal to the number of edges on the boundary of the mesh
 
-#  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
+#  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
 
-  for i=1:mesh.numBoundaryEdges
+  for i=1:mesh.numBoundaryFaces
     facenum = boundary_nums[i, 1]
     edgenum_global = boundary_nums[i, 2]
 #    println("edgenum_global = ", edgenum_global)
-    edgenum_local = getBoundaryEdgeLocalNum(mesh, edgenum_global)
+    edgenum_local = getBoundaryFaceLocalNum(mesh, edgenum_global)
     mesh.bndryfaces[i] = Boundary(facenum, edgenum_local)
   end
 
@@ -20,8 +20,8 @@ end
 
 
 
-
-function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh, sbp::AbstractSBP, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
+# deprecated
+function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2D, sbp::AbstractSBP, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
 
   nfaces = length(bndry_faces)
 
@@ -50,8 +50,8 @@ function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh, sbp::AbstractSBP, bndry_fa
   return nothing
 end
 
-
-function getInternalFaceNormals{Tmsh}(mesh::PumiMesh, sbp::AbstractSBP, internal_faces::AbstractArray{Interface, 1}, face_normals::Array{Tmsh, 4})
+# deprecated
+function getInternalFaceNormals{Tmsh}(mesh::PumiMesh2D, sbp::AbstractSBP, internal_faces::AbstractArray{Interface, 1}, face_normals::Array{Tmsh, 4})
 
   nfaces = length(internal_faces)
 
@@ -100,7 +100,7 @@ function getInternalFaceNormals{Tmsh}(mesh::PumiMesh, sbp::AbstractSBP, internal
 end
 
 
-function getInterfaceArray(mesh::PumiMesh)
+function getInterfaceArray(mesh::PumiMesh2D)
 # get array of [elementL, elementR, edgeL, edgeR] for each internal edge,
 # where elementL and R are the elements that use the edge, edgeL R are the
 # local number of the edge within the element
@@ -113,18 +113,6 @@ function getInterfaceArray(mesh::PumiMesh)
 # node from the perspective of elementL
 
   # only need internal boundaries (not external)
-#  num_ext_edges = size(getBoundaryEdgeNums(mesh))[1]  # bad memory efficiency
-#  num_int_edges = getNumEdges(mesh) - num_ext_edges
-
-#  new_bndry = Boundary(2, 3)
-#   println("new_bndry = ", new_bndry)
-
-#  new_interface = Interface(1, 2, 3, 4)
-#   println("new_interface = ", new_interface)
-
-#   println("num_int_edges = ", num_int_edges)
-
-#  interfaces = Array(typeof(new_interface), num_int_edges)
   # get number of nodes affecting an edge
   num_edge_nodes = countAllNodes(mesh.mshape_ptr, 1)
 
@@ -139,9 +127,6 @@ function getInterfaceArray(mesh::PumiMesh)
 #       println("this is an internal edge")
       element1 = adjacent_nums[1]
       element2 = adjacent_nums[2]
-
-#      coords_1 = x[:, :, element1]
-#      coords_2 = x[:, :, element2]
 
       coords_1 = zeros(3,3)
       coords_2 = zeros(3,3)
@@ -170,8 +155,8 @@ function getInterfaceArray(mesh::PumiMesh)
         end
       end
 
-      edgeL = getEdgeLocalNum(mesh, i, elementL)
-      edgeR = getEdgeLocalNum(mesh, i, elementR)
+      edgeL = getFaceLocalNum(mesh, i, elementL)
+      edgeR = getFaceLocalNum(mesh, i, elementR)
 
       # here we set the orientation flag to 1 for all edges, because in 2D
       # the edges always have opposite orientation
@@ -186,12 +171,105 @@ function getInterfaceArray(mesh::PumiMesh)
 #     print("\n")
   end  # end loop over edges
 
-  #TODO: sort the interfaces to be in order of increasing element number
-  #      for cache efficiency in accessing the data associated with the
-  #      edges
-
-
   return nothing
 
 end  # end function
 
+
+function getInterfaceArray(mesh::PumiMesh3D)
+#  println("----- entered getInterfaceArray -----")
+  adj_elements = Array(Ptr{Void}, 2)
+  coords1 = zeros(3, 4)
+  coords2 = zeros(3, 4)
+  centroid1 = zeros(3)
+  centroid2 = zeros(3)
+  vertsL = Array(Ptr{Void}, 4)
+  vertsR = Array(Ptr{Void}, 4)
+  facevertsL = Array(Ptr{Void}, 3)
+  facevertsR = Array(Ptr{Void}, 3)
+  pos = 1 # position in mesh.interfaces
+  for i=1:mesh.numFace
+    face_i = mesh.faces[i]
+    num_adjacent = countAdjacent(mesh.m_ptr, face_i, mesh.dim)
+
+    if num_adjacent == 2  # this is a shared interface
+
+      getAdjacent(adj_elements)
+      el1 = adj_elements[1]
+      el2 = adj_elements[2]
+      elnum1 = getNumberJ(mesh.el_Nptr, el1, 0, 0) + 1
+      elnum2 = getNumberJ(mesh.el_Nptr, el2, 0, 0) + 1
+
+      # decide which one is elementL
+      getElementCoords(mesh, el1, coords1)
+      getElementCoords(mesh, el2, coords2)
+
+      for j=1:4
+        for k=1:3
+          centroid1[k] += coords1[k, j]
+          centroid2[k] += coords2[k, j]
+        end
+      end
+
+      flag = getLR(centroid1, centroid2)
+      if flag
+        coordsL = coords2
+        coordsR = coords1
+        elnumL = elnum2
+        elnumR = elnum1
+        elL = el2
+        elR = el1
+      else
+        coordsL = coords1
+        coordsR = coords2
+        elnumL = elnum1
+        elnumR = elnum2
+        elL = el1
+        elR = el2
+      end
+
+      localfacenumL = getFaceLocalNum(mesh, i, elnumL)
+      localfacenumR = getFaceLocalNum(mesh, i, elnumR)
+      fdata = FaceData(elnumL, elL, elnumR, elR, localfacenumL, localfacenumR,
+                       vertsL, vertsR, facevertsL, facevertsR)
+
+      rel_rotate = getRelativeOrientation(fdata, mesh)
+      mesh.interfaces[pos] = Interface(elnumL, elnumR, localfacenumL, localfacenumR, UInt8(rel_rotate))
+      pos += 1
+
+      fill!(centroid1, 0.0)
+      fill!(centroid2, 0.0)
+
+    end  # end if 
+  end
+
+  return nothing
+
+end
+
+function getLR(coordsL, coordsR)
+# return true if coords should be reversed
+  tol = 1e-10
+
+  if abs(coordsL[1] - coordsR[1]) > tol
+    if coordsL[1] > coordsR[1]
+      return false
+    else
+      return true
+    end
+  elseif abs(coordsL[2] - coordsR[2]) > tol
+    if coordsL[2] > coordsR[2]
+      return false
+    else
+      return true
+    end
+  else  # if the first two coordinates are not decisive, use the last one
+    if coordsL[3] > coordsR[3]
+      return false
+    else
+      return true
+    end
+  end
+
+  return false  # this should never be reached
+end

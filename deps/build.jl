@@ -27,7 +27,8 @@ if install_mpi
   run(`$cmd_string $arg_str`)
 end
 
-pumi_version = "e4eabf5"
+#pumi_version = "e4eabf5"
+pumi_version = "d1837c5936c28d6ef09abd02c82ea2a4ea9b6f55"
 #pumi_version = "HEAD"
 if install_pumi  # did not find pumi
 #  if isdir("./core")

@@ -1,6 +1,7 @@
 # file for functions related to calculating the sparsity pattern of a matrix
 
-function getSparsityCounts(mesh::PumiMeshDG2, sparse_bnds::AbstractArray{Int32, 2}; getdofs=true)
+# can be generalized with some topology constants
+function getSparsityCounts(mesh::PumiMeshDG, sparse_bnds::AbstractArray{Int32, 2}; getdofs=true)
 # count how many local, remote nodes/dofs each dof is related to
 
   numNodesPerElement = mesh.numNodesPerElement
@@ -14,17 +15,17 @@ function getSparsityCounts(mesh::PumiMeshDG2, sparse_bnds::AbstractArray{Int32, 
     add_factor = 1
   end
 
-  edges = Array(Ptr{Void}, 3)
+  edges = Array(Ptr{Void}, 6)
   for i=1:mesh.numEl
     el_ptr = mesh.elements[i]
-    getDownward(mesh.m_ptr, el_ptr, 1, edges)
+    getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, edges)
     nremotes = 0
-    for j=1:3
+    for j=1:mesh.numFacesPerElement
       edge_j = edges[j]
       nremotes += countRemotes(mesh.m_ptr, edge_j)
     end
 
-    nlocal = 4  # 3 neighbors + 1
+    nlocal = mesh.numFacesPerElement + 1  # 3 neighbors + 1
     nlocal = nlocal - nremotes
 
     # apply this to all dofs on this element
@@ -41,7 +42,88 @@ function getSparsityCounts(mesh::PumiMeshDG2, sparse_bnds::AbstractArray{Int32, 
   return nothing
 end
 
+# WIP: tighter sparsity bounds for CG
+#=
+function getDofConnectivity(mesh::PumiMesh2)
 
+  # find the maximum number of elements a dof is related to
+  max_el = 0
+  up_cnt = 400 # maximum number of upward adjacencies
+  up = Array(Ptr{Void}, up_cnt)  # equivalent of apf::Up
+  verts = Array(Ptr{Void}, 3)
+  nel = 0
+  els_all = Array(Ptr{Void}, 3*up_cnt)
+  els_tmp = Array(Ptr{Void}, 3*up_cnt)
+  for i=1:mesh.numEl
+    getDownward(mesh.m_ptr, 0, verts)
+    pos = 1
+    for j=1:3
+      nel[j] = countAdjacent(mesh.m_ptr, verts[j], 2)
+      getAdjacent(up)
+      # copy element pointer into a single array
+      for k=1:nel[j]
+        els_all[pos] = up[k]
+        pos += 1
+      end
+    end
+    numel = pos - 1
+    
+    # count number of non duplicates
+    els_used = view(els_all, 1:numel);
+    sort!(els_used)
+    cnt = 1
+    for j=2:length(els_used)
+      if els_used[j] != els_used[j-1]
+        cnt += 1
+      end
+    end
+    if cnt > max_el
+      max_el = cnt
+    end
+  end
+
+  dof_elements = zeros(Int32, max_el, mesh.numNodes)
+  # now get the element numbers
+  for i=1:mesh.numEl
+    getDownward(mesh.m_ptr, 0, verts)
+    pos = 1
+    for j=1:3
+      nel[j] = countAdjacent(mesh.m_ptr, verts[j], 2)
+      getAdjacent(up)
+      # copy element pointer into a single array
+      for k=1:nel[j]
+        els_all[pos] = up[k]
+        pos += 1
+      end
+    end
+    numel = pos - 1
+
+    # de-duplicate whle copying into node_elements
+    els_used = view(els_all, 1:numel);
+    sort!(els_used)
+    els_tmp[1] = els_used[1]
+    pos = 2
+    for j=1:length(els_used)
+      if els_used[j] != els_used[j-1]
+        els_tmp[pos] = els_used[j]
+      end
+    end
+
+  end
+end
+=#
+ 
+
+
+
+
+
+    # copy the element pointers into a single array
+
+
+    
+# or maybe replace this with a tighter sparsity bound function
+# can be generalized with a few if statements
 function getSparsityBounds(mesh::PumiMesh, sparse_bnds::AbstractArray{Int32, 2}; getdofs=true)
 # sparse_bnds : 2 by numDof array of the minimum, maximum dofs connected to 
 # a dof in the Jacobian
@@ -54,11 +136,12 @@ function getSparsityBounds(mesh::PumiMesh, sparse_bnds::AbstractArray{Int32, 2};
 resetAllIts2()
 # mesh iterator increment, retreval functions
 #iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
-iterators_inc = (VertIterator(), EdgeIterator(), FaceIterator())
+iterators_inc = (VertIterator(), EdgeIterator(), FaceIterator(), ElIterator())
 
 #iterators_get = [getVert, getEdge, getFace]
-iterators_get = (VertGetter(), EdgeGetter(), FaceGetter())
-num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
+iterators_get = (VertGetter(), EdgeGetter(), FaceGetter(), ElGetter)
+num_entities = mesh.numEntitiesPerType
+#num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
 num_nodes_entity = mesh.numNodesPerType  # number of nodes on each type
                                          # of mesh entity
 
@@ -72,9 +155,8 @@ else
   @assert size(sparse_bnds, 2) == mesh.numNodes
 end
 
-for etype=1:3  # loop over mesh entity types
-
-  
+for etype=1:(mesh.dim+1)  # loop over mesh entity types
+ 
   if (num_nodes_entity[etype] != 0)  # there are nodes here
     for entity = 1:num_entities[etype]  # loop over all entities of this type
       entity_ptr = iterators_get[etype]()  # get pointer to mesh entity
@@ -100,8 +182,9 @@ return nothing
 
 end
 
+# rewrite this because it is terrible
 # this could be generalized 3d?
-function getDofBounds(mesh::PumiMesh, etype::Integer; getdofs=true) 
+function getDofBounds(mesh::PumiMesh2D, etype::Integer; getdofs=true) 
 # gets the maximum, minimum dofs associated with the entity currently
 # pointed to by the iterator specified by etype
 # getDofs = true -> get dof numbers, false -> get node numbers

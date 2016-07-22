@@ -1,6 +1,7 @@
-# PdePumiInterfaceDG.jl: implements AbstractMesh for a 2D Discontinuous
+# PdePumiInterface3DG.jl: implements AbstractMesh for a 3D Discontinuous
 #                        Galerkin mesh
 
+export PumiMeshDG3
 
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
@@ -41,8 +42,6 @@
 # having an explicitly defined node ordering convention and a general
 # mechanism to convert from Pumi to SBP ordering is a better interface
 #         
-export PumiMeshDG2
-#abstract AbstractMesh
 @doc """
 ### PumiInterface.PumiMeshDG2
 
@@ -52,15 +51,11 @@ export PumiMeshDG2
 
   Fields:
     m_ptr: a Ptr{Void} to the Pumi mesh
-    mnew_ptr: a Ptr{Void} to the subtriangulated mesh used for high
-              order visualization, null pointer if not needed
     mshape_ptr: a Ptr{Void} do the FieldShape of the solution field (not the
                 coordinate field)
     coordshape_ptr: a pointer to the FieldShape of the coordinate field
 
     f_ptr:  a Ptr{Void} to the Pumi apf::Field holding the solution
-    fnew_ptr: a pointer to the solution Field on the subtriangulated mesh,
-              null if not needed
     shape_type: an enum describing what shape functions to use
     min_node_dist: the minimum distance between nodes on a reference element
     vert_NPtr: a pointer to the apf::Numbering object that numbers the 
@@ -111,21 +106,19 @@ export PumiMeshDG2
           The global dof number is the number stored in this array + 
           dof_offset  (even for the non-local elements)
 """->
-type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
+type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
-  mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
   mshape_ptr::Ptr{Void} # pointer to the FieldShape of the node field
   coordshape_ptr::Ptr{Void}  # pointer to FieldShape of the coordinate 
                              # field
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
-  fnew_ptr::Ptr{Void}  # pointer to field on mnew_ptr
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
   min_el_size::Float64 # size of the smallest element (units of length)
   f::IOStream
   vert_Nptr::Ptr{Void}  # numbering of vertices (zero based)
   edge_Nptr::Ptr{Void}  # numbering of edges (zero based)
-  face_Nptr::Ptr{Void}  # number of face s(edges), (zero based)
+  face_Nptr::Ptr{Void}  # number of faces (zero based)
   el_Nptr::Ptr{Void}  # numbering of elements (faces)  (zero based)
   coloring_Nptr::Ptr{Void}  # coloring of mesh for sparse jacobian calculation
   entity_Nptrs::Array{Ptr{Void}, 1}  # [vert_Nptr, edge_Nptr, el_Nptr], 0-based
@@ -142,7 +135,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   numBoundaryFaces::Int # number of edges on the exterior boundary
   numInterfaces::Int # number of internal interfaces
   numNodesPerElement::Int  # number of nodes per element
-  numFacesPerElement::Int  # number of faces (edges) on an element
+  numFacesPerElement::Int  # number of faces per element
   numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
   numNodesPerFace::Int  # number of face nodes
   numEntitiesPerType::Array{Int, 1} # [numVert, numEdge, numEl]
@@ -216,9 +209,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   interfaces::Array{Interface, 1}  # store data on internal edges
   interface_normals::Array{T1, 4}  # array of interior face normals, 
                                    # indexing: [norm_component, Left or right, left face node, left face element]
-
-  vert_coords::Array{T1, 3}  # dim x numVertsPerElement x numEl array of 
-                             # coordinates of vertices of each element
+  vert_coords::Array{T1, 3}  # dim x numVertPerElement x numEl array of
+                              # coordinates of the vertices of each element
   coords::Array{T1, 3}  # store coordinates of all nodes
   coords_bndry::Array{T1, 3}  # store coordinates of nodes on boundary,
                               # 2 x numFaceNodes x numBoundaryFaces
@@ -297,11 +289,12 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   # BitArrays, where each BitArray has length = the number of ghost elements
   # on the current peer boundary
   shared_element_colormasks::Array{Array{BitArray{1}, 1}, 1}                               
-  sbpface::TriFace{Float64}  # SBP object needed to do interpolation
-  topo::ElementTopology{2}
+  #TODO: remove this once SBP interface is clarified
+  sbpface::SummationByParts.AbstractFace{Float64}  # SBP object needed to do interpolation
+  topo::ElementTopology{3}
 
 
- function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, interp_op, sbpface; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
+ function PumiMeshDG3(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, interp_op, sbpface, topo::ElementTopology{3}; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -312,13 +305,13 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   #              3 = DG2
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
-  println("\nConstructing PumiMeshDG2 Object")
+  println("\nConstructing PumiMeshDG3 Object")
   println("  sbp_name = ", smb_name)
   println("  dmg_name = ", dmg_name)
-  set_defaults(opts)  # get default arguments
+  set_defaults(opts)
   mesh = new()
   mesh.isDG = true
-  mesh.dim = 2
+  mesh.dim = 3
   mesh.numDofPerNode = dofpernode
   mesh.order = order
   mesh.shape_type = shape_type
@@ -327,8 +320,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   mesh.ref_verts = [0.0 1 0; 0 0 1]  # ???
   mesh.numNodesPerFace = sbpface.numnodes
   mesh.comm = comm
-  mesh.topo = ElementTopology2() # create default topology because it isn't
-                                  # important for 2D
+  mesh.topo = topo
 
   if !MPI.Initialized()
     MPI.Init()
@@ -339,7 +331,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   myrank = mesh.myrank
   mesh.f = open("meshlog_$myrank.dat", "w")
 
-  # temporary testing of SBP-Gamma DG
+  # force mesh to be interpolated
 #  if sbp.numfacenodes == 0
     mesh.sbpface = sbpface
     mesh.isInterpolated = true
@@ -365,36 +357,40 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
 
   if dim != mesh.dim
-    throw(ErrorException("loaded mesh is not 2 dimensions"))
+    throw(ErrorException("loaded mesh is not 3 dimensional"))
   end
+
 
   # create the solution field
   mesh.mshape_ptr = getFieldShape(field_shape_type, order, mesh.dim)
-  mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
+  # use coordinate fieldshape for solution, because it will be interpolated
+  mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.coordshape_ptr)
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
 
   # count the number of all the different mesh attributes
+  println("num_entitites = ", num_Entities)
   mesh.numVert = convert(Int, num_Entities[1])
   mesh.numEdge =convert(Int,  num_Entities[2])
-  mesh.numFace = mesh.numEdge
-  mesh.numEl = convert(Int, num_Entities[3])
-  mesh.numEntitiesPerType = [mesh.numVert, mesh.numEdge, mesh.numEl]
-  mesh.numTypePerElement = [3, 3, 1]
-  mesh.el_type = apfTRIANGLE
-  mesh.face_type = apfEDGE
+  mesh.numFace = convert(Int, num_Entities[3])
+  mesh.numEl = convert(Int, num_Entities[4])
+  mesh.numEntitiesPerType = [mesh.numVert, mesh.numEdge, mesh.numFace, mesh.numEl]
+  mesh.numTypePerElement = [4, 6, 4, 1]
   mesh.numFacesPerElement = mesh.numTypePerElement[end-1]
+  mesh.el_type = apfTET
+  mesh.face_type = apfTRIANGLE
 
   num_nodes_v = countNodesOn(mesh.mshape_ptr, 0)  # number of nodes on a vertex
   num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
   num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
-  num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f]
+  num_nodes_r = countNodesOn(mesh.mshape_ptr, apfTET)  # on region
+  num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f, num_nodes_r]
   # count numbers of different things per other thing
   # use for bookkeeping
   mesh.numNodesPerType = num_nodes_entity
-  mesh.typeOffsetsPerElement = zeros(Int, 4)
+  mesh.typeOffsetsPerElement = zeros(Int, 5)
   pos = 1
   mesh.typeOffsetsPerElement[1] = pos
-  for i=2:4
+  for i=2:5
     pos += mesh.numTypePerElement[i-1]*mesh.numNodesPerType[i-1]
     mesh.typeOffsetsPerElement[i] = pos
   end
@@ -408,18 +404,18 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   mesh.numDof = numnodes*dofpernode
 
   # get nodemaps
-  mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(order, shape_type, mesh.numNodesPerElement)
+  mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(order, shape_type, mesh.numNodesPerElement, mesh.dim)
 
  
   # get pointers to mesh entity numberings
   mesh.vert_Nptr = getVertNumbering()
   mesh.edge_Nptr = getEdgeNumbering()
-  mesh.face_Nptr = mesh.edge_Nptr
-  mesh.el_Nptr = getFaceNumbering()
-  mesh.entity_Nptrs = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
+  mesh.face_Nptr = getFaceNumbering()
+  mesh.el_Nptr = getElNumbering()
+  mesh.entity_Nptrs = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.face_Nptr, mesh.el_Nptr]
 
   # create the coloring_Nptr
-  el_mshape = getConstantShapePtr(2)
+  el_mshape = getConstantShapePtr(mesh.dim)
   mesh.coloring_Nptr = createNumberingJ(mesh.m_ptr, "coloring", el_mshape, 1)
 
   # create node status numbering (node, not dof)
@@ -444,7 +440,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     numberNodesWindy(mesh, start_coords)
     # tell the algorithm there is only 1 dof per node because we only
     # want to label nodes
-
 #    reorder(mesh.m_ptr, mesh.numNodes, 1, 
 #            mesh.nodestatus_Nptr, mesh.nodenums_Nptr, mesh.el_Nptr, 
 #	    start_coords[1], start_coords[2])
@@ -532,8 +527,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     mesh.maxColors = MPI.Allreduce(numc, MPI.MAX, mesh.comm)
     println(mesh.f, "max colors = ", mesh.maxColors)
     mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
-    mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
-    mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
+    mesh.neighbor_colors = zeros(UInt8, mesh.numFacesPerElement+1, mesh.numEl)
+    mesh.neighbor_nums = zeros(Int32, mesh.numFacesPerElement+1, mesh.numEl)
     println("about to get distance 1 coloring")
     cnt, mesh.shared_element_colormasks = getColors1(mesh, colordata, mesh.color_masks, 
                                 mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
@@ -551,7 +546,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     mesh.pertNeighborEls = getPertNeighbors0(mesh)
 
   else
-    println(STDERR, "Error: unsupported coloring distance requested")
+    throw(ErrorException("unsupported coloring distance requested"))
   end
 
   # get sparsity information
@@ -594,39 +589,36 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   println("numInterfaces = ", mesh.numInterfaces)
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
-  sort!(mesh.interfaces)
+#  sort!(mesh.interfaces)
 
   getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
 
-  mesh.dxidx = Array(T1, 2, 2, sbp.numnodes, mesh.numEl)
+  # TODO: uncomment when SBP is figured out
+  
+  mesh.dxidx = Array(T1, mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
   mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
   mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
-
+  
   mesh.min_el_size = getMinElementSize(mesh)
 
   # get face normals
-  mesh.bndry_normals = Array(T1, 0, 0, 0)
-#  mesh.bndry_normals = Array(T1, 2, sbp.numfacenodes, mesh.numBoundaryFaces)
-#  getBoundaryFaceNormals(mesh, sbp, mesh.bndryfaces, mesh.bndry_normals)
-
-  mesh.interface_normals = Array(T1, 0, 0, 0, 0)
-#  mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
-#  getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   if mesh.isInterpolated
     mesh.dxidx_face, mesh.jac_face, mesh.dxidx_sharedface, mesh.jac_sharedface, mesh.dxidx_bndry, mesh.jac_bndry = interpolateMapping(mesh)
 
-    mesh.coords_bndry = zeros(T1, 2, sbpface.numnodes, mesh.numBoundaryFaces)
+    mesh.coords_bndry = zeros(T1, mesh.dim, sbpface.numnodes, mesh.numBoundaryFaces)
     getBndryCoordinates(mesh, mesh.bndryfaces, mesh.coords_bndry)
     mesh.coords_sharedface = Array(Array{T1, 3}, mesh.npeers)
     for i=1:mesh.npeers
-      mesh.coords_sharedface[i] = zeros(T1, 2, sbpface.numnodes, mesh.peer_face_counts[i])
+      mesh.coords_sharedface[i] = zeros(T1, mesh.dim, sbpface.numnodes, mesh.peer_face_counts[i])
       getBndryCoordinates(mesh, mesh.bndries_local[i], mesh.coords_sharedface[i])
     end
   end
 
-  @time createSubtriangulatedMesh(mesh)
-  println("finished creating sub mesh\n")
+  if mesh.dim == 2
+    @time createSubtriangulatedMesh(mesh)
+    println("finished creating sub mesh\n")
+  end
 
   println("printin main mesh statistics")
 
@@ -664,9 +656,17 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   if opts["write_face_vertnums"]
     rmfile("face_vertnums_$myrank.dat")
     f = open("face_vertnums_$myrank.dat", "a+")
-    printFaceVertNumbers(mesh.el_Nptr, mesh.vert_Nptr, fstream=f)
+    printFaceVertNumbers(mesh.face_Nptr, mesh.vert_Nptr, fstream=f)
     close(f)
   end
+
+  if opts["write_element_vertnums"]
+    rmfile("el_vertnums_$myrank.dat")
+    f = open("el_vertnums_$myrank.dat", "a+")
+    printElementVertNumbers(mesh.el_Nptr, mesh.vert_Nptr, fstream=f)
+    close(f)
+  end
+
 
   if opts["write_boundarynums"]
     rmfile("boundary_nums_$myrank.dat")
@@ -703,8 +703,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     rmfile("entity_offsets_$myrank.dat")
     writedlm("entity_offsets_$myrank.dat", mesh.elementNodeOffsets)
   end
-
-  println("about to write dofs")
 
   if opts["write_dofs"]
     rmfile("dofs_$myrank.dat")
@@ -749,10 +747,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     end
   end
 
-  println("about to write visualization files")
   writeVisFiles(mesh, "mesh_complete")
-
-  println("finished writing visualization files")
 
   myrank = mesh.myrank
   f = open("load_balance_$myrank.dat", "a+")
@@ -814,7 +809,7 @@ function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
     mesh.pertNeighborEls = getPertNeighbors0(mesh)
 
   else
-    println(STDERR, "Error: unsupported coloring distance requested")
+    throw(ErrorException("unsupported coloring distance requested"))
   end
 
   # get sparsity information
@@ -854,13 +849,8 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
   dmg_name = "b"
   order = mesh.order
   dofpernode = mesh.numDofPerNode
-  tmp, num_Entities, m_ptr, coordshape_ptr, dim = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
+  tmp, num_Entities, m_ptr, coordshape_ptr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
   f_ptr = mesh.f_ptr  # use existing solution field
-
-  if dim != mesh.dim
-    throw(ErrorException("loaded mesh is not 2 dimensions"))
-  end
-
 
   numVert = convert(Int, num_Entities[1])
   numEdge =convert(Int,  num_Entities[2])

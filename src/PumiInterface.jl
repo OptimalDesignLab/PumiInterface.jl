@@ -32,6 +32,7 @@ global const resetVertIt_name = "resetVertIt"
 global const resetEdgeIt_name = "resetEdgeIt"
 global const resetFaceIt_name = "resetFaceIt"
 global const resetElIt_name  = "resetElIt"
+global const resetIt_name = "resetIt"
 global const incrementVertIt_name = "incrementVertIt"
 global const incrementVertItn_name = "incrementVertItn"
 
@@ -43,6 +44,8 @@ global const incrementFaceItn_name = "incrementFaceItn"
 
 global const incrementElIt_name = "incrementElIt"
 global const incrementElItn_name = "incrementElItn"
+
+global const incrementIt_name = "incrementIt"
 
 global const count_name = "count"
 global const writeVtkFiles_name = "writeVtkFiles"
@@ -57,6 +60,7 @@ global const getVert_name = "getVert"
 global const getEdge_name = "getEdge"
 global const getFace_name = "getFace"
 global const getEl_name = "getEl"
+global const getEntity_name = "getEntity"
 global const getVertNumber2_name = "getVertNumber2"
 global const getEdgeNumber2_name = "getEdgeNumber2"
 global const getFaceNumber2_name = "getFaceNumber2"
@@ -101,6 +105,7 @@ global const getFaceCoords2_name = "getFaceCoords2"
 global const getElCoords_name = "getElCoords"
 global const getElCoords2_name = "getElCoords2"
 global const createNumberingJ_name = "createNumberingJ"
+global const getNumberingShape_name = "getNumberingShape"
 global const numberJ_name = "numberJ"
 global const getNumberJ_name = "getNumberJ"
 global const getDofNumbers_name = "getDofNumbers"
@@ -125,6 +130,7 @@ global const runAnisoAdapt_name = "runAnisoAdapt"
 global const createPackedField_name = "createPackedField"
 global const setComponents_name = "setComponents"
 global const getComponents_name = "getComponents"
+global const zeroField_name = "zeroField"
 
 
 global const createSubMesh_name = "createSubMesh"
@@ -132,7 +138,7 @@ global const transferField_name = "transferField"
 global const createSubMeshDG_name = "createSubMeshDG"
 global const transferFieldDG_name = "transferFieldDG"
 
-global const getSBPShapes_name = "getSBPShapes"
+global const getFieldShape_name = "getFieldShape"
 
 global const countPeers_name = "countPeers"
 global const getPeers_name = "getPeers"
@@ -143,17 +149,17 @@ end
 
 
 # export low level interface functions
-export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
+export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, createNumberingJ, getNumberingShape, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, zeroField, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
-export createSubMeshDG, transferFieldDG, getSBPShapes
+export createSubMeshDG, transferFieldDG, getFieldShape
 
 export toModel, getModelType, getModelTag
 export countPeers, getPeers
 # iterator functors
-export VertIterator, EdgeIterator, FaceIterator
-export VertGetter, EdgeGetter, FaceGetter
+export VertIterator, EdgeIterator, FaceIterator, ElIterator
+export VertGetter, EdgeGetter, FaceGetter, ElGetter
 export countPeers, getPeers, countRemotes, getRemotes, isShared
-
+export getEntity, incrementIt, resetIt,
 @doc """
   initilize the state of the interface library
 
@@ -217,16 +223,15 @@ num_Entities = zeros(Int32, 4, 1)
 
 m_ptr_array = Array(Ptr{Void}, 1)
 mshape_ptr_array = Array(Ptr{Void}, 1)
-
-i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, order, load_mesh, shape_type )  # call init in interface library
+dim = Ref{Cint}()
+i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Ptr{Cint}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, dim, order, load_mesh, shape_type )  # call init in interface library
 
 if ( i != 0)
-  println("init failed, exiting ...")
-  exit()
+  throw(ErrorException("Init failed"))
 end
 
 
-return num_Entities, m_ptr_array[1], mshape_ptr_array[1]
+return num_Entities, m_ptr_array[1], mshape_ptr_array[1], dim[]
 end
 
 
@@ -314,6 +319,11 @@ return nothing
 
 end
 
+function resetIt(dim::Integer)
+
+  ccall( (resetIt_name, pumi_libname), Void, (Cint,), dim );
+end
+
 
 type VertIterator
 end
@@ -392,6 +402,13 @@ return nothing
 end
 
 
+type ElIterator
+end
+
+function call(obj::ElIterator)
+  incrementElIt()
+end
+
 
 
 function incrementElIt()
@@ -408,6 +425,11 @@ function incrementElItn(n::Integer)
 ccall( (incrementElItn_name, pumi_libname), Void, (Int32,), n );
 return nothing
 
+end
+
+function incrementIt(dim::Integer)
+
+  ccall( (incrementIt_name, pumi_libname), Void, (Cint,), dim)
 end
 
 
@@ -519,6 +541,15 @@ function getFace()
   return entity
 end
 
+type ElGetter
+end
+
+function call(obj::ElGetter)
+  getEl()
+end
+
+
+
 function getEl()
 # get pointer to current element
   entity = ccall( (getEl_name, pumi_libname), Ptr{Void}, () )
@@ -526,6 +557,10 @@ function getEl()
   return entity
 end
 
+function getEntity(dim::Integer)
+
+  ccall( (getEntity_name, pumi_libname), Ptr{Void}, (Cint,), dim)
+end
 
 
 
@@ -881,8 +916,7 @@ function getEdgeCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
 i = ccall( (getEdgeCoords_name, pumi_libname), Int, (Ptr{Float64}, Int32, Int32), coords, n, m);
 
 if ( i != 0)
-  println("Error in getEdgeCoords... exiting")
-  exit()
+  throw(ErrorException("Error in getEdgeCoords"))
 end
 
 #println("in julia, coords = ", coords)
@@ -896,8 +930,7 @@ function getEdgeCoords(entity, coords::Array{Float64, 2}, m::Integer, n::Integer
 i = ccall( (getEdgeCoords2_name, pumi_libname), Int, (Ptr{Void}, Ptr{Float64}, Int32, Int32), entity, coords, n, m);
 
 if ( i != 0)
-  println("Error in getEdgeCoords... exiting")
-  exit()
+  throw(ErrorException("Error in getEdgeCoords"))
 end
 
 #println("in julia, coords = ", coords)
@@ -918,7 +951,7 @@ function getFaceCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
 i = ccall( (getFaceCoords_name, pumi_libname), Int32, (Ptr{Float64}, Int32, Int32), coords, n, m);
 
 if ( i != 0)
-  println("Error in getEdgeCoords... exiting")
+  throw(ErrorException("Error in getFaceCoords"))
   exit()
 end
 
@@ -937,8 +970,7 @@ function getFaceCoords(entity, coords::AbstractMatrix, m::Integer, n::Integer)
 i = ccall( (getFaceCoords2_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Float64}, Int32, Int32), entity, coords, n, m);
 
 if ( i != 0)
-  println("Error in getEdgeCoords... exiting")
-  exit()
+  throw(ErrorException("Error in getFaceCoords"))
 end
 
 #println("in julia, coords = ", coords)
@@ -956,8 +988,7 @@ function getElCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
 i = ccall( (getElCoords_name, pumi_libname), Int, (Ptr{Float64}, Int32, Int32), coords, n, m);
 
 if ( i != 0)
-  println("Error in getEdgeCoords... exiting")
-  exit()
+  throw(ErrorException("Error in getElCoords"))
 end
 
 #println("in julia, coords = ", coords)
@@ -974,16 +1005,12 @@ function getElCoords(entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
 i = ccall( (getElCoords2_name, pumi_libname), Int, (Ptr{Void}, Ptr{Float64}, Int32, Int32),entity, coords, n, m);
 
 if ( i != 0)
-  println("Error in getEdgeCoords... exiting")
-  exit()
+  throw(ErrorException("Error in getElCoords"))
 end
 
 #println("in julia, coords = ", coords)
 
 end
-
-
-
 
 
 function createNumberingJ(m_ptr, name::AbstractString, field, components::Integer)
@@ -994,6 +1021,11 @@ function createNumberingJ(m_ptr, name::AbstractString, field, components::Intege
 numbering_ptr = ccall ( (createNumberingJ_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{UInt8}, Ptr{Void}, Int32), m_ptr, name, field, components)
 
 return numbering_ptr
+end
+
+function getNumberingShape(n_ptr::Ptr{Void})
+
+  fshape = ccall( (getNumberingShape_name, pumi_libname), Ptr{Void}, (Ptr{Void},), n_ptr)
 end
 
 function numberJ(numbering_ptr, entity, node::Integer, component::Integer, number::Integer)
@@ -1131,11 +1163,8 @@ function reorder(m_ptr, ndof::Integer, ncomp::Integer, node_statusN_ptr, nodeNum
   println("ndof = ", ndof)
   println("ncomp = ", ncomp)
  
-  flush(STDOUT)
-  flush(STDERR)
   ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}, Cdouble, Cdouble),  m_ptr, ndof,  ncomp, node_statusN_ptr, nodeNums, elNums, x, y)
 
-  Libc.flush_cstdio()
   return nothing
 
 end
@@ -1208,6 +1237,10 @@ function getComponents(f_ptr, entity_ptr, node::Integer, components::AbstractVec
   ccall( (getComponents_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Float64}), f_ptr, entity_ptr, node, components)
 
   return nothing
+end
+
+function zeroField(f_ptr)
+  ccall( (zeroField_name, pumi_libname), Void, (Ptr{Void},), f_ptr)
 end
 
 @doc """
@@ -1332,10 +1365,11 @@ end
 
 
 
-function getSBPShapes(shape_type::Integer, order::Integer)
+function getFieldShape(shape_type::Integer, order::Integer, dim::Integer)
 # shape_type: 1 = SBP, 2 = SBPDG1
 
-  ccall( (getSBPShapes_name, pumi_libname), Ptr{Void}, (Cint, Cint), shape_type, order)
+  change_shape = Ref{Bool}()
+  ccall( (getFieldShape_name, pumi_libname), Ptr{Void}, (Cint, Cint, Cint, Ref{Bool}), shape_type, order, dim, change_shape)
 
 end
 

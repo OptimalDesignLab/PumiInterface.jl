@@ -1,6 +1,6 @@
 export PumiMesh3
 
-type PumiMesh3{T1} <: PumiMeshCG{T1}   # 3d pumi mesh, tetrahedron only
+type PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron only
   m_ptr::Ptr{Void}  # pointer to mesh
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
@@ -159,10 +159,10 @@ type PumiMesh3{T1} <: PumiMeshCG{T1}   # 3d pumi mesh, tetrahedron only
 #
 
 #=
-  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
+  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
   getBoundaryArray(mesh)
 
-  mesh.numInterfaces = mesh.numEdge - mesh.numBoundaryEdges
+  mesh.numInterfaces = mesh.numEdge - mesh.numBoundaryFaces
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
 
@@ -266,7 +266,7 @@ function getBoundaryArray(mesh::PumiMesh3)
 # creating an an array of a user defined type seems like a waste of memory operations
 # bnd_array is a vector of type Boundary with length equal to the number of edges on the boundary of the mesh
 
-#  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryEdges)
+#  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
 
   for i=1:mesh.numBoundaryFaces
     elnum = mesh.boundary_nums[i,1]
@@ -634,8 +634,8 @@ function getInterfaceArray(mesh::PumiMesh3)
 
       faceL = getEntityLocalNumber(mesh.m_ptr, mesh.faces[i], mesh.elements[elementL], 2, 3)
       faceR = getEntityLocalNumber(mesh.m_ptr, mesh.faces[i], mesh.elements[elementR], 2, 3)
-#      edgeL = getEdgeLocalNum(mesh, i, elementL)
-#      edgeR = getEdgeLocalNum(mesh, i, elementR)
+#      edgeL = getFaceLocalNum(mesh, i, elementL)
+#      edgeR = getFaceLocalNum(mesh, i, elementR)
 
       # construct nodemap if needed
       rel_rotate = calcRelRotate(mesh, elementL, elementR, i)

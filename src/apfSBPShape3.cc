@@ -9,7 +9,7 @@ namespace apf {
 class SBP3Linear : public FieldShape
 {
   public:
-//    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
+    SBP3Linear() { registerSelf(apf::SBP3Linear::getName()); }
     const char* getName() const { return "SBP3Linear"; }
     class Vertex : public EntityShape
     // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
@@ -195,6 +195,8 @@ class SBP3Linear : public FieldShape
 class SBP3Quadratic : public FieldShape
 {
   public:
+
+    SBP3Quadratic() { registerSelf(apf::SBP3Quadratic::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "SBP3Quadratic"; }
 	
@@ -418,6 +420,8 @@ class SBP3Quadratic : public FieldShape
 class SBP3Cubic : public FieldShape
 {
   public:
+
+    SBP3Cubic() { registerSelf(apf::SBP3Cubic::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "SBP3Cubic"; }
 	
@@ -678,6 +682,7 @@ class SBP3Cubic : public FieldShape
 class SBP3Quartic : public FieldShape
 {
   public:
+    SBP3Quartic() { registerSelf(apf::SBP3Quartic::getName()); }
 //    SBPLinear() { registerSelf(apf::Linear::getName()); }  // use inherited/default constructor?
     const char* getName() const { return "SBP3Quartic"; }
 	

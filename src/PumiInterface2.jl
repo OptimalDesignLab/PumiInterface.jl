@@ -2,7 +2,7 @@
 # function
 
 
-export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities, getEntityLocalNumber
+export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities, getEntityLocalNumber, printElementVertNumbers
 export apfVERTEX, apfEDGE, apfTRIANGLE, apfQUAD, apfTET, apfHEX, apfPRISM, apfPYRAMIX, simplexTypes
 
 # declare the enums
@@ -42,6 +42,7 @@ function resetAllIts2()
 
  return nothing
 end
+
 
 function countDownwards(m_ptr, entity)
 # gets an array containing the number of downward adjacencies of each type for
@@ -109,7 +110,7 @@ function printEdgeVertNumbers(edgeN_ptr, vertN_ptr; fstream=STDOUT)
 
 end
 
-function printEdgeVertNumbers(edges::AbstractArray{Ptr{Void}}, edgeN_ptr, vertN_ptr; fstream=STDOUT)
+function printFaceVertNumbers(edges::AbstractArray{Ptr{Void}}, edgeN_ptr, vertN_ptr; fstream=STDOUT)
 
   m_ptr = getMesh(edgeN_ptr)
   m = length(edges)
@@ -117,11 +118,13 @@ function printEdgeVertNumbers(edges::AbstractArray{Ptr{Void}}, edgeN_ptr, vertN_
   for i=1:m
     edge_i = edges[i]
     edge_num = getNumberJ(edgeN_ptr, edge_i, 0, 0)
-
+    print(fstream, "face ", edge_num, " has vertices ")
     (verts, nverts) = getDownward(m_ptr, edge_i, 0)
-    n1 = getNumberJ(vertN_ptr, verts[1], 0, 0)
-    n2 = getNumberJ(vertN_ptr, verts[2], 0, 0)
-    println(fstream, "edge ", edge_num, " has vertices ", n1, " , ", n2 )
+    for j=1:nverts
+      n = getNumberJ(vert_Nptr, verts[j], 0, 0)
+      print(fstream, n1, ", ")
+    end
+    print(fstream, "\n")
   end
 
 end
@@ -147,6 +150,26 @@ println("numFaces = ", m)
  end
 
  return nothing
+end
+
+function printElementVertNumbers(el_Nptr, vert_Nptr; fstream=STDOUT)
+  resetElIt()
+  m_ptr = getMesh(el_Nptr)
+  m = countJ(m_ptr, 3)  # count number of element
+
+  for i=1:m
+    el_i = getEl()
+    elnum = getNumberJ(el_NPtr, el_i, 0, 0)
+    (verts, nverts) = getDownward(m_ptr, el_i, 0)
+    vertnums = zeros(Int, nverts)
+    for j=1:nverts
+      vertnums[j] = getNumberJ(vert_Nptr, verts[j], 0, 0)
+    end
+    println(fstream, "element ", elnum, " has vertices $vertnums")
+    incrementElIt()
+  end
+
+  return nothing
 end
 
 function getValues2(eshape_ptr, coords::Array{Float64,1})
@@ -201,7 +224,7 @@ function getNodeEntities(m_ptr, mshape_ptr, entity)
     num_type_per_entity = [4, 6, 4, 1]
     numRegions = num_type_per_entity[4]
   else
-    println(STDERR, "Error: unsupported entity type in getNodeEntites")
+    throw(ErrorException("unsupported entity type in getNodeEntites, entity type = $entity_type"))
   end
 
   numVerts = num_type_per_entity[1]
@@ -240,9 +263,8 @@ function getNodeEntities(m_ptr, mshape_ptr, entity)
   end
 
   if has_region_nodes
-     numRegions = getDownward(m_ptr, entity, 4, retrieved_entities)
     for i=1:numRegions
-      insertN(downward_entities, retrieved_entities[i], vert_offset + num_edge_nodes*numEdges + num_face_nodes*numFaces + num_region_nodes*(i-1) + 1, num_region_nodes)
+      insertN(downward_entities, entity, vert_offset + num_edge_nodes*numEdges + num_face_nodes*numFaces + num_region_nodes*(i-1) + 1, num_region_nodes)
     end
   end
 

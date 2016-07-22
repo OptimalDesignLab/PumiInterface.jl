@@ -1,5 +1,5 @@
 # file for determining MeshEntity orientations
-
+# not generalizable (but may not be necessary for DG)
 function getEntityOrientations(mesh::PumiMesh)
 # get the offset for node access of each mesh entity of each element
 # to read/write from a Pumi field, accessing the data stored on an edge looks like:
@@ -125,8 +125,7 @@ function getEdgeOrientation(mesh::PumiMesh, elnum::Integer, edgenum::Integer)
     elseif pos2 - pos1 < 0  # negatively oriented
       return -1, edge_idx
     else
-      println(STDERR, "Warning, bad orientation determination in PdePumiInterface getEdgeOrientation")
-      return 0, edge_idx
+      throw(ErrorException("bad orientation determination"))
     end
   elseif edge_idx == 3  # ordering is reversed for 3rd edge
     if -(pos2 - pos1) > 0  # positively oriented
@@ -134,13 +133,178 @@ function getEdgeOrientation(mesh::PumiMesh, elnum::Integer, edgenum::Integer)
     elseif -(pos2 - pos1) < 0  # negatively oriented
       return -1, edge_idx
     else
-      println(STDERR, "Warning, bad orientation determination in PdePumiInterface getEdgeOrientation")
-      return 0, edge_idx
+      throw(ErrorException("bad orientation determination"))
     end
   else
-    println(STDERR, "Warning, bad edge index determination inf PdePumiInterface getEdgeOrientation")
+    throw(ErrorException("bad orientation determination"))
   end
  
 end  # end function
+
+immutable EntityOrientation
+  which::Cint
+  flip::Bool
+  rotate::Cint
+end
+
+
+function getEntityOrientations(mesh::PumiMesh3DG)
+# for DG (without subtriangulation), these shouldn't ever be needed
+
+  offsets = zeros(UInt8, mesh.numNodesPerElement, mesh.numEl)
+  flags = Array(BitArray{2}, 4)  # on array for Verts, edges, faces, regiosn
+  for i=1:4
+    flags[i] = falses(mesh.numTypePerElement[i], mesh.numEl)
+  end
+
+  return offsets, flags
+end
+
+function getRelRotate(mesh::PumiMesh3, elementL::Integer, elementR::Integer, facenum::Integer)
+# calculate the rotation of faceR relative to faceL, where faceL and faceR
+# are shared between the two element
+# this uses getAligmnet, which describes how to transform the face from
+# its current orientation to the canonical orientation as part of its parent
+# element
+# the difference in the required rotations is the relative rotation
+# elementL : global element index
+# elementR : global element index
+# faceL : local face number of shared face on elementL
+# faceR : local face number of shared face on elementR
+# face : global face number of the shared face
+
+eL = mesh.elements[elementL]
+eR = mesh.elements[elementR]
+face = mesh.faces[facenum]
+
+# get rotations to bring faces into canonical orientation
+# for each element
+# we can ignore flip because one of the faces will always be flipped
+whichL, flipL, rotateL = getAlignment(mesh.m_ptr, eL, face)
+whichR, flipR, rotateR = getAlignment(mesh.m_ptr, eR, face)
+
+r1 = EntityOrientation(whichL, flipL, rotateL)
+r2 = EntityOrientation(whichR, flipR, rotateR)
+
+rel_rotate = calcRelRotation(mesh, r1, r2)
+return rel_rotate
+
+end  # end function
+
+# calculate the relative rotation of 2 faces
+function calcRelRotation(mesh::PumiMesh, r1::EntityOrientation, 
+                         r2::EntityOrientation, localfaces=true)
+
+  if r1.flip == r2.flip && localfaces
+    throw(ErrorException("Both faces cannot be flipped"))
+  end
+
+  # sum rotations because they each rotate ccw in their parent
+  # element's orientation, so they rotate in opposite directions
+  rel_rotate = r1.rotate + r2.rotate
+  #println("rel_rotate before wrapping = ", rel_rotate)
+  rel_rotate = wrapNumber(rel_rotate, 0, 2)
+  #println("rel_rotate after wrapping = ", rel_rotate)
+
+  # add 1 so output is in range [1,3]
+  return rel_rotate + 1
+end
+ 
+function wrapNumber(num::Integer, lower::Integer, upper::Integer)
+# make num perioid, where upper and lower are the max and min values allowable
+# ie. num can only be in the range [1 3], if num == 0, then it gets mapped to 3
+# similarly, 4 gets mapped to 1
+
+
+
+range = upper - lower + 1
+
+if num < lower
+  diff = lower - num
+  return upper - (diff % range) + 1
+  
+elseif  num > upper
+  diff = num - upper
+  return lower + (diff % range) - 1
+else
+  return num
+end
+
+end
+"""
+  Type to hold data about 2 elements that share a face, along with some 
+  arrays needed by getRelativeOrientation
+"""
+immutable FaceData
+  elnumL::Int
+  elL::Ptr{Void}
+  elnumR::Int
+  elR::Ptr{Void}
+  faceL::Int  # local face numbers
+  faceR::Int
+  vertsL::Array{Ptr{Void}, 1}
+  vertsR::Array{Ptr{Void}, 1}
+  facevertsL::Array{Ptr{Void}, 1}
+  facevertsR::Array{Ptr{Void}, 1}
+end
+
+"""
+  Maps the position where vertex 1 of faceL is found in faceR to the relative 
+  rotation of the face.
+"""
+global const pos_to_rotation = [1, 2, 3]
+
+
+"""
+  This function takes the data from element that share a face and determines 
+  the relative orientation of the shared face (ie. how many rotations cw 
+  faceR is from faceL when looking from the perspective of faceL).  The 
+  user supplied topology information is used to determine the ordering of the 
+  vertices on both faces, therefore the relative orientation is consistent with
+  the users definition of the faces
+"""
+function getRelativeOrientation(fdata::FaceData, mesh::PumiMesh3DG)
+
+  faceL = fdata.faceL
+  faceR = fdata.faceR
+  vertmap = mesh.topo.face_verts
+
+  # get all vertices of the tet
+  getDownward(mesh.m_ptr, fdata.elL, 0, fdata.vertsL)
+  getDownward(mesh.m_ptr, fdata.elR, 0, fdata.vertsR)
+
+  # extract the face vertices 
+  # uses the user suppied topology information to order the face verts
+  for i=1:3
+    fdata.facevertsL[i] = fdata.vertsL[vertmap[i, faceL]]
+    fdata.facevertsR[i] = fdata.vertsR[vertmap[i, faceR]]
+  end
+
+  return calcRelativeOrientation(fdata.facevertsL, fdata.facevertsR)
+
+end
+
+function calcRelativeOrientation(facevertsL::AbstractArray, facevertsR::AbstractArray)
+
+  # find vert1 of faceL in faceR
+  idx = 0
+  v1 = facevertsL[1]
+  for i=1:3
+    if facevertsR[i] == v1
+      idx = i
+      break
+    end
+  end
+
+  return pos_to_rotation[idx]
+end
+
+
+function getRelativeOrientation(fdata::FaceData, mesh::PumiMesh2DG)
+
+  return 1
+end
+
+
 
 

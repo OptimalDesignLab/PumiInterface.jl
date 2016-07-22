@@ -1,5 +1,6 @@
 # visualization related functions
 
+# can be generalized with a few constants
 function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
 # saves the solution in the vector u to the mesh (in preparation for mesh adaptation
 # it uses mesh.elementNodeOffsets to access the pumi field values in the 
@@ -44,32 +45,131 @@ function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
     end  # end loop over entity types
   end  # end loop over elements
 
-  transferFieldToSubmesh(mesh)
+  if !(mesh.isDG && mesh.shape_type == 3)
+    transferFieldToSubmesh(mesh)
+  end
 
   return nothing
 end  # end function saveSolutionToMesh
 
+function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
+# interpolate solution to the vertices 
+# u is the vector containing the solution, even though for DG the vector and the 
+# 3D array forms of the solution have identical memory layout
+# change this in the future with ReshapedArrays?
+
+  interp = mesh.interp_op
+  u_el = zeros(Float64, mesh.numNodesPerElement, mesh.numDofPerNode)
+  u_verts = zeros(Float64, size(interp, 1), mesh.numDofPerNode)
+  u_node = zeros(Float64, mesh.numDofPerNode)  # hold new node values
+  u_node2 = zeros(u_node)  # hold existing node values
+  dofs = mesh.dofs
+  numTypePerElement = mesh.numTypePerElement
+  numEntitiesPerType = mesh.numEntitiesPerType
+  fshape_ptr = mesh.coordshape_ptr
+
+  # count nodes on solution field 
+  numNodesPerType = Array(Int, 4)
+  numNodesPerType[1] = countNodesOn(fshape_ptr, 0)
+  numNodesPerType[2] = countNodesOn(fshape_ptr, 1)
+  numNodesPerType[3] = countNodesOn(fshape_ptr, 2)
+  numNodesPerType[4] = countNodesOn(fshape_ptr, 4) # tetrahedron
+
+  zeroField(mesh.f_ptr)
+
+  for el=1:mesh.numEl
+    el_i = mesh.elements[el]
+
+    # get the solution values out of u
+    for j=1:mesh.numNodesPerElement
+      for k=1:mesh.numDofPerNode
+        dof_k = dofs[k, j, el]
+        u_el[j, k] = real(u[dof_k])
+      end
+    end
+
+    # interpolate
+    smallmatmat!(interp, u_el, u_verts)
+
+    # save values to mesh
+    # assumes the solution fieldshape is the same as the coordinate fieldshape
+    node_entities = getNodeEntities(mesh.m_ptr, fshape_ptr, el_i)
+    col = 1  # current node of the element
+
+    for i=1:(mesh.dim+1)
+      for j=1:numTypePerElement[i]
+        for k=1:numNodesPerType[i]
+          entity = node_entities[col]
+          # skip elementNodeOffsets - maximum of 1 node per entity
+          getComponents(mesh.f_ptr, entity, 0, u_node2)
+          for p=1:mesh.numDofPerNode
+            u_node[p] = u_verts[col, p] + u_node2[p]
+          end
+
+          setComponents(mesh.f_ptr, entity, 0, u_node)
+          col += 1
+        end
+      end
+    end  # end loop over entity dimensions
+
+  end  # end loop over elements
+
+  # divide by number of elements that contributed to each node
+  # so the result is the average value
+  for dim=1:(mesh.dim + 1)
+    if numNodesPerType[dim] > 0
+      resetIt(dim - 1)
+      for i=1:numEntitiesPerType[dim]
+        entity_i = getEntity(dim - 1)
+        nel = countAdjacent(mesh.m_ptr, entity_i, mesh.dim)
+        getComponents(mesh.f_ptr, entity_i, 0, u_node)
+        fac = 1/nel
+        for p=1:mesh.numDofPerNode
+          u_node[p] = fac*u_node[p]
+        end
+        setComponents(mesh.f_ptr, entity_i, 0, u_node)
+        incrementIt(dim - 1)
+      end
+    end
+  end
 
 
-function writeVisFiles(mesh::PumiMeshDG2, fname::AbstractString)
+
+
+
+  return nothing
+end  # end function
+
+
+function writeVisFiles(mesh::PumiMesh2DG, fname::AbstractString)
   # writes vtk files 
 
+  if mesh.shape_type != 3
     writeVtkFiles(fname, mesh.mnew_ptr)
+  else
+    println(STDERR, "Warning: not printing visualization file for 2D SBP-Gamma")
+  end
 
   return nothing
 end
 
 
-function writeVisFiles(mesh::PumiMesh, fname::AbstractString)
+function writeVisFiles(mesh::PumiMesh2CG, fname::AbstractString)
   # writes vtk files 
 
   if mesh.order <= 2
+    println("writing original mesh vtk file")
     writeVtkFiles(fname, mesh.m_ptr)
   else
+    println("writing subtriangulated mesh vtk file")
     writeVtkFiles(fname, mesh.mnew_ptr)
   end
 
   return nothing
+end
+
+function writeVisFiles(mesh::PumiMesh3DG, fname::AbstractString)
+  writeVtkFiles(fname, mesh.m_ptr)
 end
 
 

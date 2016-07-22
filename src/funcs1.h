@@ -22,6 +22,9 @@
 #include "apfSBPShape.h"
 #include "apfSBPShape3.h"
 #include "dgSBPShape1.h"
+#include "dgSBPShape2.h"
+#include "dgSBP3Shape1.h"
+#include "dgSBP3Shape2.h"
 #include "triangulation.h"
 #include "triangulationDG.h"
 
@@ -38,11 +41,12 @@ extern "C" {
 int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type );
 
 
-int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type );
+int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], int order, int load_mesh, int shape_type );
 
 // these functions are not user accessible
 void cleanup(apf::Mesh* m_local);
 void destroyNumberings(int dim); 
+apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_shape);
 
 // these functions do pass pointers
 extern apf::Mesh2* getMeshPtr();
@@ -69,7 +73,13 @@ extern void incrementFaceItn(int n);
 extern void incrementElIt();
 extern void incrementElItn(int n);
 
+extern void incrementIt(int dim);
+
 extern void resetElIt();
+
+extern void resetIt(int dim);
+
+
 extern int count(apf::Mesh2* m_local, int dimension);
 extern void writeVtkFiles(char* name, apf::Mesh2* m_local);
 
@@ -85,6 +95,7 @@ extern apf::MeshEntity* getVert();
 extern apf::MeshEntity* getEdge();
 extern apf::MeshEntity* getFace();
 extern apf::MeshEntity* getEl();
+extern apf::MeshEntity* getEntity(int dim);
 
 // these functions are deprecated, use getNumberJ insteady
 extern int getVertNumber2(apf::MeshEntity* e);
@@ -149,6 +160,7 @@ int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);
 // these function pass pointers
 // create a generally defined numbering from julia
 extern  apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShape* field, int components);
+apf::FieldShape* getNumberingShape(apf::Numbering* n);
 extern int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number);
 extern  int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component);
 
@@ -182,6 +194,7 @@ void setComponents(apf::Field* f, apf::MeshEntity* e, int node,  double const co
 void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components[]);
 
 
+void zeroField(apf::Field* f);
 
 apf::FieldShape* getSBPShapes(int type, int order);
 
