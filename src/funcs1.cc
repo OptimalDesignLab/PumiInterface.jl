@@ -1509,3 +1509,32 @@ void getRemotes(int part_nums[], apf::MeshEntity* entities[])
     ++i;
   }
 }
+
+//-----------------------------------------------------------------------------
+// Mesh warping functions
+//-----------------------------------------------------------------------------
+
+// coords must be of length 3
+void setPoint(apf::Mesh2* m, apf::MeshEntity* e, int node, double* coords)
+{
+  apf::Vector3 vec(coords);
+  m->setPoint(e, node, vec);
+}
+
+void acceptChanges(apf::Mesh2* m)
+{
+  m->acceptChanges();
+}
+
+void Verify(apf::Mesh* m)
+{
+  m->verify();
+}
+
+void getPoint(apf::Mesh* m, apf::MeshEntity* e,  int node, double* coords)
+{
+  static apf::Vector3 vec;
+  m->getPoint(e, node, vec);
+  vec.toArray(coords);
+}
+

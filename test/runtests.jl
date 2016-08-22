@@ -357,6 +357,37 @@ facts("Testing PUMIInterface.jl") do
  numberJ(n_ptr, vert, 0, 0, 1)
  @fact getNumberJ(n_ptr, vert, 0, 0) --> 1
 
+
+ # test mesh warping functions
+
+ # find vertex at -1, -1
+ resetVertIt()
+ coords = zeros(3)
+ entity = C_NULL
+ for i=1:num_Entities[1]
+   vert_i = getVert()
+   getPoint(m_ptr, vert_i, 0, coords)
+   if coords[1] < -0.5 && coords[2] < -0.5
+     entity = vert_i
+     break
+   end
+ end
+
+ @fact entity --> not(C_NULL)
+
+ coords[1] *= 2
+ coords[2] *= 2
+ setPoint(m_ptr, entity, 0, coords)
+ acceptChanges(m_ptr)
+ Verify(m_ptr)
+
+ coords2 = copy(coords)
+ getPoint(m_ptr, entity, 0, coords2)
+ for i=1:2
+   @fact abs(coords[i] - coords2[i]) --> less_than(1e-12)
+ end
+
+ writeVtkFiles("warp_test", m_ptr)
  
   end
 
@@ -405,6 +436,6 @@ facts("Testing PdePumiInterface3.jl") do
 end
 =#
 println("about to test pdepumiinterface")
-include("pdepumiinterface.jl")
-include("pdepumiinterface3.jl")
+#include("pdepumiinterface.jl")
+#include("pdepumiinterface3.jl")
 FactCheck.exitstatus()

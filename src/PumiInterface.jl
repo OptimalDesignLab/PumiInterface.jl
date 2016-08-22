@@ -145,6 +145,11 @@ global const getPeers_name = "getPeers"
 global const isShared_name = "isShared"
 global const countRemotes_name = "countRemotes"
 global const getRemotes_name = "getRemotes"
+
+global const setPoint_name = "setPoint"
+global const acceptChanges_name = "acceptChanges"
+global const Verify_name = "Verify"
+global const getPoint_name = "getPoint"
 end
 
 
@@ -159,7 +164,9 @@ export countPeers, getPeers
 export VertIterator, EdgeIterator, FaceIterator, ElIterator
 export VertGetter, EdgeGetter, FaceGetter, ElGetter
 export countPeers, getPeers, countRemotes, getRemotes, isShared
-export getEntity, incrementIt, resetIt,
+export getEntity, incrementIt, resetIt
+
+export setPoint, acceptChanges, Verify, getPoint
 @doc """
   initilize the state of the interface library
 
@@ -1406,6 +1413,36 @@ end
 function getRemotes(partnums::Array{Cint}, entities::Array{Ptr{Void}})
   
   ccall( (getRemotes_name, pumi_libname), Void, (Ptr{Cint}, Ptr{Ptr{Void}}), partnums, entities)
+
+  return nothing
+end
+
+function setPoint(m_ptr, entity, node, coords::AbstractArray{Float64})
+# coords must be of length 3, even in 2D
+  @assert length(coords) == 3
+
+  ccall((setPoint_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Cint, Ptr{Float64}), m_ptr, entity, node, coords)
+
+  return nothing
+end
+
+function acceptChanges(m_ptr)
+
+  ccall( (acceptChanges_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+  return nothing
+end
+
+function Verify(m_ptr)
+
+  ccall( (Verify_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+  return nothing
+end
+
+function getPoint(m_ptr, entity, node, coords::AbstractArray{Float64})
+# coords must be of length 3, even in 2D
+  @assert length(coords) == 3
+
+  ccall((getPoint_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Cint, Ptr{Float64}), m_ptr, entity, node, coords)
 
   return nothing
 end

@@ -206,6 +206,12 @@ int isShared(apf::Mesh* m, apf::MeshEntity* e);
 
 std::size_t countRemotes(apf::Mesh* m, apf::MeshEntity* e);
 void getRemotes(int part_nums[], apf::MeshEntity* entities[]);
+
+// mesh warping functions
+void setPoint(apf::Mesh2* m, apf::MeshEntity* e, int node, double* coords);
+void acceptChanges(apf::Mesh2* m);
+void Verify(apf::Mesh* m);
+void getPoint(apf::Mesh* m, apf::MeshEntity* e,  int node, double* coords);
 }
 
 #endif
