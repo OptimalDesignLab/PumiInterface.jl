@@ -2,7 +2,8 @@
 # function
 
 
-export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities, getEntityLocalNumber, printElementVertNumbers
+export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities, getEntityLocalNumber, printElementVertNumbers, isShared_sharing
+
 export apfVERTEX, apfEDGE, apfTRIANGLE, apfQUAD, apfTET, apfHEX, apfPRISM, apfPYRAMIX, simplexTypes
 
 # declare the enums
@@ -303,4 +304,11 @@ function getEntityLocalNumber(mesh::Ptr{Void}, entity::Ptr{Void}, parent::Ptr{Vo
   end
 
   return local_num
+end
+
+# check if an entity is shared according to the supplied sharing
+# this is a bit expensive because it has to actually get the 
+# shared entities to find out how many there are
+function isShared_sharing(shr::Ptr{Void},  entity::Ptr{Void})
+  return  countCopies(shr, entity) != 0
 end

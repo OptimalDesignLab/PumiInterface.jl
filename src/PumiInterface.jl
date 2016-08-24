@@ -150,6 +150,11 @@ global const setPoint_name = "setPoint"
 global const acceptChanges_name = "acceptChanges"
 global const Verify_name = "Verify"
 global const getPoint_name = "getPoint"
+
+global const getSharing_name = "getSharing"
+global const isOwned_name = "isOwned"
+global const countCopies_name = "countCopies"
+global const getCopies_name = "getCopies"
 end
 
 
@@ -167,6 +172,8 @@ export countPeers, getPeers, countRemotes, getRemotes, isShared
 export getEntity, incrementIt, resetIt
 
 export setPoint, acceptChanges, Verify, getPoint
+export getSharing, isOwned, countCopies, getCopies
+
 @doc """
   initilize the state of the interface library
 
@@ -1447,6 +1454,35 @@ function getPoint(m_ptr, entity, node, coords::AbstractArray{Float64})
   return nothing
 end
 
+function getSharing(m_ptr)
+
+  shr = ccall( (getSharing_name, pumi_libname), Ptr{Void}, (Ptr{Void},), m_ptr)
+
+  return shr
+end
+
+function isOwned(shr_ptr, entity)
+
+  val = ccall( (isOwned_name, pumi_libname), Cint, (Ptr{Void}, Ptr{Void}), shr_ptr, entity)
+
+  return val != 0
+end
+
+function countCopies(shr_ptr, entity)
+
+  val = ccall( (countCopies_name, pumi_libname), Csize_t, (Ptr{Void}, Ptr{Void}), shr_ptr, entity)
+
+  return val
+end
+
+function getCopies(part_nums::AbstractArray{Cint}, entities::AbstractArray{Ptr{Void}})
+# as usual, the arrays must be the right length, as defined by countCopies
+# the entities returned correspond to the entity passed in from the most recent
+# call to countCopies
+
+  ccall( (getCopies_name, pumi_libname), Void, (Ptr{Cint}, Ptr{Ptr{Void}}), part_nums, entities)
+
+end
 
 declareNames()  # will this execute when module is compiled?
 

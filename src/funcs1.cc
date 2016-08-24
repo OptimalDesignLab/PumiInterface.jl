@@ -1538,3 +1538,36 @@ void getPoint(apf::Mesh* m, apf::MeshEntity* e,  int node, double* coords)
   vec.toArray(coords);
 }
 
+//-----------------------------------------------------------------------------
+// Matched entity functions
+//-----------------------------------------------------------------------------
+
+apf::Sharing* getSharing(apf::Mesh* m)
+{
+  return apf::getSharing(m);
+}
+
+bool isOwned(apf::Sharing* shr, apf::MeshEntity* e)
+{
+  return shr->isOwned(e);
+}
+
+apf::Copies copies1;
+std::size_t countCopies(apf::Sharing* shr, apf::MeshEntity* e)
+{
+  copies1.clear();
+  shr->getCopies(e, copies1);
+  return copies1.size();
+}
+
+void getCopies(int part_nums[], apf::MeshEntity* entities[])
+{
+  int i=0;
+  for (apf::Copies::iterator it = copies.begin(); it != copies.end(); ++it)
+  {
+    part_nums[i] = it->first;
+    entities[i] = it->second;
+    ++i;
+  }
+}
+
