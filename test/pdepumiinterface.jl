@@ -467,6 +467,26 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     end
   end  # end loop over interfaces
 
+  # test update_coords
+  coords_orig = copy(mesh.vert_coords)
+  
+  # double all coordinates
+  coords_i = zeros(Float64, 2, 3)
+  for i=1:mesh.numEl
+    for j=1:3
+      coords_i[1, j] = 2*coords_orig[1, j, i]
+      coords_i[2, j] = 2*coords_orig[2, j, i]
+    end
+    update_coords(mesh, i, coords_i)
+  end
+
+  commit_coords(mesh)
+
+  PdePumiInterface.getCoordinates(mesh, sbp)
+  for i = 1:length(mesh.vert_coords)
+    @fact abs(2*coords_orig[i] - mesh.vert_coords[i]) --> less_than(1e-10)
+  end
+
 
 
 end
