@@ -1552,22 +1552,23 @@ bool isOwned(apf::Sharing* shr, apf::MeshEntity* e)
   return shr->isOwned(e);
 }
 
-apf::Copies copies1;
+apf::CopyArray copies1;
 std::size_t countCopies(apf::Sharing* shr, apf::MeshEntity* e)
 {
-  copies1.clear();
+  // zero out the array
+  // TODO: fix DynamicArray so reducing the sizes doesn't deallocate the memory
+  //       and add a shrink function to shrink the memory to the current size
+  copies1.setSize(0);
   shr->getCopies(e, copies1);
-  return copies1.size();
+  return copies1.getSize();
 }
 
 void getCopies(int part_nums[], apf::MeshEntity* entities[])
 {
-  int i=0;
-  for (apf::Copies::iterator it = copies.begin(); it != copies.end(); ++it)
+  for (int i=0; i < int(copies1.getSize()); ++i)
   {
-    part_nums[i] = it->first;
-    entities[i] = it->second;
-    ++i;
+    part_nums[i] = copies1[i].peer;
+    entities[i] = copies1[i].entity;
   }
 }
 
