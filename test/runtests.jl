@@ -18,17 +18,17 @@ end
 
 
 
-# create mesh
-dmg_name = ".null"
-#smb_name = "../../mesh_files/quarter_vortex3l.smb"
-# smb_name = "../../mesh_files/quarter_vortex8l.smb"
-smb_name = "./tri8l.smb"
-
 
 facts("Testing PUMIInterface.jl") do
 
   # do tests here
   context("Testing initilization") do
+  # create mesh
+  dmg_name = ".null"
+  #smb_name = "../../mesh_files/quarter_vortex3l.smb"
+  # smb_name = "../../mesh_files/quarter_vortex8l.smb"
+  smb_name = "./tri8l.smb"
+
 
   order = 1  # linear elements
   num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
@@ -388,9 +388,56 @@ facts("Testing PUMIInterface.jl") do
  end
 
  writeVtkFiles("warp_test", m_ptr)
- 
+
+
+ # test periodic mesh
+  smb_name = "tri3_px.smb"
+  num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
+  shr_ptr = getSharing(m_ptr)
+  numVert = num_Entities[1]
+  numEdge = num_Entities[2]
+  numFace = num_Entities[3]
+  # verify all meshentities are owned
+  resetAllIts2()
+  println("checking verts")
+  coords = zeros(Float64, 3)
+  for i =1:numVert
+    println("vert ", i)
+    entity = getVert()
+    @fact isOwned(shr_ptr, entity) --> true
+    getPoint(m_ptr, entity, 0, coords)
+    println("coords = ", coords)
+
+    incrementVertIt()
   end
 
+  println("checking edges")
+  for i=1:numEdge
+    entity = getEdge()
+    @fact isOwned(shr_ptr, entity) --> true
+    incrementEdgeIt()
+  end
+
+  ncopies = zeros(Int, 2)
+  part_nums = Array(Cint, 1)
+  copies = Array(Ptr{Void}, 1)
+  resetAllIts2()
+  for i=1:numEdge
+    entity = getEdge()
+    n = countCopies(shr_ptr, entity)
+    ncopies[n+1] += 1  # either 0 or 1 copy
+    if n > 0
+      getCopies(part_nums, copies)
+      @fact part_nums[1] --> 0
+      e_type = getType(m_ptr, copies[1])
+      @fact e_type --> apfEDGE
+    end
+    incremenEdgeIt()
+  end
+
+  @fact ncopies[2] --> 6  # 3 x 3 element mesh has 6 shared edges
+
+end  # end context
 end
 
 #=

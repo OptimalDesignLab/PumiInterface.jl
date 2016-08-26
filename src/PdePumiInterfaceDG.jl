@@ -119,6 +119,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
                              # field
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
   fnew_ptr::Ptr{Void}  # pointer to field on mnew_ptr
+  shr_ptr::Ptr{Void}  # pointer to the apf::Sharing object
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
   min_el_size::Float64 # size of the smallest element (units of length)
@@ -373,6 +374,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
 
+  mesh.shr_ptr = getSharing(mesh.m_ptr)
   # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])
   mesh.numEdge =convert(Int,  num_Entities[2])
