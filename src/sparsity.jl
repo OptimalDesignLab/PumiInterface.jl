@@ -17,7 +17,7 @@ function getSparsityCounts(mesh::PumiMeshDG, sparse_bnds::AbstractArray{Int32, 2
 
   edges = Array(Ptr{Void}, 4)
   part_nums = Array(Cint, 4)
-  shared_entities = Array(Ptr{Void}, 4)
+  shared_edges = Array(Ptr{Void}, 4)
   for i=1:mesh.numEl
     el_ptr = mesh.elements[i]
     getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, edges)

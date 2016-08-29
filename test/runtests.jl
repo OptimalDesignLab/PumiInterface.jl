@@ -400,6 +400,7 @@ facts("Testing PUMIInterface.jl") do
   # verify all meshentities are owned
   resetAllIts2()
   nowned = 0
+
   for i =1:numVert
     entity = getVert()
     if isOwned(shr_ptr, entity)
@@ -421,15 +422,25 @@ facts("Testing PUMIInterface.jl") do
   @fact nowned --> numEdge - 3
 
   ncopies = zeros(Int, 2)
+  nmatches = zeros(Int, 2)
   part_nums = Array(Cint, 1)
   copies = Array(Ptr{Void}, 1)
+  matches = Array(Ptr{Void}, 1)
   resetAllIts2()
   for i=1:numEdge
     entity = getEdge()
     n = countCopies(shr_ptr, entity)
+    n2 = countMatches(m_ptr, entity)
     ncopies[n+1] += 1  # either 0 or 1 copy
+    nmatches[n+1] += 1 # either 0 or 1 match
     if n > 0
       getCopies(part_nums, copies)
+      @fact part_nums[1] --> 0
+      e_type = getType(m_ptr, copies[1])
+      @fact e_type --> apfEDGE
+    end
+    if n2 > 0
+      getMatches(part_nums, matches)
       @fact part_nums[1] --> 0
       e_type = getType(m_ptr, copies[1])
       @fact e_type --> apfEDGE
@@ -438,6 +449,7 @@ facts("Testing PUMIInterface.jl") do
   end
 
   @fact ncopies[2] --> 6  # 3 x 3 element mesh has 6 shared edges
+  @fact nmatches[2] --> 6
 
 end  # end context
 end

@@ -24,7 +24,7 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh, medges::AbstractArray{Int, 1},
       isPeriodic = countMatches(mesh.m_ptr, edge_i) > 0
       print_warning = print_warning || isPeriodic
 
-      if onBoundary != 0 && isPeriodic # if mesh face is on any of the  model faces
+      if onBoundary != 0 && !isPeriodic # if mesh face is on any of the  model faces
         
 	# get face number
         numFace = countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward
