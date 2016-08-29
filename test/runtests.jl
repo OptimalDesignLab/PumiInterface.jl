@@ -399,24 +399,26 @@ facts("Testing PUMIInterface.jl") do
   numFace = num_Entities[3]
   # verify all meshentities are owned
   resetAllIts2()
-  println("checking verts")
-  coords = zeros(Float64, 3)
+  nowned = 0
   for i =1:numVert
-    println("vert ", i)
     entity = getVert()
-    @fact isOwned(shr_ptr, entity) --> true
-    getPoint(m_ptr, entity, 0, coords)
-    println("coords = ", coords)
+    if isOwned(shr_ptr, entity)
+      nowned += 1
+    end
 
     incrementVertIt()
   end
+  @fact nowned --> numVert - 4
 
-  println("checking edges")
+  nowned = 0
   for i=1:numEdge
     entity = getEdge()
-    @fact isOwned(shr_ptr, entity) --> true
+    if isOwned(shr_ptr, entity)
+      nowned += 1
+    end
     incrementEdgeIt()
   end
+  @fact nowned --> numEdge - 3
 
   ncopies = zeros(Int, 2)
   part_nums = Array(Cint, 1)
@@ -432,7 +434,7 @@ facts("Testing PUMIInterface.jl") do
       e_type = getType(m_ptr, copies[1])
       @fact e_type --> apfEDGE
     end
-    incremenEdgeIt()
+    incrementEdgeIt()
   end
 
   @fact ncopies[2] --> 6  # 3 x 3 element mesh has 6 shared edges
