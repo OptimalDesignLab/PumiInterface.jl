@@ -118,15 +118,36 @@ function getInterfaceArray(mesh::PumiMesh2D)
 
   # unused variable?
   nodemap = Array(num_edge_nodes:(-1):1)
+  part_nums = Array(Cint, 1)
+  matched_entities = Array(Ptr{Void}, 1)
+  seen_entities = Set{Ptr{Void}}()
+  sizehint!(seen_entities, mesh.numPeriodicInterfaces)
 
   pos = 1 # current position in interfaces
   for i=1:mesh.numEdge
+    edge_i = mesh.edges[i]
+    if in(edge_i, seen_entities)
+      continue
+    end
     # get number of elements using the edge
     adjacent_nums, num_adjacent = getAdjacentEntityNums(mesh, i, 1, 2)
-    if num_adjacent > 1  # internal edge
+    n = countMatches(mesh.m_ptr, mesh.edges[i])
+    getMatches(part_nums, matched_entities)
+    has_local_match = part_nums[1] == mesh.myrank && n > 0
+
+    if num_adjacent > 1 || has_local_match # internal edge
 #       println("this is an internal edge")
-      element1 = adjacent_nums[1]
-      element2 = adjacent_nums[2]
+      if !has_local_match
+        element1 = adjacent_nums[1]
+        element2 = adjacent_nums[2]
+      else  # does have local match
+        edge2_ptr = matched_entities[1]
+        push!(seen_entities, edge2_ptr)
+        element1 = adjacent_nums[1]
+        num_adjacent = countAdjacent(mesh.m_ptr, edge2_ptr, mesh.dim)
+        adjacent_entities = getAdjacent(num_adjacent)
+        element2 = getNumberJ(mesh.el_Nptr, adjacent_entities[1], 0, 0) + 1
+      end
 
       coords_1 = zeros(3,3)
       coords_2 = zeros(3,3)

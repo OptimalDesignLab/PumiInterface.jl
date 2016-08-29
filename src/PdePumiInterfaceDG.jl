@@ -141,7 +141,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   numNodes::Int  # number of nodes
   numDofPerNode::Int  # number of dofs per node
   numBoundaryFaces::Int # number of edges on the exterior boundary
-  numInterfaces::Int # number of internal interfaces
+  numInterfaces::Int # number of internal interfaces (including periodic)
+  numPeriodicInterfaces::Int  # number of periodic interfaces
   numNodesPerElement::Int  # number of nodes per element
   numFacesPerElement::Int  # number of faces (edges) on an element
   numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
@@ -485,7 +486,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 #  println("finished getting boundary edge list")
 
 #  println("about to count boundary edges")
- mesh.numBoundaryFaces, num_ext_edges, mesh.numInterfaces =  countBoundaryEdges(mesh, bndry_edges_all)
+ mesh.numBoundaryFaces, num_ext_edges, mesh.numInterfaces, mesh.numPeriodicInterfaces =  countBoundaryEdges(mesh, bndry_edges_all)
 #  println("finished counting boundary edges")
 
   # populate mesh.bndry_faces from options dictionary
