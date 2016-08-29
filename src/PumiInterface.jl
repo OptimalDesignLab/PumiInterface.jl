@@ -155,6 +155,9 @@ global const getSharing_name = "getSharing"
 global const isOwned_name = "isOwned"
 global const countCopies_name = "countCopies"
 global const getCopies_name = "getCopies"
+
+global const countMatches_name = "countMatches"
+global const getMatches_name = "getMatches"
 end
 
 
@@ -172,7 +175,7 @@ export countPeers, getPeers, countRemotes, getRemotes, isShared
 export getEntity, incrementIt, resetIt
 
 export setPoint, acceptChanges, Verify, getPoint
-export getSharing, isOwned, countCopies, getCopies
+export getSharing, isOwned, countCopies, getCopies, countMatches, getMatches
 
 @doc """
   initilize the state of the interface library
@@ -1483,6 +1486,23 @@ function getCopies(part_nums::AbstractArray{Cint}, entities::AbstractArray{Ptr{V
   ccall( (getCopies_name, pumi_libname), Void, (Ptr{Cint}, Ptr{Ptr{Void}}), part_nums, entities)
 
 end
+
+function countMatches(m_ptr, entity)
+
+  val = ccall( (countMatches_name, pumi_libname), Csize_t, (Ptr{Void}, Ptr{Void}), m_ptr, entity)
+
+  return val
+end
+
+function getMatches(part_nums::AbstractArray{Cint}, entities::AbstractArray{Ptr{Void}})
+# as usual, the arrays must be the right length, as defined by countMatches
+# the entities returned correspond to the entity passed in from the most recent
+# call to countMatches
+
+  ccall( (getMatches_name, pumi_libname), Void, (Ptr{Cint}, Ptr{Ptr{Void}}), part_nums, entities)
+
+end
+
 
 declareNames()  # will this execute when module is compiled?
 

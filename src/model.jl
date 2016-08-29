@@ -11,7 +11,7 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh, medges::AbstractArray{Int, 1},
 #  bndry_edges = zeros(Int, mesh.numBoundaryFaces)
   index = 0  # relative index in bndry_edges
   faces = Array(Ptr{Void}, 2)  # an edge can have maximum 2 faces using it
-  
+  print_warning = false
   for i=1:mesh.numFace
     edge_i = mesh.faces[i]
     me_i = toModel(mesh.m_ptr, edge_i)
@@ -20,7 +20,11 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh, medges::AbstractArray{Int, 1},
     if me_dim == (mesh.dim-1)  # face (edge in 2d)
       onBoundary = findfirst(medges, me_tag)
 
-      if onBoundary != 0  # if mesh face is oni any of the  model faces
+      # check if face is periodic
+      isPeriodic = countMatches(mesh.m_ptr, edge_i) > 0
+      print_warning = print_warning || isPeriodic
+
+      if onBoundary != 0 && isPeriodic # if mesh face is on any of the  model faces
         
 	# get face number
         numFace = countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward
@@ -40,7 +44,7 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh, medges::AbstractArray{Int, 1},
     end
   end
 
-  return offset + index
+  return offset + index, print_warning
 
 end  # end function
 

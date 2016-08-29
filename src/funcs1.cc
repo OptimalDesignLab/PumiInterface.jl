@@ -1572,3 +1572,20 @@ void getCopies(int part_nums[], apf::MeshEntity* entities[])
   }
 }
 
+apf::Matches matches1;
+std::size_t countMatches(apf::Mesh* m, apf::MeshEntity* e)
+{
+  matches1.setSize(0);
+  m->getMatches(e, matches1);
+  return matches1.getSize();
+}
+
+void getMatches(int part_nums[], apf::MeshEntity* entities[])
+{
+  for (int i =0; i < int(matches1.getSize()); ++i)
+  {
+    part_nums[i] = matches1[i].peer;
+    entities[i] = matches1[i].entity;
+  }
+}
+
