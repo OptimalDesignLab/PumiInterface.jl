@@ -22,7 +22,7 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh, medges::AbstractArray{Int, 1},
 
       # check if face is periodic
       isPeriodic = countMatches(mesh.m_ptr, edge_i) > 0
-      print_warning = print_warning || isPeriodic
+      print_warning = print_warning || (isPeriodic && onBoundary != 0)
 
       if onBoundary != 0 && !isPeriodic # if mesh face is on any of the  model faces
         
@@ -53,8 +53,8 @@ function countBoundaryEdges(mesh::PumiMeshDG, bndry_edges_all)
   # count number of external edges by checking the number of upward adjacencies
   # store array of [element number, global edge number]a
 #  resetAllIt()
+
   bnd_edges_cnt = 0  # number of edges with boundary conditions
-  external_edges_cnt = 0  # number of edges on exterior of domain
   internal_edge_cnt = 0 # count the number of internal interfaces
   periodic_edge_cnt = 0  # number of *pairs* of periodic BCs
   bnd_edges = Array(Int, mesh.numEdge, 2)
@@ -83,9 +83,7 @@ function countBoundaryEdges(mesh::PumiMeshDG, bndry_edges_all)
     getMatches(part_nums, matched_entities)
     has_local_match = (nmatches > 0) && part_nums[1] == mesh.myrank
 
-    if numEl == 1 && nremotes == 0  # external edges
-      external_edges_cnt += 1
-    elseif numEl == 2 || (has_local_match)  # internal interfaces (not including shared parallel edges)
+    if numEl == 2 || (has_local_match)  # internal interfaces (not including shared parallel edges)
       internal_edge_cnt += 1
     end
 
@@ -98,7 +96,6 @@ function countBoundaryEdges(mesh::PumiMeshDG, bndry_edges_all)
       index = findfirst(bndry_edges_all, me_tag)
 
       if index != 0  # if model edge has a BC on i
-
 	getAdjacent(elements)
         elnum = getNumberJ(mesh.el_Nptr, elements[1], 0, 0) + 1
 #	facenum = getFaceNumber2(faces[1]) + 1
@@ -116,7 +113,7 @@ function countBoundaryEdges(mesh::PumiMeshDG, bndry_edges_all)
 #  mesh.boundary_nums = bnd_edges[1:bnd_edges_cnt, :] # copy, bad but unavoidable
 #  mesh.numBoundaryFaces = bnd_edges_cnt
 
-return bnd_edges_cnt, external_edges_cnt, internal_edge_cnt, periodic_edge_cnt
+return bnd_edges_cnt, internal_edge_cnt, periodic_edge_cnt
 
 end  # end function
 

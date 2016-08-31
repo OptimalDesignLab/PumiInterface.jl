@@ -140,6 +140,8 @@ function getInterfaceArray(mesh::PumiMesh2D)
       if !has_local_match
         element1 = adjacent_nums[1]
         element2 = adjacent_nums[2]
+        edge1 = i
+        edge2 = i
       else  # does have local match
         edge2_ptr = matched_entities[1]
         push!(seen_entities, edge2_ptr)
@@ -147,6 +149,8 @@ function getInterfaceArray(mesh::PumiMesh2D)
         num_adjacent = countAdjacent(mesh.m_ptr, edge2_ptr, mesh.dim)
         adjacent_entities = getAdjacent(num_adjacent)
         element2 = getNumberJ(mesh.el_Nptr, adjacent_entities[1], 0, 0) + 1
+        edge1 = i
+        edge2 = getNumberJ(mesh.edge_Nptr, edge2_ptr, 0, 0) + 1
       end
 
       coords_1 = zeros(3,3)
@@ -162,22 +166,30 @@ function getInterfaceArray(mesh::PumiMesh2D)
         if centroid1[1] < centroid2[1]
     elementL = element1
     elementR = element2
+    edgeL = edge1
+    edgeR = edge2
         else
     elementL = element2
     elementR = element1
+    edgeL = edge2
+    edgeR = edge1
         end
       else  # use y coordinate to decide
         if centroid1[2] < centroid2[2]
     elementL = element1
     elementR = element2
+    edgeL = edge1
+    edgeR = edge2
         else
     elementL = element2
     elementR = element1
+    edgeL = edge2
+    edgeR = edge1
         end
       end
 
-      edgeL = getFaceLocalNum(mesh, i, elementL)
-      edgeR = getFaceLocalNum(mesh, i, elementR)
+      edgeL = getFaceLocalNum(mesh, edgeL, elementL)
+      edgeR = getFaceLocalNum(mesh, edgeR, elementR)
 
       # here we set the orientation flag to 1 for all edges, because in 2D
       # the edges always have opposite orientation
@@ -198,7 +210,6 @@ end  # end function
 
 
 function getInterfaceArray(mesh::PumiMesh3D)
-#  println("----- entered getInterfaceArray -----")
   adj_elements = Array(Ptr{Void}, 2)
   coords1 = zeros(3, 4)
   coords2 = zeros(3, 4)
@@ -208,18 +219,47 @@ function getInterfaceArray(mesh::PumiMesh3D)
   vertsR = Array(Ptr{Void}, 4)
   facevertsL = Array(Ptr{Void}, 3)
   facevertsR = Array(Ptr{Void}, 3)
+  part_nums = Array(Cint, 8)
+  matched_entities = Array(Ptr{Void}, 8)
   pos = 1 # position in mesh.interfaces
+  seen_entities = Set{Ptr{Void}}()
+  sizehint!(seen_entities, mesh.numPeriodicInterfaces)
+  
   for i=1:mesh.numFace
     face_i = mesh.faces[i]
+    if face_i in seen_entities
+      continue
+    end
+
     num_adjacent = countAdjacent(mesh.m_ptr, face_i, mesh.dim)
 
-    if num_adjacent == 2  # this is a shared interface
+    n = countMatches(mesh.m_ptr, face_i)
+    getMatches(part_nums, matched_entities)
+    has_local_match = part_nums[1] == mesh.myrank && n > 0
+
+    if num_adjacent == 2 || has_local_match  # this is a shared interface
 
       getAdjacent(adj_elements)
-      el1 = adj_elements[1]
-      el2 = adj_elements[2]
-      elnum1 = getNumberJ(mesh.el_Nptr, el1, 0, 0) + 1
-      elnum2 = getNumberJ(mesh.el_Nptr, el2, 0, 0) + 1
+      if has_local_match
+        el1 = adj_elements[1]
+        edgenum1 = i
+        elnum1 = getNumberJ(mesh.el_Nptr, el1 , 0, 0) + 1
+
+        other_face = matched_entities[1]
+        countAdjacent(mesh.m_ptr, other_face, mesh.dim)
+        getAdjacent(adj_elements)
+        el2 = adj_elements[1]
+        edgenum2 = getNumberJ(mesh.face_Nptr, other_face, 0, 0) + 1
+        elnum2 = getNumberJ(mesh.el_Nptr, el2, 0, 0) + 1
+        push!(seen_entities, other_face)
+      else
+        el1 = adj_elements[1]
+        el2 = adj_elements[2]
+        edgenum1 = i
+        edgenum2 = i
+        elnum1 = getNumberJ(mesh.el_Nptr, el1, 0, 0) + 1
+        elnum2 = getNumberJ(mesh.el_Nptr, el2, 0, 0) + 1
+      end
 
       # decide which one is elementL
       getElementCoords(mesh, el1, coords1)
@@ -238,6 +278,8 @@ function getInterfaceArray(mesh::PumiMesh3D)
         coordsR = coords1
         elnumL = elnum2
         elnumR = elnum1
+        edgenumL = edgenum2
+        edgenumR = edgenum1
         elL = el2
         elR = el1
       else
@@ -245,14 +287,17 @@ function getInterfaceArray(mesh::PumiMesh3D)
         coordsR = coords2
         elnumL = elnum1
         elnumR = elnum2
+        edgenumL = edgenum1
+        edgenumR = edgenum2
         elL = el1
         elR = el2
       end
 
-      localfacenumL = getFaceLocalNum(mesh, i, elnumL)
-      localfacenumR = getFaceLocalNum(mesh, i, elnumR)
+      localfacenumL = getFaceLocalNum(mesh, edgenumL, elnumL)
+      localfacenumR = getFaceLocalNum(mesh, edgenumR, elnumR)
       fdata = FaceData(elnumL, elL, elnumR, elR, localfacenumL, localfacenumR,
-                       vertsL, vertsR, facevertsL, facevertsR)
+                       vertsL, vertsR, facevertsL, facevertsR, part_nums, 
+                       matched_entities, has_local_match )
 
       rel_rotate = getRelativeOrientation(fdata, mesh)
       mesh.interfaces[pos] = Interface(elnumL, elnumR, localfacenumL, localfacenumR, UInt8(rel_rotate))

@@ -486,7 +486,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 #  println("finished getting boundary edge list")
 
 #  println("about to count boundary edges")
- mesh.numBoundaryFaces, num_ext_edges, mesh.numInterfaces, mesh.numPeriodicInterfaces =  countBoundaryEdges(mesh, bndry_edges_all)
+ mesh.numBoundaryFaces, mesh.numInterfaces, mesh.numPeriodicInterfaces =  countBoundaryEdges(mesh, bndry_edges_all)
 #  println("finished counting boundary edges")
 
   # populate mesh.bndry_faces from options dictionary
@@ -596,7 +596,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   # need to count the number of internal interfaces - do this during boundary edge counting
 #  println("getting interface info")
-  println("num_ext_edges = ", num_ext_edges)
   println("numEdges = ", mesh.numEdge)
   println("numInterfaces = ", mesh.numInterfaces)
   mesh.interfaces = Array(Interface, mesh.numInterfaces)

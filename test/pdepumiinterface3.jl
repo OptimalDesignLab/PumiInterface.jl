@@ -166,7 +166,25 @@ facts("----- Testing PdePumiInterface3DG -----") do
     end
   end  # end loop over interfaces
 
+  # test periodic 
+  @fact mesh.numPeriodicInterfaces --> 0
 
+  smb_name = "tet3_pxz.smb"
+  opts["BC1"] = [0,2,4,5,6]
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+
+  @fact mesh.numPeriodicInterfaces --> 18
+  for i=1:mesh.numInterfaces
+    iface_i = mesh.interfaces[i]
+    @fact iface_i.elementL --> greater_than(0)
+    @fact iface_i.elementL --> less_than(mesh.numEl + 1)
+    @fact iface_i.elementR --> greater_than(0)
+    @fact iface_i.elementR --> less_than(mesh.numEl + 1)
+    @fact iface_i.faceL --> greater_than(0)
+    @fact iface_i.faceL --> less_than(5)
+    @fact iface_i.faceR --> greater_than(0)
+    @fact iface_i.faceR --> less_than(5)
+  end
 
 
 
