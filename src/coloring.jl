@@ -142,6 +142,12 @@ for i=1:nfaces
   adj2[i] = Array(Ptr{Void}, nfaces+1)
 end
 
+el_faces = Array(Ptr{Void}, mesh.numFacesPerElement)
+part_nums = Array(Cint, 1)
+matched_entities = Array(Ptr{Void}, 1)
+adj_entities = Array(Ptr{Void}, 1)
+matchdata = LocalNeighborMatches(el_faces, part_nums, matched_entities, adj_entities)
+
 colors = zeros(Int32, mesh.numFacesPerElement*(mesh.numFacesPerElement+1))
 
 cnt_colors = zeros(Int32, numc)  # count how many of each color
@@ -170,7 +176,7 @@ for i=1:mesh.numEl
   # thus, this is a logical system where a double negative
   # is not a positive
  
-  getDistance2Colors(mesh, i, adj, adj2, colors)
+  getDistance2Colors(mesh, i, adj, adj2, colors, matchdata)
 
   min_color = getMinColor2(colors, numc)
 
@@ -226,6 +232,13 @@ for i=1:3
   adj2[i] = Array(Ptr{Void}, nfaces+1)
 end
 
+el_faces = Array(Ptr{Void}, mesh.numFacesPerElement)
+part_nums = Array(Cint, 1)
+matched_entities = Array(Ptr{Void}, 1)
+adj_entities = Array(Ptr{Void}, 1)
+matchdata = LocalNeighborMatches(el_faces, part_nums, matched_entities, adj_entities)
+
+
 # space for distance-2 neighbors + self
 colors = zeros(Int32, nfaces*(nfaces+1))
 
@@ -248,7 +261,7 @@ for i=1:mesh.numEl
   # thus, this is a logical system where a double negative
   # is not a positive
  
-  getDistance2Colors(mesh, i, adj, adj2, colors)
+  getDistance2Colors(mesh, i, adj, adj2, colors, matchdata)
 
   min_color = getMinColor2(colors, numc)
 
@@ -287,6 +300,13 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
     adj2[i] = Array(Ptr{Void}, nfaces+1)
   end
 
+  el_faces = Array(Ptr{Void}, mesh.numFacesPerElement)
+  part_nums = Array(Cint, 1)
+  matched_entities = Array(Ptr{Void}, 1)
+  adj_entities = Array(Ptr{Void}, 1)
+  matchdata = LocalNeighborMatches(el_faces, part_nums, matched_entities, adj_entities)
+
+
   const local_start = 1
   const nonlocal_start = nfaces*(nfaces+1) + local_start
   const nonlocal_d2_start = (nfaces-1)*nfaces + nonlocal_start
@@ -309,7 +329,7 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
     el_i = mesh.elements[i]
     self[1] = el_i
 
-    num_adj = getDistance2Colors(mesh, i, adj, adj2, local_colors)
+    num_adj = getDistance2Colors(mesh, i, adj, adj2, local_colors, matchdata)
     getNonLocalColors(mesh, view(adj, 1:num_adj), colordata, nonlocal_d1neighborcolors)
     getNonlocalDistance2Colors(mesh, i, colordata, nonlocal_neighborcolors)
     # the non-local elements have not been colored yet, so no need to get their colors
@@ -398,7 +418,44 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
   return numc
 end
 
-function getDistance2Colors(mesh::PumiMesh, elnum::Integer, adj, adj2, colors)
+immutable LocalNeighborMatches
+  faces::Array{Ptr{Void}, 1}
+  part_nums::Array{Cint, 1}
+  matched_entities::Array{Ptr{Void}, 1}
+  adj_entities::Array{Ptr{Void}, 1}
+end
+
+function getNeighborMatches(mesh::PumiMesh, el::Ptr{Void}, adj::AbstractArray{Ptr{Void}}, num_used::Integer, thunk::LocalNeighborMatches)
+# check to see if any faces of the element are matched, and get their parent
+# elements
+# adj is the partially populated array of neighbor elements
+# num_used is the number of entries in adj already used
+  faces = Array(Ptr{Void}, mesh.numFacesPerElement)
+  n = getDownward(mesh.m_ptr, el, mesh.dim-1, faces)
+
+  part_nums = Array(Cint, 1)
+  matched_entities = Array(Ptr{Void}, 1)
+  adj_entities = Array(Ptr{Void}, 1)
+  for i=1:n
+    nmatches = countMatches(mesh.m_ptr, el)
+    @assert nmatches <= 1
+    if nmatches == 1 && part_nums[1] == mesh.myrank
+      other_entity = matched_entities[1]
+      nel = countAdjacent(mesh.m_ptr, other_entity, mesh.dim)
+      @assert nel == 1
+      getAdjacent(adj_entities)
+
+      # put it in the next spot in the array
+      num_used += 1
+      adj[num_used] = adj_entities[1]
+    end
+  end
+
+  return num_used
+end
+
+
+function getDistance2Colors(mesh::PumiMesh, elnum::Integer, adj::AbstractArray{Ptr{Void}}, adj2::AbstractArray{Array{Ptr{Void}, 1}}, colors, matchdata::LocalNeighborMatches)
 # get the distance-2 neighbors of a given element
 # repeats included
 # adj : array to be populated with distance-1 edge neighbors
@@ -416,15 +473,23 @@ function getDistance2Colors(mesh::PumiMesh, elnum::Integer, adj, adj2, colors)
 #  adj = Array(Ptr{Void}, 3)
   getBridgeAdjacent(adj)
 
+  # check for matches
+  if num_adj < mesh.numFacesPerElement
+    num_adj = getNeighborMatches(mesh, el_i, adj, num_adj, matchdata)
+  end
+
 #  adj2 = Array(Array{Ptr{Void}, 1}, num_adj)  # hold distance 2 neighbors
 
   adj_cnt = zeros(Int, num_adj)
   for j=1:num_adj
     num_adj_j = countBridgeAdjacent(mesh.m_ptr, adj[j], mesh.dim-1, mesh.dim)
-    adj_cnt[j] = num_adj_j + 1
  #   adj2[j] = Array(Ptr{Void}, num_adj_j + 1)
     getBridgeAdjacent(adj2[j])
+    if num_adj_j < mesh.numFacesPerElement
+      num_adj_j = getNeighborMatches(mesh, el_i, adj2[j], num_adj_j, matchdata)
+    end
     adj2[j][num_adj_j + 1] = adj[j]  # include the distance-1 neighbor
+    adj_cnt[j] = num_adj_j + 1
   end
 
   num_adj_total = sum(adj_cnt)  # total number of neighbors, including repeats
@@ -444,6 +509,7 @@ function getDistance2Colors(mesh::PumiMesh, elnum::Integer, adj, adj2, colors)
 
   return num_adj
 end
+
 
 
 function getNonlocalDistance2Colors(mesh::PumiMeshDG, elnum::Integer, colordata::ColoringData, colors)
@@ -595,6 +661,14 @@ nfaces = mesh.numFacesPerElement
 adj = Array(Ptr{Void}, nfaces + 1) # pointers to element i + 3 neighbors
 adj_color = zeros(Int32, nfaces + 1)  # element colors
 
+el_faces = Array(Ptr{Void}, mesh.numFacesPerElement)
+part_nums = Array(Cint, 1)
+matched_entities = Array(Ptr{Void}, 1)
+adj_entities = Array(Ptr{Void}, 1)
+matchdata = LocalNeighborMatches(el_faces, part_nums, matched_entities, adj_entities)
+
+
+
 # initialize masks to 0 (false)
 for i=1:length(masks)
   masks[i] = falses(mesh.numEl)
@@ -613,6 +687,10 @@ for i=1:mesh.numEl
   num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
   @assert num_adj <= nfaces
   getBridgeAdjacent(adj)
+
+  if num_adj < mesh.numFacesPerElement
+    num_adj = getNeighborMatches(mesh, el_i, adj, num_adj, matchdata)
+  end
 
   adj[num_adj + 1] = el_i  # insert the current element
   # get color, element numbers
