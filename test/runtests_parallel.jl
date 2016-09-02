@@ -412,6 +412,16 @@ facts("----- Testing PdePumiInterface3DG -----") do
   @fact mesh.numInterfaces --> (mesh.numFace - 8 - 3*4 - 8)
   @fact mesh.peer_face_counts[1] --> 8
 
+  smb_name = "tet2_pxy_p2_.smb"
+
+  opts["BC1"] = [1,2,3,4]
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+
+  @fact mesh.numPeriodicInterfaces --> 0
+  @fact mesh.numInterfaces --> (mesh.numFace - 2*8 - 4*4)
+  @fact mesh.peer_face_counts[1] --> 16
+
+
 
 end
 

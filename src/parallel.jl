@@ -327,11 +327,10 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
       # get the remote verts on the specified peer
       partnums_extract = view(remote_partnums, 1:Int(nremotes))
       ptrs_extract = view(remote_ptrs, 1:Int(nremotes))
-      verts_j = view(orientations, vert_startidx:size(orientations, 1), i)
+      verts_j = view(orientations, verts_startidx:size(orientations, 1), i)
       verts_startidx += getVertCopies(partnums_extract, ptrs_extract, peer_num, verts_j)
 
     end
-    println(f, "remote verts = ", verts_i)
   end
 
   close(f)
@@ -345,7 +344,8 @@ function getVertCopies(remote_partnums::AbstractArray, remote_ptrs::AbstractArra
 
   pos = 1
   for i=1:length(remote_partnums)
-    if remote_partnums[i] == peer_nums
+    if remote_partnums[i] == peer_num
+      @assert pos <= length(vert_copies)
       vert_copies[pos] = remote_ptrs[i]
       pos += 1
     end
@@ -355,8 +355,22 @@ function getVertCopies(remote_partnums::AbstractArray, remote_ptrs::AbstractArra
 end
 
 function extractVertCopies(recv_verts::AbstractArray, local_verts::AbstractArray, facevertsR::AbstractArray)
-# extract the vertices corresponding the 
+# extract the vertices that are the same as the local_verts from recv_verts, 
+# preserving their order
+# this is the inverse function to the way getVertCopies is used
 
+  pos = 1
+  for i=1:length(recv_verts)
+    recv_vert = recv_verts[i]
+    for j=1:length(local_verts)
+      if recv_vert == local_verts[j]
+        facevertsR[pos] = recv_vert
+        pos += 1
+      end
+    end
+  end
+
+  return nothing
 end
 
 # this can be generalized once edge orientation is generalized
@@ -403,6 +417,7 @@ function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary},
         face_verts[j] = el_verts[face_vertmap[j, face_local]]
       end
       faceverts_recv = view(orientations_recv, :, i)
+      extractVertCopies(faceverts_recv, face_verts, facevertsR)
 
       println(f, "parallel interface ", i)
       println(f, "element ", bndry_l.element, ", face ", bndry_l.face)
@@ -421,12 +436,13 @@ function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary},
         println(f, "coords = ", coords)
       end
       println(f, "facevertsR = ", facevertsR)
+      flush(f)
       for j=1:3
         getPoint(mesh.m_ptr, facevertsR[j], 0, coords)
         println(f, "coords = ", coords)
       end
       print(f, "\n")
-
+      
       orient = calcRelativeOrientation(face_verts, facevertsR)
     end
 
