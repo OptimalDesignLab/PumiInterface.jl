@@ -278,23 +278,46 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
   remote_partnums = Array(Cint, 400)  # equivalent of apf::up
   remote_ptrs = Array(Ptr{Void}, 400)  
   vertmap = mesh.topo.face_verts
+
+  f = open("fout_orient_$myrank.dat", "w")
+  coords = zeros(Float64, 3)
   for i=1:nfaces
+    println(f, "parallel interface ", i)
     bndry_i = bndries[i]
     el_i = mesh.elements[bndry_i.element]
     facelocal_i = bndry_i.face
     getDownward(mesh.m_ptr, el_i, 0, downward)
     verts_i = view(orientations, :, i)
+    println(f, "vertmap = ", vertmap[:, facelocal_i])
     for j=1:(mesh.dim)  # dim = number of verts on a face
       vert_j = downward[vertmap[j, facelocal_i]]
+      println(f, "vert ", j, " = ", vert_j)
+      println(f, "vertnum = ", getNumberJ(mesh.vert_Nptr, vert_j, 0, 0) + 1)
+      getPoint(mesh.m_ptr, vert_j, 0, coords)
+      println(f, "coords = ", coords)
       # get the remote pointer for this vert
       nremotes = countCopies(mesh.shr_ptr, vert_j)
+      getCopies(remote_partnums, remote_ptrs)
       @assert nremotes <= 400
       @assert nremotes >= 1
-      getCopies(remote_partnums, remote_ptrs)
-      idx = findfirst(remote_partnums, peer_num)
+      println(f, "nremotes = ", nremotes);
+      println(f, "remote_partnums = ", remote_partnums[1:nremotes])
+      println(f, "remote_ptrs = ", remote_ptrs[1:nremotes])
+      println(f, "peer_num = ", peer_num)
+      idx = findfirst(view(remote_partnums, 1:Int(nremotes)), peer_num)
+      println(f, "partnums idx = ", idx)
+      println(f, "remote_partnums[idx] = ", remote_partnums[idx])
+      @assert idx != 0
+      @assert remote_partnums[idx] == peer_num
       verts_i[j] = remote_ptrs[idx]
+      fill!(remote_partnums, 0)
+      fill!(remote_ptrs, C_NULL)
+
     end
+    println(f, "remote verts = ", verts_i)
   end
+
+  close(f)
 
   return nothing
 end
@@ -307,6 +330,8 @@ function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary},
 # create Interfaces out of the local + remote Boundary arrays
 # also numbers the remote elements with numbers > numEl, storing them in
 # the elementR field of the Interface
+  myrank = mesh.myrank
+  f = open("fout_$myrank.dat", "w")
 
   ninterfaces = length(bndries_local)
   interfaces = Array(Interface, ninterfaces)
@@ -340,6 +365,29 @@ function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary},
         face_verts[j] = el_verts[face_vertmap[j, face_local]]
       end
       facevertsR = view(orientations_recv, :, i)
+
+      println(f, "parallel interface ", i)
+      println(f, "element ", bndry_l.element, ", face ", bndry_l.face)
+      println(f, "element ptr = ", el_ptr);
+      faces = Array(Ptr{Void}, 4)
+      getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, faces)
+      face_ptr = faces[bndry_l.face]
+      println(f, "face_shared: ", isShared(mesh.m_ptr, face_ptr))
+      println(f, "nmatches = ", countMatches(mesh.m_ptr, face_ptr))
+      println(f, "nremotes = ", countRemotes(mesh.m_ptr, face_ptr))
+      println(f, "ncopies = ", countCopies(mesh.shr_ptr, face_ptr))
+      println(f, "face_verts = ", face_verts)
+      coords = zeros(Float64, 3)
+      for j=1:3
+        getPoint(mesh.m_ptr, face_verts[j], 0, coords)
+        println(f, "coords = ", coords)
+      end
+      println(f, "facevertsR = ", facevertsR)
+      for j=1:3
+        getPoint(mesh.m_ptr, facevertsR[j], 0, coords)
+        println(f, "coords = ", coords)
+      end
+      print(f, "\n")
 
       orient = calcRelativeOrientation(face_verts, facevertsR)
     end

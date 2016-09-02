@@ -52,6 +52,7 @@ int main ()
 
   int myrank;
   MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+  int peer_rank = 1 - myrank;  // only 2 processes
 
   // load mesh using null geometry
   gmi_register_null();
@@ -63,6 +64,7 @@ int main ()
   apf::Mesh2* m = apf::loadMdsMesh(g,"parallel2.smb" );
 
   std::cout << "finished loading mesh" << std::endl;
+  apf::reorderMdsMesh(m);
 
 //  apf::FieldShape* fshape = apf::getSBPShape(1);
   apf::FieldShape* fshape = apf::getLagrange(1);
@@ -76,14 +78,45 @@ int main ()
   char fname[256];
   sprintf(fname, "fout_%d.dat", myrank);
   f.open(fname);
-  int i = 0;
+
+  apf::MeshIterator* it = m->begin(3);
+  apf::MeshEntity* e;
+  apf::MeshEntity* verts[4];
+  apf::MeshEntity* face_verts[3];
+  apf::MeshEntity* remote_face_verts[3];
+  apf::Vector3 point;
+
   while ( (e = m->iterate(it)) )
   {
-    apf::CopyArray copies1;
-    shr->getCopies(e, copies1);
-    f << "is edge " << i << " m->isShared: " << m->isShared(e) << std::endl;
-    f << "is edge " << i << " number of shr->getCopies " << copies1.getSize() << "\n" << std::endl; 
-    ++i;
+    if ( e == 0x000000000000009f )
+    {
+      m->getDownward(e, 0, verts);
+
+      // extract the face verts and print their coordinates
+      for (int j=0; j < 3; ++j)
+      {
+        face_verts[j] = verts[j];
+        m->getPoint(verts[j], 0, point);
+        std::cout << "vert " << j << " coordinates = (" << point.x() << ", " << point.y() << ", " << point.z() << std::endl;
+
+        // get remote pointer
+
+
+
+
+      // print their coordinates
+
+
+
+
+
+    }
+
+  }
+
+  for (int i=0; i <= 19; ++i)  // element 
+  {
+
   }
 
   f.close();
