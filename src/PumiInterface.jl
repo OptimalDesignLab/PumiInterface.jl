@@ -151,6 +151,7 @@ global const acceptChanges_name = "acceptChanges"
 global const Verify_name = "Verify"
 global const getPoint_name = "getPoint"
 
+global const hasMatching_name = "hasMatching"
 global const getSharing_name = "getSharing"
 global const isOwned_name = "isOwned"
 global const countCopies_name = "countCopies"
@@ -175,7 +176,7 @@ export countPeers, getPeers, countRemotes, getRemotes, isShared
 export getEntity, incrementIt, resetIt
 
 export setPoint, acceptChanges, Verify, getPoint
-export getSharing, isOwned, countCopies, getCopies, countMatches, getMatches
+export hasMatching, getSharing, isOwned, countCopies, getCopies, countMatches, getMatches
 
 @doc """
   initilize the state of the interface library
@@ -1455,6 +1456,13 @@ function getPoint(m_ptr, entity, node, coords::AbstractArray{Float64})
   ccall((getPoint_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Cint, Ptr{Float64}), m_ptr, entity, node, coords)
 
   return nothing
+end
+
+function hasMatching(m_ptr::Ptr{Void})
+
+  val = ccall( (hasMatching_name, pumi_libname), Cint, (Ptr{Void},), m_ptr)
+
+  return val != 0
 end
 
 function getSharing(m_ptr)

@@ -1,5 +1,13 @@
 # file for functions related to parallel bookkeeping
 
+# maximum number of matches a vertex can have (for 1, 2, and 3D meshes, 1D meshes
+# are not), on any single remote process.  For Matches meshes, this determines
+# the size of an array that is sent via MPI
+global const Max_Vert_Matches = [0, 4, 8]
+
+global const Max_Vert_Remotes = 1  # maximum number of remotes a vertex can have
+                                   # on any single process
+
 function getParallelInfo(mesh::PumiMeshDG)
 # get information on number of shared entities
 # TODO: consider making array of all mesh faces that are shared and iterating
@@ -46,6 +54,15 @@ function getParallelInfo(mesh::PumiMeshDG)
   end
   mesh.peer_face_counts = counts
 
+  # for matching meshes, it is possible for one vertex to have several 
+  # Copies on a given remote process, so we send them all and sort it 
+  # out on the other side
+  if hasMatching(mesh.m_ptr)
+    num_orientation_verts = Max_Vert_Matches[mesh.dim] + Max_Vert_Remotes
+  else
+    num_orientation_verts = mesh.dim
+  end
+
   # allocate memory
   edges_local = Array(Array{Ptr{Void}, 1}, npeers)
   edges_remote = Array(Array{Ptr{Void}, 1}, npeers)  # is this still used?
@@ -59,8 +76,10 @@ function getParallelInfo(mesh::PumiMeshDG)
     edges_remote[i] = Array(Ptr{Void}, counts[i])
     bndries_local[i] = Array(Boundary, counts[i])
     bndries_remote[i] = Array(Boundary, counts[i])
-    orientations_send[i] = Array(Ptr{Void}, mesh.dim, counts[i])
-    orientations_recv[i] = Array(Ptr{Void}, mesh.dim, counts[i])
+    orientations_send[i] = Array(Ptr{Void}, num_orientation_verts, counts[i])
+    orientations_recv[i] = Array(Ptr{Void}, num_orientation_verts, counts[i])
+    fill!(orientations_send[i], C_NULL)
+    fill!(orientations_recv[i], C_NULL)
   end
 
   # get all the (local pointers to) edges in a single pass, 
@@ -287,9 +306,10 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
     el_i = mesh.elements[bndry_i.element]
     facelocal_i = bndry_i.face
     getDownward(mesh.m_ptr, el_i, 0, downward)
-    verts_i = view(orientations, :, i)
     println(f, "vertmap = ", vertmap[:, facelocal_i])
+    verts_startidx = 1
     for j=1:(mesh.dim)  # dim = number of verts on a face
+
       vert_j = downward[vertmap[j, facelocal_i]]
       println(f, "vert ", j, " = ", vert_j)
       println(f, "vertnum = ", getNumberJ(mesh.vert_Nptr, vert_j, 0, 0) + 1)
@@ -304,14 +324,11 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
       println(f, "remote_partnums = ", remote_partnums[1:nremotes])
       println(f, "remote_ptrs = ", remote_ptrs[1:nremotes])
       println(f, "peer_num = ", peer_num)
-      idx = findfirst(view(remote_partnums, 1:Int(nremotes)), peer_num)
-      println(f, "partnums idx = ", idx)
-      println(f, "remote_partnums[idx] = ", remote_partnums[idx])
-      @assert idx != 0
-      @assert remote_partnums[idx] == peer_num
-      verts_i[j] = remote_ptrs[idx]
-      fill!(remote_partnums, 0)
-      fill!(remote_ptrs, C_NULL)
+      # get the remote verts on the specified peer
+      partnums_extract = view(remote_partnums, 1:Int(nremotes))
+      ptrs_extract = view(remote_ptrs, 1:Int(nremotes))
+      verts_j = view(orientations, vert_startidx:size(orientations, 1), i)
+      verts_startidx += getVertCopies(partnums_extract, ptrs_extract, peer_num, verts_j)
 
     end
     println(f, "remote verts = ", verts_i)
@@ -320,6 +337,26 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
   close(f)
 
   return nothing
+end
+
+function getVertCopies(remote_partnums::AbstractArray, remote_ptrs::AbstractArray, peer_num::Integer, vert_copies::AbstractArray)
+# get all the vertices on peer peer_num and put them in the array
+# returns the number of vertices inserted
+
+  pos = 1
+  for i=1:length(remote_partnums)
+    if remote_partnums[i] == peer_nums
+      vert_copies[pos] = remote_ptrs[i]
+      pos += 1
+    end
+  end
+
+  return pos - 1
+end
+
+function extractVertCopies(recv_verts::AbstractArray, local_verts::AbstractArray, facevertsR::AbstractArray)
+# extract the vertices corresponding the 
+
 end
 
 # this can be generalized once edge orientation is generalized
@@ -340,6 +377,7 @@ function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary},
   face_vertmap = mesh.topo.face_verts
   el_verts = Array(Ptr{Void}, 4)
   face_verts = Array(Ptr{Void}, 3)
+  facevertsR = Array(Ptr{Void}, 3)
   for i=1:ninterfaces
     bndry_l = bndries_local[i]
     bndry_r = bndries_remote[i]
@@ -364,7 +402,7 @@ function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary},
       for j=1:3
         face_verts[j] = el_verts[face_vertmap[j, face_local]]
       end
-      facevertsR = view(orientations_recv, :, i)
+      faceverts_recv = view(orientations_recv, :, i)
 
       println(f, "parallel interface ", i)
       println(f, "element ", bndry_l.element, ", face ", bndry_l.face)

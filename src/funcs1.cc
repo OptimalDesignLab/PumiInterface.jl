@@ -1542,6 +1542,11 @@ void getPoint(apf::Mesh* m, apf::MeshEntity* e,  int node, double* coords)
 // Matched entity functions
 //-----------------------------------------------------------------------------
 
+bool hasMatching(apf::Mesh* m)
+{
+  return m->hasMatching();
+}
+
 apf::Sharing* getSharing(apf::Mesh* m)
 {
   return apf::getSharing(m);

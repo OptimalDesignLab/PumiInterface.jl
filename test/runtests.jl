@@ -391,6 +391,8 @@ facts("Testing PUMIInterface.jl") do
 
 
  # test periodic mesh
+  @fact hasMatching(m_ptr) --> false
+
   smb_name = "tri3_px.smb"
   num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
   shr_ptr = getSharing(m_ptr)
@@ -400,6 +402,8 @@ facts("Testing PUMIInterface.jl") do
   # verify all meshentities are owned
   resetAllIts2()
   nowned = 0
+
+  @fact hasMatching(m_ptr) --> true
 
   for i =1:numVert
     entity = getVert()
