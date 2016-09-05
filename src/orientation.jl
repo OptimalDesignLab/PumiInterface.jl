@@ -246,6 +246,9 @@ immutable FaceData
   vertsR::Array{Ptr{Void}, 1}
   facevertsL::Array{Ptr{Void}, 1}
   facevertsR::Array{Ptr{Void}, 1}
+  part_nums::Array{Cint, 1}
+  matched_entities::Array{Ptr{Void}, 1}
+  match2::Bool  # whether or not the second face is a Matched entity
 end
 
 """
@@ -271,7 +274,11 @@ function getRelativeOrientation(fdata::FaceData, mesh::PumiMesh3DG)
 
   # get all vertices of the tet
   getDownward(mesh.m_ptr, fdata.elL, 0, fdata.vertsL)
-  getDownward(mesh.m_ptr, fdata.elR, 0, fdata.vertsR)
+  if fdata.match2
+    getMatchedVertsR(fdata, mesh)
+  else
+    getDownward(mesh.m_ptr, fdata.elR, 0, fdata.vertsR)
+  end
 
   # extract the face vertices 
   # uses the user suppied topology information to order the face verts
@@ -282,6 +289,27 @@ function getRelativeOrientation(fdata::FaceData, mesh::PumiMesh3DG)
 
   return calcRelativeOrientation(fdata.facevertsL, fdata.facevertsR)
 
+end
+
+function getMatchedVertsR(fdata::FaceData, mesh::PumiMesh3DG)
+# get the matched entities for elR
+
+  getDownward(mesh.m_ptr, fdata.elR, 0, fdata.vertsR)
+  part_nums = fdata.part_nums
+  matched_entities = fdata.matched_entities
+
+  # if any have matches, replace with remote pointer
+  for i=1:4
+    n = countMatches(mesh.m_ptr, fdata.vertsR[i])
+    getMatches(part_nums, matched_entities)
+    for j=1:n  # find the match on the same part
+      if part_nums[j] == mesh.myrank
+        fdata.vertsR[i] = matched_entities[j]
+      end
+    end
+  end
+
+  return nothing
 end
 
 function calcRelativeOrientation(facevertsL::AbstractArray, facevertsR::AbstractArray)

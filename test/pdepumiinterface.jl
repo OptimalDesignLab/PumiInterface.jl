@@ -487,6 +487,29 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact abs(2*coords_orig[i] - mesh.vert_coords[i]) --> less_than(1e-10)
   end
 
+  # test periodic
+  @fact mesh.numPeriodicInterfaces --> 0
+
+  smb_name = "tri3_px.smb"
+  opts["BC1"] = [0, 2]
+  mesh = PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface, coloring_distance=2, dofpernode=4)
+
+  @fact mesh.numPeriodicInterfaces --> 3
+  @fact length(mesh.interfaces) --> 24
+  @fact mesh.numInterfaces --> 24
+  @fact mesh.numBoundaryFaces --> 6
+
+  for i=1:mesh.numInterfaces
+    iface_i = mesh.interfaces[i]
+    @fact iface_i.elementL --> greater_than(0)
+    @fact iface_i.elementL --> less_than(mesh.numEl + 1)
+    @fact iface_i.elementR --> greater_than(0)
+    @fact iface_i.elementR --> less_than(mesh.numEl + 1)
+    @fact iface_i.faceL --> greater_than(0)
+    @fact iface_i.faceL --> less_than(4)
+    @fact iface_i.faceR --> greater_than(0)
+    @fact iface_i.faceR --> less_than(4)
+  end
 
 
 end

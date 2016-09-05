@@ -153,6 +153,59 @@ If you want to find out what function in funcs1.cc a Julia function calls, look 
  the value of this global variable at the top of PumiInterface.jl.  The value will be a string, which is
  the name of the C++ function.
 
+## Types of Meshes
+`PdePumiInterface` has two kinds of meshes, Continuous Galerkin (CG) and
+Discontinuous Galerkin (DG), in two dimensions, 2D and 3D.  Currently, 
+2D CG, 2D DG and 3D DG are implemented.
+
+## Options dictionary
+The constructors for the various mesh object take an options dictionary 
+that set the options about how to construct the object, such as boundary 
+conditions and coloring distance.  The function `set_defaults` takes a
+dictonary and supplies default values for any keys not set.  
+
+## Parallelization
+Parallel DG meshes are supported.  The use case for parallelization is to
+compute the face integrals between faces on different processes.  To do this,
+data for elements on a part boundary is copied to the other side of the 
+interface.
+
+This also requires coloring the mesh in parallel.  Because data is copied
+to the other side of the interface, interfacial elements, there are two 
+independent copies of these elements, and so they can be considered different
+elements for the purpose of coloring.  Thus the global coloring problem can be 
+decomposed into a local coloring problem on each part.  This requires adjacency
+information for the remote elements, which is calculated during initialization.
 
 
+## Periodic Boundary Conditions
+DG meshes support periodic boundary conditions.  The .smb file contains 
+information on which MeshEntities are periodic with which other 
+MeshEntities.  These entities will automatically be identified as periodic 
+and treated accordingly.  It is an error to assign a boundary condition to a 
+geometric entity that has a periodic MeshEntity on it, and an exception will 
+be thrown.
 
+### Implementation Details
+First some terminology: Matched entities are two entities at different
+locations that are periodic with each other.  Remote entities are two
+entities that have the same location, and are used to represent entities that
+are shared across part boundaries.
+
+If two matched entities are located on the same part, then an Interface is 
+created between them in `mesh.interfaces`.  If they are on different parts, 
+then an Interface is created in `mesh.shared_interfaces`.  In order to 
+determine the relative orientation of the interfaces, vertices that define 
+the face are required.  In parallel, the processes exchange remote vertices
+to calculate the relative orientation.  When there are both remote and 
+matched vertices present, it is not possible for the sending process to 
+to uniquely determine which vertices it needs to send.  Consquently each
+process must send all matched and remote vertices shared with the given 
+receiving process and let the receiving process sort out which vertices are 
+part of the face. The maximum number of vertices that needs to be sent is 
+bounded by a constant that depends on the topology of the domain.  For example, 
+a vertex on a cube can have a maximum of 8 matches and 1 remote on a given 
+process.  The constants `Max_Vert_Matches` and `Max_Vert_Remotes` tell the 
+code the maximum number of matched and remote vertices that can be shared with
+another process, and are used to determine the size of an array that is 
+sent via MPI during initialization.

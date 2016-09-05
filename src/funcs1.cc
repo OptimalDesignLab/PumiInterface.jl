@@ -1538,3 +1538,59 @@ void getPoint(apf::Mesh* m, apf::MeshEntity* e,  int node, double* coords)
   vec.toArray(coords);
 }
 
+//-----------------------------------------------------------------------------
+// Matched entity functions
+//-----------------------------------------------------------------------------
+
+bool hasMatching(apf::Mesh* m)
+{
+  return m->hasMatching();
+}
+
+apf::Sharing* getSharing(apf::Mesh* m)
+{
+  return apf::getSharing(m);
+}
+
+bool isOwned(apf::Sharing* shr, apf::MeshEntity* e)
+{
+  return shr->isOwned(e);
+}
+
+apf::CopyArray copies1;
+std::size_t countCopies(apf::Sharing* shr, apf::MeshEntity* e)
+{
+  // zero out the array
+  // TODO: fix DynamicArray so reducing the sizes doesn't deallocate the memory
+  //       and add a shrink function to shrink the memory to the current size
+  copies1.setSize(0);
+  shr->getCopies(e, copies1);
+  return copies1.getSize();
+}
+
+void getCopies(int part_nums[], apf::MeshEntity* entities[])
+{
+  for (int i=0; i < int(copies1.getSize()); ++i)
+  {
+    part_nums[i] = copies1[i].peer;
+    entities[i] = copies1[i].entity;
+  }
+}
+
+apf::Matches matches1;
+std::size_t countMatches(apf::Mesh* m, apf::MeshEntity* e)
+{
+  matches1.setSize(0);
+  m->getMatches(e, matches1);
+  return matches1.getSize();
+}
+
+void getMatches(int part_nums[], apf::MeshEntity* entities[])
+{
+  for (int i =0; i < int(matches1.getSize()); ++i)
+  {
+    part_nums[i] = matches1[i].peer;
+    entities[i] = matches1[i].entity;
+  }
+}
+

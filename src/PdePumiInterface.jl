@@ -189,7 +189,8 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   numNodes::Int  # number of nodes
   numDofPerNode::Int  # number of dofs per node
   numBoundaryFaces::Int # number of edges on the exterior boundary
-  numInterfaces::Int # number of internal interfaces
+  numInterfaces::Int # number of internal interfaces (including periodic)
+  numPeriodicInterfaces::Int  # number of periodic interfaces
   numNodesPerElement::Int  # number of nodes per element
   numFacesPerElement::Int  # number of faces per element
   numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
@@ -308,6 +309,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   mesh.shape_type = shape_type
   mesh.coloringDistance = coloring_distance
   mesh.dof_offset = 0
+  mesh.numPeriodicInterfaces = 0
   mesh.topo = ElementTopology2()  # get default topology because it isn't
                                   # important for 2d
   num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim = init2(dmg_name, smb_name, order, shape_type=shape_type)
@@ -438,11 +440,16 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   offset = 1
   for i=1:mesh.numBC
     key_i = string("BC", i)
-    println("opts[key_i] = ", opts[key_i])
+    model_edges = opts[key_i]
+    println("opts[key_i] = ", model_edges)
 #    println("typeof(opts[key_i]) = ", typeof(opts[key_i]))
     mesh.bndry_offsets[i] = offset
-    offset = getMeshEdgesFromModel(mesh, opts[key_i], offset, boundary_nums)  # get the mesh edges on the model edge
+    offset, print_warning = getMeshEdgesFromModel(mesh, model_edges, offset, boundary_nums)  # get the mesh edges on the model edge
     # offset is incremented by getMeshEdgesFromModel
+    if print_warning
+      throw(ErrorException("Cannot apply boundary conditions to periodic boundary, model entity $model_edges"))
+    end
+
   end
 
 

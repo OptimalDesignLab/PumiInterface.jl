@@ -11,7 +11,7 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh, medges::AbstractArray{Int, 1},
 #  bndry_edges = zeros(Int, mesh.numBoundaryFaces)
   index = 0  # relative index in bndry_edges
   faces = Array(Ptr{Void}, 2)  # an edge can have maximum 2 faces using it
-  
+  print_warning = false
   for i=1:mesh.numFace
     edge_i = mesh.faces[i]
     me_i = toModel(mesh.m_ptr, edge_i)
@@ -20,7 +20,11 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh, medges::AbstractArray{Int, 1},
     if me_dim == (mesh.dim-1)  # face (edge in 2d)
       onBoundary = findfirst(medges, me_tag)
 
-      if onBoundary != 0  # if mesh face is oni any of the  model faces
+      # check if face is periodic
+      isPeriodic = countMatches(mesh.m_ptr, edge_i) > 0
+      print_warning = print_warning || (isPeriodic && onBoundary != 0)
+
+      if onBoundary != 0 && !isPeriodic # if mesh face is on any of the  model faces
         
 	# get face number
         numFace = countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward
@@ -40,22 +44,31 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh, medges::AbstractArray{Int, 1},
     end
   end
 
-  return offset + index
+  return offset + index, print_warning
 
 end  # end function
 
 function countBoundaryEdges(mesh::PumiMeshDG, bndry_edges_all)
   # count boundary edges by checking if their model edge has a BC
   # count number of external edges by checking the number of upward adjacencies
-  # store array of [element number, global edge number]
+  # store array of [element number, global edge number]a
 #  resetAllIt()
-  bnd_edges_cnt = 0
-  external_edges_cnt = 0
+
+  bnd_edges_cnt = 0  # number of edges with boundary conditions
   internal_edge_cnt = 0 # count the number of internal interfaces
+  periodic_edge_cnt = 0  # number of *pairs* of periodic BCs
   bnd_edges = Array(Int, mesh.numEdge, 2)
   elements = Array(Ptr{Void}, 2)  # edge has maximum 2 faces
+  part_nums = Array(Cint, 1)
+  matched_entities = Array(Ptr{Void}, 1)
+  seen_matches = Set{Ptr{Void}}()
   for i=1:mesh.numFace
     edge_i = mesh.faces[i]
+
+    # skip if the other half of this match has been seen
+    if in(edge_i, seen_matches) 
+      continue
+    end
 #    edge_i = getEdge()
 
     # get  model edge info
@@ -66,18 +79,23 @@ function countBoundaryEdges(mesh::PumiMeshDG, bndry_edges_all)
     # get mesh face info
     numEl = countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward
     nremotes = countRemotes(mesh.m_ptr, edge_i)
+    nmatches = countMatches(mesh.m_ptr, edge_i)
+    getMatches(part_nums, matched_entities)
+    has_local_match = (nmatches > 0) && part_nums[1] == mesh.myrank
 
-    if numEl == 1 && nremotes == 0  # external edges
-      external_edges_cnt += 1
-    elseif nremotes == 0  # internal interfaces (not including shared parallel edges)
+    if numEl == 2 || (has_local_match)  # internal interfaces (not including shared parallel edges)
       internal_edge_cnt += 1
     end
 
-    if me_dim == (mesh.dim-1)  # if classified on model edge
+    if has_local_match
+      periodic_edge_cnt += 1
+      push!(seen_matches, matched_entities[1])
+    end
+
+    if me_dim == (mesh.dim-1) && nmatches == 0  # if classified on model edge
       index = findfirst(bndry_edges_all, me_tag)
 
       if index != 0  # if model edge has a BC on i
-
 	getAdjacent(elements)
         elnum = getNumberJ(mesh.el_Nptr, elements[1], 0, 0) + 1
 #	facenum = getFaceNumber2(faces[1]) + 1
@@ -95,7 +113,7 @@ function countBoundaryEdges(mesh::PumiMeshDG, bndry_edges_all)
 #  mesh.boundary_nums = bnd_edges[1:bnd_edges_cnt, :] # copy, bad but unavoidable
 #  mesh.numBoundaryFaces = bnd_edges_cnt
 
-return bnd_edges_cnt, external_edges_cnt, internal_edge_cnt
+return bnd_edges_cnt, internal_edge_cnt, periodic_edge_cnt
 
 end  # end function
 

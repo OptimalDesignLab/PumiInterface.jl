@@ -313,8 +313,6 @@ facts("----- Testing PdePumiInterface3DG -----") do
   interp_op = eye(4)
   mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
 
-  println("finished")
-
   @fact mesh.numEl --> 12
   @fact mesh.numGlobalEl --> 16
 #  @fact mesh.numBoundaryFaces --> 4
@@ -401,7 +399,34 @@ facts("----- Testing PdePumiInterface3DG -----") do
     end   # end loop over peer faces
   end  # end loop over peers
 
+  # test periodic things
+  smb_name = "tet2_pxz_p2_.smb"
+
+  opts = PdePumiInterface.get_defaults()
+  opts["numBC"] = 1
+  opts["BC1"] = [0,2,4,5]
+
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+
+  @fact mesh.numPeriodicInterfaces --> 4
+  @fact mesh.numInterfaces --> (mesh.numFace - 8 - 3*4 - 8)
+  @fact mesh.peer_face_counts[1] --> 8
+
+  smb_name = "tet2_pxy_p2_.smb"
+
+  opts["BC1"] = [1,2,3,4]
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+
+  @fact mesh.numPeriodicInterfaces --> 0
+  @fact mesh.numInterfaces --> (mesh.numFace - 2*8 - 4*4)
+  @fact mesh.peer_face_counts[1] --> 16
+
+
+
 end
+
+
+
 MPI.Barrier( MPI.COMM_WORLD)
 if MPI.Initialized()
   MPI.Finalize()

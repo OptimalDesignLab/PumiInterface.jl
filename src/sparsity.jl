@@ -15,14 +15,22 @@ function getSparsityCounts(mesh::PumiMeshDG, sparse_bnds::AbstractArray{Int32, 2
     add_factor = 1
   end
 
-  edges = Array(Ptr{Void}, 6)
+  edges = Array(Ptr{Void}, 4)
+  part_nums = Array(Cint, 4)
+  shared_edges = Array(Ptr{Void}, 4)
   for i=1:mesh.numEl
     el_ptr = mesh.elements[i]
     getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, edges)
     nremotes = 0
     for j=1:mesh.numFacesPerElement
       edge_j = edges[j]
-      nremotes += countRemotes(mesh.m_ptr, edge_j)
+      ncopies = countCopies(mesh.shr_ptr, edge_j)
+      getCopies(part_nums, shared_edges)
+      for k=1:ncopies
+        if part_nums[k] != mesh.myrank
+          nremotes += 1
+        end
+      end
     end
 
     nlocal = mesh.numFacesPerElement + 1  # 3 neighbors + 1

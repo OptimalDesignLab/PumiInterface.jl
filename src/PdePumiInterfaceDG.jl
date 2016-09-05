@@ -119,6 +119,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
                              # field
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
   fnew_ptr::Ptr{Void}  # pointer to field on mnew_ptr
+  shr_ptr::Ptr{Void}  # pointer to the apf::Sharing object
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
   min_el_size::Float64 # size of the smallest element (units of length)
@@ -140,7 +141,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   numNodes::Int  # number of nodes
   numDofPerNode::Int  # number of dofs per node
   numBoundaryFaces::Int # number of edges on the exterior boundary
-  numInterfaces::Int # number of internal interfaces
+  numInterfaces::Int # number of internal interfaces (including periodic)
+  numPeriodicInterfaces::Int  # number of periodic interfaces
   numNodesPerElement::Int  # number of nodes per element
   numFacesPerElement::Int  # number of faces (edges) on an element
   numNodesPerType::Array{Int, 1}  # number of nodes classified on each vertex, edge, face
@@ -373,6 +375,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
 
+  mesh.shr_ptr = getSharing(mesh.m_ptr)
   # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])
   mesh.numEdge =convert(Int,  num_Entities[2])
@@ -483,7 +486,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 #  println("finished getting boundary edge list")
 
 #  println("about to count boundary edges")
- mesh.numBoundaryFaces, num_ext_edges, mesh.numInterfaces =  countBoundaryEdges(mesh, bndry_edges_all)
+ mesh.numBoundaryFaces, mesh.numInterfaces, mesh.numPeriodicInterfaces =  countBoundaryEdges(mesh, bndry_edges_all)
 #  println("finished counting boundary edges")
 
   # populate mesh.bndry_faces from options dictionary
@@ -496,10 +499,14 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   offset = 1
   for i=1:mesh.numBC
     key_i = string("BC", i)
-    println("opts[key_i] = ", opts[key_i])
+    model_edges = opts[key_i]
+    println("opts[key_i] = ", model_edges)
 #    println("typeof(opts[key_i]) = ", typeof(opts[key_i]))
     mesh.bndry_offsets[i] = offset
-    offset = getMeshEdgesFromModel(mesh, opts[key_i], offset, boundary_nums)  # get the mesh edges on the model edge
+    offset, print_warning = getMeshEdgesFromModel(mesh, model_edges, offset, boundary_nums)  # get the mesh edges on the model edge
+    if print_warning
+      throw(ErrorException("Cannot apply boundary conditions to periodic boundary, model entity $model_edges"))
+    end
     # offset is incremented by getMeshEdgesFromModel
   end
 
@@ -589,7 +596,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   # need to count the number of internal interfaces - do this during boundary edge counting
 #  println("getting interface info")
-  println("num_ext_edges = ", num_ext_edges)
   println("numEdges = ", mesh.numEdge)
   println("numInterfaces = ", mesh.numInterfaces)
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
