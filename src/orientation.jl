@@ -274,10 +274,9 @@ function getRelativeOrientation(fdata::FaceData, mesh::PumiMesh3DG)
 
   # get all vertices of the tet
   getDownward(mesh.m_ptr, fdata.elL, 0, fdata.vertsL)
+  getDownward(mesh.m_ptr, fdata.elR, 0, fdata.vertsR)
   if fdata.match2
     getMatchedVertsR(fdata, mesh)
-  else
-    getDownward(mesh.m_ptr, fdata.elR, 0, fdata.vertsR)
   end
 
   # extract the face vertices 
@@ -292,9 +291,8 @@ function getRelativeOrientation(fdata::FaceData, mesh::PumiMesh3DG)
 end
 
 function getMatchedVertsR(fdata::FaceData, mesh::PumiMesh3DG)
-# get the matched entities for elR
+# do an in place replacement of vertsR with their matches
 
-  getDownward(mesh.m_ptr, fdata.elR, 0, fdata.vertsR)
   part_nums = fdata.part_nums
   matched_entities = fdata.matched_entities
 
@@ -303,7 +301,7 @@ function getMatchedVertsR(fdata::FaceData, mesh::PumiMesh3DG)
     n = countMatches(mesh.m_ptr, fdata.vertsR[i])
     getMatches(part_nums, matched_entities)
     for j=1:n  # find the match on the same part
-      if part_nums[j] == mesh.myrank
+      if part_nums[j] == mesh.myrank && (matched_entities[j] in fdata.vertsL)
         fdata.vertsR[i] = matched_entities[j]
       end
     end

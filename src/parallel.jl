@@ -20,14 +20,6 @@ function getParallelInfo(mesh::PumiMeshDG)
   npeers = countPeers(mesh.m_ptr, mesh.dim-1)  # get edge peers
   peer_nums = zeros(Cint, npeers)
   getPeers(mesh.m_ptr, peer_nums)
-  mesh.peer_parts = peer_nums
-  mesh.npeers =  npeers
-  mesh.send_reqs = Array(MPI.Request, npeers)  # array of Requests for sends
-  mesh.send_waited = Array(Bool, npeers)
-  mesh.recv_reqs = Array(MPI.Request, npeers)  # array of Requests for receives
-  mesh.recv_waited = Array(Bool, npeers)
-  mesh.send_stats = Array(MPI.Status, npeers)
-  mesh.recv_stats = Array(MPI.Status, npeers)
   # count the number of edges shared with each peer
   partnums = zeros(Cint, 1)
   remotes = Array(Ptr{Void}, 1)
@@ -53,6 +45,15 @@ function getParallelInfo(mesh::PumiMeshDG)
     end
   end
   mesh.peer_face_counts = counts
+
+  mesh.peer_parts = peer_nums
+  mesh.npeers =  npeers
+  mesh.send_reqs = Array(MPI.Request, npeers)  # array of Requests for sends
+  mesh.send_waited = Array(Bool, npeers)
+  mesh.recv_reqs = Array(MPI.Request, npeers)  # array of Requests for receives
+  mesh.recv_waited = Array(Bool, npeers)
+  mesh.send_stats = Array(MPI.Status, npeers)
+  mesh.recv_stats = Array(MPI.Status, npeers)
 
   # for matching meshes, it is possible for one vertex to have several 
   # Copies on a given remote process, so we send them all and sort it 
@@ -114,7 +115,6 @@ function getParallelInfo(mesh::PumiMeshDG)
   dtype = MPI.mpitype(Int)
   MPI.mpitype_dict[Ptr{Void}] = dtype
   myrank = mesh.myrank
-  f = open("fout_$myrank.dat", "w")
   down = Array(Ptr{Void}, 12)  # hold downward edges
   nrecvs = 0
   for i=1:npeers
@@ -130,15 +130,7 @@ function getParallelInfo(mesh::PumiMeshDG)
 
         # get the remote edge pointer
         nremotes = countCopies(mesh.shr_ptr, edge_j)
-        println(f, "nremotes = ", nremotes)
         getCopies(partnums, remotes)
-        println(f, " partnums = ", partnums[1:nremotes])
-        println(f, "process ", mesh.myrank, ", element ", bndry_j.element, ", face ", bndry_j.face)
-        println(f, "is face shared: ", isShared(mesh.m_ptr, edge_j))
-        if nremotes != 1
-          facenum = getNumberJ(mesh.face_Nptr, edge_j, 0, 0) + 1
-          println(f, "face number = ", facenum)
-        end
         @assert nremotes == 1
         edges_i[j] = remotes[1]
       end
@@ -150,7 +142,7 @@ function getParallelInfo(mesh::PumiMeshDG)
       nrecvs += 1
     end
   end  # end loop over peers
-  close(f)
+  
   # get arrays of Requests
   recv_reqs_reduced = Array(MPI.Request, nrecvs)
   recv_peers = Array(Int, nrecvs)  # which process they came from

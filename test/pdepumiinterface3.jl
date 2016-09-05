@@ -207,6 +207,20 @@ facts("----- Testing PdePumiInterface3DG -----") do
     @fact iface_i.faceR --> less_than(5)
   end
 
+  # this mesh test that matched vertices are used for orientation 
+  # determiniation
+  smb_name = "tet5_periodic.smb"
+  opts["numBC"] = 0
+  delete!(opts, "BC1")
+
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+
+  @fact mesh.numPeriodicInterfaces --> 3*(5*5*2)
+  for i=1:mesh.numInterfaces
+    @fact mesh.interfaces[i].orient --> not(0)
+    @fact mesh.interfaces[i].orient --> less_than(4)
+  end
+
 
 
 
