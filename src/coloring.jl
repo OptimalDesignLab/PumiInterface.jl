@@ -313,11 +313,14 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
   const final_start = (nfaces-2)*(nfaces-1) + nonlocal_d2_start
 
   colors = zeros(Int32, final_start-1)  
+
+  # these calculations are for a 2D mesh (triangles), but are similar for
+  # 3d
   # the first 3 sets of four elements are for the colors of the distance-2 
   # neighbors + their common distance-2 neighbor
   # the last 2*3 entries are for the non-local neighbors of the distance-1 
   # neighbors
-  # the last two entries are for the local distance-2 neighbors connected by a
+  # the last 2 entries are for the local distance-2 neighbors connected by a
   # non-local element
   # (for the case where a single element has 2 non local neighbors)
   local_colors = view(colors, local_start:(nonlocal_start-1))
@@ -513,7 +516,7 @@ end
 
 
 function getNonlocalDistance2Colors(mesh::PumiMeshDG, elnum::Integer, colordata::ColoringData, colors)
-# get the distance 2 neighbors of a local element that are connected via a non-local element
+# get the distance 2 neighbors of a local element that are connected via a non-local element, not including the current element
 
   el = mesh.elements[elnum]
   nfaces = mesh.numFacesPerElement
@@ -524,7 +527,7 @@ function getNonlocalDistance2Colors(mesh::PumiMeshDG, elnum::Integer, colordata:
       if (vals[i] != 0)
         for j=1:(nfaces-1)
           neighbor = colordata.revadj[vals[i] - mesh.numEl, j]
-          if neighbor != 0
+          if neighbor != 0 && neighbor != elnum
             neighbor_ptr = mesh.elements[neighbor]
             colors[pos] = getNumberJ(mesh.coloring_Nptr, neighbor_ptr, 0, 0)
             pos += 1
