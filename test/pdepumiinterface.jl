@@ -320,6 +320,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact mesh.coloringDistance --> 2
    @fact mesh.numColors --> 4
    @fact mesh.numBC --> 1
+   @fact mesh.bndry_geo_nums[1] --> opts["BC1"]
    @fact mesh.elementNodeOffsets --> zeros(mesh.numNodesPerElement, mesh.numEl)
    @fact mesh.typeNodeFlags[1] --> trues(3, mesh.numEl)
    tmp = trues(3, 2); tmp[1, 1] = false

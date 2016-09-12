@@ -36,6 +36,8 @@ facts("----- Testing PdePumiInterface3DG -----") do
   @fact mesh.edge_Nptr --> not(C_NULL)
   @fact mesh.face_Nptr --> not(C_NULL)
   @fact mesh.el_Nptr --> not(C_NULL)
+  @fact mesh.numBC --> 1
+  @fact mesh.bndry_geo_nums[1] --> opts["BC1"]
 
   function checkNumbering(nshape_ptr, dim, cnt)
     for i=1:4

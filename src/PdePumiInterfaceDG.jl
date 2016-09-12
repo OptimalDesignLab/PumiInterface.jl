@@ -210,9 +210,16 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   bndry_funcs::Array{BCType, 1}  # array of boundary functors (Abstract type)
   bndry_normals::Array{T1, 3}  # array of normals to each face on the boundary
 #  bndry_facenums::Array{Array{Int, 1}, 1}  # hold array of faces corresponding to each boundary condition
-  bndry_offsets::Array{Int, 1}  # location in bndryfaces where new type of BC starts
+  bndry_offsets::Array{Int, 1}  # location in bndryfaces where new type of BC 
+                                # starts
                                 # and one past the end of the last BC type
 				# array has length numBC + 1
+
+  bndry_geo_nums::Array{Array{Int, 1}, 1}  # array of arrays, where the 
+                                           # outer array is of length numBC
+                                           # and the inner arrays contains
+                                           # the geometric edge numbers of this
+                                           # BC
 
   bndryfaces::Array{Boundary, 1}  # store data on external boundary of mesh
   interfaces::Array{Interface, 1}  # store data on internal edges
@@ -494,12 +501,17 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 #  println("about to get boudnary offets")
   mesh.bndry_offsets = Array(Int, mesh.numBC + 1)
   mesh.bndry_funcs = Array(BCType, mesh.numBC)
+  mesh.bndry_geo_nums = Array(Array{Int, 1}, mesh.numBC)
   boundary_nums = Array(Int, mesh.numBoundaryFaces, 2)
 
   offset = 1
   for i=1:mesh.numBC
     key_i = string("BC", i)
     model_edges = opts[key_i]
+    # record geometric edges
+    ngeo = length(model_edges)
+    mesh.bndry_geo_nums[i] = Array(Int, ngeo)
+    mesh.bndry_geo_nums[i][:] = model_edges[:]
     println("opts[key_i] = ", model_edges)
 #    println("typeof(opts[key_i]) = ", typeof(opts[key_i]))
     mesh.bndry_offsets[i] = offset

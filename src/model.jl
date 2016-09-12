@@ -170,5 +170,3 @@ return bnd_edges_cnt, external_edges_cnt
 
 end  # end function
 
-
-
