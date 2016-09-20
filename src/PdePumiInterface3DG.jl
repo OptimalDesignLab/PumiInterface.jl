@@ -112,6 +112,9 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   coordshape_ptr::Ptr{Void}  # pointer to FieldShape of the coordinate 
                              # field
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
+  fnew_ptr::Ptr{Void}  # pointer to apf::Field used for visualization
+  mnew_ptr::Ptr{Void}  # pointer to mesh used for visualization
+  fnewshape_ptr::Ptr{Void} # FieldShape of fnew_ptr
   shr_ptr::Ptr{Void} # pointer to apf::Sharing object
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
@@ -373,6 +376,9 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh.mshape_ptr = getFieldShape(field_shape_type, order, mesh.dim)
   # use coordinate fieldshape for solution, because it will be interpolated
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.coordshape_ptr)
+  mesh.fnew_ptr = mesh.f_ptr
+  mesh.mnew_ptr = mesh.m_ptr
+  mesh.fnewshape_ptr = mesh.coordshape_ptr
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
   mesh.shr_ptr = getSharing(mesh.m_ptr)
 

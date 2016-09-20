@@ -170,6 +170,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   coordshape_ptr::Ptr{Void}  # pointer to FieldShape of coordinate field
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation  (FieldShape = mshape_ptr)
   fnew_ptr::Ptr{Void}  # pointer to field on mnew_ptr
+  fnewshape_ptr::Ptr{Void}  # fieldshape of fnew_ptr
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
   min_el_size::Float64 # the minimum size of an element

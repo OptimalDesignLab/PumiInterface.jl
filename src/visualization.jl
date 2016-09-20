@@ -45,15 +45,19 @@ function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
     end  # end loop over entity types
   end  # end loop over elements
 
-  if !(mesh.isDG && mesh.shape_type == 3)
-    transferFieldToSubmesh(mesh)
-  end
+  transferFieldToSubmesh(mesh, u)
 
   return nothing
 end  # end function saveSolutionToMesh
 
 function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
-# interpolate solution to the vertices 
+# all 3D DG mesh interpolate directly
+  interpolateToMesh(mesh, u)
+end
+
+function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
+# interpolate solution to the field mesh.fnew_ptr which resides on 
+# mesh.mnew_ptr 
 # u is the vector containing the solution, even though for DG the vector and the 
 # 3D array forms of the solution have identical memory layout
 # change this in the future with ReshapedArrays?
@@ -66,16 +70,18 @@ function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
   dofs = mesh.dofs
   numTypePerElement = mesh.numTypePerElement
   numEntitiesPerType = mesh.numEntitiesPerType
-  fshape_ptr = mesh.coordshape_ptr
+  fshape_ptr = mesh.fnewshape_ptr
 
   # count nodes on solution field 
-  numNodesPerType = Array(Int, 4)
+  numNodesPerType = Array(Int, mesh.dim + 1)
   numNodesPerType[1] = countNodesOn(fshape_ptr, 0)
   numNodesPerType[2] = countNodesOn(fshape_ptr, 1)
   numNodesPerType[3] = countNodesOn(fshape_ptr, 2)
-  numNodesPerType[4] = countNodesOn(fshape_ptr, 4) # tetrahedron
+  if mesh.dim == 3
+    numNodesPerType[4] = countNodesOn(fshape_ptr, 4) # tetrahedron
+  end
 
-  zeroField(mesh.f_ptr)
+  zeroField(mesh.fnew_ptr)
 
   for el=1:mesh.numEl
     el_i = mesh.elements[el]
@@ -93,7 +99,7 @@ function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
 
     # save values to mesh
     # assumes the solution fieldshape is the same as the coordinate fieldshape
-    node_entities = getNodeEntities(mesh.m_ptr, fshape_ptr, el_i)
+    node_entities = getNodeEntities(mesh.mnew_ptr, fshape_ptr, el_i)
     col = 1  # current node of the element
 
     for i=1:(mesh.dim+1)
@@ -101,12 +107,12 @@ function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
         for k=1:numNodesPerType[i]
           entity = node_entities[col]
           # skip elementNodeOffsets - maximum of 1 node per entity
-          getComponents(mesh.f_ptr, entity, 0, u_node2)
+          getComponents(mesh.fnew_ptr, entity, 0, u_node2)
           for p=1:mesh.numDofPerNode
             u_node[p] = u_verts[col, p] + u_node2[p]
           end
 
-          setComponents(mesh.f_ptr, entity, 0, u_node)
+          setComponents(mesh.fnew_ptr, entity, 0, u_node)
           col += 1
         end
       end
@@ -121,34 +127,27 @@ function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
       resetIt(dim - 1)
       for i=1:numEntitiesPerType[dim]
         entity_i = getEntity(dim - 1)
-        nel = countAdjacent(mesh.m_ptr, entity_i, mesh.dim)
-        getComponents(mesh.f_ptr, entity_i, 0, u_node)
+        nel = countAdjacent(mesh.mnew_ptr, entity_i, mesh.dim)
+        getComponents(mesh.fnew_ptr, entity_i, 0, u_node)
         fac = 1/nel
         for p=1:mesh.numDofPerNode
           u_node[p] = fac*u_node[p]
         end
-        setComponents(mesh.f_ptr, entity_i, 0, u_node)
+        setComponents(mesh.fnew_ptr, entity_i, 0, u_node)
         incrementIt(dim - 1)
       end
     end
   end
 
 
-
-
-
   return nothing
 end  # end function
 
 
-function writeVisFiles(mesh::PumiMesh2DG, fname::AbstractString)
+function writeVisFiles(mesh::PumiMeshDG, fname::AbstractString)
   # writes vtk files 
 
-  if mesh.shape_type != 3
-    writeVtkFiles(fname, mesh.mnew_ptr)
-  else
-    println(STDERR, "Warning: not printing visualization file for 2D SBP-Gamma")
-  end
+  writeVtkFiles(fname, mesh.mnew_ptr)
 
   return nothing
 end
@@ -167,10 +166,3 @@ function writeVisFiles(mesh::PumiMesh2CG, fname::AbstractString)
 
   return nothing
 end
-
-function writeVisFiles(mesh::PumiMesh3DG, fname::AbstractString)
-  writeVtkFiles(fname, mesh.m_ptr)
-end
-
-
-

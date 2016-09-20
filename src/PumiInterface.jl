@@ -264,10 +264,10 @@ function getMeshPtr()
 end
 
 # no longer needed
-function getMeshShapePtr()
+function getMeshShapePtr(m_ptr::Ptr{Void})
 
-  m_ptr = ccall( (getMeshShapePtr_name, pumi_libname), Ptr{Void}, () )
-  return m_ptr
+  mshape_ptr = ccall( (getMeshShapePtr_name, pumi_libname), Ptr{Void}, (Ptr{Void},), m_ptr )
+  return mshape_ptr
 end
 
 function getConstantShapePtr(dimension::Integer)
@@ -858,7 +858,7 @@ function alignSharedNodes(eshape_ptr, m_ptr, elem, shared, order::Array{Int32, 1
 # shared is a poniter to the MeshEntity that is shared between elements
 
   # bounds check
- mshape_ptr = getMeshShapePtr()
+ mshape_ptr = getMeshShapePtr(m_ptr)
  shared_type = getType(m_ptr, shared)
  numnodes = countNodesOn(mshape_ptr, shared_type)
 

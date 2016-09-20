@@ -97,6 +97,10 @@ function getNodeMaps(order::Integer, shape_type::Integer, numNodesPerElement, di
 end  # end getNodeMaps
 
 function createSubtriangulatedMesh(mesh::AbstractMesh)
+# this function is used to figure out how to do subtriangulation/visualization
+# for 2D meshes only
+# 3D meshes don't subtriangulate
+
   order = mesh.order
   shape_type = mesh.shape_type
   dofpernode = mesh.numDofPerNode
@@ -109,8 +113,11 @@ function createSubtriangulatedMesh(mesh::AbstractMesh)
 
       println("creating solution field on new mesh")
       mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
+
+      mesh.fnewshape_ptr = getMeshShapePtr(mesh.mnew_ptr)
     else
       mesh.triangulation = zeros(Int32, 0, 0)
+      # maybe makes these equal f_ptr and m_ptr for consistency?
       mesh.mnew_ptr = C_NULL
       mesh.fnew_ptr = C_NULL
     end
@@ -124,20 +131,36 @@ function createSubtriangulatedMesh(mesh::AbstractMesh)
 
       println("creating solution field on new mesh")
       mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
+      mesh.fnewshape_ptr = getMeshShapePtr(mesh.mnew_ptr)
     else
       throw(ErrorException("Congratulations: you have reached and unreachable case"))
     end
+  elseif mesh.shape_type == 3  # DG SBP Gamma
+    # I don't think subtriangulation will work in this case, so create a 
+    # linear field on the existing mesh, and interpolate the solution onto it
+    fshape_new = getFieldShape(0, 1, mesh.dim)
+
+    mesh.mnew_ptr = mesh.m_ptr
+    mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field_interp", dofpernode)
+    mesh.fnewshape_ptr = fshape_new
 
   end  # end if mesh.shape_type 
 
   return nothing
 end
 
-function transferFieldToSubmesh(mesh::AbstractMesh)
+function transferFieldToSubmesh(mesh::AbstractMesh, u)
 
   if mesh.isInterpolated
-    println("transferring field to submesh")
-    transferFieldDG(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.interp_op.', mesh.fnew_ptr)
+    if mesh.shape_type != 3
+      println("transferring field to submesh")
+      transferFieldDG(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.interp_op.', mesh.fnew_ptr)
+    else
+
+      # this is a bit wasteful, because the un-interpolated solution was
+      # already saved to mesh.f_ptr
+      interpolateToMesh(mesh, u)
+    end
   else
     if mesh.order >= 3
       transferField(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.fnew_ptr)

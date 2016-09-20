@@ -445,7 +445,7 @@ apf::Mesh2* getMeshPtr()
   return m;
 }
 
-apf::FieldShape* getMeshShapePtr()
+apf::FieldShape* getMeshShapePtr(apf::Mesh* m)
 {
   return m->getShape();
 }
@@ -455,6 +455,8 @@ apf::FieldShape* getConstantShapePtr(int dimension)
 {
   return apf::getConstant(dimension);
 }
+
+
 
 apf::Numbering* getVertNumbering()
 {

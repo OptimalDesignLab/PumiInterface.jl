@@ -50,7 +50,7 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
 
 // these functions do pass pointers
 extern apf::Mesh2* getMeshPtr();
-extern apf::FieldShape* getMeshShapePtr();
+extern apf::FieldShape* getMeshShapePtr(apf::Mesh* m);
 extern apf::FieldShape* getConstantShapePtr(int dimension);
 extern apf::Numbering* getVertNumbering();
 extern apf::Numbering* getEdgeNumbering();

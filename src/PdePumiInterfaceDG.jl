@@ -40,7 +40,18 @@
 # This requirement is stronger than what is actually necessary, but 
 # having an explicitly defined node ordering convention and a general
 # mechanism to convert from Pumi to SBP ordering is a better interface
-#         
+#        
+
+# for visualization:
+#   2D SBPOmega meshes are subtriangulated and the solution field interpolated
+#   onto the new mesh
+#   SBPGamma and 3D SBP Omega meshes create a new, linear field on the 
+#   existing mesh and interpolate teh solution to it
+#
+# The fields fnew_ptr, mnew_ptr, and fnewshape_ptr should always refer to the
+# field/mesh which is used for visualization, even if it is the same as 
+# m_ptr, f_ptr, mshape_ptr or coordshape_ptr
+
 export PumiMeshDG2
 #abstract AbstractMesh
 @doc """
@@ -119,6 +130,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
                              # field
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
   fnew_ptr::Ptr{Void}  # pointer to field on mnew_ptr
+  fnewshape_ptr::Ptr{Void}  # fieldshape of fnew_ptr
   shr_ptr::Ptr{Void}  # pointer to the apf::Sharing object
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
