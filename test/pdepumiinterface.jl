@@ -63,6 +63,7 @@ facts("--- Testing PdePumiInterface --- ") do
     @fact mesh.order --> order
     @fact length(mesh.bndry_funcs) --> 1
     @fact mesh.bndry_offsets --> [1, 5]
+    @fact mesh.bndry_geo_nums[1] --> opts["BC1"]
 #=
     for i=1:mesh.numBoundaryFaces
       for j=1:(sum(mesh.numNodesPerType[1:2]))
