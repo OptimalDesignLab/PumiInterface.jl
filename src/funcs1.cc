@@ -240,6 +240,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
 
     // check if the coordinates have been moved into tags
     // this is a result of the mesh shape having been changed previously
+    std::cout << "looking for coordinates_ver tag" << std::endl;
     apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
     std::cout << "coords_tag = " << coords_tag << std::endl;
     

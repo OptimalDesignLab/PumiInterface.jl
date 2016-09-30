@@ -58,10 +58,10 @@ int main ()
   gmi_register_null();
   gmi_register_mesh();
   std::cout << "loading geometric model" << std::endl;
-  gmi_model* g = gmi_load("parallel2.dmg");
+  gmi_model* g = gmi_load(".null");
   std::cout << "finished loading geometric model" << std::endl;
   // using the mesh vortex3_1.smb works fine
-  apf::Mesh2* m = apf::loadMdsMesh(g,"parallel2.smb" );
+  apf::Mesh2* m = apf::loadMdsMesh(g,"tri2l.smb" );
 
   std::cout << "finished loading mesh" << std::endl;
   apf::reorderMdsMesh(m);
@@ -70,56 +70,6 @@ int main ()
   apf::FieldShape* fshape = apf::getLagrange(1);
   apf::changeMeshShape(m, fshape, true);
   std::cout << "finished changing mesh shape" << std::endl;
-
-  apf::Sharing* shr = getSharing(m);
-  apf::MeshEntity* e;
-  apf::MeshIterator* it = m->begin(1);
-  std::ofstream f;
-  char fname[256];
-  sprintf(fname, "fout_%d.dat", myrank);
-  f.open(fname);
-
-  apf::MeshIterator* it = m->begin(3);
-  apf::MeshEntity* e;
-  apf::MeshEntity* verts[4];
-  apf::MeshEntity* face_verts[3];
-  apf::MeshEntity* remote_face_verts[3];
-  apf::Vector3 point;
-
-  while ( (e = m->iterate(it)) )
-  {
-    if ( e == 0x000000000000009f )
-    {
-      m->getDownward(e, 0, verts);
-
-      // extract the face verts and print their coordinates
-      for (int j=0; j < 3; ++j)
-      {
-        face_verts[j] = verts[j];
-        m->getPoint(verts[j], 0, point);
-        std::cout << "vert " << j << " coordinates = (" << point.x() << ", " << point.y() << ", " << point.z() << std::endl;
-
-        // get remote pointer
-
-
-
-
-      // print their coordinates
-
-
-
-
-
-    }
-
-  }
-
-  for (int i=0; i <= 19; ++i)  // element 
-  {
-
-  }
-
-  f.close();
 
 //  apf::writeASCIIVtkFiles("output_check", m);
   apf::writeVtkFiles("output_check", m);

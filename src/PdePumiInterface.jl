@@ -262,6 +262,9 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   jac::Array{T1,2}  # store mapping jacobian output
 
   dofs::Array{Int32, 3}  # store dof numbers of solution array to speed assembly
+  element_vertnums::Array{Int32, 2}  # map from elements to their vertex numbers
+                                     # numVertPerElement x numEl
+
   sparsity_bnds::Array{Int32, 2}  # store max, min dofs for each dof
   sparsity_nodebnds::Array{Int32, 2}  # store min, max nodes for each node
   color_masks::Array{BitArray{1}, 1}  # array of bitarray masks used to control element perturbations when forming jacobian, number of arrays = number of colors
@@ -419,7 +422,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   # get entity pointers
   mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
-
+  mesh.element_vertnums = getElementVertMap(mesh)
 
   mesh.numBC = opts["numBC"]
 

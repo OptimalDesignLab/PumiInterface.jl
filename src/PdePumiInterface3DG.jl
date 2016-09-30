@@ -244,6 +244,9 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 
   dof_offset::Int  # local to global offset for dofs
   dofs::Array{Int, 3}  # store dof numbers of solution array to speed assembly
+  element_vertnums::Array{Int32, 2}  # map from elements to their vertex numbers
+                                  # numVertPerElement x numEl
+
   sparsity_bnds::Array{Int32, 2}  # store max, min dofs for each dof
   sparsity_nodebnds::Array{Int32, 2}  # store min, max nodes for each node
 
@@ -478,6 +481,8 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   # get entity pointers
 #  println("about to get entity pointers")
   mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
+
+  mesh.element_vertnums = getElementVertMap(mesh)
 #  println("finished getting entity pointers")
 
 #  println("about to get boundary edge list")

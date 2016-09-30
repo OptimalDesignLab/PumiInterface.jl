@@ -137,7 +137,7 @@ facts("--- Testing PdePumiInterface --- ") do
       @fact mesh.numNodesPerType --> [1, 2, 3]
       @fact mesh.typeOffsetsPerElement --> [1, 4, 10, 13]
       # check orientation of 3rd edge
-      println("mesh.dofs = ", mesh.dofs)
+#      println("mesh.dofs = ", mesh.dofs)
       @fact reshape(mesh.dofs[1, 4:5, 1], 2) --> reshape(mesh.dofs[1, 8:9, 2], 2)
     elseif order == 4
       @fact mesh.numNodes --> 31
@@ -145,7 +145,7 @@ facts("--- Testing PdePumiInterface --- ") do
       @fact mesh.numNodesPerElement --> 18
       @fact mesh.numNodesPerType --> [1, 3, 6]
       @fact mesh.typeOffsetsPerElement --> [1, 4, 13, 19]
-      println("mesh.dofs = ", mesh.dofs)
+#      println("mesh.dofs = ", mesh.dofs)
       # check orientation of 3rd edge
       @fact reshape(mesh.dofs[1, 10:12, 2], 3) -->reshape(mesh.dofs[1, 4:6, 1], 3)
     end
@@ -156,7 +156,7 @@ facts("--- Testing PdePumiInterface --- ") do
     @fact length(mesh.edges) --> mesh.numEdge
     @fact length(mesh.elements) --> mesh.numEl
 
-    println("mesh.coords = ", mesh.coords)
+#    println("mesh.coords = ", mesh.coords)
     println("size(mesh.coords) = ", size(mesh.coords))
     
     @fact mesh.jac --> roughly(ones(mesh.numNodesPerElement ,2))
@@ -182,6 +182,35 @@ facts("--- Testing PdePumiInterface --- ") do
         end
       end
     end
+
+  # test vertmap
+  println("testing vertmap")
+
+  nedges_interior = 0
+  for i=1:mesh.numEl
+    vertnums_i = mesh.element_vertnums[:, i]
+    for j=1:3
+      @fact vertnums_i[j] --> greater_than(0)
+      @fact vertnums_i[j] --> less_than(mesh.numVert + 1)
+    end
+
+    # test there are exactly 3 elements the current element shares 2 vertices
+    # with
+    nedges = 0
+    for j=1:mesh.numEl
+      vertnums_j = mesh.element_vertnums[:, j]
+      if length(intersect(vertnums_i, vertnums_j)) == 2
+        nedges += 1
+        nedges_interior += 1
+      end
+    end
+
+    @fact nedges --> less_than(4)
+    @fact nedges --> greater_than(0)
+  end  # end loop i
+
+  @fact nedges_interior --> 2*(mesh.numEdge - mesh.numBoundaryFaces)
+
 
 
   end  # end loop over p=1:4
@@ -487,6 +516,36 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   for i = 1:length(mesh.vert_coords)
     @fact abs(2*coords_orig[i] - mesh.vert_coords[i]) --> less_than(1e-10)
   end
+
+  # test vertmap
+
+  nedges_interior = 0
+  for i=1:mesh.numEl
+    vertnums_i = mesh.element_vertnums[:, i]
+    for j=1:3
+      @fact vertnums_i[j] --> greater_than(0)
+      @fact vertnums_i[j] --> less_than(mesh.numVert + 1)
+    end
+
+    # test there are exactly 3 elements the current element shares 2 vertices
+    # with
+    nedges = 0
+    for j=1:mesh.numEl
+      vertnums_j = mesh.element_vertnums[:, j]
+      if length(intersect(vertnums_i, vertnums_j)) == 2
+        nedges += 1
+        nedges_interior += 1
+      end
+    end
+
+    @fact nedges --> less_than(4)
+    @fact nedges --> greater_than(0)
+  end  # end loop i
+
+  @fact nedges_interior --> 2*(mesh.numEdge - mesh.numBoundaryFaces)
+
+
+
 
   # test periodic
   @fact mesh.numPeriodicInterfaces --> 0

@@ -189,6 +189,34 @@ facts("----- Testing PdePumiInterface3DG -----") do
     @fact abs(2*coords_orig[i] - mesh.vert_coords[i]) --> less_than(1e-10)
   end
 
+  # test vertmap
+
+  nfaces_interior = 0
+  for i=1:mesh.numEl
+    vertnums_i = mesh.element_vertnums[:, i]
+    for j=1:4
+      @fact vertnums_i[j] --> greater_than(0)
+      @fact vertnums_i[j] --> less_than(mesh.numVert + 1)
+    end
+
+    # test there are exactly 3 elements the current element shares 2 vertices
+    # with
+    nfaces = 0
+    for j=1:mesh.numEl
+      vertnums_j = mesh.element_vertnums[:, j]
+      if length(intersect(vertnums_i, vertnums_j)) == 3
+        nfaces += 1
+        nfaces_interior += 1
+      end
+    end
+
+    @fact nfaces --> less_than(4)
+    @fact nfaces --> greater_than(0)
+  end  # end loop i
+
+  @fact nfaces_interior --> 2*(mesh.numFace - mesh.numBoundaryFaces)
+
+
   # test periodic 
   @fact mesh.numPeriodicInterfaces --> 0
 

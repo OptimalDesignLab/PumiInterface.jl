@@ -453,3 +453,26 @@ function getFaceLocalNum(mesh::PumiMesh, edge_num::Integer, element_num::Integer
   return edgenum_local
 
 end
+
+function getElementVertMap(mesh::PumiMesh)
+# get array that maps from elements to their vertex numbers
+# the array is numVertPerElement x numEl
+  numVertPerElement = mesh.numTypePerElement[1]
+
+  elvertmap = zeros(Int32, numVertPerElement, mesh.numEl)
+  verts = Array(Ptr{Void}, 12)  # apf::Downward
+  vert_dim = 0
+
+  for i=1:mesh.numEl
+    el_i = mesh.elements[i]
+    getDownward(mesh.m_ptr, el_i,  vert_dim, verts)
+
+    for j=1:numVertPerElement
+      vert_j = verts[j]
+      elvertmap[j, i] = getNumberJ(mesh.vert_Nptr, vert_j, 0, 0) + 1
+    end
+  end
+
+  return elvertmap
+end
+
