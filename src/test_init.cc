@@ -61,7 +61,7 @@ int main ()
   gmi_model* g = gmi_load(".null");
   std::cout << "finished loading geometric model" << std::endl;
   // using the mesh vortex3_1.smb works fine
-  apf::Mesh2* m = apf::loadMdsMesh(g,"tri2l.smb" );
+  apf::Mesh2* m = apf::loadMdsMesh(g,"/tmp/abc2.smb" );
 
   std::cout << "finished loading mesh" << std::endl;
   apf::reorderMdsMesh(m);

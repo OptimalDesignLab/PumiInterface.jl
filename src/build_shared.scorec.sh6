@@ -1,6 +1,6 @@
 #!/bin/bash -e
-module load pumi/core-sim
-export LD_LIBRARY_PATH=/usr/local/pumi/core-sim/lib:$LD_LIBRARY_PATH
+module load pumi/core
+export LD_LIBRARY_PATH=/usr/local/pumi/core/lib:$LD_LIBRARY_PATH
 set -x
 #CXXFLAGS="$CXXFLAGS -g -std=c++11 -fno-omit-frame-pointer"
 
