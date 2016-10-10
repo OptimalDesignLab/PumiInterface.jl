@@ -28,8 +28,8 @@ if install_mpi
 end
 
 #pumi_version = "e4eabf5"
-pumi_version = "d1837c5936c28d6ef09abd02c82ea2a4ea9b6f55"
-#pumi_version = "HEAD"
+#pumi_version = "d1837c5936c28d6ef09abd02c82ea2a4ea9b6f55"
+pumi_version = "HEAD"
 if install_pumi  # did not find pumi
 #  if isdir("./core")
 #    println("deleting existing Core repo in /deps")
@@ -79,11 +79,19 @@ if install_pumi  # did not find pumi
     ENV["PKG_CONFIG_PATH"] = str3
   end
 
+  scorec_prefix = joinpath(pwd(), "install")
+  println("scorec prefix = ", scorec_prefix)
+  ENV["SCOREC_PREFIX"] = scorec_prefix
+
 
   cd(start_dir)
 
 end
+cd("../src")
+run(`./config.sh`)
+run(`./makeinstall.sh`)
 
+#=
 # build the shared library
 cd("../src")
 run(`./build_shared.scorec.sh7`)
@@ -100,7 +108,7 @@ f = open("evars.sh", "a+")
 println(f, str5)
 println(f, str6)
 close(f)
-
+=#
 cd(start_dir)
 
 

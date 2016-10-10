@@ -10,5 +10,6 @@ cmake .. \
   -DENABLE_THREADS=OFF \
   -DBUILD_SHARED_LIBS=True \
   -DCMAKE_INSTALL_PREFIX=`pwd`"/install" \
-  -DIS_TESTING=True
+  -DIS_TESTING=True \
+  -DMESHES=`pwd`"/../../meshes"
 #  -DENABLE_ZOLTAN=

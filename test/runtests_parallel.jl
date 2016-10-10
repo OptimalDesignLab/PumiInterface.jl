@@ -426,8 +426,10 @@ facts("----- Testing PdePumiInterface3DG -----") do
 end
 
 
-
+#=
 MPI.Barrier( MPI.COMM_WORLD)
 if MPI.Initialized()
+  println("finalizing mpi")
   MPI.Finalize()
 end
+=#
