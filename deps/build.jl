@@ -1,7 +1,7 @@
 # this file will build Pumi if it cannot be located by pkg-config
 include("./stringmatch.jl")
-
-install_pumi = try run(`pkg-config --exists --libs libmds`) 
+include("install_pumi.jl")
+install_pumi = try run(`cmake --find-package -DNAME=SCOREC -DCOMPILER_ID=GNU -DLANGUAGE=CXX -DMODE=EXIST`) 
           false
           catch 
 	  true 
@@ -17,76 +17,17 @@ install_mpi = try run(`which mpicxx`)
 println("install_mpi = ", install_mpi)
 
 
-
-start_dir = pwd()  # record where we started
-
-
 if install_mpi
   cmd_string = "./travis-install-mpi.sh"
   arg_str = "mpich3"
   run(`$cmd_string $arg_str`)
 end
 
-#pumi_version = "e4eabf5"
-#pumi_version = "d1837c5936c28d6ef09abd02c82ea2a4ea9b6f55"
-pumi_version = "HEAD"
 if install_pumi  # did not find pumi
-#  if isdir("./core")
-#    println("deleting existing Core repo in /deps")
-#    rm("./core", recursive=true)
-#  end
-  if !isdir("./core")
-    run(`./download.sh`)
-  end
-  cd("./core")
-#  run(`git pull`)
-  run(`git checkout $pumi_version`)
-  mkdir("./build")
-  cd("./build")
-  mkdir("./install")  # install directory
-  run(`../../config.sh`)
-  run(`make -j 4`)
-  run(`make install`)
-  str1 = joinpath( pwd(), "install/lib")
-  str2 = string("export LD_LIBRARY_PATH=", str1, ":\$LD_LIBRARY_PATH")
-  str3 = joinpath(str1, "pkgconfig")
-  str4 = string("export PKG_CONFIG_PATH=", str3, ":\$PKG_CONFIG_PATH")
-
-  # write to file 
-  fname = "evars.sh"
-  f = open(fname, "a+")
-
-  println(f, str2)
-  println(f, str4)
-
-  close(f)
-
-  # update ENV here 
-
-  if haskey(ENV, "LD_LIBRARY_PATH")
-    ld_path = ENV["LD_LIBRARY_PATH"]
-    ld_path = string(str1, ":", ld_path)
-    ENV["LD_LIBRARY_PATH"] = ld_path
-  else
-    ENV["LD_LIBRARY_PATH"] = str1
-  end
-
-  if haskey(ENV, "PKG_CONFIG_PATH")
-    pkg_path = ENV["PKG_CONFIG_PATH"]
-    pkg_path = string(str3,":", pkg_path)
-    ENV["PKG_CONFIG_PATH"] = pkg_path
-  else
-    ENV["PKG_CONFIG_PATH"] = str3
-  end
-
-  scorec_prefix = joinpath(pwd(), "install")
-  println("scorec prefix = ", scorec_prefix)
-  ENV["SCOREC_PREFIX"] = scorec_prefix
-
-
-  cd(start_dir)
-
+  installPumi()
 end
+
+# now that all dependencies exist, install this package
 cd("../src")
 run(`./config.sh`)
 run(`./makeinstall.sh`)

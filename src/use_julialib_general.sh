@@ -6,6 +6,3 @@ export LD_LIBRARY_PATH=`pwd`/../install/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=`pwd`/../deps/core/build/install/lib:$LD_LIBRARY_PATH
 export PATH=`pwd`/../deps/core/build/install/bin:$PATH
 export SCOREC_PREFIX=`pwd`/../deps/core/build/install
-
-### TEMPORARY: tell OpenBlas to use only 1 thread ###
-#export OPENBLAS_NUM_THREADS=1
