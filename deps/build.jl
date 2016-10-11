@@ -21,6 +21,8 @@ if install_mpi
   cmd_string = "./travis-install-mpi.sh"
   arg_str = "mpich3"
   run(`$cmd_string $arg_str`)
+  Pkg.clone("MPI")
+  Pkg.build("MPI")
 end
 
 if install_pumi  # did not find pumi
