@@ -29,6 +29,15 @@ if install_pumi  # did not find pumi
   installPumi()
 end
 
+# install non-metadata dependencies
+pkg_dict = Pkg.installed()  # get dictionary of installed package names to version numbers
+
+if !haskey(pkg_dict, "SummationByParts")
+  Pkg.clone("https://github.com/OptimalDesignLab/SummationByParts.jl.git")
+  Pkg.build("SummationByParts")
+  # SBP installs ODLCOmmonTools
+end
+
 # now that all dependencies exist, install this package
 cd("../src")
 run(`./config.sh`)
