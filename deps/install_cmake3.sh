@@ -6,7 +6,7 @@ wget http://cmake.org/files/v3.0/"$ver".tar.gz
 mkdir -v ./cmake_install
 
 
-tar xfvz ./"$ver".tar.gz
+tar xfz ./"$ver".tar.gz
 install_prefix=`pwd`/cmake_install
 echo "installing to $install_prefix"
 
