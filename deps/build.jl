@@ -1,6 +1,9 @@
 # this file will build Pumi if it cannot be located by pkg-config
 include("./stringmatch.jl")
 include("install_pumi.jl")
+
+start_dir = pwd()
+
 install_pumi = try run(`cmake --find-package -DNAME=SCOREC -DCOMPILER_ID=GNU -DLANGUAGE=CXX -DMODE=EXIST`) 
           false
           catch 
@@ -15,7 +18,6 @@ install_mpi = try run(`which mpicxx`)
 	  true 
 	end
 println("install_mpi = ", install_mpi)
-
 
 if install_mpi
   cmd_string = "./travis-install-mpi.sh"
