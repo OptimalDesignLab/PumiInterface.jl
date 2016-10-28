@@ -62,6 +62,10 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 # 3D array forms of the solution have identical memory layout
 # change this in the future with ReshapedArrays?
 
+  # this only works if the old mesh and new mesh are the same
+  # it might be possible to generalize away this restriction
+  @assert mesh.m_ptr == mesh.mnew_ptr
+
   interp = mesh.interp_op
   u_el = zeros(Float64, mesh.numNodesPerElement, mesh.numDofPerNode)
   u_verts = zeros(Float64, size(interp, 1), mesh.numDofPerNode)

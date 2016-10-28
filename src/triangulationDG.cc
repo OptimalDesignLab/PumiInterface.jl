@@ -95,7 +95,7 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
 /* Calculates the linear index (0-based) for an element of an array
  * Inputs:
  *   i: the row number (0-based)
- *   j: the column number (1-based)
+ *   j: the column number (0-based)
  *   si: the number of rows
  *   sj: the number of columns
  * Outputs:
@@ -111,6 +111,8 @@ int getindex(int i, int j, int si, int sj);
  * Output:
  *   the index
 */
+
+
 int getindex3c(const int i, const int j, const int k, const int si, const int sj, const int sk);
 
 /*
@@ -757,6 +759,11 @@ int getindex(int i, int j, int si, int sj)
   return j + i*sj;
 }
 
+int getindexr(int i, int j, int si, int sj)
+{
+  return i + j*si;
+}
+
 // compute the linear index of an element in a 3D array, stored column major
 // all indices are zero based
 int getindex3c(const int i, const int j, const int k, const int si, const int sj, const int sk)
@@ -845,23 +852,28 @@ void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, co
 
   const int ncomp = apf::countComponents(field_old);
   const int nnodes_per_el = typeOffsetsPerElement[3] - 1;
-  double node_vals[nnodes_per_el][ncomp];  // hold values at node locations
-  double vert_vals[N_VERT_PER_EL][ncomp];  // hold values interpolated to verts
+  double node_vals[nnodes_per_el*ncomp];  // hold values at node locations
+  double vert_vals[N_VERT_PER_EL*ncomp];  // hold values interpolated to verts
   apf::MeshIterator* itold = m->begin(2);
   apf::MeshIterator* itnew = m_new->begin(2);
   apf::MeshEntity* el;  // hold old mesh element
   apf::MeshEntity* el_new;  // hold new mesh element
   apf::MeshEntity* vert_new;  // hold vertex of new element;
   apf::Downward down;  // hold vertices of new mesh element
+  
+  apf::Vector3 vertcoords;
+//  int elnum;
 
   int e_cnt = 0;
 //  std::cout << "about to start looping over elements" << std::endl;
   while ( (el = m->iterate(itold)) )  // loop over elements of old mesh
   {
+//    elnum = apf::getNumber(numberings[2], el, 0, 0);
+
 //    std::cout << "processing element " << e_cnt << std::endl;
     // do interpolation, store result in vert_vals
-    getFieldElementVals(field_old, el, &node_vals[0][0]);
-    smallMatMat(interp_op, &node_vals[0][0], &vert_vals[0][0], N_VERT_PER_EL, nnodes_per_el, ncomp);
+    getFieldElementVals(field_old, el, node_vals);
+    smallMatMat(interp_op, node_vals, vert_vals, N_VERT_PER_EL, nnodes_per_el, ncomp);
 
     // get subelements on new mesh
     for (int i = 0; i < numtriangles; ++i)
@@ -878,9 +890,13 @@ void transferVertices(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, co
       m_new->getDownward(el_new, 0, down);
       vert_new = down[ subelement_verts[i] ];
 
+      int vert_vals_idx = getindex(i, 0, N_VERT_PER_EL, ncomp);
+      m_new->getPoint(vert_new, 0, vertcoords);
+//      std::cout << "transferring value " << vert_vals[vert_vals_idx] << " from element " << elnum << " to position (" << vertcoords.x() << ", " << vertcoords.y() << ") " << std::endl;
+
       // copy values to new mesh
 //      std::cout << "copying to " << vert_new << std::endl;
-      apf::setComponents(field_new, vert_new, 0, vert_vals[i]);
+      apf::setComponents(field_new, vert_new, 0, &vert_vals[vert_vals_idx]);
     }  // ned loop over vertices of old mesh
     ++e_cnt;
   }  // end loop over old mesh elements
