@@ -620,19 +620,15 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   getInterfaceArray(mesh)
 #  sort!(mesh.interfaces)
 
-  getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
+  getCoordinatesAndMetrics(mesh, sbp)  # store coordinates of all nodes into array
 
-  # TODO: uncomment when SBP is figured out
-  
-  mesh.dxidx = Array(T1, mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
-  mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
-  mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
-  
   mesh.min_el_size = getMinElementSize(mesh)
 
   # get face normals
 
   if mesh.isInterpolated
+    interpolateCoordinatesAndMetrics(mesh)
+#=    
     mesh.dxidx_face, mesh.jac_face, mesh.dxidx_sharedface, mesh.jac_sharedface, mesh.dxidx_bndry, mesh.jac_bndry = interpolateMapping(mesh)
 
     mesh.coords_bndry = zeros(T1, mesh.dim, sbpface.numnodes, mesh.numBoundaryFaces)
@@ -642,6 +638,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
       mesh.coords_sharedface[i] = zeros(T1, mesh.dim, sbpface.numnodes, mesh.peer_face_counts[i])
       getBndryCoordinates(mesh, mesh.bndries_local[i], mesh.coords_sharedface[i])
     end
+=#
   end
 
   if mesh.dim == 2

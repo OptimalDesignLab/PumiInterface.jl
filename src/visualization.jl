@@ -56,15 +56,15 @@ function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
 end
 
 function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
-# interpolate solution to the field mesh.fnew_ptr which resides on 
+# interpolate solution stored in u to the field mesh.fnew_ptr which resides on
 # mesh.mnew_ptr 
-# u is the vector containing the solution, even though for DG the vector and the 
-# 3D array forms of the solution have identical memory layout
+# u is the vector containing the solution, even though for DG the vector and 
+# the 3D array forms of the solution have identical memory layout
 # change this in the future with ReshapedArrays?
 
-  # this only works if the old mesh and new mesh are the same
-  # it might be possible to generalize away this restriction
-  @assert mesh.m_ptr == mesh.mnew_ptr
+# the interpolation operator *must* interpolate the solution in a particular
+# order.  The order must be the order of the nodes returned by 
+# getNodeEntities(mnew_ptr)
 
   interp = mesh.interp_op
   u_el = zeros(Float64, mesh.numNodesPerElement, mesh.numDofPerNode)

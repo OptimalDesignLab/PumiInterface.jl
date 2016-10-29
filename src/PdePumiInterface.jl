@@ -541,11 +541,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
 
-  getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
-
-  mesh.dxidx = Array(T1, 2, 2, sbp.numnodes, mesh.numEl)
-  mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
-  mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+  getCoordinatesAndMetrics(mesh, sbp)  # store coordinates of all nodes into array
 
   mesh.min_el_size = getMinElementSize(mesh)
   # get face normals

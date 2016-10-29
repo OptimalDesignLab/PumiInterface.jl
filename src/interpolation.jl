@@ -27,27 +27,139 @@ function Interpolation{Tmsh}(mesh::PumiMesh3D{Tmsh})
   return Interpolation{Tmsh, 3}(dxdxi_el, dxdxi_elface, dxidx_node, dxdxi_node, bndry_arr)
 end
 
+"""
+  Interpolates dxidx and jac to the face nodes, faces shared in parallel and
+  boundary faces, as well as gets the coordinates of the nodes for
+  the shared faces and boundaryfaces.  All the functions use smart allocators,
+  so the fields of the mesh object will be allocated if needed, but not if 
+  they were previously allocated.
+
+  This is the main entry point for everything in this file.
+"""
+function interpolateCoordinatesAndMetrics(mesh::PumiMeshDG)
+
+  # interpolate metric terms
+  interpolateMapping(mesh)
+
+  #  allocate coordinate arrays if needed
+  if !isFieldDefined(mesh, :coords_bndry, :coords_sharedface)
+    allocateFaceCoordinates(mesh)
+  else  # zero out arrays that might need it
+    fill!(mesh.coords_bndry, 0.0)
+    for i=1:mesh.npeers
+      fill!(mesh.coords_sharedface[i], 0.0)
+    end
+  end
+
+  # get the coordinates
+  getBndryCoordinates(mesh, mesh.bndryfaces, mesh.coords_bndry)
+  for i=1:mesh.npeers
+    getBndryCoordinates(mesh, mesh.bndries_local[i], 
+                        mesh.coords_sharedface[i])
+  end
 
 
 
+  return nothing
+end
+
+"""
+  Allocates the dxidx and jac arrays for the face nodes/ shared face
+  data. Specifically:
+    mesh.dxidx_face, mesh.jac_face
+    mesh.dxidx_bndry, mesh.jac_bndry
+    mesh.dxidx_sharedface, mesh.jac_shareface (and their internal arrays)
+
+"""
+function allocateInterpolatedMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh})
+
+  dim = mesh.dim
+  sbpface = mesh.sbpface
+  
+  # interior faces
+  mesh.dxidx_face = zeros(Tmsh, dim, dim, sbpface.numnodes, mesh.numInterfaces)
+  mesh.jac_face = zeros(Tmsh, sbpface.numnodes, mesh.numInterfaces)
+
+  # boundary faces
+  mesh.dxidx_bndry = zeros(Tmsh, dim, dim, sbpface.numnodes, 
+                                 mesh.numBoundaryFaces)
+  mesh.jac_bndry = zeros(Tmsh, sbpface.numnodes, mesh.numBoundaryFaces)
+
+  # parallel shared faces
+  mesh.dxidx_sharedface = Array(Array{Tmsh, 4}, mesh.npeers)
+  mesh.jac_sharedface = Array(Array{Tmsh, 2}, mesh.npeers)
+  for i=1:mesh.npeers
+    mesh.dxidx_sharedface[i] = zeros(Tmsh, dim, dim, sbpface.numnodes, 
+                                     mesh.peer_face_counts[i])
+
+    mesh.jac_sharedface[i] = Array(Tmsh, sbpface.numnodes, mesh.peer_face_counts[i])
+  end
+
+
+  return nothing
+end
+
+"""
+  Allocates coordinate arays for the boundary and shared face nodes.
+  Specifically:
+    mesh.coords_bndry
+    mesh.coords_sharedface (and its internal arrays)
+"""
+function allocateFaceCoordinates{Tmsh}(mesh::PumiMeshDG{Tmsh})
+
+  sbpface = mesh.sbpface
+  mesh.coords_bndry = zeros(Tmsh, mesh.dim, sbpface.numnodes, 
+                                mesh.numBoundaryFaces)
+  mesh.coords_sharedface = Array(Array{Tmsh, 3}, mesh.npeers)
+  for i=1:mesh.npeers
+    mesh.coords_sharedface[i] = zeros(Tmsh, mesh.dim, sbpface.numnodes, 
+                                           mesh.peer_face_counts[i])
+  end
+
+
+  return nothing
+end
+
+"""
+  Interpolates dxidx, jac to the face nodes of local interfaces, shared 
+  faces, and boundary faces.  This function uses a smart allocator to
+  allocate the relevent fields of the mesh object if they have been been
+  allocated previously and to not allocate them if they have been previously.
+
+  See allocateInterpolatedMetrics for the fields that are populated by this
+  function.
+"""
 # interpolates dxidx, jac to the face nodes
 # only do this for elementL of each interface
 function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
+
+#  if (!isdefined(mesh, :dxidx_face) || !isdefined(mesh, :jac_face) ||
+#      !isdefined(mesh, :dxidx_sharedface) || !isdefined(mesh, :jac_sharedface
+#      || !isdefined(mesh, :dxidx_bndry) || !isdefined(mesh, :jac_bndry)
+
+  if !isFieldDefined(mesh, :dxidx_face, :jac_face, :dxidx_sharedface, 
+                           :jac_sharedface, :dxidx_bndry, :jac_bndry)
+    allocateInterpolatedMetrics(mesh)
+  else  # zero out any arrays that might need it
+    fill!(mesh.dxidx_face, 0.0)
+    fill!(mesh.jac_face, 0.0)
+    fill!(mesh.dxidx_bndry, 0.0)
+    fill!(mesh.jac_bndry, 0.0)
+    for i=1:mesh.npeers
+      fill!(mesh.dxidx_sharedface[i], 0.0)
+    end
+  end
   sbpface = mesh.sbpface
   dim = mesh.dim
-  dxidx_face = zeros(Tmsh, dim, dim, sbpface.numnodes, mesh.numInterfaces)
-  dxidx_sharedface = Array(Array{Tmsh, 4}, mesh.npeers)
-  for i=1:mesh.npeers
-    dxidx_sharedface[i] = zeros(Tmsh, dim, dim, sbpface.numnodes, mesh.peer_face_counts[i])
-  end
-  jac_face = zeros(Tmsh, sbpface.numnodes, mesh.numInterfaces)
 
-  dxidx_bndry = zeros(Tmsh, dim, dim, sbpface.numnodes, mesh.numBoundaryFaces)
-  jac_bndry = zeros(Tmsh, sbpface.numnodes, mesh.numBoundaryFaces)
-  jac_sharedface = Array(Array{Tmsh, 2}, mesh.npeers)
-  for i=1:mesh.npeers
-    jac_sharedface[i] = Array(Tmsh, sbpface.numnodes, mesh.peer_face_counts[i])
-  end
+  # pull out the needed arrays
+  dxidx_face = mesh.dxidx_face
+  dxidx_sharedface = mesh.dxidx_sharedface
+  jac_face = mesh.jac_face
+
+  dxidx_bndry = mesh.dxidx_bndry
+  jac_bndry = mesh.jac_bndry
+  jac_sharedface = mesh.jac_sharedface
 
   # temporary storage
   interp_data = Interpolation(mesh)
@@ -104,7 +216,7 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
     interpolateFace(interp_data, mesh.sbpface, dxidx_in, jac_in, dxidx_i, jac_i)
   end
 
-  return dxidx_face, jac_face, dxidx_sharedface, jac_sharedface, dxidx_bndry, jac_bndry
+  return nothing
 
 end  # end function
 
