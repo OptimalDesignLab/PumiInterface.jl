@@ -121,7 +121,7 @@ function createSubtriangulatedMesh(mesh::AbstractMesh)
       mesh.mnew_ptr = C_NULL
       mesh.fnew_ptr = C_NULL
     end
-
+#=
   elseif mesh.shape_type == 2
     if order >= 1
 
@@ -135,7 +135,8 @@ function createSubtriangulatedMesh(mesh::AbstractMesh)
     else
       throw(ErrorException("Congratulations: you have reached and unreachable case"))
     end
-  elseif mesh.shape_type == 3  # DG SBP Gamma
+=#
+  elseif mesh.shape_type == 3 || mesh.shape_type == 2  # DG SBP Omega or Gamma
     # I don't think subtriangulation will work in this case, so create a 
     # linear field on the existing mesh, and interpolate the solution onto it
     fshape_new = getFieldShape(0, 1, mesh.dim)
@@ -144,6 +145,8 @@ function createSubtriangulatedMesh(mesh::AbstractMesh)
     mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field_interp", dofpernode)
     mesh.fnewshape_ptr = fshape_new
 
+  else
+    throw(ErrorException("Unsupported shape_type"))
   end  # end if mesh.shape_type 
 
   return nothing
