@@ -320,10 +320,12 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     order = 1
     smb_name = "tri2l.smb"
     dmg_name = ".null"
-    interp_op = [0.5 0 0; 0 0.5 0; 0 0 0.5]
-    sbp = TriSBP{Float64}(degree=order, reorder=false, internal=true)
+#    interp_op = [0.5 0 0; 0 0.5 0; 0 0 0.5]
 
-    vtx = [0. 0; 1 0; 0 1]
+    sbp = TriSBP{Float64}(degree=order, reorder=false, internal=true)
+    vtx = sbp.vtx
+    interp_op = SummationByParts.buildinterpolation(sbp, vtx.')
+
     sbpface = TriFace{Float64}(order, sbp.cub, vtx)
     println("sbpface.numnodes = ", sbpface.numnodes)
     mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface, coloring_distance=2, dofpernode=4)
@@ -545,7 +547,50 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
   @fact nedges_interior --> 2*(mesh.numEdge - mesh.numBoundaryFaces)
 
+  # test saveSolutionToMesh interpolation
 
+  u_vals = zeros(mesh.numDof)
+  for i=1:mesh.numDof
+
+    # get dof, node, element
+    idx = findfirst(mesh.dofs, i)
+    dofidx, node, el = ind2sub(mesh.dofs, idx)
+
+    x = mesh.coords[1, node, el]
+    y = mesh.coords[2, node, el]
+    order = mesh.order
+
+    u_vals[i] = x^order + y^order + 1
+  end
+
+  saveSolutionToMesh(mesh, u_vals)
+  writeVisFiles(mesh, "dg_vis_test")
+
+  # check that the solution is interpolated exactly
+  down_verts = Array(Ptr{Void}, mesh.numTypePerElement[1])
+  coords_vert = zeros(Float64, 3)
+  interp_vals = zeros(mesh.numDofPerNode)
+  for i=1:mesh.numEl
+    order = mesh.order
+    el_ptr = mesh.elements[i]
+    getDownward(mesh.m_ptr, el_ptr, 0, down_verts)
+
+    for j=1:mesh.numTypePerElement[1]  # loop over vertices
+      vert_j = down_verts[j]
+      getPoint(mesh.m_ptr, vert_j, 0, coords_vert)
+
+      x = coords_vert[1]
+      y = coords_vert[2]
+
+      # note: this assumes mnew = m
+      getComponents(mesh.fnew_ptr, vert_j, 0, interp_vals)
+
+      val_expected = x^order + y^order + 1
+      for k=1:mesh.numDofPerNode
+        @fact abs(interp_vals[k] - val_expected) --> less_than(1e-12)
+      end
+    end
+  end
 
 
   # test periodic

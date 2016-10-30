@@ -1,7 +1,7 @@
 # visualization related functions
 
 # can be generalized with a few constants
-function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
+function saveSolutionToMesh(mesh::PumiMeshCG, u::AbstractVector)
 # saves the solution in the vector u to the mesh (in preparation for mesh adaptation
 # it uses mesh.elementNodeOffsets to access the pumi field values in the 
 # right order of the given element
@@ -50,8 +50,8 @@ function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
   return nothing
 end  # end function saveSolutionToMesh
 
-function saveSolutionToMesh(mesh::PumiMesh3DG, u::AbstractVector)
-# all 3D DG mesh interpolate directly
+function saveSolutionToMesh(mesh::PumiMeshDG, u::AbstractVector)
+# all DG meshes interpolate directly
   interpolateToMesh(mesh, u)
 end
 
