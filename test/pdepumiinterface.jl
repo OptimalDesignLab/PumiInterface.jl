@@ -593,13 +593,6 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   end
 
 
-
-
-
-
-
-
-
   # test periodic
   @fact mesh.numPeriodicInterfaces --> 0
 
