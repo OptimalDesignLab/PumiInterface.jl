@@ -182,9 +182,9 @@ facts("----- Testing PdePumiInterface3DG -----") do
     update_coords(mesh, i, coords_i)
   end
 
-  commit_coords(mesh)
+  commit_coords(mesh, sbp)
 
-  PdePumiInterface.getCoordinatesAndMetrics(mesh, sbp)
+#  PdePumiInterface.getCoordinatesAndMetrics(mesh, sbp)
   for i = 1:length(mesh.vert_coords)
     @fact abs(2*coords_orig[i] - mesh.vert_coords[i]) --> less_than(1e-10)
   end

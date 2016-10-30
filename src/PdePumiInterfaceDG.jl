@@ -645,17 +645,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   if mesh.isInterpolated
     interpolateCoordinatesAndMetrics(mesh)
-#=    
-    interpolateMapping(mesh)
-
-    mesh.coords_bndry = zeros(T1, 2, sbpface.numnodes, mesh.numBoundaryFaces)
-    getBndryCoordinates(mesh, mesh.bndryfaces, mesh.coords_bndry)
-    mesh.coords_sharedface = Array(Array{T1, 3}, mesh.npeers)
-    for i=1:mesh.npeers
-      mesh.coords_sharedface[i] = zeros(T1, 2, sbpface.numnodes, mesh.peer_face_counts[i])
-      getBndryCoordinates(mesh, mesh.bndries_local[i], mesh.coords_sharedface[i])
-    end
-=#
   end
 
   @time createSubtriangulatedMesh(mesh)
