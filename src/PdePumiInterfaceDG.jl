@@ -630,11 +630,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   getInterfaceArray(mesh)
   sort!(mesh.interfaces)
 
-  getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
-
-  mesh.dxidx = Array(T1, 2, 2, sbp.numnodes, mesh.numEl)
-  mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
-  mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+  getCoordinatesAndMetrics(mesh, sbp)  # store coordinates of all nodes into array
 
   mesh.min_el_size = getMinElementSize(mesh)
 
@@ -648,15 +644,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 #  getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   if mesh.isInterpolated
-    mesh.dxidx_face, mesh.jac_face, mesh.dxidx_sharedface, mesh.jac_sharedface, mesh.dxidx_bndry, mesh.jac_bndry = interpolateMapping(mesh)
-
-    mesh.coords_bndry = zeros(T1, 2, sbpface.numnodes, mesh.numBoundaryFaces)
-    getBndryCoordinates(mesh, mesh.bndryfaces, mesh.coords_bndry)
-    mesh.coords_sharedface = Array(Array{T1, 3}, mesh.npeers)
-    for i=1:mesh.npeers
-      mesh.coords_sharedface[i] = zeros(T1, 2, sbpface.numnodes, mesh.peer_face_counts[i])
-      getBndryCoordinates(mesh, mesh.bndries_local[i], mesh.coords_sharedface[i])
-    end
+    interpolateCoordinatesAndMetrics(mesh)
   end
 
   @time createSubtriangulatedMesh(mesh)

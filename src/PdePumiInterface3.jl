@@ -150,12 +150,7 @@ type PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron only
   @time getInterfaceArray(mesh)
 
 
-
-
-  @time getCoordinates(mesh, sbp)
-  @time mesh.dxidx = Array(T1, 3, 3, sbp.numnodes, mesh.numEl)
-  @time mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
-  @time mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+  @time getCoordinatesAndMetrics(mesh, sbp)
 #
 
 #=

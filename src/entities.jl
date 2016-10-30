@@ -100,29 +100,62 @@ function getNodeIdx(e_type::Integer, e_idx::Integer, node_idx::Integer, typeOffs
   return type_offset -1 + (e_idx - 1)*nodes_on_type + node_idx
 end
 
-#TODO: stop using slice notation
-# can be generalized with numVertsPerElement
-function getCoordinates(mesh::PumiMeshDG, sbp::AbstractSBP)
-# populate the coords array of the mesh object
+"""
+  This function allocates the arrays that store the mesh node coordinates,
+  the mesh vertex coordinates, and the dxidx and jac arrays.
+"""
+function allocateCoordinateAndMetricArrays{Tmsh}(mesh::PumiMeshDG{Tmsh}, 
+                                                 sbp::AbstractSBP)
 
-nvert_per_el = mesh.numTypePerElement[1]
-mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
-mesh.vert_coords = Array(Float64, mesh.dim, nvert_per_el, mesh.numEl)
+  nvert_per_el = mesh.numTypePerElement[1]
+  mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
+  mesh.vert_coords = Array(Float64, mesh.dim, nvert_per_el, mesh.numEl)
+  mesh.dxidx = Array(Tmsh, mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
+  mesh.jac = Array(Tmsh, sbp.numnodes, mesh.numEl)
 
-#println("entered getCoordinates")
-numVertsPerElement = mesh.numTypePerElement[1]
-coords_i = zeros(3,numVertsPerElement)
-coords_it = zeros(numVertsPerElement, mesh.dim)
-for i=1:mesh.numEl  # loop over elements
-  
-  el_i = mesh.elements[i]
-  getElementCoords(mesh, el_i, coords_i)
-  mesh.vert_coords[:, :, i] = coords_i[1:mesh.dim, :]
-  coords_it[:,:] = coords_i[1:mesh.dim, :].'
-  mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
+  return nothing
 end
 
-return nothing
+"""
+  This function gets the coordinates and the mesh nodes and the dxidx
+  and jac values for the nodes.  It uses a smart allocator to allocate
+  these arrays needed, or avoid doing so if they have already been allocated.
+  See allocateCoordinateAndMetricArrays for which arrays are populated by
+  this function
+"""
+#TODO: stop using slice notation
+# can be generalized with numVertsPerElement
+function getCoordinatesAndMetrics(mesh::PumiMeshDG, sbp::AbstractSBP)
+# populate the coords array of the mesh object
+
+#  mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
+#  mesh.vert_coords = Array(Float64, mesh.dim, nvert_per_el, mesh.numEl)
+
+  if !isFieldDefined(mesh, :coords, :vert_coords, :dxidx, :jac)
+    allocateCoordinateAndMetricArrays(mesh, sbp)
+  end
+
+  nvert_per_el = mesh.numTypePerElement[1]
+  @assert size(mesh.coords) == (mesh.dim, sbp.numnodes, mesh.numEl)
+  @assert size(mesh.vert_coords) == (mesh.dim, nvert_per_el, mesh.numEl)
+
+  #println("entered getCoordinates")
+  numVertsPerElement = mesh.numTypePerElement[1]
+  coords_i = zeros(3,numVertsPerElement)
+  coords_it = zeros(numVertsPerElement, mesh.dim)
+  for i=1:mesh.numEl  # loop over elements
+    
+    el_i = mesh.elements[i]
+    getElementCoords(mesh, el_i, coords_i)
+    mesh.vert_coords[:, :, i] = coords_i[1:mesh.dim, :]
+    coords_it[:,:] = coords_i[1:mesh.dim, :].'
+    mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
+  end
+
+  mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+
+
+  return nothing
 
 end
 
@@ -142,9 +175,9 @@ end
 
 
 #TODO: stop using slice notation
-function getCoordinates(mesh::PumiMeshCG, sbp::AbstractSBP)
+function getCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshCG{Tmsh}, sbp::AbstractSBP)
 # populate the coords array of the mesh object
-mesh.coords = Array(Float64, 2, sbp.numnodes, mesh.numEl)
+mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
 
 #println("entered getCoordinates")
 
@@ -159,6 +192,11 @@ for i=1:mesh.numEl  # loop over elements
   coords_it[:,:] = coords_i[1:mesh.dim, :].'
   mesh.coords[:, :, i] = calcnodes(sbp, coords_it)
 end
+
+  mesh.dxidx = Array(Tmsh, mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
+  mesh.jac = Array(Tmsh, sbp.numnodes, mesh.numEl)
+  mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+
 
 return nothing
 
