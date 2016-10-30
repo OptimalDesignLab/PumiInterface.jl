@@ -222,3 +222,10 @@ process.  The constants `Max_Vert_Matches` and `Max_Vert_Remotes` tell the
 code the maximum number of matched and remote vertices that can be shared with
 another process, and are used to determine the size of an array that is 
 sent via MPI during initialization.
+
+## Visualization
+All DG meshes interpolate the solution onto the vertices of the mesh for
+visualization.  CG meshes higher than second order create a new
+mesh that contains all nodes of the orignal mesh as vertices of a new 
+triangulation and copy the solution values to it.  CG meshes second
+order or less can be visualized directly in Paraview.
