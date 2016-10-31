@@ -66,11 +66,15 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 # order.  The order must be the order of the nodes returned by 
 # getNodeEntities(mnew_ptr)
 
+  @assert mesh.m_ptr == mesh.mnew_ptr  # needed for averaging step
+
   interp = mesh.interp_op
   u_el = zeros(Float64, mesh.numNodesPerElement, mesh.numDofPerNode)
   u_verts = zeros(Float64, size(interp, 1), mesh.numDofPerNode)
+  jac_verts = zeros(T, size(interp, 1))
   u_node = zeros(Float64, mesh.numDofPerNode)  # hold new node values
   u_node2 = zeros(u_node)  # hold existing node values
+  node_entities = Array(Ptr{Void}, mesh.numNodesPerElement)
   dofs = mesh.dofs
   numTypePerElement = mesh.numTypePerElement
   numEntitiesPerType = mesh.numEntitiesPerType
@@ -98,12 +102,17 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
       end
     end
 
-    # interpolate
+    # interpolate solution
     smallmatmat!(interp, u_el, u_verts)
+
+    # interpolate jacobian
+    jac_el = view(mesh.jac, :, el)
+    smallmatvec!(interp, jac_el, jac_verts)
+
 
     # save values to mesh
     # assumes the solution fieldshape is the same as the coordinate fieldshape
-    node_entities = getNodeEntities(mesh.mnew_ptr, fshape_ptr, el_i)
+    getNodeEntities(mesh.mnew_ptr, fshape_ptr, el_i, node_entities)
     col = 1  # current node of the element
 
     for i=1:(mesh.dim+1)
@@ -113,7 +122,8 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
           # skip elementNodeOffsets - maximum of 1 node per entity
           getComponents(mesh.fnew_ptr, entity, 0, u_node2)
           for p=1:mesh.numDofPerNode
-            u_node[p] = u_verts[col, p] + u_node2[p]
+            # multiply by element volume as a weighting factor
+            u_node[p] = real(jac_verts[col])*u_verts[col, p] + u_node2[p]
           end
 
           setComponents(mesh.fnew_ptr, entity, 0, u_node)
@@ -124,24 +134,49 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 
   end  # end loop over elements
 
-  # divide by number of elements that contributed to each node
+
+  up_els = Array(Ptr{Void}, 400)  # equivalent of apf::Up
+  # divide by the total volume of elements that contributed to each node
   # so the result is the average value
   for dim=1:(mesh.dim + 1)
     if numNodesPerType[dim] > 0
-      resetIt(dim - 1)
+      resetIt(dim - 1) 
       for i=1:numEntitiesPerType[dim]
         entity_i = getEntity(dim - 1)
         nel = countAdjacent(mesh.mnew_ptr, entity_i, mesh.dim)
+        getAdjacent(up_els)
+        # compute the sum of the volumes of the elements
+        jac_sum = 0.0
+        for j=1:nel
+          el_j = up_els[j]
+          elnum_j = getNumberJ(mesh.el_Nptr, el_j, 0, 0) + 1
+
+          jac_el = unsafe_view(mesh.jac, :, elnum_j)
+          # searching getNodeEntities for the index guarantees we can
+          # identify the right interpolated point for all elements, 
+          # independent of topology
+          getNodeEntities(mesh.m_ptr, fshape_ptr, el_j, node_entities)
+          node_idx = findfirst(node_entities, entity_i)
+
+          # interpolate the jacobian to this point
+          jac_entity = 0.0
+          for p=1:size(interp, 2)
+            jac_entity += interp[node_idx, p]*real(jac_el[p])
+          end
+
+          jac_sum += jac_entity
+        end  # end loop j
+
         getComponents(mesh.fnew_ptr, entity_i, 0, u_node)
-        fac = 1/nel
+        fac = 1/jac_sum
         for p=1:mesh.numDofPerNode
           u_node[p] = fac*u_node[p]
         end
         setComponents(mesh.fnew_ptr, entity_i, 0, u_node)
         incrementIt(dim - 1)
-      end
-    end
-  end
+      end  # end loop i
+    end  # end if
+  end  # end loop dim
 
 
   return nothing

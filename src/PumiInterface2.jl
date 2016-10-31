@@ -201,6 +201,19 @@ end
 
 
 function getNodeEntities(m_ptr, mshape_ptr, entity)
+
+  entity_type = getType(m_ptr, entity)
+  eshape_ptr = getEntityShape(mshape_ptr, entity_type)
+  nnodes = countNodes(eshape_ptr)
+  downward_entities = Array(Ptr{Void}, nnodes)  # holds mesh entities
+  getNodeEntities(m_ptr, mshape_ptr, entity, downward_entities)
+
+  return downward_entities
+end
+
+global const _getNodeEntities_retrieved_entities = Array(Ptr{Void}, 12)  # reusable storage
+function getNodeEntities(m_ptr, mshape_ptr, entity, 
+                         downward_entities::AbstractArray{Ptr{Void}})
 # get the meshentities that have nodes on them 
 # duplicates entities that have multiple nodes
 # this only works for simplex elements
@@ -208,7 +221,7 @@ function getNodeEntities(m_ptr, mshape_ptr, entity)
   entity_type = getType(m_ptr, entity)
   eshape_ptr = getEntityShape(mshape_ptr, entity_type)
   nnodes = countNodes(eshape_ptr)
-  downward_entities = Array(Ptr{Void}, nnodes)  # holds mesh entities
+#  downward_entities = Array(Ptr{Void}, nnodes)  # holds mesh entities
   num_vert_nodes = countNodesOn(mshape_ptr, 0)
   num_edge_nodes = countNodesOn(mshape_ptr, 1)
   num_face_nodes = countNodesOn(mshape_ptr, 2)
@@ -242,8 +255,8 @@ function getNodeEntities(m_ptr, mshape_ptr, entity)
   end
   
 =#
+  retrieved_entities = _getNodeEntities_retrieved_entities
   vert_offset = 0
-  retrieved_entities = Array(Ptr{Void}, 12)  # reusable storage
   if has_vert_nodes  # vertices
     vert_offset = getDownward(m_ptr, entity, 0, downward_entities)
   end
@@ -269,7 +282,8 @@ function getNodeEntities(m_ptr, mshape_ptr, entity)
     end
   end
 
-  return downward_entities
+  return nothing
+#  return downward_entities
 end
 
 function insertN{T}(vec::AbstractArray{T}, element::T,  index::Integer, n::Integer)
