@@ -316,6 +316,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     "write_interfaces" => false,
     "write_boundaries" => false,
     "write_sharedboundaries" => false,
+    "exact_visualization" => true,
     )
     order = 1
     smb_name = "tri2l.smb"

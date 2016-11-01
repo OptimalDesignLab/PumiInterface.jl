@@ -229,3 +229,9 @@ visualization.  CG meshes higher than second order create a new
 mesh that contains all nodes of the orignal mesh as vertices of a new 
 triangulation and copy the solution values to it.  CG meshes second
 order or less can be visualized directly in Paraview.
+
+SBP Omega elements support an option "exact_visualization" (via the options
+dictionary) to subtriangulate the mesh such that all nodes plus all vertices
+in the origonal mesh are vertices in the new mesh.  This allows the
+visualization of the exact nodal values.  The nodal values are interpolated
+to the vertices.

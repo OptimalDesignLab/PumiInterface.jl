@@ -124,13 +124,18 @@ export PumiMeshDG2
 """->
 type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
-  mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
+  mnew_ptr::Ptr{Void}  # pointer to mesh used for visualization, which might be
+                       # m_ptr or a subtriangulated mesh (high order only)
   mshape_ptr::Ptr{Void} # pointer to the FieldShape of the node field
   coordshape_ptr::Ptr{Void}  # pointer to FieldShape of the coordinate 
                              # field
-  f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
+  f_ptr::Ptr{Void} # pointer to apf::field for storing solution
   fnew_ptr::Ptr{Void}  # pointer to field on mnew_ptr
   fnewshape_ptr::Ptr{Void}  # fieldshape of fnew_ptr
+  mexact_ptr::Ptr{Void}  # pointer to subtriangulated mesh used for
+                         # exact visualization)
+  fexact_ptr::Ptr{Void}  # pointer to field on mexact_ptr
+  fexactshape_ptr::Ptr{Void}  # apf::FieldShape of fexact_ptr
   shr_ptr::Ptr{Void}  # pointer to the apf::Sharing object
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
@@ -647,7 +652,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     interpolateCoordinatesAndMetrics(mesh)
   end
 
-  @time createSubtriangulatedMesh(mesh)
+  @time createSubtriangulatedMesh(mesh, opts)
   println("finished creating sub mesh\n")
 
   println("printin main mesh statistics")

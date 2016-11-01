@@ -1,8 +1,11 @@
 # visualization related functions
 
 # can be generalized with a few constants
-function saveSolutionToMesh(mesh::PumiMeshCG, u::AbstractVector)
-# saves the solution in the vector u to the mesh (in preparation for mesh adaptation
+function _saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector, 
+                             mnew_ptr=mesh.mnew_ptr, fnew_ptr=mesh.fnew_ptr)
+# saves the solution in the vector u to the mesh.f_ptr, and then
+# callcs transferFieldToSubmesh to transfer the field fo 
+# fnew_ptr on mesh mnew_ptr, if needed
 # it uses mesh.elementNodeOffsets to access the pumi field values in the 
 # right order of the given element
 # note that this performs a loop over elements, so some values get
@@ -17,7 +20,6 @@ function saveSolutionToMesh(mesh::PumiMeshCG, u::AbstractVector)
 
 
   num_entities = [3, 3, 1] # number of vertices, edges, faces
-
   q_vals = zeros(mesh.numDofPerNode)
 
   for el=1:mesh.numEl
@@ -45,14 +47,22 @@ function saveSolutionToMesh(mesh::PumiMeshCG, u::AbstractVector)
     end  # end loop over entity types
   end  # end loop over elements
 
-  transferFieldToSubmesh(mesh, u)
+  transferFieldToSubmesh(mesh, u, mnew_ptr, fnew_ptr)
 
   return nothing
 end  # end function saveSolutionToMesh
 
-function saveSolutionToMesh(mesh::PumiMeshDG, u::AbstractVector)
-# all DG meshes interpolate directly
-  interpolateToMesh(mesh, u)
+function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
+  if mesh.isDG
+    # all DG meshes interpolate directly
+    interpolateToMesh(mesh, u)
+  else
+    _saveSolutionToMesh(mesh, u)
+  end
+
+  if mesh.isDG && mesh.mexact_ptr != C_NULL
+    _saveSolutionToMesh(mesh, u, mesh.mexact_ptr, mesh.fexact_ptr)
+  end
 end
 
 function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
@@ -187,6 +197,11 @@ function writeVisFiles(mesh::PumiMeshDG, fname::AbstractString)
   # writes vtk files 
 
   writeVtkFiles(fname, mesh.mnew_ptr)
+
+  if mesh.mexact_ptr != C_NULL
+    fname_exact = fname*"_exact"
+    writeVtkFiles(fname_exact, mesh.mexact_ptr)
+  end
 
   return nothing
 end

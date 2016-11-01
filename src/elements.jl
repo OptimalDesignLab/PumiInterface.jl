@@ -96,10 +96,12 @@ function getNodeMaps(order::Integer, shape_type::Integer, numNodesPerElement, di
   return sbpToPumi, pumiToSbp
 end  # end getNodeMaps
 
-function createSubtriangulatedMesh(mesh::AbstractMesh)
+function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
 # this function is used to figure out how to do subtriangulation/visualization
 # for 2D meshes only
 # 3D meshes don't subtriangulate
+
+  @assert mesh.dim == 2
 
   order = mesh.order
   shape_type = mesh.shape_type
@@ -107,14 +109,8 @@ function createSubtriangulatedMesh(mesh::AbstractMesh)
 
   if mesh.shape_type == 1
     if order >= 3
+      mesh.mnew_ptr, mesh.fnew_ptr, mesh.fnewshape_ptr = createCGSubMesh(mesh)
 
-      mesh.triangulation = getTriangulation(order, shape_type)
-      mesh.mnew_ptr = createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
-
-      println("creating solution field on new mesh")
-      mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
-
-      mesh.fnewshape_ptr = getMeshShapePtr(mesh.mnew_ptr)
     else
       mesh.triangulation = zeros(Int32, 0, 0)
       # maybe makes these equal f_ptr and m_ptr for consistency?
@@ -124,14 +120,8 @@ function createSubtriangulatedMesh(mesh::AbstractMesh)
 #=
   elseif mesh.shape_type == 2
     if order >= 1
+      mesh.mnew_ptr, mesh,fnew_ptr, mesh.fnewshape_ptr = createDGSubMesh(mesh)
 
-      mesh.triangulation = getTriangulation(order, shape_type)
-      println("size(mesh.triangulation) = ", size(mesh.triangulation))
-      mesh.mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, mesh.coords)
-
-      println("creating solution field on new mesh")
-      mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
-      mesh.fnewshape_ptr = getMeshShapePtr(mesh.mnew_ptr)
     else
       throw(ErrorException("Congratulations: you have reached and unreachable case"))
     end
@@ -145,26 +135,80 @@ function createSubtriangulatedMesh(mesh::AbstractMesh)
     mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field_interp", dofpernode)
     mesh.fnewshape_ptr = fshape_new
 
+    if mesh.shape_type == 2 && opts["exact_visualization"]
+      mesh.mexact_ptr, mesh.fexact_ptr, mesh.fexactshape_ptr = createDGSubMesh(mesh)
+    else
+      mesh.mexact_ptr = C_NULL
+      mesh.fexact_ptr = C_NULL
+      mesh.fexactshape_ptr = C_NULL
+    end
+
+    if mesh.shape_type != 2 && opts["exact_visualization"]
+      throw(ErrorException("exact visualization only supported for SBP Omega"))
+    end
+
+
   else
     throw(ErrorException("Unsupported shape_type"))
   end  # end if mesh.shape_type 
 
+
+
   return nothing
 end
 
-function transferFieldToSubmesh(mesh::AbstractMesh, u)
+
+function createCGSubMesh(mesh::PumiMeshCG)
+  order = mesh.order
+  shape_type = mesh.shape_type
+  dofpernode = mesh.numDofPerNode
+  
+  mesh.triangulation = getTriangulation(order, shape_type)
+  mnew_ptr = createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
+
+  println("creating solution field on new mesh")
+  fnew_ptr = createPackedField(mnew_ptr, "solution_field", dofpernode)
+
+  fnewshape_ptr = getMeshShapePtr(mnew_ptr)
+
+  return mnew_ptr, fnew_ptr, fnewshape_ptr
+end
+
+
+function createDGSubMesh(mesh::PumiMeshDG)
+  order = mesh.order
+  shape_type = mesh.shape_type
+  dofpernode = mesh.numDofPerNode
+
+  mesh.triangulation = getTriangulation(order, shape_type)
+#  println("size(mesh.triangulation) = ", size(mesh.triangulation))
+  mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, mesh.coords)
+
+#  println("creating solution field on new mesh")
+  fnew_ptr = createPackedField(mnew_ptr, "solution_field", dofpernode)
+  fnewshape_ptr = getMeshShapePtr(mnew_ptr)
+
+  return mnew_ptr, fnew_ptr, fnewshape_ptr
+end
+
+function transferFieldToSubmesh(mesh::AbstractMesh, u, mnew_ptr=mesh.mnew_ptr, 
+                                fnew_ptr=mesh.fnew_ptr)
 
   if mesh.isInterpolated
     if mesh.shape_type != 3
       println("transferring field to submesh")
-      transferFieldDG(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.interp_op.', mesh.fnew_ptr)
+      transferFieldDG(mesh.m_ptr, mnew_ptr, mesh.triangulation, 
+                      mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, 
+                      mesh.entity_Nptrs, mesh.f_ptr, mesh.interp_op.', fnew_ptr)
     else
+      throw(ErrorException("Submesh not supported for SBPGamma"))
+    end
 
       # this is a bit wasteful, because the un-interpolated solution was
       # already saved to mesh.f_ptr
-      interpolateToMesh(mesh, u)
-    end
-  else
+      # interpolateToMesh(mesh, u)
+    #end
+  else  # CG mesh
     if mesh.order >= 3
       transferField(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.fnew_ptr)
     end
