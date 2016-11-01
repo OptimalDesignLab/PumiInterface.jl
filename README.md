@@ -39,7 +39,7 @@ See the following to sections for the standard installation procedure.
 Building Pumi and building the shared library that links to Pumi requires 
 `mpicxx`.  If `mpicxx` is not found,  the build script will attempt to 
 install a Debian package of MPICH3.  It will ask for root permission to 
-install MPICH.
+install MPICH.  It will also install the MPI.jl package if needed
 
 ### Build Pumi (if needed)
 The build script attempts to locate Pumi using `cmake --find-package`.
