@@ -8,7 +8,6 @@ using ArrayViews
 using MPI
 
 include("nodecalc.jl")
-include("elements.jl")
 include("bary.jl")
 include("options.jl")
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
@@ -111,6 +110,7 @@ typealias PumiMeshCG{T1} Union{PumiMesh2CG{T1}, PumiMesh3CG{T1}}
 """
 typealias PumiMeshDG{T1} Union{PumiMesh2DG{T1}, PumiMesh3DG{T1}}
 
+include("elements.jl")
 include("./PdePumiInterface3.jl")
 include("PdePumiInterfaceDG.jl")
 include("PdePumiInterface3DG.jl")
@@ -554,7 +554,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 #  getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   # create subtriangulated mesh
-  createSubtriangulatedMesh(mesh)
+  createSubtriangulatedMesh(mesh, opts)
 
   println("finished creating sub mesh\n")
 

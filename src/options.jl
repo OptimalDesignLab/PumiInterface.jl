@@ -21,6 +21,7 @@ function set_defaults(opts)
   get!(opts, "write_coords", false)
   get!(opts, "reordering_algorithm", "default")
   get!(opts, "write_element_vertnums", false)
+  get!(opts, "exact_visualization", false)
 
   return nothing
 end

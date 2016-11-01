@@ -111,10 +111,16 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mshape_ptr::Ptr{Void} # pointer to the FieldShape of the node field
   coordshape_ptr::Ptr{Void}  # pointer to FieldShape of the coordinate 
                              # field
-  f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation
+  f_ptr::Ptr{Void} # pointer to apf::field for storing solution 
   fnew_ptr::Ptr{Void}  # pointer to apf::Field used for visualization
   mnew_ptr::Ptr{Void}  # pointer to mesh used for visualization
   fnewshape_ptr::Ptr{Void} # FieldShape of fnew_ptr
+  mexact_ptr::Ptr{Void}  # pointer to subtriangulated mesh used for
+                         # exact visualization) - only here for compatability
+                         # with 2D
+  fexact_ptr::Ptr{Void}  # pointer to field on mexact_ptr
+  fexactshape_ptr::Ptr{Void}  # apf::FieldShape of fexact_ptr
+
   shr_ptr::Ptr{Void} # pointer to apf::Sharing object
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
@@ -382,6 +388,9 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh.fnew_ptr = mesh.f_ptr
   mesh.mnew_ptr = mesh.m_ptr
   mesh.fnewshape_ptr = mesh.coordshape_ptr
+  mesh.mexact_ptr = C_NULL
+  mesh.fexact_ptr = C_NULL
+  mesh.fexactshape_ptr = C_NULL
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
   mesh.shr_ptr = getSharing(mesh.m_ptr)
 
@@ -628,10 +637,10 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
     interpolateCoordinatesAndMetrics(mesh)
   end
 
-  if mesh.dim == 2
-    @time createSubtriangulatedMesh(mesh)
-    println("finished creating sub mesh\n")
-  end
+#  if mesh.dim == 2
+#    @time createSubtriangulatedMesh(mesh)
+#    println("finished creating sub mesh\n")
+#  end
 
   println("printin main mesh statistics")
 
