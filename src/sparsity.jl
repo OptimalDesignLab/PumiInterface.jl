@@ -77,7 +77,7 @@ function getDofConnectivity(mesh::PumiMesh2)
     numel = pos - 1
     
     # count number of non duplicates
-    els_used = view(els_all, 1:numel);
+    els_used = sview(els_all, 1:numel);
     sort!(els_used)
     cnt = 1
     for j=2:length(els_used)
@@ -107,7 +107,7 @@ function getDofConnectivity(mesh::PumiMesh2)
     numel = pos - 1
 
     # de-duplicate whle copying into node_elements
-    els_used = view(els_all, 1:numel);
+    els_used = sview(els_all, 1:numel);
     sort!(els_used)
     els_tmp[1] = els_used[1]
     pos = 2
@@ -225,7 +225,7 @@ return min, max
   if mesh.coloringDistance >= 2
     edge_arr = Array(Ptr{Void}, num_adj*3)  # enough space for all edges, including repeats
     for i=1:num_adj  # get the edges
-      sub_arr = view(edge_arr, (3*(i-1) + 1):(3*i))
+      sub_arr = sview(edge_arr, (3*(i-1) + 1):(3*i))
       getDownward(mesh.m_ptr, el_arr[i], 1, sub_arr)
     end
 
@@ -255,7 +255,7 @@ return min, max
     end_idx = num_els[1]
     for i=1:length(edge_arr)
       edge_i = edge_arr[i]
-      sub_arr = view(el_arr, start_idx:end_idx)
+      sub_arr = sview(el_arr, start_idx:end_idx)
       countAdjacent(mesh.m_ptr, edge_i, 2)
       getAdjacent(sub_arr)
 
@@ -283,7 +283,7 @@ return min, max
 
   for i=1:num_adj
     elnum_i = getNumberJ(mesh.el_Nptr, el_arr[i], 0, 0) + 1
-    getGlobalNodeNumbers(mesh, elnum_i, view(dofnums, :, :, i), getdofs=getdofs)
+    getGlobalNodeNumbers(mesh, elnum_i, sview(dofnums, :, :, i), getdofs=getdofs)
   end
 
   min, max = getMinandMax(dofnums)

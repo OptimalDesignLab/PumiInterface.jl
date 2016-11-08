@@ -116,7 +116,7 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
     smallmatmat!(interp, u_el, u_verts)
 
     # interpolate jacobian
-    jac_el = view(mesh.jac, :, el)
+    jac_el = sview(mesh.jac, :, el)
     smallmatvec!(interp, jac_el, jac_verts)
 
 
@@ -161,7 +161,7 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
           el_j = up_els[j]
           elnum_j = getNumberJ(mesh.el_Nptr, el_j, 0, 0) + 1
 
-          jac_el = unsafe_view(mesh.jac, :, elnum_j)
+          jac_el = sview(mesh.jac, :, elnum_j)
           # searching getNodeEntities for the index guarantees we can
           # identify the right interpolated point for all elements, 
           # independent of topology

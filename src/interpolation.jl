@@ -165,16 +165,16 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
   interp_data = Interpolation(mesh)
 
   for i=1:mesh.numInterfaces
-    dxidx_i = view(dxidx_face, :, :, :, i)
-    jac_i = view(jac_face, :, i)
+    dxidx_i = sview(dxidx_face, :, :, :, i)
+    jac_i = sview(jac_face, :, i)
 
     interface_i = mesh.interfaces[i]
     el = interface_i.elementL
     face = interface_i.faceL
     interp_data.bndry_arr[1] =  Boundary(1, face)
 
-    dxidx_in = view(mesh.dxidx, :, :, :, el)
-    jac_in = view(mesh.jac, :, el)
+    dxidx_in = sview(mesh.dxidx, :, :, :, el)
+    jac_in = sview(mesh.jac, :, el)
 
     interpolateFace(interp_data, mesh.sbpface, dxidx_in, jac_in, dxidx_i, jac_i)
 
@@ -185,8 +185,8 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
     jac_p = jac_sharedface[peer]
     interfaces_p = mesh.shared_interfaces[peer]
     for i=1:mesh.peer_face_counts[peer]
-      dxidx_i = view(dxidx_p, :, :, :, i)
-      jac_i = view(jac_p, :, i)
+      dxidx_i = sview(dxidx_p, :, :, :, i)
+      jac_i = sview(jac_p, :, i)
 
       interface_i = interfaces_p[i]
       el = interface_i.elementL
@@ -195,8 +195,8 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
       interp_data.bndry_arr[1] = Boundary(1, face)
 
 
-      dxidx_in = view(mesh.dxidx, :, :, :, el)
-      jac_in = view(mesh.jac, :, el)
+      dxidx_in = sview(mesh.dxidx, :, :, :, el)
+      jac_in = sview(mesh.jac, :, el)
 
       interpolateFace(interp_data, mesh.sbpface, dxidx_in, jac_in, dxidx_i, jac_i)
     end
@@ -206,12 +206,12 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
   for i=1:mesh.numBoundaryFaces
     bndry = mesh.bndryfaces[i]
 
-    dxidx_i = view(dxidx_bndry, :, :, :, i)
-    jac_i = view(jac_bndry, :, i)
+    dxidx_i = sview(dxidx_bndry, :, :, :, i)
+    jac_i = sview(jac_bndry, :, i)
 
     el = bndry.element
-    dxidx_in = view(mesh.dxidx, :, :, :, el)
-    jac_in = view(mesh.jac, :, el)
+    dxidx_in = sview(mesh.dxidx, :, :, :, el)
+    jac_in = sview(mesh.jac, :, el)
     interp_data.bndry_arr[1] = bndry
     interpolateFace(interp_data, mesh.sbpface, dxidx_in, jac_in, dxidx_i, jac_i)
   end
@@ -233,7 +233,7 @@ function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 2}, sbpface, dxi
   numNodesPerElement = size(dxidx_hat_in, 3)
   # get the data
   for j=1:numNodesPerElement
-    dxidx_hat = view(dxidx_hat_in, :, :, j)
+    dxidx_hat = sview(dxidx_hat_in, :, :, j)
     detJ = jac_in[j]
 
     adjugate2(dxidx_hat, dxidx_node)
@@ -292,7 +292,7 @@ function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 3}, sbpface, dxi
   numNodesPerElement = size(dxidx_hat_in, 3)
   # get the data
   for j=1:numNodesPerElement
-    dxidx_hat = view(dxidx_hat_in, :, :, j)
+    dxidx_hat = sview(dxidx_hat_in, :, :, j)
     detJ = jac_in[j]
 
     adjugate3(dxidx_hat, dxidx_node)

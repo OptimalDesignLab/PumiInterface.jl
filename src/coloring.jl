@@ -323,9 +323,9 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
   # the last 2 entries are for the local distance-2 neighbors connected by a
   # non-local element
   # (for the case where a single element has 2 non local neighbors)
-  local_colors = view(colors, local_start:(nonlocal_start-1))
-  nonlocal_d1neighborcolors = view(colors, nonlocal_start:(nonlocal_d2_start-1))
-  nonlocal_neighborcolors = view(colors, nonlocal_d2_start:(final_start-1))
+  local_colors = sview(colors, local_start:(nonlocal_start-1))
+  nonlocal_d1neighborcolors = sview(colors, nonlocal_start:(nonlocal_d2_start-1))
+  nonlocal_neighborcolors = sview(colors, nonlocal_d2_start:(final_start-1))
 
 
   for i in keys(colordata.adj_dict)
@@ -333,7 +333,7 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
     self[1] = el_i
 
     num_adj = getDistance2Colors(mesh, i, adj, adj2, local_colors, matchdata)
-    getNonLocalColors(mesh, view(adj, 1:num_adj), colordata, nonlocal_d1neighborcolors)
+    getNonLocalColors(mesh, sview(adj, 1:num_adj), colordata, nonlocal_d1neighborcolors)
     getNonlocalDistance2Colors(mesh, i, colordata, nonlocal_neighborcolors)
     # the non-local elements have not been colored yet, so no need to get their colors
 #    getNonLocalColors(mesh, self, colordata, nonlocal_neighborcolors)
@@ -375,12 +375,12 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
   for i=1:nfaces-1
     # local d2 neighbor + d1 neighbor
     section_start = nfaces + pos
-    local_d2_neighbors[i] = view(colors, pos:(section_start-1))
+    local_d2_neighbors[i] = sview(colors, pos:(section_start-1))
 
     # nonloca d2 neighbors
     pos = section_start
     section_start = nfaces - 1 + pos
-    nonlocal_d2_neighbors[i] = view(colors, pos:(section_start-1))
+    nonlocal_d2_neighbors[i] = sview(colors, pos:(section_start-1))
     pos = section_start
   end
 

@@ -42,7 +42,7 @@ function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2D, sbp::AbstractSBP, bndry_
       end
 
     # call SBP function
-    smallmatvec!(alpha, view(sbp.facenormal, :, face_i), view(face_normals, :, j, i))
+    smallmatvec!(alpha, sview(sbp.facenormal, :, face_i), sview(face_normals, :, j, i))
 
     end  # end loop over face nodes
   end  # end loop over faces
@@ -76,7 +76,7 @@ function getInternalFaceNormals{Tmsh}(mesh::PumiMesh2D, sbp::AbstractSBP, intern
       end
 
     # call SBP function
-    smallmatvec!(alpha, view(sbp.facenormal, :, face_iL), view(face_normals, :, 1, j, i))
+    smallmatvec!(alpha, sview(sbp.facenormal, :, face_iL), sview(face_normals, :, 1, j, i))
       # calculate right fae normal
       node_index = sbp.facenodes[j, face_iR]
 
@@ -88,7 +88,7 @@ function getInternalFaceNormals{Tmsh}(mesh::PumiMesh2D, sbp::AbstractSBP, intern
       end
 
     # call SBP function
-    smallmatvec!(alpha, view(sbp.facenormal, :, face_iR), view(face_normals, :, 2, j, i))
+    smallmatvec!(alpha, sview(sbp.facenormal, :, face_iR), sview(face_normals, :, 2, j, i))
 
 
 

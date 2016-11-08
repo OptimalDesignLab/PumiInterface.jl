@@ -358,8 +358,8 @@ end
 node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
 
 # get node offsets in the SBP order
-node_offsets = view(mesh.elementNodeOffsets, :, elnum)
-#node_offsets = view(mesh.elementNodeOffsets[:, elnum])
+node_offsets = sview(mesh.elementNodeOffsets, :, elnum)
+#node_offsets = sview(mesh.elementNodeOffsets[:, elnum])
 
 PumiInterface.getDofNumbers(numbering_ptr, node_entities, node_offsets, mesh.nodemapPumiToSbp, el_i, dofnums)  # C implimentation
 

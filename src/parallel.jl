@@ -306,9 +306,9 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
       @assert nremotes >= 1
       
       # get the remote verts on the specified peer
-      partnums_extract = view(remote_partnums, 1:Int(nremotes))
-      ptrs_extract = view(remote_ptrs, 1:Int(nremotes))
-      verts_j = view(orientations, verts_startidx:size(orientations, 1), i)
+      partnums_extract = sview(remote_partnums, 1:Int(nremotes))
+      ptrs_extract = sview(remote_ptrs, 1:Int(nremotes))
+      verts_j = sview(orientations, verts_startidx:size(orientations, 1), i)
       verts_startidx += getVertCopies(partnums_extract, ptrs_extract, peer_num, verts_j)
 
     end
@@ -393,7 +393,7 @@ function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary},
       for j=1:3
         face_verts[j] = el_verts[face_vertmap[j, face_local]]
       end
-      faceverts_recv = view(orientations_recv, :, i)
+      faceverts_recv = sview(orientations_recv, :, i)
       extractVertCopies(faceverts_recv, face_verts, facevertsR)
       orient = calcRelativeOrientation(face_verts, facevertsR)
     end

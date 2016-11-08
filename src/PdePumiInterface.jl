@@ -4,8 +4,11 @@ push!(LOAD_PATH, "/users/creanj/.julia/v0.4/PDESolver/src/common")
 using PumiInterface
 using SummationByParts
 using ODLCommonTools
+import ODLCommonTools.sview
 using ArrayViews
 using MPI
+
+import ODLCommonTools.sview
 
 include("nodecalc.jl")
 include("bary.jl")
