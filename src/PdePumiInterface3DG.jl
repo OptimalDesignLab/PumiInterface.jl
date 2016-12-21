@@ -564,7 +564,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
     mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, mesh.numFacesPerElement+1, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, mesh.numFacesPerElement+1, mesh.numEl)
-    println("about to get distance 1 coloring")
     cnt, mesh.shared_element_colormasks = getColors1(mesh, colordata, mesh.color_masks, 
                                 mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
     mesh.pertNeighborEls = getPertNeighbors1(mesh)

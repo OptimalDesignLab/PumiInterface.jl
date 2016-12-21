@@ -27,8 +27,6 @@ facts("----- Testing PdePumiInterface3DG -----") do
   interp_op = eye(4)
   mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
 
-  println("finished")
-
   @fact mesh.m_ptr --> not(C_NULL)
   @fact mesh.mshape_ptr --> not(C_NULL)
   @fact mesh.coordshape_ptr --> not(mesh.mshape_ptr)

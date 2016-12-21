@@ -50,7 +50,7 @@ AnisotropicFunctionJ anisofunc; // declare anisotropic function at global scope
 // shape_type: type of shape functions, 0 =  lagrange, 1 = SBP
 int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type )
 {
-  std::cout << "Entered init\n" << std::endl;
+//  std::cout << "Entered init\n" << std::endl;
 
   // various startup options
 
@@ -73,9 +73,9 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
     if (strcmp(dmg_name, ".null") == 0)
     {
       gmi_register_null();
-      std::cout << "loading null geometric model" << std::endl;
+//      std::cout << "loading null geometric model" << std::endl;
       gmi_model* g = gmi_load(".null");
-      std::cout << "finished loading geometric model" << std::endl;
+//      std::cout << "finished loading geometric model" << std::endl;
       m = apf::loadMdsMesh(g, smb_name);
 //    apf::changeMeshShape(m, apf::getLagrange(2), true);
 //    apf::changeMeshShape(m, apf::getLagrange(1), false); // for linear meshes
@@ -84,7 +84,7 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
       m->verify();
     } else {
       gmi_register_mesh();
-      std::cout << "loading geometric model from file" << std::endl;
+//      std::cout << "loading geometric model from file" << std::endl;
       m = apf::loadMdsMesh(dmg_name, smb_name);
     }
 
@@ -116,11 +116,11 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
       apf::changeMeshShape(m, fshape, true);
     }
 
-    std::cout << "finished loading mesh, changing shape" << std::endl;
+//    std::cout << "finished loading mesh, changing shape" << std::endl;
 
   } else {  // if not loading a mesh
     destroyNumberings(3);  // destroy the numberings before creating new ones
-    std::cout << "finished destroying numberings of existing mesh" << std::endl;
+//    std::cout << "finished destroying numberings of existing mesh" << std::endl;
   }
 
   // this should have a new filename everytime
@@ -131,7 +131,6 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
   mshape_ptr_array[0] = m->getShape();
   its[0] = m->begin(0);
   entity_global = m->iterate(its[0]);  // get token mesh entity
-  std::cout << "initilized library global variables" << std::endl;
   
   // initilize  number of each type of entity
   for (int i = 0; i < 4; ++i)
@@ -139,8 +138,6 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
     numEntity[i] = apf::countOwned(m, i);
     number_entities[i] = numEntity[i];
   }
-
-  std::cout << "counted number of mesh each type of mesh entities" << std::endl;
 
   // initilize numberings
   numberings[0] = numberOwnedDimension(m, "vertNums", 0);
@@ -155,22 +152,8 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
   its[1] = m->begin(1);
   its[2] = m->begin(2);
   its[3] = m->begin(3);
-  for (int i = 0; i < 4; ++i)
-  {
-    int type = m->getType(m->deref(its[i]));
-    std::cout << "type of its[" << i << "] = " << type;
-    std::cout << "index its[" << i << "] = " << type << std::endl;
-  }
-
-  std::cout << std::endl;
-
-  std::cout << "numV = " << numEntity[0] << " , numEdge = " << numEntity[1];
-  std::cout << " , numFace = " << numEntity[2] << std::endl;
-  std::cout << std::endl;
 
   resetFaceIt();
-
-
 
 //  apf::writeASCIIVtkFiles("output_init", m);
   return 0;
@@ -187,7 +170,7 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 // PCU appears to not want a Communicator object?
 int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], int order, int load_mesh, int shape_type )
 {
-  std::cout << "Entered init2\n" << std::endl;
+//  std::cout << "Entered init2\n" << std::endl;
 
   // various startup options
   // initilize communications if needed
@@ -195,12 +178,12 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
   MPI_Initialized(&flag);
   if (!flag)
   {
-    std::cout << "initializing MPI" << std::endl;
+//    std::cout << "initializing MPI" << std::endl;
     MPI_Init(0,NULL);  // initilize MPI 
   }
   if (!PCU_Comm_Initialized())
   {
-    std::cout << "initializing PCU" << std::endl;
+//    std::cout << "initializing PCU" << std::endl;
     PCU_Comm_Init();   // initilize PUMI's communication
   }
  
@@ -216,9 +199,9 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
     if (strcmp(dmg_name, ".null") == 0)
     {
       gmi_register_null();
-      std::cout << "loading null geometric model" << std::endl;
+//      std::cout << "loading null geometric model" << std::endl;
       gmi_model* g = gmi_load(".null");
-      std::cout << "finished loading geometric model" << std::endl;
+//      std::cout << "finished loading geometric model" << std::endl;
       m = apf::loadMdsMesh(g, smb_name);
 //    apf::changeMeshShape(m, apf::getLagrange(2), true);
 //    apf::changeMeshShape(m, apf::getLagrange(1), false); // for linear meshes
@@ -227,7 +210,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
       m->verify();
     } else {
       gmi_register_mesh();
-      std::cout << "loading geometric model from file" << std::endl;
+//      std::cout << "loading geometric model from file" << std::endl;
       m = apf::loadMdsMesh(dmg_name, smb_name);
     }
 
@@ -240,19 +223,17 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
 
     // check if the coordinates have been moved into tags
     // this is a result of the mesh shape having been changed previously
-    std::cout << "looking for coordinates_ver tag" << std::endl;
     apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
-    std::cout << "coords_tag = " << coords_tag << std::endl;
     
     if (coords_tag != 0 && change_shape)  // if the tag exists
     {
       apf::changeMeshShape(m, apf::getLagrange(1), false);
-      std::cout << "finished first mesh shape change" << std::endl;
+//      std::cout << "finished first mesh shape change" << std::endl;
     }
     
     if (change_shape)
     {
-      std::cout << "about to perform final mesh shape change" << std::endl;
+//      std::cout << "about to perform final mesh shape change" << std::endl;
       if ( order == 1 )
       {
         apf::changeMeshShape(m, fshape, true);
@@ -261,17 +242,16 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
         apf::changeMeshShape(m, fshape, true);
       }
 
-      std::cout << "finished loading mesh, changing shape" << std::endl;
-      std::cout << "new shape name is " << m->getShape()->getName() << std::endl;
+//      std::cout << "finished loading mesh, changing shape" << std::endl;
+//      std::cout << "new shape name is " << m->getShape()->getName() << std::endl;
     } else
     {
-      std::cout << "finished loading mesh" << std::endl;
+//      std::cout << "finished loading mesh" << std::endl;
     }
 
   } else {  // if not loading a mesh
     dim = m->getDimension();
     destroyNumberings(2);  // destroy the numberings before creating new ones
-    std::cout << "finished destroying numberings of existing mesh" << std::endl;
   }
 
   dim_ret[0] = dim; // return to julia
@@ -284,7 +264,6 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
   mshape_ptr_array[0] = m->getShape();
   its[0] = m->begin(0);
   entity_global = m->iterate(its[0]);  // get token mesh entity
-  std::cout << "initilized library global variables" << std::endl;
   
   // initilize  number of each type of entity
   for (int i = 0; i < (dim+1); ++i)
@@ -325,23 +304,6 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
     its[i] = m->begin(i);  // reset iterator
   }
    
-  std::cout << "Finished numbering mesh entities" << std::endl; 
-
-  for (int i = 0; i < (dim+1); ++i)
-  {
-    int type = m->getType(m->deref(its[i]));
-    std::cout << "type of its[" << i << "] = " << type;
-    std::cout << "index its[" << i << "] = " << type << std::endl;
-  }
-
-  std::cout << std::endl;
-
-  std::cout << "numV = " << numEntity[0] << " , numEdge = " << numEntity[1];
-  std::cout << " , numFace = " << numEntity[2];
-  if (dim == 3)
-    std::cout << ",  numRegion = " << numEntity[3];
-  std::cout << std::endl;
-
   resetFaceIt();
 
   apf::writeASCIIVtkFiles("output_init", m);
@@ -383,7 +345,7 @@ void destroyNumberings(int dim)
  
 apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_shape)
 {
-  std::cout << "dimension " << dim << " mesh requests shape type " << shape_type << " of order " << order << std::endl;
+//  std::cout << "dimension " << dim << " mesh requests shape type " << shape_type << " of order " << order << std::endl;
   apf::FieldShape* fshape;
   if (dim == 2)
   {
@@ -436,7 +398,7 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     change_shape = false;
   }
 
-  std::cout << "returning FieldShape " << fshape->getName() << std::endl;
+//  std::cout << "returning FieldShape " << fshape->getName() << std::endl;
      
   return fshape;
 }
