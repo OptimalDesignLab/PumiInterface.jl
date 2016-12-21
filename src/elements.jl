@@ -53,7 +53,6 @@ function getNodeMaps(order::Integer, shape_type::Integer, numNodesPerElement, di
 # use UInt8s to save cache space during loops
 
   if dim == 2
-    println("getting node maps for 2D mesh")
     if shape_type == 1
       if order == 1
         sbpToPumi = UInt8[1,2,3]
@@ -166,7 +165,6 @@ function createCGSubMesh(mesh::PumiMeshCG)
   mesh.triangulation = getTriangulation(order, shape_type)
   mnew_ptr = createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
 
-  println("creating solution field on new mesh")
   fnew_ptr = createPackedField(mnew_ptr, "solution_field", dofpernode)
 
   fnewshape_ptr = getMeshShapePtr(mnew_ptr)
@@ -181,10 +179,8 @@ function createDGSubMesh(mesh::PumiMeshDG)
   dofpernode = mesh.numDofPerNode
 
   mesh.triangulation = getTriangulation(order, shape_type)
-#  println("size(mesh.triangulation) = ", size(mesh.triangulation))
   mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, mesh.coords)
 
-#  println("creating solution field on new mesh")
   fnew_ptr = createPackedField(mnew_ptr, "solution_field", dofpernode)
   fnewshape_ptr = getMeshShapePtr(mnew_ptr)
 
@@ -196,7 +192,6 @@ function transferFieldToSubmesh(mesh::AbstractMesh, u, mnew_ptr=mesh.mnew_ptr,
 
   if mesh.isInterpolated
     if mesh.shape_type != 3
-      println("transferring field to submesh")
       transferFieldDG(mesh.m_ptr, mnew_ptr, mesh.triangulation, 
                       mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, 
                       mesh.entity_Nptrs, mesh.f_ptr, mesh.interp_op.', fnew_ptr)
