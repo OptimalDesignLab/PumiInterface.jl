@@ -278,8 +278,6 @@ for i=1:mesh.numEl
   fill!(colors, 0)
 
 end
-println("number of colors = ", numc)
-println("number of each color = ", cnt_colors)
 mesh.color_cnt = cnt_colors
 
 return numc
@@ -612,10 +610,8 @@ function getMinColor2{T}(adj::AbstractArray{T}, numc::Integer)
   mask_sum = sum(mask)
 
   if mask_sum == numc  # all existing colors used, so add another
-    println("adding color ", numc + 1)
     min_color = numc + 1
   elseif mask_sum == (numc - 1)  # there is exactly 1 color remaining
-  #  println("exactly 1 color remaining")
     # find out which color is missing and use it
     for i=1:numc
       if !mask[i]  # if mask is false
@@ -623,7 +619,6 @@ function getMinColor2{T}(adj::AbstractArray{T}, numc::Integer)
       end
     end
   else  # some colors are missing
-  #  println("getting minimum color")
     min_color = getMinColor(adj)  # get the minimum
   end
 
@@ -677,9 +672,9 @@ for i=1:length(masks)
   masks[i] = falses(mesh.numEl)
 end
 
-if verify
-  println("verifying distance-1 coloring")
-end
+#if verify
+#  println("verifying distance-1 coloring")
+#end
 
 
 cnt = 0
@@ -730,7 +725,7 @@ for i=1:mesh.numEl
 end
 
 if verify
-  println("color-1 verification finished")
+#  println("color-1 verification finished")
   if cnt != 0
     println(STDERR, "number of element with non unique coloring = ", cnt)
     throw(ErrorException("non unique element coloring"))

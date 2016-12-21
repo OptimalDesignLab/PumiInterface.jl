@@ -15,14 +15,11 @@ function populateDofNumbers(mesh::PumiMesh)
   num_nodes_entity = mesh.numNodesPerType
 
   for etype = 1:(mesh.dim+1) # loop over entity types
-#    println("etype = ", etype)
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
       for entity = 1:num_entities[etype]  # loop over all entities of this type
-#	println("  entity number: ", entity)
 	entity_ptr = iterators_get[etype]()  # get entity
 
 	for node = 1:num_nodes_entity[etype]
-#	  println("    node : ", node)
           nodenum = getNumberJ(mesh.nodenums_Nptr, entity_ptr, node-1, 0)
 	  if nodenum != 0
 	    for i=1:mesh.numDofPerNode
@@ -59,18 +56,12 @@ function populateNodeStatus(mesh::PumiMesh)
 
 #  mesh.numNodesPerType = num_nodes_entity
 
-  println("num_entities = ", num_entities)
-  println("num_nodes_entity = ", num_nodes_entity)
-
   for etype = 1:(mesh.dim + 1) # loop over entity types
-#    println("etype = ", etype)
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
       for entity = 1:num_entities[etype]  # loop over all entities of this type
-#	println("  entity number: ", entity)
 	entity_ptr = iterators_get[etype]()  # get entity
 
 	for node = 1:num_nodes_entity[etype]
-#	  println("    node : ", node)
 	  numberJ(mesh.nodestatus_Nptr, entity_ptr, node-1, 0, 3)
 	end  # end loop over node
 
@@ -208,13 +199,8 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
 # using the correct Numbering pointer
 # assumes mesh elements have already been reordered
 # this works for high order elements
-  println("Entered numberNodes")
-
-  println("Finished initial numbering of dofs") 
 
   numberNodesElement(mesh, number_dofs=number_dofs, start_at_one=false)
-
-  println("Performing final numbering of dofs")
 
   # calculate number of nodes, dofs
   numnodes = mesh.numNodes
@@ -232,13 +218,11 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
 #  mesh.numNodesPerType = num_nodes_entity
 
   if number_dofs
-    println("numbering degrees of freedom")
     numbering_ptr = mesh.dofnums_Nptr
     curr_dof = mesh.numDof + 1
     dofpernode = mesh.numDofPerNode
     numDof = mesh.numDofPerNode*numnodes
   else  # do node numbering
-    println("numbering nodes")
     numbering_ptr = mesh.nodenums_Nptr
     curr_dof = mesh.numNodes + 1
     dofpernode = 1
@@ -253,9 +237,7 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
 # TODO: move all if statements out one for loop (check only first dof on each node)
   curr_dof = 1
   for i=1:mesh.numEl
-#    println("element number: ", i)
     el_i_ptr = getFace()
-#    println("element pointer = ", el_i_ptr)
     incrementFaceIt()
     # get vertices, edges for this element
     numVert = getDownward(mesh.m_ptr, el_i_ptr, 0, verts_i)
@@ -263,15 +245,10 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
 #    println("mesh.verts = ", mesh.verts)
     numEdge = getDownward(mesh.m_ptr, el_i_ptr, 1, edges_i)
     for j=1:3  # loop over vertices, edges
-#      println("  vertex and edge number: ", j)
       vert_j = verts_i[j]
       edge_j = edges_i[j]
-#      println("  vert_j = ", vert_j)
-#      println("  edge_j = ", edge_j)
       for k=1:num_nodes_entity[1] # loop over vertex nodes
         for p=1:dofpernode
-  #	println("    dof number: ", k)
-  #	println("    vert_j = ", vert_j)
           dofnum_k = getNumberJ(numbering_ptr, vert_j, k-1, p-1)
           if dofnum_k > numDof  # still has initial number
             # give it new (final) number
@@ -313,14 +290,9 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
   resetAllIts2()
 
 
-  println("finished performing final dof numbering")
-
-  println("number of dofs = ", curr_dof - 1)
   if (curr_dof -1) != numDof 
     println("Warning: number of dofs assigned is not equal to teh expected number")
     println("number of dofs assigned = ", curr_dof-1, " ,expected number = ", numDof)
-  else
-    println("Dof numbering is sane")
   end
 
   return nothing
@@ -344,26 +316,20 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
   num_entities = mesh.numEntitiesPerType
   num_nodes_entity = mesh.numNodesPerType
 
-  println("num_entities = ", num_entities)
-  println("num_nodes_entity = ", num_nodes_entity)
-
 #  mesh.numNodesPerType = num_nodes_entity
 
   if number_dofs
-    println("numbering degrees of freedom")
     numbering_ptr = mesh.dofnums_Nptr
     curr_dof = mesh.numDof + 1
     dofpernode = mesh.numDofPerNode
     numDof = mesh.numDofPerNode*numnodes
   else  # do node numbering
-    println("numbering nodes")
     numbering_ptr = mesh.nodenums_Nptr
     curr_dof = mesh.numNodes + 1
     dofpernode = 1
     numDof = numnodes
   end
 
-  println("expected number of dofs = ", numDof)
   if (numDof > 2^30 || numDof < 0)
     println("Warning: too many dofs, renumbering will fail")
   end
@@ -385,19 +351,14 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
   end
 
   for etype = 1:(mesh.dim + 1) # loop over entity types
-#    println("etype = ", etype)
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
       for entity = 1:num_entities[etype]  # loop over all entities of this type
-#	println("  entity number: ", entity)
 	entity_ptr = iterators_get[etype]()  # get entity
 
 	for node = 1:num_nodes_entity[etype]
-
           pumi_node = nodemap[node]
-#	  println("    node : ", node)
 	  for dof = 1:dofpernode
 	    numberJ(numbering_ptr, entity_ptr, pumi_node-1, dof-1, curr_dof)
-#	    println("      entity ", entity_ptr, " labelled ", curr_dof)
 	    curr_dof += 1
 	  end  # end loop over dof
 	end  # end loop over node
@@ -436,23 +397,19 @@ end
 function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
 # number nodes and elements starting from a particular location
 
-  println("Entered numberNodesWindy")
 
   # calculate number of nodes, dofs
   numDof = mesh.numDof
-  println("expected number of dofs = ", numDof)
   if (numDof > 2^30 || numDof < 0)
     println("Warning: too many dofs, renumbering will fail")
   end
 
 
   if number_dofs
-    println("numbering degrees of freedom")
     numbering_ptr = mesh.dofnums_Nptr
     dofpernode = mesh.numDofPerNode
     numDof = mesh.numDofPerNode*numnodes
   else  # do node numbering
-    println("numbering nodes")
     numbering_ptr = mesh.nodenums_Nptr
     dofpernode = 1
     numDof = mesh.numNodes
@@ -520,13 +477,10 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
 
   end  # end while loop 
 
-  println("number of dofs = ", curr_dof - 1)
   if (curr_dof -1) != numDof 
     println("Warning: number of dofs assigned is not equal to the expected number")
     println("number of dofs assigned = ", curr_dof-1, " ,expected number = ", numDof)
     throw(ErrorException("dof numbering failed"))
-  else
-    println("Dof numbering is sane")
   end
 
   return nothing
