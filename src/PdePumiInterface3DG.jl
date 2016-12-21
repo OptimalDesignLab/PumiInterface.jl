@@ -395,7 +395,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh.shr_ptr = getSharing(mesh.m_ptr)
 
   # count the number of all the different mesh attributes
-  println("num_entitites = ", num_Entities)
   mesh.numVert = convert(Int, num_Entities[1])
   mesh.numEdge =convert(Int,  num_Entities[2])
   mesh.numFace = convert(Int, num_Entities[3])
@@ -425,8 +424,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 
   mesh. numNodesPerElement = mesh.typeOffsetsPerElement[end] - 1
   numnodes = mesh.numNodesPerElement*mesh.numEl
-  println("numNodesPerType = ", mesh.numNodesPerType)
-  println("numEntitesPerType = ", mesh.numEntitiesPerType)
   mesh.numNodes = numnodes      # we assume there are no non-free nodes/dofs
   mesh.numDof = numnodes*dofpernode
 
@@ -522,7 +519,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   for i=1:mesh.numBC
     key_i = string("BC", i)
     model_edges = opts[key_i]
-    println("opts[key_i] = ", model_edges)
     ngeo = length(model_edges)
     mesh.bndry_geo_nums[i] = Array(Int, ngeo)
     mesh.bndry_geo_nums[i][:] = model_edges[:]
@@ -592,7 +588,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   # this takes into account the coloring distance
   #TODO: make getting sparsity bounds faster
   if opts["run_type"] != 1  # no a rk4 run
-    println("getting sparsity bounds")
     mesh.sparsity_bnds = zeros(Int32, 0, 0)
 #    mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
 #    @time getSparsityBounds(mesh, mesh.sparsity_bnds)
@@ -602,9 +597,8 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 
     mesh.sparsity_counts = zeros(Int32, 2, mesh.numDof)
     mesh.sparsity_counts_node = zeros(Int32, 2, mesh.numNodes)
-    @time getSparsityCounts(mesh, mesh.sparsity_counts)
-    @time getSparsityCounts(mesh, mesh.sparsity_counts_node, getdofs=false)
-    println("finished getting sparsity counts")
+    getSparsityCounts(mesh, mesh.sparsity_counts)
+    getSparsityCounts(mesh, mesh.sparsity_counts_node, getdofs=false)
 
 
   end
@@ -623,8 +617,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 
   # need to count the number of internal interfaces - do this during boundary edge counting
 #  println("getting interface info")
-  println("numEdges = ", mesh.numEdge)
-  println("numInterfaces = ", mesh.numInterfaces)
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
 #  sort!(mesh.interfaces)
@@ -705,7 +697,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 
   if opts["write_coords"]
     rmfile("coords_$myrank.dat")
-    println("size(coords) = ", size(mesh.coords))
     writedlm("coords_$myrank.dat", mesh.coords)
 #    printcoords("coords.dat", mesh.coords)
   end
@@ -728,7 +719,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 
   if opts["write_dofs"]
     rmfile("dofs_$myrank.dat")
-    println("size(mesh.dofs) = ", size(mesh.dofs))
     writedlm("dofs_$myrank.dat", mesh.dofs)
   end
 
@@ -911,7 +901,6 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
   end
 
   resetAllIts2()
-  println("performing initial numbering of dofs")
   # calculate number of nodes, dofs (works for first and second order)
   numnodes = order*numVert 
   numdof = numnodes*dofpernode

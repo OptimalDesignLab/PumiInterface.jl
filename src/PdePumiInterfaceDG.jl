@@ -431,8 +431,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   mesh. numNodesPerElement = mesh.typeOffsetsPerElement[end] - 1
   numnodes = mesh.numNodesPerElement*mesh.numEl
-  println("numNodesPerType = ", mesh.numNodesPerType)
-  println("numEntitesPerType = ", mesh.numEntitiesPerType)
   mesh.numNodes = numnodes      # we assume there are no non-free nodes/dofs
   mesh.numDof = numnodes*dofpernode
 
@@ -533,7 +531,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     ngeo = length(model_edges)
     mesh.bndry_geo_nums[i] = Array(Int, ngeo)
     mesh.bndry_geo_nums[i][:] = model_edges[:]
-    println("opts[key_i] = ", model_edges)
 #    println("typeof(opts[key_i]) = ", typeof(opts[key_i]))
     mesh.bndry_offsets[i] = offset
     offset, print_warning = getMeshEdgesFromModel(mesh, model_edges, offset, boundary_nums)  # get the mesh edges on the model edge
@@ -574,7 +571,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
-    println("about to get distance 1 coloring")
     cnt, mesh.shared_element_colormasks = getColors1(mesh, colordata, mesh.color_masks, 
                                 mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
     mesh.pertNeighborEls = getPertNeighbors1(mesh)
@@ -598,7 +594,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   # this takes into account the coloring distance
   #TODO: make getting sparsity bounds faster
   if opts["run_type"] != 1  # no a rk4 run
-    println("getting sparsity bounds")
     mesh.sparsity_bnds = zeros(Int32, 0, 0)
 #    mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
 #    @time getSparsityBounds(mesh, mesh.sparsity_bnds)
@@ -608,9 +603,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
     mesh.sparsity_counts = zeros(Int32, 2, mesh.numDof)
     mesh.sparsity_counts_node = zeros(Int32, 2, mesh.numNodes)
-    @time getSparsityCounts(mesh, mesh.sparsity_counts)
-    @time getSparsityCounts(mesh, mesh.sparsity_counts_node, getdofs=false)
-    println("finished getting sparsity counts")
+    getSparsityCounts(mesh, mesh.sparsity_counts)
+    getSparsityCounts(mesh, mesh.sparsity_counts_node, getdofs=false)
 
 
   end
@@ -629,8 +623,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   # need to count the number of internal interfaces - do this during boundary edge counting
 #  println("getting interface info")
-  println("numEdges = ", mesh.numEdge)
-  println("numInterfaces = ", mesh.numInterfaces)
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
   sort!(mesh.interfaces)
@@ -652,8 +644,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     interpolateCoordinatesAndMetrics(mesh)
   end
 
-  @time createSubtriangulatedMesh(mesh, opts)
-  println("finished creating sub mesh\n")
+  createSubtriangulatedMesh(mesh, opts)
 
   println("printin main mesh statistics")
 
@@ -710,7 +701,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   if opts["write_coords"]
     rmfile("coords_$myrank.dat")
-    println("size(coords) = ", size(mesh.coords))
     writedlm("coords_$myrank.dat", mesh.coords)
 #    printcoords("coords.dat", mesh.coords)
   end
@@ -731,11 +721,9 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     writedlm("entity_offsets_$myrank.dat", mesh.elementNodeOffsets)
   end
 
-  println("about to write dofs")
 
   if opts["write_dofs"]
     rmfile("dofs_$myrank.dat")
-    println("size(mesh.dofs) = ", size(mesh.dofs))
     writedlm("dofs_$myrank.dat", mesh.dofs)
   end
 
@@ -776,10 +764,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     end
   end
 
-  println("about to write visualization files")
   writeVisFiles(mesh, "mesh_complete")
 
-  println("finished writing visualization files")
 
   myrank = mesh.myrank
   f = open("load_balance_$myrank.dat", "a+")
@@ -926,7 +912,6 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
   end
 
   resetAllIts2()
-  println("performing initial numbering of dofs")
   # calculate number of nodes, dofs (works for first and second order)
   numnodes = order*numVert 
   numdof = numnodes*dofpernode
