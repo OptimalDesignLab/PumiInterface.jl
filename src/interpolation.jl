@@ -53,6 +53,7 @@ function interpolateCoordinatesAndMetrics(mesh::PumiMeshDG)
 
   # get the coordinates
   getBndryCoordinates(mesh, mesh.bndryfaces, mesh.coords_bndry)
+  getInterfaceCoordinates(mesh, mesh.interfaces, mesh.coords_interface)
   for i=1:mesh.npeers
     getBndryCoordinates(mesh, mesh.bndries_local[i], 
                         mesh.coords_sharedface[i])
@@ -110,6 +111,7 @@ function allocateFaceCoordinates{Tmsh}(mesh::PumiMeshDG{Tmsh})
   sbpface = mesh.sbpface
   mesh.coords_bndry = zeros(Tmsh, mesh.dim, sbpface.numnodes, 
                                 mesh.numBoundaryFaces)
+  mesh.coords_interface = zeros(Tmsh, mesh.dim, sbpface.numnodes, mesh.numInterfaces)
   mesh.coords_sharedface = Array(Array{Tmsh, 3}, mesh.npeers)
   for i=1:mesh.npeers
     mesh.coords_sharedface[i] = zeros(Tmsh, mesh.dim, sbpface.numnodes, 
