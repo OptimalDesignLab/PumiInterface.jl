@@ -248,6 +248,9 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   coords::Array{T1, 3}  # store coordinates of all nodes
   coords_bndry::Array{T1, 3}  # store coordinates of nodes on boundary,
                               # 2 x numFaceNodes x numBoundaryFaces
+  coords_interface::Array{T1, 3} # store coordinates of nodes on interfaces
+                                 # 2 x numFaceNodes x numInterfaces
+
   coords_sharedface::Array{Array{T1, 3}, 1}  # coordinates of shared interface nodes
   dxidx::Array{T1, 4}  # store scaled mapping jacobian
   dxidx_face::Array{T1, 4} # store scaled mapping jacobian at face nodes

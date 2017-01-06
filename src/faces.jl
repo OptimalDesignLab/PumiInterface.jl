@@ -219,15 +219,19 @@ function getInterfaceArray(mesh::PumiMesh3D)
   vertsR = Array(Ptr{Void}, 4)
   facevertsL = Array(Ptr{Void}, 3)
   facevertsR = Array(Ptr{Void}, 3)
-  part_nums = Array(Cint, 8)
-  matched_entities = Array(Ptr{Void}, 8)
+  # there can be up to 400 elements using a vertex + 8 
+  # corners of the domain, so in the worst case a parallel partition could
+  # generate 400 + 8 matches
+  part_nums = Array(Cint, 400 + 8)
+  matched_entities = Array(Ptr{Void}, 400 + 8)  # there can be up to 400 
+                                           
   pos = 1 # position in mesh.interfaces
   seen_entities = Set{Ptr{Void}}()
   sizehint!(seen_entities, mesh.numPeriodicInterfaces)
-  
+ 
   for i=1:mesh.numFace
     face_i = mesh.faces[i]
-    if face_i in seen_entities
+    if face_i in seen_entities  # avoid counting matched entities twice
       continue
     end
 
@@ -241,11 +245,14 @@ function getInterfaceArray(mesh::PumiMesh3D)
 
       getAdjacent(adj_elements)
       if has_local_match
+        # get the parent element
         el1 = adj_elements[1]
         edgenum1 = i
         elnum1 = getNumberJ(mesh.el_Nptr, el1 , 0, 0) + 1
 
+        # get the matched face
         other_face = matched_entities[1]
+        # get the parent element of the matched face
         countAdjacent(mesh.m_ptr, other_face, mesh.dim)
         getAdjacent(adj_elements)
         el2 = adj_elements[1]
@@ -253,6 +260,7 @@ function getInterfaceArray(mesh::PumiMesh3D)
         elnum2 = getNumberJ(mesh.el_Nptr, el2, 0, 0) + 1
         push!(seen_entities, other_face)
       else
+        # get both parent elements
         el1 = adj_elements[1]
         el2 = adj_elements[2]
         edgenum1 = i
