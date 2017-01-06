@@ -274,6 +274,48 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMesh3DG{Tmsh}, bndryfaces::Array{Bo
   return nothing
 end
 
+function getInterfaceCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh}, 
+                             bndryfaces::Array{Interface}, 
+                             coords_bndry::Array{Tmsh, 3})
+# calculate the coordinates on the boundary for the specified faces
+# and store in coords_bndry
+
+#  println("----- Entered getBndryCoordinates -----")
+  sbpface = mesh.sbpface
+
+  coords_i = zeros(3, 3)
+  coords_it = zeros(3, 2)
+  coords_edge = zeros(2, 2)
+
+  for i=1:length(bndryfaces)
+    bndry_i = bndryfaces[i]
+
+    el = bndry_i.elementL
+    el_ptr = mesh.elements[el]
+    face = bndry_i.faceL
+
+    sizex, sizey = size(coords_i)
+    getFaceCoords(el_ptr, coords_i, sizex, sizey)
+
+    coords_it[:, :] = coords_i[1:2, :].'
+
+    # extract the needed vertex coords
+#    v1 = facemap[1, face]
+#    v2 = facemap[2, face]
+    v1 = face
+    v2 = mod(face,3) + 1
+    coords_edge[1, 1] = coords_it[v1, 1]
+    coords_edge[1, 2] = coords_it[v1, 2]
+    coords_edge[2, 1] = coords_it[v2, 1]
+    coords_edge[2, 2] = coords_it[v2 ,2]
+
+    coords_bndry[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbpface.cub, coords_edge)
+
+  end
+
+end
+
+
 
 function getInterfaceCoordinates{Tmsh}(mesh::PumiMesh3DG{Tmsh}, bndryfaces::Array{Interface}, coords_bndry::Array{Tmsh, 3})
 
