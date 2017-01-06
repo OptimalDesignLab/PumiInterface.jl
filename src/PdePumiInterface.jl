@@ -364,17 +364,12 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     pos += mesh.numTypePerElement[i-1]*mesh.numNodesPerType[i-1]
     mesh.typeOffsetsPerElement[i] = pos
   end
-  println("mesh.typeOffsetsPerElement = ", mesh.typeOffsetsPerElement)
   mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
   mesh.numNodesPerElement = mesh.typeOffsetsPerElement[end]-1
   numnodes = 0
   for i=1:3
     numnodes += mesh.numNodesPerType[i]*mesh.numEntitiesPerType[i]
   end
-  println("numNodesPerType = ", mesh.numNodesPerType)
-  println("numEntitesPerType = ", mesh.numEntitiesPerType)
-  println("numnodes = ", numnodes)
-  println("numdof = ", numnodes*dofpernode)
   mesh.numNodes = numnodes      # we assume there are no non-free nodes/dofs
   mesh.numDof = numnodes*dofpernode
 
@@ -461,7 +456,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     mesh.bndry_geo_nums[i] = Array(Int, ngeo)
     mesh.bndry_geo_nums[i][:] = model_edges[:]
 
-    println("opts[key_i] = ", model_edges)
 #    println("typeof(opts[key_i]) = ", typeof(opts[key_i]))
     mesh.bndry_offsets[i] = offset
     offset, print_warning = getMeshEdgesFromModel(mesh, model_edges, offset, boundary_nums)  # get the mesh edges on the model edge
@@ -495,7 +489,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
     getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
-    println("getting perturbed neighbors")
     mesh.pertNeighborEls = getPertNeighbors1(mesh)
 
   elseif coloring_distance == 0  # do a distance-0 coloring
@@ -518,12 +511,10 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   # this takes into account the coloring distance
   #TODO: make getting sparsity bounds faster
   if opts["run_type"] != 1  # no a rk4 run
-    println("getting sparsity bounds")
     mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
-    @time getSparsityBounds(mesh, mesh.sparsity_bnds)
+    getSparsityBounds(mesh, mesh.sparsity_bnds)
     mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
-    @time getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
-    println("finished getting sparsity bounds")
+    getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
   end
 
 
@@ -534,12 +525,10 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   end
 
   # get boundary information for entire mesh
-  println("getting boundary info")
   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
   getBoundaryArray(mesh, boundary_nums)
 
   # need to count the number of internal interfaces - do this during boundary edge counting
-  println("getting interface info")
   mesh.numInterfaces = mesh.numEdge - num_ext_edges
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
@@ -558,8 +547,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   # create subtriangulated mesh
   createSubtriangulatedMesh(mesh, opts)
-
-  println("finished creating sub mesh\n")
 
   println("printin main mesh statistics")
 
@@ -616,7 +603,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   if opts["write_coords"]
     rmfile("coords.dat")
-    println("size(coords) = ", size(mesh.coords))
     writedlm("coords.dat", mesh.coords)
 #    printcoords("coords.dat", mesh.coords)
   end
@@ -627,7 +613,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   end
 
   if opts["write_sparsity_nodebnds"]
-    println("writing sparsiy node bounds")
     rmfile("sparsity_nodebnds.dat")
     writedlm("sparsity_nodebnds.dat", mesh.sparsity_nodebnds)
   end
@@ -639,7 +624,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   if opts["write_dofs"]
     rmfile("dofs.dat")
-    println("size(mesh.dofs) = ", size(mesh.dofs))
     writedlm("dofs.dat", mesh.dofs)
   end
 
@@ -647,7 +631,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     writeCounts(mesh)
   end
 
-  println("about to write mesh_complete")
   writeVisFiles(mesh, "mesh_complete")
   return mesh
   # could use incomplete initilization to avoid copying arrays
@@ -706,7 +689,6 @@ function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts;
 
   elseif coloring_distance == 0  # do a distance-0 coloring
     numc = colorMesh0(mesh)
-    println("distance-0 coloring numc = ", numc)
     @assert numc == 1
     mesh.numColors = numc
     mesh.maxColors = numc
@@ -839,7 +821,6 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   end
 
   resetAllIts2()
-  println("performing initial numbering of dofs")
   # calculate number of nodes, dofs (works for first and second order)
   numnodes = order*numVert 
   numdof = numnodes*dofpernode

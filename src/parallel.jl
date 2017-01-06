@@ -14,8 +14,6 @@ function getParallelInfo(mesh::PumiMeshDG)
 #       over that subsequently.  Because a minority of faces should be shared
 #       it might be worthwhile.
 
-  println("----- Entered getParallelInfo -----")
-
   myrank = mesh.myrank
   npeers = countPeers(mesh.m_ptr, mesh.dim-1)  # get edge peers
   peer_nums = zeros(Cint, npeers)

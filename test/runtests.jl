@@ -64,13 +64,10 @@ facts("Testing PUMIInterface.jl") do
   face = getFace()
 
   vertnum = getNumberJ(vertN_ptr, vert, 0, 0) 
-  println("vertnum = ", vertnum)
 
   edgenum = getNumberJ(edgeN_ptr, edge, 0, 0) 
-  println("edgenum = ", edgenum)
 
   facenum = getNumberJ(faceN_ptr, face, 0, 0) 
-  println("facenum = ", facenum)
 
   @fact getNumberJ(vertN_ptr, vert, 0, 0) --> 0
   @fact getNumberJ(edgeN_ptr, edge, 0, 0) --> 0
@@ -256,7 +253,6 @@ facts("Testing PUMIInterface.jl") do
   end
   sort!(adj_num)
   ans = [0,1,2,3,4,5,6,7,8,9]
-  println("ans = ", ans)
 
   @fact adj_num --> ans
 
@@ -288,7 +284,6 @@ facts("Testing PUMIInterface.jl") do
 
 
   mshape2 = getFieldShape(1, 4, 2)
-  println("mshape2 = ", mshape2)
   node_entities = getNodeEntities(m_ptr, mshape2, face)
   verts = node_entities[1:3]
   edges = node_entities[4:12]

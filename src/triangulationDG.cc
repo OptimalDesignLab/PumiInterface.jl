@@ -581,12 +581,12 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
 
   for (int i = 0; i < numnumberings; ++i)
   {
-    std::cout << "Copying Numbering " << i << std::endl;
+//    std::cout << "Copying Numbering " << i << std::endl;
 
     apf::Numbering* numbering_i = m->getNumbering(i);
     int numcomp = apf::countComponents(numbering_i);
     const char* name_i = apf::getName(numbering_i);
-    std::cout << "Numbering name is " << name_i << std::endl;
+//    std::cout << "Numbering name is " << name_i << std::endl;
     apf::FieldShape* numbering_i_shape = apf::getShape(numbering_i);
 //    const char* shape_name = numbering_i_shape->getName();
 //    std::cout << "Numbering Fieldshape name = " << shape_name << std::endl;
@@ -745,8 +745,8 @@ void transferNumberings(apf::Mesh* m, apf::FieldShape* mshape, apf::Mesh* m_new,
 */
   } // end loop over numberings
 
-  std::cout << "printing new mesh fields and numberings" << std::endl;
-  triDG::printFields(m_new);
+//  std::cout << "printing new mesh fields and numberings" << std::endl;
+//  triDG::printFields(m_new);
 
 }  // end function
 

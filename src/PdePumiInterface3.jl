@@ -82,12 +82,6 @@ type PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron only
   end
 
 
-  println("numEntities = ", mesh.numEntities)
-  println("numNodesPerType = ", mesh.numNodesPerType)
-
-
-
-
   # get pointers to mesh entity numberings
   mesh.vert_Nptr = getVertNumbering()
   mesh.edge_Nptr = getEdgeNumbering()
@@ -117,13 +111,11 @@ type PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron only
     incrementEdgeIt()
   end
 
-  println("getting Face pointers")
   for i=1:mesh.numFace
     mesh.faces[i] = getFace()
     incrementFaceIt()
   end
 
-  println("getting region pointers")
   for i=1:mesh.numEl
     mesh.elements[i] = getEl()
     incrementElIt()
@@ -134,23 +126,23 @@ type PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron only
   
 #  numberDofs(mesh)
 
-  @time countBoundaryFaces(mesh)
-   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
-  @time getBoundaryArray(mesh)
-
-  @time numberDofs(mesh)
-  @time getDofNumbers(mesh)
-
-  @time countBoundaryFaces(mesh)
+  countBoundaryFaces(mesh)
   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
-  @time getBoundaryArray(mesh)
+  getBoundaryArray(mesh)
+
+  numberDofs(mesh)
+  getDofNumbers(mesh)
+
+  countBoundaryFaces(mesh)
+  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
+  getBoundaryArray(mesh)
 
   mesh.numInterfaces = mesh.numFace - mesh.numBoundaryFaces
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
-  @time getInterfaceArray(mesh)
+  getInterfaceArray(mesh)
 
 
-  @time getCoordinatesAndMetrics(mesh, sbp)
+  getCoordinatesAndMetrics(mesh, sbp)
 #
 
 #=
@@ -304,8 +296,6 @@ function numberDofs(mesh::PumiMesh3)
 # assumes mesh elements have already been reordered
 # this method minimizes the assembly/disassembly time
 # because blocks of entries in res go into res_vec
-  println("Entered numberDofs")
-
  
   # calculate total number of nodes
   # Continuous Galerkin only
@@ -316,8 +306,6 @@ function numberDofs(mesh::PumiMesh3)
 
   numDof = mesh.numDofPerNode*numnodes
  
-  println("expected number of dofs = ", numDof)
-
   if (numDof > 2^30)
     println("Warning: too many dofs, renumbering will fail")
   end
@@ -336,13 +324,9 @@ function numberDofs(mesh::PumiMesh3)
   num_entities = mesh.numEntities
   num_nodes_entity = mesh.numNodesPerType
 
-  println("num_nodes_entity = ", num_nodes_entity)
-  println("num_entities = ", num_entities)
-  println("\nPerforming initial dof numbering")
   #  curr_dof = 1
   curr_dof = numDof+1
   for etype = 1:length(num_nodes_entity) # loop over entity types
-    println("etype = ", etype)
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
       for entity = 1:num_entities[etype]  # loop over all entities of this type
 #	println("  entity number: ", entity)
@@ -362,10 +346,7 @@ function numberDofs(mesh::PumiMesh3)
     end  # end if 
   end  # end loop over entity types
 
-  println("Finished initial numbering of dofs") 
-
-
-  println("Performing final numbering of dofs")
+  # final dof numbering
 # move all if statements out one for loop (check only first dof on each node)
   curr_dof = 1
   for i=1:mesh.numEl
@@ -457,18 +438,10 @@ function numberDofs(mesh::PumiMesh3)
   end  # end loop over elements
 
 
-
-
-  println("finished performing final dof numbering")
-
-  println("number of dofs = ", curr_dof - 1)
   if (curr_dof -1) != numDof 
     println("Warning: number of dofs assigned is not equal to teh expected number")
     println("number of dofs assigned = ", curr_dof-1, " ,expected number = ", numDof)
-  else
-    println("Dof numbering is sane")
   end
-
 
 
   resetAllIts2()
@@ -480,9 +453,6 @@ end
 
 function getDofNumbers(mesh::PumiMesh3)
 # populate array of dof numbers, in same shape as solution array u (or q)
-
-println("in getDofNumbers")
-println("numNodesPerElement = ", mesh.numNodesPerElement)
 
 mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
 

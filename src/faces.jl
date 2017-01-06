@@ -10,7 +10,6 @@ function getBoundaryArray(mesh::PumiMesh, boundary_nums::AbstractArray{Int, 2})
   for i=1:mesh.numBoundaryFaces
     facenum = boundary_nums[i, 1]
     edgenum_global = boundary_nums[i, 2]
-#    println("edgenum_global = ", edgenum_global)
     edgenum_local = getBoundaryFaceLocalNum(mesh, edgenum_global)
     mesh.bndryfaces[i] = Boundary(facenum, edgenum_local)
   end
@@ -136,7 +135,6 @@ function getInterfaceArray(mesh::PumiMesh2D)
     has_local_match = part_nums[1] == mesh.myrank && n > 0
 
     if num_adjacent > 1 || has_local_match # internal edge
-#       println("this is an internal edge")
       if !has_local_match
         element1 = adjacent_nums[1]
         element2 = adjacent_nums[2]
@@ -194,7 +192,6 @@ function getInterfaceArray(mesh::PumiMesh2D)
       # here we set the orientation flag to 1 for all edges, because in 2D
       # the edges always have opposite orientation
       mesh.interfaces[pos] = Interface(elementL, elementR, edgeL, edgeR, UInt8(1))
-#       println("updating pos")
       pos += 1
 
   #    print("\n")

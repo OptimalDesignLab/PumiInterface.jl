@@ -112,7 +112,6 @@ facts("--- Testing PdePumiInterface --- ") do
     @fact mesh.neighbor_nums[2,1] --> 1
     @fact mesh.neighbor_nums[2,2] --> 2
 
-    println("mesh.pertNeighborEls = ", mesh.pertNeighborEls)
     @fact mesh.pertNeighborEls[1, 1] --> 1
     @fact mesh.pertNeighborEls[2, 1] --> 1
     @fact mesh.pertNeighborEls[1, 2] --> 2
@@ -158,7 +157,6 @@ facts("--- Testing PdePumiInterface --- ") do
     @fact length(mesh.elements) --> mesh.numEl
 
 #    println("mesh.coords = ", mesh.coords)
-    println("size(mesh.coords) = ", size(mesh.coords))
     
     @fact mesh.jac --> roughly(ones(mesh.numNodesPerElement ,2))
 
