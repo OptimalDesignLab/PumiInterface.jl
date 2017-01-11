@@ -11,7 +11,7 @@ using MPI
 import ODLCommonTools.sview
 
 include("nodecalc.jl")
-include("bary.jl")
+#include("bary.jl")
 include("options.jl")
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
