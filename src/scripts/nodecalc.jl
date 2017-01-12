@@ -88,11 +88,11 @@ function minNodeDist(sbp, isDG::Bool)
 end
 
 
-sbp = TriSBP{Float64}(degree=1, reorder=false, internal=false)
-sbp = TetSBP{Float64}(degree=4, reorder=false, internal=false)
+#sbp = TriSBP{Float64}(degree=1, reorder=false, internal=false)
+sbp = TetSBP{Float64}(degree=4, reorder=false, internal=true)
 xi, coords = nodecalc(sbp, true)
 printCaseStatement(xi)
 printBaryCoords(xi, coords)
-writedlm("coordsout.dat", coords, ' ')
+#writedlm("coordsout.dat", coords, ' ')
 #minNodeDist(2)
 
