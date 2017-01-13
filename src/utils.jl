@@ -101,4 +101,60 @@ function calcNewNode(i, offset_pumi, offset_orient)
   return tmp2
 end
 
+"""
+  Calculate the volume of the mesh as the sum of the volume of the elements
+
+  Methods are available for 2D and 3D.
+"""
+function calcVolume(mesh::PumiMesh2DG)
+
+  area = 0.0
+  for i=1:mesh.numEl
+    r1x = mesh.vert_coords[1, 2, i] - mesh.vert_coords[1, 1, i]
+    r1y = mesh.vert_coords[2, 2, i] - mesh.vert_coords[2, 1, i]
+
+    r2x = mesh.vert_coords[1, 3, i] - mesh.vert_coords[1, 1, i]
+    r2y = mesh.vert_coords[2, 3, i] - mesh.vert_coords[2, 1, i]
+
+    area_i = abs(0.5*(r1x*r2y - r1y*r2x))
+
+    area +=  area_i
+  end
+
+  area = MPI.Allreduce(area, MPI.SUM, mesh.comm)
+
+  return area
+end
+
+function calcVolume(mesh::PumiMesh3DG)
+
+  volume = 0.0
+  for i=1:mesh.numEl
+    r1x = mesh.vert_coords[1, 2, i] - mesh.vert_coords[1, 1, i]
+    r1y = mesh.vert_coords[2, 2, i] - mesh.vert_coords[2, 1, i]
+    r1z = mesh.vert_coords[3, 2, i] - mesh.vert_coords[3, 1, i]
+
+    r2x = mesh.vert_coords[1, 3, i] - mesh.vert_coords[1, 1, i]
+    r2y = mesh.vert_coords[2, 3, i] - mesh.vert_coords[2, 1, i]
+    r2z = mesh.vert_coords[3, 3, i] - mesh.vert_coords[3, 1, i]
+
+    r3x = mesh.vert_coords[1, 4, i] - mesh.vert_coords[1, 1, i]
+    r3y = mesh.vert_coords[2, 4, i] - mesh.vert_coords[2, 1, i]
+    r3z = mesh.vert_coords[3, 4, i] - mesh.vert_coords[3, 1, i]
+
+    # cross product
+    c1 = r2y*r3z - r2z*r3y
+    c2 = -(r2x*r3z - r2z*r3x)
+    c3 = r2x*r3y - r2y*r3x
+
+    volume_i = (r1x*c1 + r1y*c2 + r1z*c3)/6
+
+    # dot product
+    volume += volume_i
+  end
+
+  volume = MPI.Allreduce(volume, MPI.SUM, mesh.comm)
+
+  return volume
+end
 

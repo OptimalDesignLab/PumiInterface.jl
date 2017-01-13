@@ -346,6 +346,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact mesh.numTypePerElement --> [3, 3, 1]
    @fact mesh.typeOffsetsPerElement --> [1, 1, 1, 4]
    @fact mesh.typeOffsetsPerElement_ --> mesh.typeOffsetsPerElement
+   @fact mesh.volume --> roughly(4.0, atol=1e-12)
    @fact mesh.dim --> 2
    @fact mesh.isDG --> true
    @fact mesh.coloringDistance --> 2

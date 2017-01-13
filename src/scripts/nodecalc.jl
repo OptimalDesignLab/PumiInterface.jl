@@ -89,7 +89,7 @@ end
 
 
 #sbp = TriSBP{Float64}(degree=1, reorder=false, internal=false)
-sbp = TetSBP{Float64}(degree=4, reorder=false, internal=true)
+sbp = TetSBP{Float64}(degree=3, reorder=false, internal=true)
 xi, coords = nodecalc(sbp, true)
 printCaseStatement(xi)
 printBaryCoords(xi, coords)

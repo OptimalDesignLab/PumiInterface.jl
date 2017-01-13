@@ -60,6 +60,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   @fact mesh.numBoundaryFaces --> 12
   @fact mesh.numInterfaces --> 6
   @fact mesh.numFacesPerElement --> 4
+  @fact mesh.volume --> roughly(1.0, atol=1e-12)
   @fact mesh.numEntitiesPerType --> [mesh.numVert, mesh.numEdge, mesh.numFace, mesh.numEl]
   @fact mesh.numTypePerElement --> [4, 6, 4, 1]
   @fact mesh.el_type --> apfTET
