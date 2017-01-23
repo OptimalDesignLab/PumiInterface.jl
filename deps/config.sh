@@ -12,4 +12,4 @@ cmake .. \
   -DCMAKE_INSTALL_PREFIX=`pwd`"/install" \
   -DIS_TESTING=True \
   -DMESHES=`pwd`"/../../meshes"
-#  -DENABLE_ZOLTAN=
+#  -DENABLE_ZOLTAN=True

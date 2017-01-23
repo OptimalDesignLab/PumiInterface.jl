@@ -41,6 +41,32 @@ void printModelClassification(apf::Mesh * m)
 
 }  // end function
 */
+
+void printCoordinates(apf::Mesh* m)
+{
+  apf::MeshEntity* e;
+  apf::Vector3 coords;
+  apf::FieldShape* fshape = m->getShape();
+  apf::MeshIterator* it;
+
+  for (int dim=0; dim <= m->getDimension(); dim++)
+  {
+    if (!fshape->hasNodesIn(dim))
+      continue;
+
+    std::cout << "Dimension " << dim << ":" << std::endl;
+    it = m->begin(dim);
+    int i = 0;
+    while ( (e = m->iterate(it)) )
+    {
+      m->getPoint(e, 0, coords);
+      std::cout << "  dimension " << dim << " entity " << i << " coords = " << coords.x() << ", " << coords.y() << coords.z() << std::endl;
+      
+    }
+  }
+
+} // function printCoordinates
+
 int main ()
 {
 
@@ -49,10 +75,6 @@ int main ()
   
   MPI_Init(0,NULL);  // initilize MPI
   PCU_Comm_Init();   // initilize PUMI's communication
-
-  int myrank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
-  int peer_rank = 1 - myrank;  // only 2 processes
 
   // load mesh using null geometry
   gmi_register_null();
@@ -66,10 +88,34 @@ int main ()
   std::cout << "finished loading mesh" << std::endl;
   apf::reorderMdsMesh(m);
 
+  apf::FieldShape* fshape_orig = m->getShape();
+  std::cout << "fieldshape_orig name = " << fshape_orig->getName() << std::endl;
+//  int order_orig = fshape_orig->getOrder();
+
+
+  // see if coordinates were moved into tags
+  apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
+  std::cout << "coords_tag = " << coords_tag << std::endl;
+  apf::DynamicArray<apf::MeshTag*> tags;
+  m->getTags(tags);
+
+  for (unsigned int i=0; i < tags.getSize(); ++i)
+  {
+    std::cout << "tag " << i << " name = " << m->getTagName(tags[i]) << std::endl;
+  }
+
+  printCoordinates(m);
+/*
+  if (coords_tag != 0)
+  {
+    std::cout << "performing initial shape change" << std::endl;
+    apf::changeMeshShape(m, apf::getLagrange(order_orig), false);
+  }
+*/
 //  apf::FieldShape* fshape = apf::getSBPShape(1);
-  apf::FieldShape* fshape = apf::getLagrange(1);
-  apf::changeMeshShape(m, fshape, true);
-  std::cout << "finished changing mesh shape" << std::endl;
+//  apf::FieldShape* fshape = apf::getLagrange(1);
+//  apf::changeMeshShape(m, fshape, true);
+//  std::cout << "finished changing mesh shape" << std::endl;
 
 //  apf::writeASCIIVtkFiles("output_check", m);
   apf::writeVtkFiles("output_check", m);

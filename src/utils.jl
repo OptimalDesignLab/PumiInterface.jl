@@ -154,6 +154,7 @@ function calcVolume(mesh::PumiMesh3DG)
   end
 
   volume = MPI.Allreduce(volume, MPI.SUM, mesh.comm)
+  println(mesh.f, "volume = ", volume)
 
   return volume
 end
