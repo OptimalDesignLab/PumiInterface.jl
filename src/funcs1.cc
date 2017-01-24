@@ -218,22 +218,36 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
     meshloaded = true;  // record the fact that a mesh is now loaded
     apf::reorderMdsMesh(m);
 
+    int order_orig = m->getShape()->getOrder();
     bool change_shape;
     apf::FieldShape* fshape = getFieldShape(shape_type, order, dim, change_shape);
+    std::cout << "loaded mesh " << smb_name << std::endl;
+    std::cout << "order_orig = " << order_orig << std::endl;
+    std::cout << "requested shape type = " << shape_type << std::endl;
 
     // check if the coordinates have been moved into tags
     // this is a result of the mesh shape having been changed previously
     apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
     
-    if (coords_tag != 0 && change_shape)  // if the tag exists
+    // if the tag exists and if original shape is linear
+    // this is a workaround for old meshes where the coordinate field was
+    // not saved correctly.  Presumably they have linear fields only, so
+    // only force the tag data back into the regular field for linear meshes.
+    // For higher order meshes, keep the data.
+    if (coords_tag != 0 && order_orig == 1)
     {
       apf::changeMeshShape(m, apf::getLagrange(1), false);
-//      std::cout << "finished first mesh shape change" << std::endl;
+      std::cout << "finished first mesh shape change" << std::endl;
     }
     
+    if ( change_shape && order_orig > order)
+    {
+      std::cerr << "Warning: changing mesh coordinate field from " << order_orig << " to " << order << " will result in loss of resolution" << std::endl;
+    }
+
     if (change_shape)
     {
-//      std::cout << "about to perform final mesh shape change" << std::endl;
+      std::cout << "about to perform final mesh shape change" << std::endl;
       if ( order == 1 )
       {
         apf::changeMeshShape(m, fshape, true);
@@ -342,13 +356,20 @@ void destroyNumberings(int dim)
   }
  
 }
- 
+
+// this function defines the mapping from the shape_type integer to the
+// FieldShape itself
 apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_shape)
 {
 //  std::cout << "dimension " << dim << " mesh requests shape type " << shape_type << " of order " << order << std::endl;
   apf::FieldShape* fshape;
   if (dim == 2)
   {
+    if ( shape_type == -1)  // use existing
+    {
+      fshape = NULL;
+      change_shape = false;
+    }
     if ( shape_type == 0)  // use lagrange
     {
       fshape = apf::getLagrange(order);
@@ -373,6 +394,11 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     }
   } else if (dim == 3)
   {
+    if (shape_type == -1)
+    {
+      fshape = NULL;
+      change_shape = false;
+    }
     if (shape_type == 0) // use lagrange
     {
       fshape = apf::getLagrange(order);
@@ -1173,8 +1199,6 @@ int getElCoords(double coords[][3], int sx, int sy)
 
 int getElCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
 {
-//  std::cout << "Entered getElCoords" << std::endl;
-
   apf::Downward verts; // hold vertices
   int numDownward = m->getDownward(e, 0, verts); // populate verts
 //  std::cout << "entity e is of type " << m->getType(e) << std::endl;
@@ -1199,7 +1223,54 @@ int getElCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
   return 0;
 }
 
+// this function gets the coordinates of all nodes on a mesh entity (including
+// all verts, edges, faces, and regions) and puts them in the array coords
+// Coords should be a dim x numNodesPerElement (in the FieldShape of the
+// coordinate field).
+// The nodes are ordered the same as the downward adjacencies, from lowest
+// dimensions to highest (ie. verts, edges, faces, regions)
+void getAllEntityCoords(apf::Mesh* m, apf::MeshEntity* e, double* coords)
+{
 
+  apf::FieldShape* coordshape = m->getShape();
+  int max_dim = apf::Mesh::typeDimension[m->getType(e)];
+
+
+  int nentities=0;
+  apf::Downward down_entities;
+  apf::Vector3 coords_vec;
+  apf::MeshEntity* down_entity;
+
+  int idx=0;
+  for ( int dim=0; dim <= max_dim; ++dim)
+  {
+    if ( coordshape->hasNodesIn(dim) )
+    {
+      nentities = m->getDownward(e, dim, down_entities);
+      // loop over entities of current dimensions
+      for ( int entitynum=0; entitynum < nentities; entitynum++)
+      {
+        down_entity = down_entities[entitynum];
+        int entity_type = m->getType(down_entity);
+        int nnodes = coordshape->countNodesOn(entity_type);
+        // loop over nodes on current entity
+        for (int nodenum=0; nodenum < nnodes; nodenum++)
+        {
+          m->getPoint(down_entity, nodenum, coords_vec);
+          for (int i=0; i < max_dim; ++i)
+          {
+            coords[idx] = coords_vec[i];
+            idx++;
+          }  // end loop i
+        }  // end loop over nodes
+      }  // end loop over entities
+    } // end if nodes in this dimension
+  }   // end loop over dimensions
+}  // function getAllElementCoords
+
+
+//TODO: create a similar function to the above calling getNodeXi
+// look at apf.h for vertex xi coordinates
 
 
 // create a generally defined numbering from julia

@@ -251,6 +251,24 @@ facts("----- Testing PdePumiInterface3DG -----") do
   end
 
 
+  for order=1:2
+    fshape = getFieldShape(0, order, 3)
+    eshape = getEntityShape(fshape, apfTET)  # triangle
+    nodexi = PdePumiInterface.getXiCoords(order, 3)
+    numnodes = size(nodexi, 2)
+    for i=1:numnodes
+      vals = getValues(eshape, nodexi[:, i], numnodes)
+      for j=1:numnodes
+        if i == j
+          @fact abs(vals[j] - 1) --> less_than(1e-12)
+        else
+          @fact abs(vals[j]) --> less_than(1e-12)
+        end  # end if else
+      end   # end loop j
+    end  # end loop i
+
+  end  # end loop order
+
 
 
 

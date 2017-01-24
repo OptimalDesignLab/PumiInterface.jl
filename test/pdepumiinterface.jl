@@ -211,6 +211,26 @@ facts("--- Testing PdePumiInterface --- ") do
   @fact nedges_interior --> 2*(mesh.numEdge - mesh.numBoundaryFaces)
 
 
+  # test getNodeXi
+  if order <= 2
+    fshape = getFieldShape(0, order, 2)
+    eshape = getEntityShape(fshape, 2)  # triangle
+    nodexi = PdePumiInterface.getXiCoords(order, 2)
+    numnodes = size(nodexi, 2)
+    for i=1:numnodes
+      vals = getValues(eshape, nodexi[:, i], numnodes)
+      for j=1:numnodes
+        if i == j
+          @fact abs(vals[j] - 1) --> less_than(1e-12)
+        else
+          @fact abs(vals[j]) --> less_than(1e-12)
+        end  # end if else
+      end   # end loop j
+    end  # end loop i
+  end  # end if p < 2
+
+
+
 
   end  # end loop over p=1:4
 

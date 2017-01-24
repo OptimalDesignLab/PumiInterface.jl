@@ -387,9 +387,9 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   field_shape_type = 0 # integer to indicate the FieldShape of the nodes
   mesh_order = order  # order of the coordinate field
   if shape_type == 2 || shape_type == 3
-    coord_shape_type = 0  # lagrange
+    coord_shape_type = -1  # lagrange
     field_shape_type = shape_type
-    mesh_order = 1
+    mesh_order = 1  # TODO: change this to an input-output parameter
   else  # same coordinate, field shape
     coord_shape_type = shape_type
     field_shape_type = shape_type
@@ -434,6 +434,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     pos += mesh.numTypePerElement[i-1]*mesh.numNodesPerType[i-1]
     mesh.typeOffsetsPerElement[i] = pos
   end
+  mesh.numNodesPerType, mesh.typeOffsetsPerElement = getNodeInfo(mesh.mshape_ptr, mesh.dim, mesh.numTypePerElement)
   mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
   mesh. numNodesPerElement = mesh.typeOffsetsPerElement[end] - 1
