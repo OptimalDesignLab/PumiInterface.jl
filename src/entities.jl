@@ -1,4 +1,48 @@
 # functions for gathering MeshEntity*s 
+"""
+  This function calculates the numNodesPerType and typeOffsetsPerElement arrays
+  and returns them
+
+  Inputs:
+    fshape: a FieldShape*
+    dim: the dimensionality of the mesh (2 or 3)
+    numTypePerElement: number of each dimension entity per element (see
+                       interfaces.md)
+
+    Outputs:
+      numNodesPerType: array of length 3 or 4 (2d or 3d), containing the number
+                       of nodes on each vert, edge, face (or region).
+
+      typeOffsetsPerElement: array of length dim + 2 containing the index of 
+                             the first node of each type.  The last element
+                             is one more than the number of nodes
+
+"""
+function getNodeInfo{I <: Integer}(fshape::Ptr{Void}, dim::Integer, numTypePerElement::Array{I, 1})
+
+  num_nodes_v = countNodesOn(fshape, 0)  # number of nodes on a vertex
+  num_nodes_e = countNodesOn(fshape, 1) # on edge
+  num_nodes_f = countNodesOn(fshape, 2) # on face
+
+  if dim == 3
+    num_nodes_r = countNodesOn(fshape, apfTET)  # on region
+    numNodesPerType = [num_nodes_v, num_nodes_e, num_nodes_f, num_nodes_r]
+  else
+    numNodesPerType = [num_nodes_v, num_nodes_e, num_nodes_f]
+  end
+  # count numbers of different things per other thing
+  # use for bookkeeping
+  typeOffsetsPerElement = zeros(Int, dim+2)
+  pos = 1
+  typeOffsetsPerElement[1] = pos
+  for i=2:(dim + 2)
+    pos += numTypePerElement[i-1]*numNodesPerType[i-1]
+    typeOffsetsPerElement[i] = pos
+  end
+
+  return numNodesPerType, typeOffsetsPerElement
+end
+
 
 # can be generalized trivially
 function getBoundaryElements(mesh::PumiMeshDG2, bndry_edges::AbstractArray{Int, 1})
@@ -141,13 +185,13 @@ function getCoordinatesAndMetrics(mesh::PumiMeshDG, sbp::AbstractSBP)
 
   #println("entered getCoordinates")
   numVertsPerElement = mesh.numTypePerElement[1]
-  coords_i = zeros(3,numVertsPerElement)
+  coords_i = zeros(mesh.dim ,numVertsPerElement)
   coords_it = zeros(numVertsPerElement, mesh.dim)
   for i=1:mesh.numEl  # loop over elements
     
     el_i = mesh.elements[i]
-    getElementCoords(mesh, el_i, coords_i)
-    mesh.vert_coords[:, :, i] = coords_i[1:mesh.dim, :]
+    getAllEntityCoords(mesh.m_ptr, el_i, coords_i)
+    mesh.vert_coords[:, :, i] = coords_i[:, :]
     coords_it[:,:] = coords_i[1:mesh.dim, :].'
     mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
   end
@@ -187,7 +231,6 @@ coords_it = zeros(numVertsPerElement, mesh.dim)
 for i=1:mesh.numEl  # loop over elements
   el_i = mesh.elements[i]
   getElementCoords(mesh, el_i, coords_i)
-
 
   coords_it[:,:] = coords_i[1:mesh.dim, :].'
   mesh.coords[:, :, i] = calcnodes(sbp, coords_it)

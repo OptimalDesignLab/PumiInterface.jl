@@ -211,3 +211,59 @@ function transferFieldToSubmesh(mesh::AbstractMesh, u, mnew_ptr=mesh.mnew_ptr,
 
   return nothing
 end
+
+"""
+  This function gets the xi coordinates of the nodes of a lagrangian element
+  in order verts, edges, faces, regions
+
+  Inputs:
+    order: order of the element
+    dim: dimensionality of the mesh (2d or 3d)
+
+  Outputs:
+    node_xi: a dim x numnodes array containing the xi coordinates of each node
+
+  Note that this follows the Pumi convention that the reference element is 
+  a right triangle with the right angle in the lower left corner.  Barycentric
+  coordinates are used and span from 0 to 1.  The right angle corner has
+  coordinate xi3, the next corner counter-clowckwise is xi1, and the next is
+  xi2.  The array contains xi1 and xi2 along the first dimension.  However,
+  the ordering of the vertices is counter-clockwise from the bottom left, 
+  ie. the 1st vertex has coordinate xi3.  This is rather confusing and the
+  source of many problems.
+
+  The easiest way to see the Pumi convention is to look at the shape functions
+  for the lagrangian elements in apfShape.cc
+"""
+function getXiCoords(order::Integer, dim::Integer)
+
+  # TODO: write test
+  # idea: verify that shape function i is == 1 at node i, all others zero
+  if dim == 2
+    if order == 1
+      xicoords = [0. 1 0;
+                  0 0 1]
+    elseif order == 2
+      xicoords = [0. 1 0 0.5 0.5 0.0;
+                  0 0 1 0.0 0.5 0.5]
+    else
+      throw(ErrorException("unsupported order $order for dimension $dim"))
+    end
+  elseif dim == 3
+    if order == 1
+      xicoords = [0. 1 0 0;
+                  0 0 1 0;
+                  0  0 0 1]
+    elseif order == 2
+      xicoords = [0. 1 0 0 0.5 0.5 0.0 0.0 0.5 0.0;
+                  0 0 1 0 0.0 0.5 0.5 0.0 0.0 0.5;
+                  0 0 0 1 0.0 0.0 0.0 0.5 0.5 0.5]
+    else
+      throw(ErrorException("unsupported order $order for dimension $dim"))
+    end
+  else
+    throw(ErrorException("unsupported dimension $dim"))
+  end
+
+
+end

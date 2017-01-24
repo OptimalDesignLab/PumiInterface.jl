@@ -156,6 +156,7 @@ extern int getEdgeCoords2(apf::MeshEntity* e, double coords[2][3], int sx, int s
 int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);
 
 
+void getAllEntityCoords(apf::Mesh* m, apf::MeshEntity* e, double* coords);
 
 // these function pass pointers
 // create a generally defined numbering from julia
