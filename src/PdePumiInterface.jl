@@ -399,6 +399,13 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   mesh.dofnums_Nptr = createNumberingJ(mesh.m_ptr, "reordered dof numbers", 
                       mesh.mshape_ptr, dofpernode)
 
+  println("about to get entity pointers")
+  mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
+  println("finished getting entity pointers")
+  # TODO: check for dangling elements
+  checkConnectivity(mesh)
+
+
   # populate node status numbering
   populateNodeStatus(mesh)
 
@@ -425,7 +432,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
  
 
   # get entity pointers
-  mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
   mesh.element_vertnums = getElementVertMap(mesh)
 
   mesh.numBC = opts["numBC"]
@@ -656,7 +662,7 @@ include("sparsity.jl")
 include("utils.jl")
 include("visualization.jl")
 include("warp.jl")
-
+include("verify.jl")
 
 
 function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts; 
