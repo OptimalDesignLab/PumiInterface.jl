@@ -157,6 +157,15 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   nodemapSbpToPumi::Array{UInt8, 1}  # maps nodes of SBP to Pumi order
   nodemapPumiToSbp::Array{UInt8, 1}  # maps nodes of Pumi to SBP order
 
+  # minimal bookkeeping info for coordinate field
+  coord_order::Int
+  coord_numNodesPerElement::Int
+  coord_numNodesPerType::Array{Int, 1}
+  coord_typeOffsetsPerElement::Array{Int, 1}
+  coord_xi::Array{Float64, 2}  # xi coordinates of nodes on reference element
+                                # in the Pumi order
+                                # dim x coords_numNodesPerElement
+ 
   # constants needed by Pumi
   el_type::Int  # apf::Type for the elements of the mesh
   face_type::Int # apf::Type for the faces of the mesh
@@ -428,6 +437,13 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh.numNodesPerType, mesh.typeOffsetsPerElement = getNodeInfo(mesh.mshape_ptr, mesh.dim, mesh.numTypePerElement)
 >>>>>>> add high order coordinate an parametric coordinate functions
   mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
+
+  # get coordinate field info
+  mesh.coord_numNodesPerType, mesh.coord_typeOffsetsPerElement = getNodeInfo(mesh.coordshape_ptr, mesh.dim, mesh.numTypePerElement)
+  mesh.coord_numNodesPerElement = mesh.coord_typeOffsetsPerElement[end] - 1
+  mesh.coord_order = getOrder(mesh.coordshape_ptr)
+  mesh.coord_xi = getXiCoords(mesh.coord_order, mesh.dim)
+
 
   mesh. numNodesPerElement = mesh.typeOffsetsPerElement[end] - 1
   numnodes = mesh.numNodesPerElement*mesh.numEl
