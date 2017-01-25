@@ -151,9 +151,9 @@ end
 function allocateCoordinateAndMetricArrays{Tmsh}(mesh::PumiMeshDG{Tmsh}, 
                                                  sbp::AbstractSBP)
 
-  nvert_per_el = mesh.numTypePerElement[1]
+  num_coord_nodes = mesh.coord_numNodesPerElement
   mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
-  mesh.vert_coords = Array(Float64, mesh.dim, nvert_per_el, mesh.numEl)
+  mesh.vert_coords = Array(Float64, mesh.dim, num_coord_nodes, mesh.numEl)
   mesh.dxidx = Array(Tmsh, mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
   mesh.jac = Array(Tmsh, sbp.numnodes, mesh.numEl)
 
@@ -182,6 +182,7 @@ function getCoordinatesAndMetrics(mesh::PumiMeshDG, sbp::AbstractSBP)
   nvert_per_el = mesh.numTypePerElement[1]
   @assert size(mesh.coords) == (mesh.dim, sbp.numnodes, mesh.numEl)
   @assert size(mesh.vert_coords) == (mesh.dim, nvert_per_el, mesh.numEl)
+  @assert mesh.coord_order == 1
 
   #println("entered getCoordinates")
   numVertsPerElement = mesh.numTypePerElement[1]
