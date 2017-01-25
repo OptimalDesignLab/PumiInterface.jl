@@ -17,7 +17,99 @@ function getBoundaryArray(mesh::PumiMesh, boundary_nums::AbstractArray{Int, 2})
   return nothing
 end
 
+"""
+  This function allocates the arrays of normal vector for interfaces, boundary
+  faces, and shared faces.
 
+  For interfaces, the normal is calculated for elementL
+"""
+function allocateNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
+
+  dim = mesh.dim
+  numfacenodes = sbp.numfacenodes
+  mesh.nrm_bndry = Array(Tmsh, dim, numfacenodes, mesh.numBoundaryFaces )
+
+
+  mesh.nrm_face = Array(Tmsh, mesh.dim, numfacenodes, mesh.numInterfaces)
+  mesh.nrm_sharedface = Array(Array{Tmsh, 3}, mesh.npeers)
+  for i=1:mesh.npeers
+    mesh.nrm_sharedface[i] = Array(Tmsh, mesh.dim, numfacenodes.mesh.peer_face_counts[i])
+  end
+
+  return nothing
+end
+
+
+"""
+  This function calculates the face normal vectors for all interfaces, 
+  boundary faces, and shared faces.  A smart allocator is used to allocate
+  the arrays if needed.
+
+  The interpolated dxidx arrays must be populated before this function is
+  called.
+
+  Inputs:
+    mesh: a PumiMeshdG
+    sbp: an SBP operator
+"""
+function getFaceNormals(mesh::PumiMeshDG, sbp)
+
+  if !isFieldDefined(mesh, :nrm_bndry, :nrm_face, :nrm_sharedface)
+    allocateNormals(mesh, sbp)
+  end
+
+  calcFaceNormal(mesh, sbp, mesh.bndryfaces, mesh.dxidx_bndry, mesh.nrm_bndry)
+  calcFaceNormal(mesh, sbp, mesh.interfaces, mesh.dxidx_face, mesh.nrm_face)
+  for i=1:mesh.npeers
+    calcFaceNormal(mesh, sbp, mesh.bndries_local[i], mesh.dxidx_sharedface[i],
+                   mesh.nrm_sharedface[i])
+  end
+
+  return nothing
+end
+
+
+
+"""
+  This function calculates the face normal for a set of faces given the
+  dxidx values for each face node and the facenormal in parametric space
+
+  Inputs:
+    mesh: a DG mesh
+    sbp: an SBP operator containing the face normals in parametric space
+    faces: list of Interfaces or Boundaries, should be dim x numFacesPerElement
+    dxidx: d(xi)/d(x) at the face nodes, should be dim x dim x numfaceNodes x 
+           length(faces)
+
+  Inputs/Outputs:
+    nrm: array, dim x numfacenodes x length(faces) containing the face normal
+         vector in x-y space at each face node of each face
+
+  Aliasing restrictions: none
+"""
+function calcFaceNormal{Tmsh, Tbndry <: Union{Boundary, Interface}}(mesh::PumiMeshDG, sbp, faces::AbstractArray{Tbndry, 1}, dxidx::AbstractArray{Tmsh, 4}, nrm::AbstractArray{Tmsh, 3})
+
+  nfaces = length(faces)
+  dim = mesh.dim
+  for i=1:nfaces
+    faceL = getFaceL(faces[i])
+#    faceL = faces[i].faceL
+
+    for j=1:sbp.numfacenodes
+      nrm_j = sview(nrm, :, j, i)
+      for dim=1:dim
+        nrm_d = zero(Tmsh)
+        for d=1:dim
+          nrm_d += sbpface.normal[d, faceL]*dxidx[d, dim, j, i]
+        end  # end loop d
+        nrm_j[dim] = nrm_d
+      end  # end loop dim
+    end  # end loop j
+
+  end  # end loop i
+
+  return nothing
+end
 
 # deprecated
 function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2D, sbp::AbstractSBP, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
