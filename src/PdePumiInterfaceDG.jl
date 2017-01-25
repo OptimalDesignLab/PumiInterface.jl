@@ -234,8 +234,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 #  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
 
   bndry_funcs::Array{BCType, 1}  # array of boundary functors (Abstract type)
-  bndry_normals::Array{T1, 3}  # array of normals to each face on the boundary
-#  bndry_facenums::Array{Array{Int, 1}, 1}  # hold array of faces corresponding to each boundary condition
   bndry_offsets::Array{Int, 1}  # location in bndryfaces where new type of BC 
                                 # starts
                                 # and one past the end of the last BC type
@@ -249,8 +247,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   bndryfaces::Array{Boundary, 1}  # store data on external boundary of mesh
   interfaces::Array{Interface, 1}  # store data on internal edges
-  interface_normals::Array{T1, 4}  # array of interior face normals, 
-                                   # indexing: [norm_component, Left or right, left face node, left face element]
 
   vert_coords::Array{T1, 3}  # dim x numVertsPerElement x numEl array of 
                              # coordinates of vertices of each element
@@ -276,6 +272,17 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   jac_bndry::Array{T1, 2} # store jacobian determinant at boundry nodes
                           # similar to jac_bndry
+
+  nrm_bndry::Array{T1, 3}  # dim x numfacenodes x numBoundaryFaces array holding
+                           # normal vector in x-y to each face node  on the boundary
+
+  nrm_face::Array{T1, 3}  # dim x numfacenodes x numInterfaces array holding
+                          # normal vector to each face node on elementL of an
+                          # interface
+  nrm_sharedface::Array{Array{T1, 3}, 1}  # array of arrays.  Outer array is of
+                          # lench npeers.  Inner arrays are of size dim x
+                          # numfacenodes x number of faces shared with current
+                          # peer
 
   dof_offset::Int  # local to global offset for dofs
   dofs::Array{Int, 3}  # store dof numbers of solution array to speed assembly
@@ -653,23 +660,23 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   getInterfaceArray(mesh)
   sort!(mesh.interfaces)
 
+  if mesh.coord_order == 1
   getCoordinatesAndMetrics(mesh, sbp)  # store coordinates of all nodes into array
-
-  mesh.min_el_size = getMinElementSize(mesh)
-  mesh.volume = calcVolume(mesh)
-
-  # get face normals
-  mesh.bndry_normals = Array(T1, 0, 0, 0)
-#  mesh.bndry_normals = Array(T1, 2, sbp.numfacenodes, mesh.numBoundaryFaces)
-#  getBoundaryFaceNormals(mesh, sbp, mesh.bndryfaces, mesh.bndry_normals)
-
-  mesh.interface_normals = Array(T1, 0, 0, 0, 0)
-#  mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
-#  getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   if mesh.isInterpolated
     interpolateCoordinatesAndMetrics(mesh)
   end
+
+    getFaceNormals(mesh, sbp)
+  else  # curvilinear
+    # do other things
+    throw(ErrorException("curvilinear meshes not yet supported"))
+
+  end
+
+  mesh.min_el_size = getMinElementSize(mesh)
+  mesh.volume = calcVolume(mesh)
+
 
   createSubtriangulatedMesh(mesh, opts)
 
