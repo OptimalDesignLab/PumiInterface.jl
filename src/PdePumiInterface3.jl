@@ -122,8 +122,8 @@ type PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron only
   end
 
   # use partially constructed mesh object to populate arrays
+  checkConnectivity(mesh)
 
-  
 #  numberDofs(mesh)
 
   countBoundaryFaces(mesh)

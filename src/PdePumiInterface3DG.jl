@@ -408,6 +408,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh.el_type = apfTET
   mesh.face_type = apfTRIANGLE
 
+
   num_nodes_v = countNodesOn(mesh.mshape_ptr, 0)  # number of nodes on a vertex
   num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
   num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
@@ -456,6 +457,12 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh.dofnums_Nptr = createNumberingJ(mesh.m_ptr, "reordered dof numbers", 
                       mesh.mshape_ptr, dofpernode)
 
+  # get entity pointers
+#  println("about to get entity pointers")
+  mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
+
+  checkConnectivity(mesh)
+
   # populate node status numbering
   populateNodeStatus(mesh)
 
@@ -486,10 +493,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   populateDofNumbers(mesh)
 #  println("finished numbering dofs")
  
-
-  # get entity pointers
-#  println("about to get entity pointers")
-  mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
 
   mesh.element_vertnums = getElementVertMap(mesh)
 #  println("finished getting entity pointers")
