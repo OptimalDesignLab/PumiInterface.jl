@@ -221,10 +221,6 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
     int order_orig = m->getShape()->getOrder();
     bool change_shape;
     apf::FieldShape* fshape = getFieldShape(shape_type, order, dim, change_shape);
-    std::cout << "loaded mesh " << smb_name << std::endl;
-    std::cout << "order_orig = " << order_orig << std::endl;
-    std::cout << "requested shape type = " << shape_type << std::endl;
-
     // check if the coordinates have been moved into tags
     // this is a result of the mesh shape having been changed previously
     apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
@@ -831,6 +827,11 @@ int countNodesOn(apf::FieldShape* fshape_local, int type)
 apf::EntityShape* getEntityShape(apf::FieldShape* mshape_local, int type)
 {
   return mshape_local->getEntityShape(type);
+}
+
+int getOrder(apf::FieldShape* fshape)
+{
+  return fshape->getOrder();
 }
 
 

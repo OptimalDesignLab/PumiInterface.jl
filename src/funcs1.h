@@ -127,6 +127,7 @@ void getAlignment(apf::Mesh* m_local, apf::MeshEntity* elem, apf::MeshEntity* bo
 bool hasNodesIn(apf::FieldShape* fshape_local, int dimension);
 extern int countNodesOn(apf::FieldShape* mshape_ptr, int type);
 extern apf::EntityShape* getEntityShape(apf::FieldShape* mshape_local, int type);
+int getOrder(apf::FieldShape* fshape);
 
 // MeshElement related functions
 extern apf::MeshElement* createMeshElement( apf::Mesh2* m_local, apf::MeshEntity* e);
