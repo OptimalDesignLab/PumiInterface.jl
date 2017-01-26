@@ -26,14 +26,14 @@ end
 function allocateNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
 
   dim = mesh.dim
-  numfacenodes = sbp.numfacenodes
+  numfacenodes = mesh.numNodesPerFace
   mesh.nrm_bndry = Array(Tmsh, dim, numfacenodes, mesh.numBoundaryFaces )
 
 
   mesh.nrm_face = Array(Tmsh, mesh.dim, numfacenodes, mesh.numInterfaces)
   mesh.nrm_sharedface = Array(Array{Tmsh, 3}, mesh.npeers)
   for i=1:mesh.npeers
-    mesh.nrm_sharedface[i] = Array(Tmsh, mesh.dim, numfacenodes.mesh.peer_face_counts[i])
+    mesh.nrm_sharedface[i] = Array(Tmsh, mesh.dim, numfacenodes, mesh.peer_face_counts[i])
   end
 
   return nothing
@@ -90,19 +90,17 @@ end
 function calcFaceNormal{Tmsh, Tbndry <: Union{Boundary, Interface}}(mesh::PumiMeshDG, sbp, faces::AbstractArray{Tbndry, 1}, dxidx::AbstractArray{Tmsh, 4}, nrm::AbstractArray{Tmsh, 3})
 
   nfaces = length(faces)
-  dim = mesh.dim
+  Tdim = mesh.dim
   for i=1:nfaces
     faceL = getFaceL(faces[i])
-#    faceL = faces[i].faceL
 
-    for j=1:sbp.numfacenodes
-      nrm_j = sview(nrm, :, j, i)
-      for dim=1:dim
+    for j=1:mesh.numNodesPerFace
+      for dim=1:Tdim
         nrm_d = zero(Tmsh)
-        for d=1:dim
-          nrm_d += sbpface.normal[d, faceL]*dxidx[d, dim, j, i]
+        for d=1:Tdim
+          nrm_d += mesh.sbpface.normal[d, faceL]*dxidx[d, dim, j, i]
         end  # end loop d
-        nrm_j[dim] = nrm_d
+        nrm[dim, j, i] = nrm_d
       end  # end loop dim
     end  # end loop j
 
