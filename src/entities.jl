@@ -149,7 +149,7 @@ end
   the mesh vertex coordinates and assigns them to the corresponding field of
   the mesh object.
 """
-function allocateCoordinatArrays{Tmsh}(mesh::PumiMeshDG{Tmsh}, 
+function allocateCoordinateArrays{Tmsh}(mesh::PumiMeshDG{Tmsh}, 
                                                  sbp::AbstractSBP)
 
   num_coord_nodes = mesh.coord_numNodesPerElement
