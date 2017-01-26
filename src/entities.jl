@@ -146,37 +146,50 @@ end
 
 """
   This function allocates the arrays that store the mesh node coordinates,
-  the mesh vertex coordinates, and the dxidx and jac arrays.
+  the mesh vertex coordinates and assigns them to the corresponding field of
+  the mesh object.
 """
-function allocateCoordinateAndMetricArrays{Tmsh}(mesh::PumiMeshDG{Tmsh}, 
+function allocateCoordinatArrays{Tmsh}(mesh::PumiMeshDG{Tmsh}, 
                                                  sbp::AbstractSBP)
 
   num_coord_nodes = mesh.coord_numNodesPerElement
   mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
   mesh.vert_coords = Array(Float64, mesh.dim, num_coord_nodes, mesh.numEl)
+
+  return nothing
+end
+
+"""
+  This function allocates the arrays that store the dxidx and jac and
+  assigns them to the corresponding field of the mesh object.
+"""
+function allocateMetricsArrays{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
+
   mesh.dxidx = Array(Tmsh, mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
   mesh.jac = Array(Tmsh, sbp.numnodes, mesh.numEl)
 
   return nothing
 end
 
+
 """
-  This function gets the coordinates and the mesh nodes and the dxidx
-  and jac values for the nodes.  It uses a smart allocator to allocate
+  This function gets the coordinates of both the mesh coordinate field and the
+  node field and stores them into the member fields of the mesh object.  
+  It uses a smart allocator to allocate
   these arrays needed, or avoid doing so if they have already been allocated.
-  See allocateCoordinateAndMetricArrays for which arrays are populated by
-  this function
+  See allocateCoordinateArrays for which arrays are populated by
+  this function.  Non curvilinear meshes only.
 """
 #TODO: stop using slice notation
 # can be generalized with numVertsPerElement
-function getCoordinatesAndMetrics(mesh::PumiMeshDG, sbp::AbstractSBP)
+function getCoordinates(mesh::PumiMeshDG, sbp::AbstractSBP)
 # populate the coords array of the mesh object
 
 #  mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
 #  mesh.vert_coords = Array(Float64, mesh.dim, nvert_per_el, mesh.numEl)
 
-  if !isFieldDefined(mesh, :coords, :vert_coords, :dxidx, :jac)
-    allocateCoordinateAndMetricArrays(mesh, sbp)
+  if !isFieldDefined(mesh, :coords, :vert_coords)
+    allocateCoordinateArrays(mesh, sbp)
   end
 
   nvert_per_el = mesh.numTypePerElement[1]
@@ -197,12 +210,65 @@ function getCoordinatesAndMetrics(mesh::PumiMeshDG, sbp::AbstractSBP)
     mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
   end
 
-  mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
-
-
   return nothing
 
 end
+
+"""
+  This function calculates the dxidx and jac values for the entire mesh.  It
+  uses a smart allocator to allocate the arrays if needed.  Non-curvilinear
+  meshes only.
+"""
+function getMetrics(mesh::PumiMeshDG, sbp::AbstractSBP)
+
+  if !isFieldDefined(mesh, :jac, :dxidx)
+    allocateMetricsArrays(mesh, sbp)
+  end
+
+  mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+
+  return nothing
+end
+
+"""
+  This function calculates the fields of the mesh that hold coordinates of the
+  face nodes for boundaries, interfaces, and sharedfaces.  This function uses
+  smart allocators to allocate the arrays if needed
+"""
+function getFaceCoordinatesAndNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
+
+  # do boundary faces
+  # do interfaces
+  # to shared faces
+
+  return nothing
+end
+
+function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
+                    mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP,
+                    faces::AbstractArray{I, 1}, 
+                    coords_face::AbstractArray{Tmsh, 3}, 
+                    nrm_face::AbstractArray{Tmsh, 3})
+
+  #TODO: do this in a block format to avoid a temporary array of size O(numEl)
+
+  nfaces = length(faces)
+  numNodesPerElement = mesh.coord_numNodesPerElement
+  numNodesPerFace = mesh.coords_numNodesPerType[mesh.dim]
+
+  for i=1:nfaces
+    el_i = getElementL(faces[i])
+    face_i = getFaceL(faces[i])
+
+    # get the MeshEntity* for the face
+
+    # 
+  end
+
+  return nothing
+end
+
+    
 
 function getElementCoords(mesh::PumiMesh2D, entity::Ptr{Void}, coords::AbstractMatrix)
   # coords must be 3 x numVertsPerElement
@@ -247,6 +313,18 @@ return nothing
 end
 
 
+"""
+  Populates the input array with the coordinates of the nodes on list of
+  boundary faces.  Non-curvilinear meshes only.
+
+  Inputs:
+    mesh: a mesh object
+    bndryfaces: an array of Boundary objects to calculate the coordinates of
+
+  Inputs/Outputs:
+    coords_bndry: an array dim x numfacenodes x length(bndryfaces) to populate
+                  with the coordinates of the nodes on the faces
+"""
 function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh}, 
                              bndryfaces::Array{Boundary}, 
                              coords_bndry::Array{Tmsh, 3})

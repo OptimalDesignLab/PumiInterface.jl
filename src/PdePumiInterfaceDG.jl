@@ -661,7 +661,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   sort!(mesh.interfaces)
 
   if mesh.coord_order == 1
-  getCoordinatesAndMetrics(mesh, sbp)  # store coordinates of all nodes into array
+    getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
+    getMetrics(mesh, sbp)
 
   if mesh.isInterpolated
     interpolateCoordinatesAndMetrics(mesh)

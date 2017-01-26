@@ -43,7 +43,7 @@ end
 """
   This function calculates the face normal vectors for all interfaces, 
   boundary faces, and shared faces.  A smart allocator is used to allocate
-  the arrays if needed.
+  the arrays if needed.  Non curvilinear meshes only.
 
   The interpolated dxidx arrays must be populated before this function is
   called.
