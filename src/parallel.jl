@@ -8,6 +8,21 @@ global const Max_Vert_Matches = [0, 4, 8]
 global const Max_Vert_Remotes = 1  # maximum number of remotes a vertex can have
                                    # on any single process
 
+### Some Exposition about Pumi
+# Pumi has 2 ways of describing relationships between meshentities of the
+# same type: matches and remotes.  Matches are used to implement periodic
+# boundary conditions and represent two entities that are logically the same
+# entity but have different coordinates.  Remotes are used to implement
+# ghosting of entities in parallel, and represent the same entity on two
+# different processes (APF Parts).
+# On top of the matches and remotes machinery is built the apf::Sharing
+# machinery.  By default, the apf::Sharing object returns he union of 
+# the matches and the remotes for a given MeshEntity (although I think it is
+# possible to construct a Sharing object that only returns one or the other)
+# The functions below use the Sharing object so both matches and remotes are
+# accounted for.  The only consideration is that matches, unlike remotes, 
+# could reside on the same Part as the original MeshEntity.
+
 function getParallelInfo(mesh::PumiMeshDG)
 # get information on number of shared entities
 # TODO: consider making array of all mesh faces that are shared and iterating
@@ -486,6 +501,196 @@ function getLocalAdjacency(mesh::PumiMeshDG)
 
   return adj_dict, revadj
 end
+
+
+function getVertexParallelInfo(mesh::PumiMeshDG)
+# get lists of shared vertices in a mutually agreed order
+# this will enable sending data back and forth
+
+  println(mesh.f, "entered getVertexParallelInfo")
+  myrank = mesh.myrank
+  npeers = countPeers(mesh.m_ptr, 0)  # count vertex peers
+  peer_nums = zeros(Cint, npeers)
+  getPeers(mesh.m_ptr, peer_nums)  # get the identifiers of the peers
+  # storage for all shares of a vertex
+  partnums = zeros(Cint, 400 + Max_Vert_Matches[mesh.dim])
+  remotes = Array(Ptr{Void}, 400 + Max_Vert_Matches[mesh.dim])
+  counts = zeros(Int, npeers)  # count number of verts shared with each peer
+
+  for i=1:mesh.numVert
+    vert = mesh.verts[i]
+    nshares = countCopies(mesh.shr_ptr, vert)
+    if nshares > 0
+      @assert nshares < (400 + Max_Vert_Matches[mesh.dim])
+      getCopies(partnums, remotes)
+
+      for j=1:nshares
+        if partnums[j] == myrank  # this is not shared with another part, ignore
+          continue
+        end
+
+        part_idx = getElIndex(peer_nums, partnums[j])
+        if part_idx == 0  # this part has not been seen before and it was not
+                          # on the list from getPeers(), so it must be
+                          # a periodic share
+
+          push!(peer_nums, partnums[j])
+          push!(counts, 1)
+          npeers += 1
+        else  # part has been seen before
+          counts[part_idx] += 1
+        end
+      end  # end loop j
+    end  # end if nshares > 0
+  end  # end loop i
+
+  println(mesh.f, "peer_nums = ", peer_nums)
+  println(mesh.f, "counts = ", counts)
+  flush(mesh.f)
+
+  # now we know how many vertices are shared with whom
+  # allocate arrays of the right size
+  verts_local = Array(Array{Ptr{Void}, 1}, npeers)  # local pointers to shared
+                                                    # verts
+  verts_remote = Array(Array{Ptr{Void}, 1}, npeers) # remote pointers to shared
+                                                    # verts
+  println(mesh.f, "initially")
+  for i=1:npeers
+    verts_local[i] = Array(Ptr{Void}, counts[i])
+    println(mesh.f, "vert_local ", i, " = \n", verts_local[i])
+    #TODO: dont allocate unneeded arrays in verts_remote
+    verts_remote[i] = Array(Ptr{Void}, counts[i])
+  end
+  curr_pos = ones(Int, npeers)  # current position in each array inside
+                                # verts_local
+#  verts_remotes = Array(Array{Ptr{Void}, 1}, npeers)
+  for i=1:npeers
+    println(mesh.f, "peer ", i)
+    for j=1:mesh.numVert
+      vert_j = mesh.verts[j]
+      nshares = countCopies(mesh.shr_ptr, vert_j)
+      println(mesh.f, "nshares = ", nshares)
+      if nshares > 0
+        getCopies(partnums, remotes)
+        println(mesh.f, "partnums = ", partnums[1:nshares])
+        println(mesh.f, "remotes = ", remotes[1:nshares])
+        for k=1:nshares
+          peer_k = partnums[k]
+          vert_k = remotes[k]
+          # if my rank is greater add the remote pointer to the list
+          if myrank > peer_k
+            peer_idx = getElIndex(peer_nums, peer_k)
+            println(mesh.f, "adding remote vertex ", vert_k, " to position ", curr_pos[peer_idx])
+            println(mesh.f, "adding local verts ", vert_j, " to position ", curr_pos[peer_idx])
+            verts_local[peer_idx][curr_pos[peer_idx]] = vert_j
+            verts_remote[peer_idx][curr_pos[peer_idx]] = vert_k
+            curr_pos[peer_idx] += 1
+          end
+        end  # end loop j
+      end  # end if nshares > 0
+    end  # end loop j
+  end  # end loop i
+
+  println(mesh.f, "\nafter getting remote pointers, vert_remote =\n", verts_remote[1])
+  println(mesh.f, "local pointers = \n", verts_local[1])
+  flush(mesh.f)
+  # hold the MPI.Requests for the send/recive
+  # either process either sends or receives to each peer, so store all
+  # send and receive requests in the same array
+  all_reqs = Array(MPI.Request, npeers)
+
+  # tell MPI the Ptr{Voids} are really Ints
+  dtype = MPI.mpitype(Int)
+  MPI.mpitype_dict[Ptr{Void}] = dtype
+
+  for i=1:npeers
+    peernum = peer_nums[i]
+
+    # send the remote verts pointers to lower process numbers
+    # recieve the data into verts_local, which wasn't populated for
+    # lower process numbers
+    if myrank > peernum
+      all_reqs[i] = MPI.Isend(verts_remote[i], peernum, 1, mesh.comm)
+    else
+      all_reqs[i] = MPI.Irecv!(verts_local[i], peernum, 1, mesh.comm)
+    end
+  end
+
+  # wait for the receives to finish
+  for i=1:npeers
+    peernum = peer_nums[i]
+    if myrank < peernum
+      MPI.Wait!(all_reqs[i])
+    end
+  end
+
+  println(mesh.f, "\nafter receives, verts_local 1 = \n", verts_local[1])
+
+  vert_nums, rev_mapping = getVertReverseMapping(mesh, peer_nums, counts, verts_local)
+
+  vshare = VertSharing(npeers, peer_nums, counts, vert_nums, rev_mapping)
+
+  # wait for all sends to finish before exiting
+  for i=1:npeers
+    if myrank > peer_nums[i]
+      MPI.Wait!(all_reqs[i])
+    end
+  end
+
+  # delete the dangerous Ptr{Void} -> Int MPI type
+  delete!(MPI.mpitype_dict, Ptr{Void})
+
+  return vshare
+end
+
+# get the vertex numbers of all the shared verts (per peer)
+# also get a dictionary that maps from local vert number to all the
+# (part number, vert idx)s 
+function getVertReverseMapping(mesh::PumiMeshDG, peer_nums::Array{Cint, 1}, counts::Array{Int, 1}, verts_local::Array{Array{Ptr{Void}, 1}, 1})
+
+  npeers = length(peer_nums)
+  vert_nums = Array(Array{Int, 1}, npeers)
+  rev_mapping = Dict{Int, Pair{Array{Cint, 1}, Array{Int, 1}}}()
+  sizehint!(rev_mapping, maximum(counts))  # this is an underestimate, but there is no
+                              # way to know the upper bound until after the
+                              # dictionary is populated
+  println(mesh.f, "mesh.verts = \n", mesh.verts)
+  for i=1:npeers
+    println(mesh.f, "peer ", i)
+    vert_nums[i] = Array(Int, counts[i])
+    vert_nums_i = vert_nums[i]
+    verts_local_i = verts_local[i]
+    for j=1:counts[i]
+      vert_j = verts_local_i[j]
+      println(mesh.f, "shared vert ", j)
+      println(mesh.f, "pointer = ", vert_j)
+      flush(mesh.f)
+      vertnum_j = getNumberJ(mesh.vert_Nptr, vert_j, 0, 0) + 1
+
+      vert_nums_i[j] = vertnum_j
+
+      if !haskey(rev_mapping, vertnum_j)
+        rev_mapping[vertnum_j] = Pair(Cint[peer_nums[i]], Int[j])
+      else
+        oldpair = rev_mapping[vertnum_j]
+        push!(oldpair.first, i)
+        push!(oldpair.second, j)
+      end
+    end
+  end
+
+  return vert_nums, rev_mapping
+end
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -316,6 +316,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   sbpface::SummationByParts.AbstractFace{Float64}  # SBP object needed to do interpolation
   topo::ElementTopology{3}
 
+  vert_sharing::VertSharing
 
  function PumiMeshDG3(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, interp_op, sbpface, topo::ElementTopology{3}; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
   # construct pumi mesh by loading the files named
@@ -555,6 +556,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 
   # start parallel initializiation
   colordata = getParallelInfo(mesh)
+  mesh.vert_sharing = getVertexParallelInfo(mesh)
 
 #  println("about to get degree of freedom numbers")
   getDofNumbers(mesh)  # store dof numbers
