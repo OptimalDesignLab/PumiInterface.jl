@@ -591,9 +591,6 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
     end  # end loop j
   end  # end loop i
 
-  println(mesh.f, "\nafter getting remote pointers, vert_remote =\n", verts_remote[1])
-  println(mesh.f, "local pointers = \n", verts_local[1])
-  flush(mesh.f)
   # hold the MPI.Requests for the send/recive
   # either process either sends or receives to each peer, so store all
   # send and receive requests in the same array
@@ -624,8 +621,6 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
     end
   end
 
-  println(mesh.f, "\nafter receives, verts_local 1 = \n", verts_local[1])
-
   vert_nums, rev_mapping = getVertReverseMapping(mesh, peer_nums, counts, verts_local)
 
   vshare = VertSharing(npeers, peer_nums, counts, vert_nums, rev_mapping)
@@ -651,10 +646,14 @@ function getVertReverseMapping(mesh::PumiMeshDG, peer_nums::Array{Cint, 1}, coun
   npeers = length(peer_nums)
   vert_nums = Array(Array{Int, 1}, npeers)
   rev_mapping = Dict{Int, Pair{Array{Cint, 1}, Array{Int, 1}}}()
+
+  if npeers == 0
+    return vert_nums, rev_mapping
+  end
+
   sizehint!(rev_mapping, maximum(counts))  # this is an underestimate, but there is no
                               # way to know the upper bound until after the
                               # dictionary is populated
-  println(mesh.f, "mesh.verts = \n", mesh.verts)
   for i=1:npeers
     println(mesh.f, "peer ", i)
     vert_nums[i] = Array(Int, counts[i])
@@ -662,9 +661,6 @@ function getVertReverseMapping(mesh::PumiMeshDG, peer_nums::Array{Cint, 1}, coun
     verts_local_i = verts_local[i]
     for j=1:counts[i]
       vert_j = verts_local_i[j]
-      println(mesh.f, "shared vert ", j)
-      println(mesh.f, "pointer = ", vert_j)
-      flush(mesh.f)
       vertnum_j = getNumberJ(mesh.vert_Nptr, vert_j, 0, 0) + 1
 
       vert_nums_i[j] = vertnum_j

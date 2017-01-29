@@ -126,8 +126,10 @@ type VertSharing
   vert_nums::Array{Array{Int, 1}, 1}
 
   # mapping from the 1-based number of a vertex to a Pair object containing
-  # two arrays, the list of part numbers and the corresponding indices of
+  # two arrays, the indices of the parts and the corresponding indices of
   # the vertices in th emutually agreed to ordering
+  # Note that this stores the index of the part number in peer_nums, not the
+  # part number itself
   rev_mapping::Dict{Int, Pair{Array{Cint, 1}, Array{Int, 1}}}
 
 end
