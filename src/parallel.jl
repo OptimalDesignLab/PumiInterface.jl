@@ -507,7 +507,6 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
 # get lists of shared vertices in a mutually agreed order
 # this will enable sending data back and forth
 
-  println(mesh.f, "entered getVertexParallelInfo")
   myrank = mesh.myrank
   npeers = countPeers(mesh.m_ptr, 0)  # count vertex peers
   peer_nums = zeros(Cint, npeers)
@@ -544,20 +543,14 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
     end  # end if nshares > 0
   end  # end loop i
 
-  println(mesh.f, "peer_nums = ", peer_nums)
-  println(mesh.f, "counts = ", counts)
-  flush(mesh.f)
-
   # now we know how many vertices are shared with whom
   # allocate arrays of the right size
   verts_local = Array(Array{Ptr{Void}, 1}, npeers)  # local pointers to shared
                                                     # verts
   verts_remote = Array(Array{Ptr{Void}, 1}, npeers) # remote pointers to shared
                                                     # verts
-  println(mesh.f, "initially")
   for i=1:npeers
     verts_local[i] = Array(Ptr{Void}, counts[i])
-    println(mesh.f, "vert_local ", i, " = \n", verts_local[i])
     #TODO: dont allocate unneeded arrays in verts_remote
     verts_remote[i] = Array(Ptr{Void}, counts[i])
   end
@@ -565,14 +558,10 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
                                 # verts_local
 #  verts_remotes = Array(Array{Ptr{Void}, 1}, npeers)
   for j=1:mesh.numVert
-    println(mesh.f, "j = ", j)
     vert_j = mesh.verts[j]
     nshares = countCopies(mesh.shr_ptr, vert_j)
-    println(mesh.f, "nshares = ", nshares)
     if nshares > 0
       getCopies(partnums, remotes)
-      println(mesh.f, "partnums = ", partnums[1:nshares])
-      println(mesh.f, "remotes = ", remotes[1:nshares])
       for k=1:nshares
         if partnums[k] == myrank
           continue
@@ -582,8 +571,6 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
         # if my rank is greater add the remote pointer to the list
         if myrank > peer_k
           peer_idx = getElIndex(peer_nums, peer_k)
-          println(mesh.f, "adding remote vertex ", vert_k, " to position ", curr_pos[peer_idx], " with peer idx ", peer_idx)
-          println(mesh.f, "adding local verts ", vert_j, " to position ", curr_pos[peer_idx], " with peer idx ", peer_idx)
           verts_local[peer_idx][curr_pos[peer_idx]] = vert_j
           verts_remote[peer_idx][curr_pos[peer_idx]] = vert_k
           curr_pos[peer_idx] += 1
@@ -656,7 +643,6 @@ function getVertReverseMapping(mesh::PumiMeshDG, peer_nums::Array{Cint, 1}, coun
                               # way to know the upper bound until after the
                               # dictionary is populated
   for i=1:npeers
-    println(mesh.f, "peer ", i)
     vert_nums[i] = Array(Int, counts[i])
     vert_nums_i = vert_nums[i]
     verts_local_i = verts_local[i]
@@ -678,16 +664,3 @@ function getVertReverseMapping(mesh::PumiMeshDG, peer_nums::Array{Cint, 1}, coun
 
   return vert_nums, rev_mapping
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
