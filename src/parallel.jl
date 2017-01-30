@@ -564,32 +564,33 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
   curr_pos = ones(Int, npeers)  # current position in each array inside
                                 # verts_local
 #  verts_remotes = Array(Array{Ptr{Void}, 1}, npeers)
-  for i=1:npeers
-    println(mesh.f, "peer ", i)
-    for j=1:mesh.numVert
-      vert_j = mesh.verts[j]
-      nshares = countCopies(mesh.shr_ptr, vert_j)
-      println(mesh.f, "nshares = ", nshares)
-      if nshares > 0
-        getCopies(partnums, remotes)
-        println(mesh.f, "partnums = ", partnums[1:nshares])
-        println(mesh.f, "remotes = ", remotes[1:nshares])
-        for k=1:nshares
-          peer_k = partnums[k]
-          vert_k = remotes[k]
-          # if my rank is greater add the remote pointer to the list
-          if myrank > peer_k
-            peer_idx = getElIndex(peer_nums, peer_k)
-            println(mesh.f, "adding remote vertex ", vert_k, " to position ", curr_pos[peer_idx])
-            println(mesh.f, "adding local verts ", vert_j, " to position ", curr_pos[peer_idx])
-            verts_local[peer_idx][curr_pos[peer_idx]] = vert_j
-            verts_remote[peer_idx][curr_pos[peer_idx]] = vert_k
-            curr_pos[peer_idx] += 1
-          end
-        end  # end loop j
-      end  # end if nshares > 0
-    end  # end loop j
-  end  # end loop i
+  for j=1:mesh.numVert
+    println(mesh.f, "j = ", j)
+    vert_j = mesh.verts[j]
+    nshares = countCopies(mesh.shr_ptr, vert_j)
+    println(mesh.f, "nshares = ", nshares)
+    if nshares > 0
+      getCopies(partnums, remotes)
+      println(mesh.f, "partnums = ", partnums[1:nshares])
+      println(mesh.f, "remotes = ", remotes[1:nshares])
+      for k=1:nshares
+        if partnums[k] == myrank
+          continue
+        end
+        peer_k = partnums[k]
+        vert_k = remotes[k]
+        # if my rank is greater add the remote pointer to the list
+        if myrank > peer_k
+          peer_idx = getElIndex(peer_nums, peer_k)
+          println(mesh.f, "adding remote vertex ", vert_k, " to position ", curr_pos[peer_idx], " with peer idx ", peer_idx)
+          println(mesh.f, "adding local verts ", vert_j, " to position ", curr_pos[peer_idx], " with peer idx ", peer_idx)
+          verts_local[peer_idx][curr_pos[peer_idx]] = vert_j
+          verts_remote[peer_idx][curr_pos[peer_idx]] = vert_k
+          curr_pos[peer_idx] += 1
+        end
+      end  # end loop k
+    end  # end if nshares > 0
+  end  # end loop j
 
   # hold the MPI.Requests for the send/recive
   # either process either sends or receives to each peer, so store all
@@ -669,7 +670,7 @@ function getVertReverseMapping(mesh::PumiMeshDG, peer_nums::Array{Cint, 1}, coun
         rev_mapping[vertnum_j] = Pair(Cint[peer_nums[i]], Int[j])
       else
         oldpair = rev_mapping[vertnum_j]
-        push!(oldpair.first, i)
+        push!(oldpair.first, peer_nums[i])
         push!(oldpair.second, j)
       end
     end
