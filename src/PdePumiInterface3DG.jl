@@ -779,7 +779,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   println(f, sum(mesh.peer_face_counts))
   close(f)
 
-  close(mesh.f)
+#  close(mesh.f)
   return mesh
   # could use incomplete initilization to avoid copying arrays
 #  return PumiMeshDG2(m_ptr, mshape_ptr, f_ptr, vert_Nptr, edge_Nptr, el_Nptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
