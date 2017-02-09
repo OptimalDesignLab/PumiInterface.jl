@@ -177,9 +177,12 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   coord_numNodesPerElement::Int
   coord_numNodesPerType::Array{Int, 1} 
   coord_typeOffsetsPerElement::Array{Int, 1}
+  coords_numNodesPerFace::Int  
   coord_xi::Array{Float64, 2}  # xi coordinates of nodes on reference element
                                 # in the Pumi order
                                 # dim x coords_numNodesPerElement
+  coord_facexi::Array{Float64, 2}  # like coord_xi, but for the face of an
+                                     # element
   # constants needed by Pumi
   el_type::Int  # apf::Type for the elements of the mesh
   face_type::Int # apf::Type for the faces of the mesh
@@ -456,6 +459,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   mesh.coord_numNodesPerElement = mesh.coord_typeOffsetsPerElement[end] - 1
   mesh.coord_order = getOrder(mesh.coordshape_ptr)
   mesh.coord_xi = getXiCoords(mesh.coord_order, mesh.dim)
+  mesh.coord_facexi = getXiCoords(mesh.coord_order, mesh.dim-1)
+  mesh.coords_numNodesPerFace = size(mesh.coord_facexi, 2)
 
   mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
@@ -664,13 +669,14 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
     getMetrics(mesh, sbp)
 
-  if mesh.isInterpolated
-    interpolateCoordinatesAndMetrics(mesh)
-  end
+    if mesh.isInterpolated
+      interpolateCoordinatesAndMetrics(mesh)
+    end
 
     getFaceNormals(mesh, sbp)
   else  # curvilinear
     # do other things
+    #  getvertXiCoords
     throw(ErrorException("curvilinear meshes not yet supported"))
 
   end

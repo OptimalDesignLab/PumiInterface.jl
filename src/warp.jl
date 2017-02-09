@@ -55,7 +55,8 @@ function commit_coords(mesh::PumiMesh, sbp; verify=true)
     Verify(mesh.m_ptr)
   end
 
-  getCoordinatesAndMetrics(mesh, sbp)  # store coordinates of all nodes into array
+  getCoordinates(mesh, sbp)
+  getMetrics(mesh, sbp)
 
   mesh.min_el_size = getMinElementSize(mesh)
 

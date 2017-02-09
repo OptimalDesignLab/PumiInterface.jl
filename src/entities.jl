@@ -144,6 +144,8 @@ function getNodeIdx(e_type::Integer, e_idx::Integer, node_idx::Integer, typeOffs
   return type_offset -1 + (e_idx - 1)*nodes_on_type + node_idx
 end
 
+#------------------------------------------------------------------------------
+# allocators for straight sides meshes
 """
   This function allocates the arrays that store the mesh node coordinates,
   the mesh vertex coordinates and assigns them to the corresponding field of
@@ -171,6 +173,27 @@ function allocateMetricsArrays{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
   return nothing
 end
 
+#------------------------------------------------------------------------------
+# allocators for curvilinear meshes
+
+function allocateMeshCoordinateArray{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
+
+  num_coord_nodes = mesh.coord_numNodesPerElement
+  mesh.vert_coords = Array(Float64, mesh.dim, num_coord_nodes, mesh.numEl)
+
+  return nothing
+end
+
+function allocateNodeCoordinateArray{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
+
+
+  mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
+
+  return nothing
+end
+
+#------------------------------------------------------------------------------
+# straight-sided coordinate and metric functions
 
 """
   This function gets the coordinates of both the mesh coordinate field and the
@@ -230,43 +253,6 @@ function getMetrics(mesh::PumiMeshDG, sbp::AbstractSBP)
   return nothing
 end
 
-"""
-  This function calculates the fields of the mesh that hold coordinates of the
-  face nodes for boundaries, interfaces, and sharedfaces.  This function uses
-  smart allocators to allocate the arrays if needed
-"""
-function getFaceCoordinatesAndNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
-
-  # do boundary faces
-  # do interfaces
-  # to shared faces
-
-  return nothing
-end
-
-function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
-                    mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP,
-                    faces::AbstractArray{I, 1}, 
-                    coords_face::AbstractArray{Tmsh, 3}, 
-                    nrm_face::AbstractArray{Tmsh, 3})
-
-  #TODO: do this in a block format to avoid a temporary array of size O(numEl)
-
-  nfaces = length(faces)
-  numNodesPerElement = mesh.coord_numNodesPerElement
-  numNodesPerFace = mesh.coords_numNodesPerType[mesh.dim]
-
-  for i=1:nfaces
-    el_i = getElementL(faces[i])
-    face_i = getFaceL(faces[i])
-
-    # get the MeshEntity* for the face
-
-    # 
-  end
-
-  return nothing
-end
 
     
 
@@ -512,6 +498,96 @@ return coords
 
 end
 =#
+
+
+#------------------------------------------------------------------------------
+# curvilinear functions
+"""
+  This function calculates the fields of the mesh that hold coordinates of the
+  face nodes for boundaries, interfaces, and sharedfaces.  This function uses
+  smart allocators to allocate the arrays if needed
+"""
+function getFaceCoordinatesAndNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
+  if !isFieldDefined(mesh, :coords_bndry, :coords_sharedface)
+    allocateFaceCoordinates(mesh)
+  else  # zero out arrays that might need it
+    fill!(mesh.coords_bndry, 0.0)
+    fill!(mesh.coords_interface, 0.0)
+    for i=1:mesh.npeers
+      fill!(mesh.coords_sharedface[i], 0.0)
+    end
+  end
+
+  calcFaceCoordinatesAnNormals(mesh, sbp, mesh.bndryfaces, mesh.coords_bndry, 
+                               mesh.nrm_bndry)
+  calcFaceCoordinatesAnNormals(mesh, sbp, mesh.interfaces, 
+                               mesh.coords_interface, mesh.nrm_interface)
+  calcFaceCoordinatesAnNormals(mesh, sbp, mesh.bndries_local, 
+                               mesh.coords_sharedface, mesh.nrm_sharedface)
+
+  return nothing
+end
+
+"""
+  This is the inner function used by getFaceCoordinatesandNormals.  It
+  gets the coordinates of the face nodes and their normal vectors for
+  a given array of Interfaces/Boundaries
+
+  Inputs:
+    mesh: a DG mesh object
+    faces: an array of Boundaries or Interfaces
+
+  Inputs/Outputs
+    coords_face: array Tdim x numNodesPerFace x length(faces)
+    nrm_face: array, same size as coords_face
+
+  Aliasing restrictions: none, although it would be weird if coords_face and
+                         nrm_face aliased
+"""
+function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
+                    mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP,
+                    faces::AbstractArray{I, 1}, 
+                    coords_face::AbstractArray{Tmsh, 3}, 
+                    nrm_face::AbstractArray{Tmsh, 3})
+
+  #TODO: do this in a block format to avoid a temporary array of size O(numEl)
+
+  nfaces = length(faces)
+  numNodesPerElement = mesh.coord_numNodesPerElement
+  numNodesPerFace = mesh.coords_numNodesPerType[mesh.dim]
+
+  # some temporary arrays
+  down_faces = Array(Ptr{Void}, 12)
+  coords_lag_face = Array(Float64, mesh.dim, mesh.coord_numNodesPerFace, nfaces)
+
+  # get the parametic coordinates of the face nodes
+  face_xi = getXiCoords(mesh.dim - 1, mesh.coord_order)
+
+  for i=1:nfaces
+    el_i = getElementL(faces[i])
+    face_i = getFaceL(faces[i])
+    el_ptr = mesh.elements[el_i]
+
+    # get the MeshEntity* for the face
+    getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, down_faces)
+    face_ptr = down_faces[face_i]
+
+    # get the lagrangian node coordinates
+    coords_i = sview(coords_lag_face, :, :, i)
+    getAllEntityCoords(mesh.m_ptr, face_i, coords_i)
+
+  end
+
+  # call SBP
+  calcFaceNormals!(mesh.sbpface, mesh.coord_order, face_xi, coords_lag_face, 
+                   coords_face, nrm_face)
+
+  return nothing
+end
+
+
+#------------------------------------------------------------------------------
+# misc. helper functions
 
 function getGlobalNodeNumbers(mesh::PumiMesh, elnum::Integer; getdofs=true)
 

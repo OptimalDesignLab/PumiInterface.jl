@@ -213,12 +213,14 @@ function transferFieldToSubmesh(mesh::AbstractMesh, u, mnew_ptr=mesh.mnew_ptr,
 end
 
 """
-  This function gets the xi coordinates of the nodes of a lagrangian element
-  in order verts, edges, faces, regions
+  This function gets the xi coordinates of the nodes of a lagrangian entity
+  in order verts, edges, faces, regions. 1D, 2D, and 3D entities are supported,
+  which is useful because it allows getting the xi coordinates of both element
+  coordinates and its faces.
 
   Inputs:
     order: order of the element
-    dim: dimensionality of the mesh (2d or 3d)
+    dim: dimensionality of the entity
 
   Outputs:
     node_xi: a dim x numnodes array containing the xi coordinates of each node
@@ -237,9 +239,15 @@ end
 """
 function getXiCoords(order::Integer, dim::Integer)
 
-  # TODO: write test
-  # idea: verify that shape function i is == 1 at node i, all others zero
-  if dim == 2
+  if dim == 1
+    if order == 1
+      xi = [0. 1;]
+    elseif order == 2
+      xicoords = [0. 1 0.5;]
+    else
+      throw(ErrorException("unsupported order $order for dimension $dim"))
+    end
+  elseif dim == 2
     if order == 1
       xicoords = [0. 1 0;
                   0 0 1]
