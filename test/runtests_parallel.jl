@@ -288,6 +288,30 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     end
   end
 
+
+  vshare = mesh.vert_sharing
+  @fact vshare.npeers --> 1
+  @fact vshare.peer_nums --> [1 - mesh.myrank]
+  @fact vshare.counts[1] --> 3
+  @fact length(vshare.vert_nums[1]) --> 3
+  @fact length(keys(vshare.rev_mapping)) --> 3
+
+  # check vert_nums and rev_mapping in more detail
+  for i=1:3
+    @fact vshare.vert_nums[1][i] --> greater_than(0)
+    @fact vshare.vert_nums[1][i] --> less_than(mesh.numVert + 1)
+  end
+
+  for (key, val) in vshare.rev_mapping
+    @fact length(val.first) --> 1
+    @fact length(val.second) --> 1
+    @fact val.first[1] --> 1-mesh.myrank  # part number
+    @fact val.second[1] --> greater_than(0)
+    @fact val.second[1] --> less_than(4)  # number of shared vertices + 1
+  end
+
+  MPI.Barrier(mesh.comm)
+
 end
 
 
@@ -421,6 +445,29 @@ facts("----- Testing PdePumiInterface3DG -----") do
   @fact mesh.numInterfaces --> (mesh.numFace - 2*8 - 4*4)
   @fact mesh.peer_face_counts[1] --> 16
 
+  vshare = mesh.vert_sharing
+  @fact vshare.npeers --> 1
+  @fact vshare.peer_nums --> [1 - mesh.myrank]
+  @fact vshare.counts[1] --> 18
+  @fact length(vshare.vert_nums[1]) --> 18
+  @fact length(keys(vshare.rev_mapping)) --> 18
+
+  # check vert_nums and rev_mapping in more detail
+  for i=1:18
+    @fact vshare.vert_nums[1][i] --> greater_than(0)
+    @fact vshare.vert_nums[1][i] --> less_than(mesh.numVert + 1)
+  end
+
+  for (key, val) in vshare.rev_mapping
+    @fact length(val.first) --> 1
+    @fact length(val.second) --> 1
+    @fact val.first[1] --> 1-mesh.myrank  # part number
+    @fact val.second[1] --> greater_than(0)
+    @fact val.second[1] --> less_than(19)  # number of shared vertices + 1
+  end
+
+  MPI.Barrier(mesh.comm)
+
 
 
 end
@@ -433,3 +480,5 @@ if MPI.Initialized()
   MPI.Finalize()
 end
 =#
+
+FactCheck.exitstatus()

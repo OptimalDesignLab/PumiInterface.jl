@@ -316,6 +316,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   sbpface::SummationByParts.AbstractFace{Float64}  # SBP object needed to do interpolation
   topo::ElementTopology{3}
 
+  vert_sharing::VertSharing
 
  function PumiMeshDG3(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, interp_op, sbpface, topo::ElementTopology{3}; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
   # construct pumi mesh by loading the files named
@@ -555,6 +556,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 
   # start parallel initializiation
   colordata = getParallelInfo(mesh)
+  mesh.vert_sharing = getVertexParallelInfo(mesh)
 
 #  println("about to get degree of freedom numbers")
   getDofNumbers(mesh)  # store dof numbers
@@ -777,7 +779,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   println(f, sum(mesh.peer_face_counts))
   close(f)
 
-  close(mesh.f)
+#  close(mesh.f)
   return mesh
   # could use incomplete initilization to avoid copying arrays
 #  return PumiMeshDG2(m_ptr, mshape_ptr, f_ptr, vert_Nptr, edge_Nptr, el_Nptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)

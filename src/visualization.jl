@@ -78,6 +78,10 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 
   @assert mesh.m_ptr == mesh.mnew_ptr  # needed for averaging step
 
+ # println(mesh.f, "entered interpolateToMesh")
+ # flush(mesh.f)
+
+  myrank = mesh.myrank
   interp = mesh.interp_op
   u_el = zeros(Float64, mesh.numNodesPerElement, mesh.numDofPerNode)
   u_verts = zeros(Float64, size(interp, 1), mesh.numDofPerNode)
@@ -89,6 +93,12 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
   numTypePerElement = mesh.numTypePerElement
   numEntitiesPerType = mesh.numEntitiesPerType
   fshape_ptr = mesh.fnewshape_ptr
+  vshare = mesh.vert_sharing
+  # this is ugly and inefficient
+  match_data = zeros(mesh.numDofPerNode + 1, mesh.numVert)
+
+  matches_partnums = zeros(Cint, 400 + 8)  # upper bound
+  matches_entities = Array(Ptr{Void}, 400 + 8)
 
   # count nodes on solution field 
   numNodesPerType = Array(Int, mesh.dim + 1)
@@ -101,7 +111,22 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 
   zeroField(mesh.fnew_ptr)
 
+  # data for MPI
+  # values solution values in first n indices of inner array, followed
+  # by the weighting factor
+  peer_vals_send = Array(Array{Float64, 2}, vshare.npeers)
+  peer_vals_recv = Array(Array{Float64, 2}, vshare.npeers)
+  for i=1:vshare.npeers
+    peer_vals_send[i] = zeros(Float64, mesh.numDofPerNode + 1, vshare.counts[i])
+    peer_vals_recv[i] = zeros(peer_vals_send[i])
+
+  end
+
+
+
+  coords = zeros(3)  # debugging
   for el=1:mesh.numEl
+#    println(mesh.f, "element ", el)
     el_i = mesh.elements[el]
 
     # get the solution values out of u
@@ -114,6 +139,8 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 
     # interpolate solution
     smallmatmat!(interp, u_el, u_verts)
+#    println(mesh.f, "u_el = \n", u_el)
+#    println(mesh.f, "u_verts = \n", u_verts)
 
     # interpolate jacobian
     jac_el = sview(mesh.jac, :, el)
@@ -129,12 +156,63 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
       for j=1:numTypePerElement[i]
         for k=1:numNodesPerType[i]
           entity = node_entities[col]
+          @assert i == 1
+          vertnum = getNumberJ(mesh.vert_Nptr, entity, 0, 0) + 1
+          getPoint(mesh.m_ptr, entity, 0, coords)
+
+          # pack array to send to other processes
+          if haskey(vshare.rev_mapping, vertnum)
+#            println(mesh.f, "\nvert number ", vertnum)
+            pair = vshare.rev_mapping[vertnum]
+#            println(mesh.f, "peers = \n", pair.first)
+#            println(mesh.f, "shared vert idxs = \n", pair.second)
+            for first_idx = 1:length(pair.first)
+              peer_idx = findfirst( vshare.peer_nums, pair.first[first_idx])
+#              println(mesh.f, "peer_idx = ", peer_idx)
+              shared_vert_idx = pair.second[first_idx]
+              arr_peer = peer_vals_send[peer_idx]
+              # accumulate weighted solution values, weighting factor
+#              println(mesh.f, "u_verts = \n", u_verts)
+
+              for p=1:mesh.numDofPerNode
+                arr_peer[p, shared_vert_idx] += real(jac_verts[col])*u_verts[col, p]
+              end
+              arr_peer[mesh.numDofPerNode + 1, shared_vert_idx] += real(jac_verts[col])
+            end  # end loop over peers
+          end  # end if haskey
+
+
           # skip elementNodeOffsets - maximum of 1 node per entity
           getComponents(mesh.fnew_ptr, entity, 0, u_node2)
           for p=1:mesh.numDofPerNode
             # multiply by element volume as a weighting factor
+#            println(mesh.f, "adding contribution ", jac_verts[col]*u_verts[col, p], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
+#            println(mesh.f, "jac = ", jac_verts[col])
+#            println(mesh.f, "u_verts = ", u_verts[col, p])
+
+
             u_node[p] = real(jac_verts[col])*u_verts[col, p] + u_node2[p]
           end
+
+          # check for local matches
+          nmatches = countMatches(mesh.m_ptr, entity)
+          if nmatches > 0
+            @assert nmatches <= length(matches_partnums)
+            getMatches(matches_partnums, matches_entities)
+            for match_idx = 1:nmatches
+              if matches_partnums[match_idx] == myrank
+                # save the data to the other match
+                matched_vertnum = getNumberJ(mesh.vert_Nptr, matches_entities[match_idx], 0, 0) + 1
+                for p=1:mesh.numDofPerNode
+                  match_data[p, matched_vertnum] += real(jac_verts[col])*u_verts[col, p]
+                end
+                match_data[mesh.numDofPerNode + 1, matched_vertnum] += real(jac_verts[col])
+              end  # end if match is on this part
+            end  # end loop over matches
+          end  # end if nmatches > 0
+
+
+#          println(mesh.f, "u_node is now ", u_node[1])
 
           setComponents(mesh.fnew_ptr, entity, 0, u_node)
           col += 1
@@ -144,15 +222,69 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 
   end  # end loop over elements
 
+  # send the data
+  send_reqs = Array(MPI.Request, vshare.npeers)
+  recv_reqs = Array(MPI.Request, vshare.npeers)
+  for i=1:vshare.npeers
+    # use the tag 20 in case any other parts of the program have active
+    # communications
+    send_reqs[i] = MPI.Isend(peer_vals_send[i], vshare.peer_nums[i], 20, mesh.comm)
+    recv_reqs[i] = MPI.Irecv!(peer_vals_recv[i], vshare.peer_nums[i], 20, mesh.comm)
+  end
+
+  # wait for all recieves to finish
+  for i=1:vshare.npeers
+    MPI.Wait!(recv_reqs[i])
+  end
+
+  # add in the contributions from each peer to the weighted sum
+  #TODO: use MPI.WaitAny! to combine this with the above loop
+  for peer=1:vshare.npeers
+    peer_vals_p = peer_vals_recv[peer]
+    vertnums_p = vshare.vert_nums[peer]
+
+    for i=1:length(vertnums_p)
+      vert_i = mesh.verts[vertnums_p[i]]
+      getPoint(mesh.m_ptr, vert_i, 0, coords)
+      getComponents(mesh.fnew_ptr, vert_i, 0, u_node)
+      weight_i = peer_vals_p[mesh.numDofPerNode + 1, i]
+      for p=1:mesh.numDofPerNode
+#      println(mesh.f, "adding parallel contribution ", peer_vals_p[p, i], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
+        u_node[p] += peer_vals_p[p, i]
+      end
+
+      # check for local matches
+      setComponents(mesh.fnew_ptr, vert_i, 0, u_node)
+    end
+  end
+
+  # add in the local match data
+  for i=1:mesh.numVert
+    vert_i = mesh.verts[i]
+    getPoint(mesh.m_ptr, vert_i, 0, coords)
+    getComponents(mesh.fnew_ptr, vert_i, 0, u_node)
+    for p=1:mesh.numDofPerNode
+#      println(mesh.f, "adding local match contribution ", match_data[p, i], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
+      u_node[p] += match_data[p, i]
+    end
+    setComponents(mesh.fnew_ptr, vert_i, 0, u_node)
+  end
+
+
+
+
 
   up_els = Array(Ptr{Void}, 400)  # equivalent of apf::Up
   # divide by the total volume of elements that contributed to each node
   # so the result is the average value
   for dim=1:(mesh.dim + 1)
     if numNodesPerType[dim] > 0
+      @assert dim == 1
       resetIt(dim - 1) 
       for i=1:numEntitiesPerType[dim]
         entity_i = getEntity(dim - 1)
+        entity_num = getNumberJ(mesh.vert_Nptr, entity_i, 0, 0) + 1
+        getPoint(mesh.m_ptr, entity_i, 0, coords)
         nel = countAdjacent(mesh.mnew_ptr, entity_i, mesh.dim)
         getAdjacent(up_els)
         # compute the sum of the volumes of the elements
@@ -174,19 +306,54 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
             jac_entity += interp[node_idx, p]*real(jac_el[p])
           end
 
+#          println(mesh.f, "adding jac contribution ", jac_entity, " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
+
           jac_sum += jac_entity
         end  # end loop j
 
+        # add in the parallel contributions
+        if haskey(vshare.rev_mapping, entity_num)
+          pair = vshare.rev_mapping[entity_num]
+          for i=1:length(pair.first)  # loop over peers that share this vert
+#            println(mesh.f, "adding parallel jac contributions from peer ", pair.first[i])
+            peer_idx = findfirst(vshare.peer_nums, pair.first[i])
+            vert_idx = pair.second[i]
+            jac_entity = peer_vals_recv[peer_idx][mesh.numDofPerNode + 1, vert_idx]
+#            println(mesh.f, "adding parallel jac contribution ", jac_entity, " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
+            jac_sum += jac_entity
+          end
+        end  # end if haskey
+
+        jac_entity = match_data[mesh.numDofPerNode + 1, entity_num]
+
+#        println(mesh.f, "adding local match jac contribution ", jac_entity , " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
+        jac_sum += jac_entity
+
+#        println(mesh.f, "jac_sum = ", jac_sum, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
+
+        
+
         getComponents(mesh.fnew_ptr, entity_i, 0, u_node)
+#        println(mesh.f, "net solution value = ", u_node, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
         fac = 1/jac_sum
         for p=1:mesh.numDofPerNode
           u_node[p] = fac*u_node[p]
         end
+#        println(mesh.f, "average solution value = ", u_node, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
+
         setComponents(mesh.fnew_ptr, entity_i, 0, u_node)
         incrementIt(dim - 1)
       end  # end loop i
     end  # end if
   end  # end loop dim
+
+  # wait for sends to finish before exiting
+  for i=1:vshare.npeers
+    MPI.Wait!(send_reqs[i])
+  end
+
+#  println(mesh.f, "finished interpolateToMesh")
+#  flush(mesh.f)
 
 
   return nothing
@@ -196,6 +363,7 @@ end  # end function
 function writeVisFiles(mesh::PumiMeshDG, fname::AbstractString)
   # writes vtk files 
 
+#  println(mesh.f, "writing vtk ", fname)
   writeVtkFiles(fname, mesh.mnew_ptr)
 
   if mesh.mexact_ptr != C_NULL

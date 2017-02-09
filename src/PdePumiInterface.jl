@@ -113,6 +113,27 @@ typealias PumiMeshCG{T1} Union{PumiMesh2CG{T1}, PumiMesh3CG{T1}}
 """
 typealias PumiMeshDG{T1} Union{PumiMesh2DG{T1}, PumiMesh3DG{T1}}
 
+"""
+  Holds data describing vertices shared between parts
+"""
+type VertSharing
+  npeers::Int  # number of peers this process shares verts with
+  peer_nums::Array{Cint, 1}  # the Part numbers of the peer processes
+  counts::Array{Int, 1}  # the number of vertices shared with each peer
+  # an array of arrays.  The outer array is of length npeers, the inner arrays
+  # are of length counts[i] and hold the 1-based number of each vertex shared
+  # with the current peer, in the mutually agreed to ordering
+  vert_nums::Array{Array{Int, 1}, 1}
+
+  # mapping from the 1-based number of a vertex to a Pair object containing
+  # two arrays, the parts numbers and the corresponding indices of
+  # the vertices in the mutually agreed to ordering
+  rev_mapping::Dict{Int, Pair{Array{Cint, 1}, Array{Int, 1}}}
+
+end
+
+
+
 include("elements.jl")
 include("./PdePumiInterface3.jl")
 include("PdePumiInterfaceDG.jl")
