@@ -126,6 +126,7 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 
   coords = zeros(3)  # debugging
   for el=1:mesh.numEl
+#    println(mesh.f, "element ", el)
     el_i = mesh.elements[el]
 
     # get the solution values out of u
@@ -138,6 +139,8 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 
     # interpolate solution
     smallmatmat!(interp, u_el, u_verts)
+#    println(mesh.f, "u_el = \n", u_el)
+#    println(mesh.f, "u_verts = \n", u_verts)
 
     # interpolate jacobian
     jac_el = sview(mesh.jac, :, el)
@@ -170,7 +173,6 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
               arr_peer = peer_vals_send[peer_idx]
               # accumulate weighted solution values, weighting factor
 #              println(mesh.f, "u_verts = \n", u_verts)
-#              println(mesh.f, "arr_peer = \n", arr_peer)
 
               for p=1:mesh.numDofPerNode
                 arr_peer[p, shared_vert_idx] += real(jac_verts[col])*u_verts[col, p]
@@ -182,12 +184,13 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 
           # skip elementNodeOffsets - maximum of 1 node per entity
           getComponents(mesh.fnew_ptr, entity, 0, u_node2)
- #         println(mesh.f, "adding contribution ", jac_verts[col]*u_verts[col, 1], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
- #           println(mesh.f, "jac = ", jac_verts[col])
- #           println(mesh.f, "u_verts = ", u_verts[col, 1])
-
           for p=1:mesh.numDofPerNode
             # multiply by element volume as a weighting factor
+#            println(mesh.f, "adding contribution ", jac_verts[col]*u_verts[col, p], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
+#            println(mesh.f, "jac = ", jac_verts[col])
+#            println(mesh.f, "u_verts = ", u_verts[col, p])
+
+
             u_node[p] = real(jac_verts[col])*u_verts[col, p] + u_node2[p]
           end
 
@@ -245,8 +248,8 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
       getPoint(mesh.m_ptr, vert_i, 0, coords)
       getComponents(mesh.fnew_ptr, vert_i, 0, u_node)
       weight_i = peer_vals_p[mesh.numDofPerNode + 1, i]
-#      println(mesh.f, "adding parallel contribution ", peer_vals_p[1, i], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
       for p=1:mesh.numDofPerNode
+#      println(mesh.f, "adding parallel contribution ", peer_vals_p[p, i], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
         u_node[p] += peer_vals_p[p, i]
       end
 
@@ -259,9 +262,9 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
   for i=1:mesh.numVert
     vert_i = mesh.verts[i]
     getPoint(mesh.m_ptr, vert_i, 0, coords)
-#    println(mesh.f, "adding local match contribution ", match_data[1, i], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
     getComponents(mesh.fnew_ptr, vert_i, 0, u_node)
     for p=1:mesh.numDofPerNode
+#      println(mesh.f, "adding local match contribution ", match_data[p, i], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
       u_node[p] += match_data[p, i]
     end
     setComponents(mesh.fnew_ptr, vert_i, 0, u_node)
@@ -331,12 +334,12 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
         
 
         getComponents(mesh.fnew_ptr, entity_i, 0, u_node)
-#        println(mesh.f, "net solution value = ", u_node[1], " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
+#        println(mesh.f, "net solution value = ", u_node, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
         fac = 1/jac_sum
         for p=1:mesh.numDofPerNode
           u_node[p] = fac*u_node[p]
         end
-#        println(mesh.f, "average solution value = ", u_node[1], " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
+#        println(mesh.f, "average solution value = ", u_node, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
 
         setComponents(mesh.fnew_ptr, entity_i, 0, u_node)
         incrementIt(dim - 1)
@@ -360,7 +363,7 @@ end  # end function
 function writeVisFiles(mesh::PumiMeshDG, fname::AbstractString)
   # writes vtk files 
 
-  println(mesh.f, "writing vtk ", fname)
+#  println(mesh.f, "writing vtk ", fname)
   writeVtkFiles(fname, mesh.mnew_ptr)
 
   if mesh.mexact_ptr != C_NULL
