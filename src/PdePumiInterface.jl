@@ -669,6 +669,7 @@ end
 end
 
 include("adapt.jl")
+include("bary.jl")
 include("coloring.jl")
 include("dofnumbering.jl")
 include("elements.jl")

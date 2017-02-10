@@ -5,6 +5,7 @@ push!(LOAD_PATH, "../src")
 using FactCheck
 using PumiInterface
 using ODLCommonTools
+import ODLCommonTools.sview
 using SummationByParts
 using PdePumiInterface
 
@@ -497,5 +498,6 @@ end
 =#
 println("about to test pdepumiinterface")
 include("pdepumiinterface.jl")
-include("pdepumiinterface3.jl")
+println("TEMPORARY: not running 3D tests")
+#include("pdepumiinterface3.jl")
 FactCheck.exitstatus()

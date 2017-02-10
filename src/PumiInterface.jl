@@ -1043,7 +1043,13 @@ end
 # the array is populated contiguously in memory, and should be
 # dim x numNodesPerElement in the FieldShape of the coordinates
 function getAllEntityCoords(m_ptr::Ptr{Void}, entity::Ptr{Void}, 
-                            coords::Array{Float64})
+                            coords::AbstractArray{Float64})
+
+  dims = length(size(coords))
+  @assert stride(coords, 1) == 1
+  for i=2:dims
+    @assert stride(coords, i) == size(coords, i-1)
+  end
 
   ccall( (getAllEntityCoords_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}), m_ptr, entity, coords);
 

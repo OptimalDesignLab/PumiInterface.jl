@@ -54,18 +54,25 @@ function commit_coords(mesh::PumiMesh, sbp; verify=true)
   if verify
     Verify(mesh.m_ptr)
   end
+#=
+  if mesh.coord_order == 1
+    getCoordinates(mesh, sbp)
+    getMetrics(mesh, sbp)
+    
+    if mesh.isInterpolated
+      interpolateCoordinatesAndMetrics(mesh)
+    end
+  else
+=#
+    getMeshCoordinates(mesh, sbp)
+    getFaceCoordinatesAndNormals(mesh, sbp)
+    getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+#  end
 
-  getCoordinates(mesh, sbp)
-  getMetrics(mesh, sbp)
+
 
   mesh.min_el_size = getMinElementSize(mesh)
 
-  if mesh.isInterpolated
-    interpolateCoordinatesAndMetrics(mesh)
-  end
-
-
-  # TODO: update mesh.coords, dxidx, jac etc.
 
 
 end

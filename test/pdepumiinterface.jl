@@ -384,6 +384,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact iface.elementR --> 2
    @fact iface.faceL --> 1
    @fact iface.faceR --> 3
+   println("mesh.vert_coords = ", mesh.vert_coords)
+   println("mesh.coords = ", mesh.coords)
    @fact mesh.coords[:, :, 1] --> roughly([-2/3 -2/3 1/3; 2/3 -1/3 2/3], atol=1e-13)
    @fact mesh.coords[:, :, 2] --> roughly([2/3 -1/3 2/3; 1/3 -2/3 -2/3], atol=1e-13)
    @fact sort(unique(mesh.dofs)) --> collect(1:mesh.numDof)
@@ -454,24 +456,32 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   end  # end function
 
 
-   test_interp(mesh)
+  println("testing dxidx_face")
+  if size(mesh.dxidx_face, 1) > 0
+    println("running the test")
+    test_interp(mesh)
+  end
 
    # check dxidx_bndry
    # for straight sided elements, dxidx is constant
-   for i=1:mesh.numBoundaryFaces
-     el = mesh.bndryfaces[i].element
-     dxidx_test = mesh.dxidx[:, :, 1, el]
-     jac_test = mesh.jac[1, el]
-     for j=1:mesh.sbpface.numnodes
-       dxidx_code = mesh.dxidx_bndry[:, :, j, i]
-       jac_code = mesh.jac_bndry[j, i]
-       @fact dxidx_code --> roughly(dxidx_test, atol=1e-13)
-       @fact jac_code --> roughly(jac_test, atol=1e-13)
+   println("testing dxidx_bndry")
+   if size(mesh.jac_bndry, 1) > 0
+     println("running the test")
+     for i=1:mesh.numBoundaryFaces
+       el = mesh.bndryfaces[i].element
+       dxidx_test = mesh.dxidx[:, :, 1, el]
+       jac_test = mesh.jac[1, el]
+       for j=1:mesh.sbpface.numnodes
+         dxidx_code = mesh.dxidx_bndry[:, :, j, i]
+         jac_code = mesh.jac_bndry[j, i]
+         @fact dxidx_code --> roughly(dxidx_test, atol=1e-13)
+         @fact jac_code --> roughly(jac_test, atol=1e-13)
+       end
      end
    end
 
 
-
+  println("testing coords bndry")
 
    # check coords_bndry
    vert_coords = [-1.0 -1.0; 1  1; -1 1]
@@ -500,6 +510,71 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact y_i --> roughly(slope*x_i + b, atol=1e-13)
    end
 
+   function test_normal_orientation{I <: Union{Boundary, Interface}, T}(mesh, ifaces::AbstractArray{I}, nrm::AbstractArray{T, 3})
+     println("-----entered test_normal_orientation-----")
+     topo = mesh.topo
+     numVertPerElement = mesh.numTypePerElement[1]
+     numVertPerFace = numVertPerElement - 1 
+     println("numVertPerFace = ", numVertPerFace)
+     el_verts = Array(Ptr{Void}, numVertPerElement)
+     other_vert_coords = zeros(mesh.dim)
+     face_verts = Array(Ptr{Void}, numVertPerElement - 1)
+     face_vert_coords = zeros(mesh.dim, numVertPerFace)
+
+     println("face_verts = ", topo.face_verts)
+     nfaces = length(ifaces)
+     for i=1:nfaces
+       println("i = ", i)
+       iface_i = ifaces[i]
+       elnum = getElementL(iface_i)
+       facenum_local = getFaceL(iface_i)
+
+       el_i = mesh.elements[elnum]
+       nverts = getDownward(mesh.m_ptr, el_i, 0, el_verts)
+       println("nverts = ", nverts)
+
+       for j=1:numVertPerFace
+         face_verts[j] = el_verts[topo.face_verts[j, facenum_local]]
+         tmp = zeros(3)
+         getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
+         face_vert_coords[1:mesh.dim, j] = tmp[1:mesh.dim]
+       end
+
+       # get the vert not on the face
+       other_vert = Ptr{Void}(0)
+       for j=1:numVertPerElement
+         if !(el_verts[j] in face_verts)
+           other_vert = el_verts[j]
+         end
+       end
+
+       tmp = zeros(3)
+       getPoint(mesh.m_ptr, other_vert, 0, tmp)
+       other_vert_coords[1:mesh.dim] = tmp[1:mesh.dim]
+
+       # check that the face normal is in the opposite direction as the
+       # vectors from a vertex on the face to the vertex not on the face
+       for j=1:mesh.numNodesPerFace
+         for k=1:numVertPerFace
+           r1 = other_vert_coords - face_vert_coords[:, k]
+
+           val = dot(nrm[:, j, i], r1)
+           @fact val --> less_than(0.0)
+         end
+       end
+
+     end  # end loop i
+
+     return nothing
+
+
+   end  # end function test_normal_orientation
+
+   test_normal_orientation(mesh, mesh.interfaces, mesh.nrm_face)
+   test_normal_orientation(mesh, mesh.bndryfaces, mesh.nrm_bndry)
+
+
+   println("testing number nodes windy")
    # check adjacency reordering algorithm doesn't error out
    PdePumiInterface.numberNodesWindy(mesh, [0.0, 0.0, 0.0])
 
@@ -507,26 +582,29 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface, coloring_distance=2, dofpernode=4)
 
   # check mapping interpolation
-  # should be constant within an element for straight-sided elements
-  for i=1:mesh.numInterfaces
-    iface_i = mesh.interfaces[i]
-    el_i = iface_i.elementL
-    dxidx_el = mesh.dxidx[:, :, 1, el_i]
-    jac_el = mesh.jac[:, el_i]
-    jac_face = mesh.jac_face[:, i]
+  # should be constant within an element for straight-sided elementsa
+  if size(mesh.jac_face, 1) > 0
+    for i=1:mesh.numInterfaces
+      iface_i = mesh.interfaces[i]
+      el_i = iface_i.elementL
+      dxidx_el = mesh.dxidx[:, :, 1, el_i]
+      jac_el = mesh.jac[:, el_i]
+      jac_face = mesh.jac_face[:, i]
 
-    for j=1:mesh.numNodesPerFace
-      dxidx_face = mesh.dxidx_face[:, :, j, i]
-      for k=1:2
-        for p=1:2
-          @fact dxidx_face[p, k] --> roughly(dxidx_el[p, k], atol=1e-13)
+      for j=1:mesh.numNodesPerFace
+        dxidx_face = mesh.dxidx_face[:, :, j, i]
+        for k=1:2
+          for p=1:2
+            @fact dxidx_face[p, k] --> roughly(dxidx_el[p, k], atol=1e-13)
+          end
         end
+        @fact jac_face[j] --> roughly(jac_el[j], atol=1e-13)
       end
-      @fact jac_face[j] --> roughly(jac_el[j], atol=1e-13)
-    end
-  end  # end loop over interfaces
+    end  # end loop over interfaces
+  end
 
   # test update_coords
+  println("testing update_coords")
   coords_orig = copy(mesh.vert_coords)
   
   # double all coordinates
@@ -547,7 +625,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   end
 
   # test vertmap
-
+  println("testing vertmap")
   nedges_interior = 0
   for i=1:mesh.numEl
     vertnums_i = mesh.element_vertnums[:, i]
@@ -574,7 +652,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   @fact nedges_interior --> 2*(mesh.numEdge - mesh.numBoundaryFaces)
 
   # test saveSolutionToMesh interpolation
-
+  println("testing saveSolutionToMesh interpolation")
   u_vals = zeros(mesh.numDof)
   for i=1:mesh.numDof
 
@@ -620,6 +698,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
 
   # test periodic
+  println("testing periodic")
   @fact mesh.numPeriodicInterfaces --> 0
 
   smb_name = "tri3_px.smb"
@@ -643,6 +722,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact iface_i.faceR --> less_than(4)
   end
 
+  println("finished")
 
 end
 

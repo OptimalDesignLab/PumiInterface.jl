@@ -1234,7 +1234,9 @@ void getAllEntityCoords(apf::Mesh* m, apf::MeshEntity* e, double* coords)
 {
 
   apf::FieldShape* coordshape = m->getShape();
-  int max_dim = apf::Mesh::typeDimension[m->getType(e)];
+  int max_dim = m->getDimension();
+//  int max_dim = apf::Mesh::typeDimension[m->getType(e)];
+  std::cout << "max_dim = " << max_dim << std::endl;
 
 
   int nentities=0;
@@ -1247,6 +1249,7 @@ void getAllEntityCoords(apf::Mesh* m, apf::MeshEntity* e, double* coords)
   {
     if ( coordshape->hasNodesIn(dim) )
     {
+      std::cout << "looking at entities in dimensions " << dim << std::endl;
       nentities = m->getDownward(e, dim, down_entities);
       // loop over entities of current dimensions
       for ( int entitynum=0; entitynum < nentities; entitynum++)
@@ -1257,9 +1260,11 @@ void getAllEntityCoords(apf::Mesh* m, apf::MeshEntity* e, double* coords)
         // loop over nodes on current entity
         for (int nodenum=0; nodenum < nnodes; nodenum++)
         {
+          std::cout << "found node" << std::endl;
           m->getPoint(down_entity, nodenum, coords_vec);
           for (int i=0; i < max_dim; ++i)
           {
+            std::cout << "coords[" << idx << "] = " << coords_vec[i] << std::endl;
             coords[idx] = coords_vec[i];
             idx++;
           }  // end loop i
@@ -1571,6 +1576,8 @@ void Verify(apf::Mesh* m)
 void getPoint(apf::Mesh* m, apf::MeshEntity* e,  int node, double* coords)
 {
   static apf::Vector3 vec;
+  std::cout << "getPoint entity type = " << m->getType(e) << std::endl;
+  
   m->getPoint(e, node, vec);
   vec.toArray(coords);
 }

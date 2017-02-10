@@ -162,7 +162,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   coord_numNodesPerElement::Int
   coord_numNodesPerType::Array{Int, 1}
   coord_typeOffsetsPerElement::Array{Int, 1}
-  coords_numNodesPerFace::Int
+  coord_numNodesPerFace::Int
   coord_xi::Array{Float64, 2}  # xi coordinates of nodes on reference element
                                 # in the Pumi order
                                 # dim x coords_numNodesPerElement
@@ -453,7 +453,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh.coord_order = getOrder(mesh.coordshape_ptr)
   mesh.coord_xi = getXiCoords(mesh.coord_order, mesh.dim)
   mesh.coord_facexi = getXiCoords(mesh.coord_order, mesh.dim-1)
-  mesh.coords_numNodesPerFace = size(mesh.coord_facexi, 2)
+  mesh.coord_numNodesPerFace = size(mesh.coord_facexi, 2)
 
 
 

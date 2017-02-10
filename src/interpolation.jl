@@ -66,7 +66,7 @@ end
 
 """
   Allocates the dxidx and jac arrays for the face nodes/ shared face
-  data. Specifically:
+  data.  Non-curvilinear meshes only.  Specifically:
     mesh.dxidx_face, mesh.jac_face
     mesh.dxidx_bndry, mesh.jac_bndry
     mesh.dxidx_sharedface, mesh.jac_shareface (and their internal arrays)

@@ -2,7 +2,7 @@ using SummationByParts
 include("nodecalc3.jl")
 
 function nodecalc(sbp::TriSBP, isDG::Bool)
-  vtx = [0.0 0; 1 0; 0 1]
+  vtx = [0.0 0; 1 0; 0 1]  # why is this 0 to 1 but the other method is -1 to 1
   r1 = vtx[1, :]
   r2 = vtx[2, :]
   r3 = vtx[3, :]

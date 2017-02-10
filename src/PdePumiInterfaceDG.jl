@@ -177,10 +177,10 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   coord_numNodesPerElement::Int
   coord_numNodesPerType::Array{Int, 1} 
   coord_typeOffsetsPerElement::Array{Int, 1}
-  coords_numNodesPerFace::Int  
+  coord_numNodesPerFace::Int  
   coord_xi::Array{Float64, 2}  # xi coordinates of nodes on reference element
                                 # in the Pumi order
-                                # dim x coords_numNodesPerElement
+                                # dim x coordsnumNodesPerElement
   coord_facexi::Array{Float64, 2}  # like coord_xi, but for the face of an
                                      # element
   # constants needed by Pumi
@@ -460,7 +460,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   mesh.coord_order = getOrder(mesh.coordshape_ptr)
   mesh.coord_xi = getXiCoords(mesh.coord_order, mesh.dim)
   mesh.coord_facexi = getXiCoords(mesh.coord_order, mesh.dim-1)
-  mesh.coords_numNodesPerFace = size(mesh.coord_facexi, 2)
+  mesh.coord_numNodesPerFace = size(mesh.coord_facexi, 2)
 
   mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
@@ -664,7 +664,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
   sort!(mesh.interfaces)
-
+#=
   if mesh.coord_order == 1
     getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
     getMetrics(mesh, sbp)
@@ -675,11 +675,15 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
     getFaceNormals(mesh, sbp)
   else  # curvilinear
+=#
     # do other things
-    #  getvertXiCoords
-    throw(ErrorException("curvilinear meshes not yet supported"))
+    # getMeshCoordinates
+    getMeshCoordinates(mesh, sbp)
+    getFaceCoordinatesAndNormals(mesh, sbp)
+    getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+#    throw(ErrorException("curvilinear meshes not yet supported"))
 
-  end
+#  end
 
   mesh.min_el_size = getMinElementSize(mesh)
   mesh.volume = calcVolume(mesh)
