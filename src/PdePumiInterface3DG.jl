@@ -674,7 +674,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   end
 
   mesh.min_el_size = getMinElementSize(mesh)
-  mesh.volume = calcVolume(mesh)
+  mesh.volume = calcVolumeIntegral(mesh, sbp)
 
 
 #  if mesh.dim == 2

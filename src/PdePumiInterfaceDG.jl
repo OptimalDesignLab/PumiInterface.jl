@@ -686,7 +686,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 #  end
 
   mesh.min_el_size = getMinElementSize(mesh)
-  mesh.volume = calcVolume(mesh)
+  mesh.volume = calcVolumeIntegral(mesh, sbp)
 
 
   createSubtriangulatedMesh(mesh, opts)

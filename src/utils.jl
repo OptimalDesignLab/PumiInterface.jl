@@ -167,7 +167,7 @@ function calcVolumeIntegral(mesh::PumiMesh, sbp)
   volume = 0.0
   for i=1:mesh.numEl
     for j=1:mesh.numNodesPerElement
-      volume += sbp.w[j]*real(mesh.jac[j, i])
+      volume += sbp.w[j]*real(1./mesh.jac[j, i])
     end
   end
 

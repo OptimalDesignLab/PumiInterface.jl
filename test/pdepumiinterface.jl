@@ -368,7 +368,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact mesh.typeOffsetsPerElement --> [1, 1, 1, 4]
    @fact mesh.typeOffsetsPerElement_ --> mesh.typeOffsetsPerElement
    @fact mesh.volume --> roughly(4.0, atol=1e-12)
-   volume2 = PdePumiInterface.calcVolumeIntegral(mesh, sbp)
+   volume2 = PdePumiInterface.calcVolume(mesh)
    @fact volume2 --> roughly(mesh.volume, atol=1e-12)
    @fact mesh.dim --> 2
    @fact mesh.isDG --> true
@@ -721,6 +721,77 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact iface_i.faceR --> greater_than(0)
     @fact iface_i.faceR --> less_than(4)
   end
+
+  # test curvilinear
+  println("testing curvilinear")
+  # a 0 - 5 square that used a sin wave to remap the nondimensionalized
+  # coordinates
+  smb_name = "square_05_curve.smb"
+  mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface, coloring_distance=2, dofpernode=4)
+
+  function test_volume_curvilinear(mesh, sbp)
+
+    volume = 0.0
+    for i=1:mesh.numEl
+      for j=1:mesh.numNodesPerElement
+        dxidx_scaled = mesh.dxidx[:, :, j, i]
+        dxidx = dxidx_scaled*mesh.jac[j, i]
+
+        dxdxi = inv(dxidx)
+        jac = det(dxdxi)
+        volume += sbp.w[j]*jac
+      end
+    end
+
+    println("volume = ", volume)
+    @fact volume --> roughly(25.0, atol=1e-12)
+  end  # end function
+
+  test_volume_curvilinear(mesh, sbp)
+
+
+  # translate the mesh and verify all quantities are the same
+  dxidx_orig = copy(mesh.dxidx)
+  jac_orig = copy(mesh.jac)
+  nrm_bndry_orig = copy(mesh.nrm_bndry)
+  nrm_face_orig = copy(mesh.nrm_face)
+
+  for i=1:mesh.numEl
+    coords_i = mesh.vert_coords[:, :, i]
+    coords_i += 1
+    update_coords(mesh, i, coords_i)
+  end
+
+  commit_coords(mesh, sbp)
+
+  for i=1:mesh.numEl
+    for j=1:mesh.numNodesPerElement
+      for k=1:mesh.dim
+        for p=1:mesh.dim
+          @fact mesh.dxidx[p, k, j, i] --> roughly(dxidx_orig[p, k, j, i], atol=1e-12)
+        end
+      end
+
+      @fact mesh.jac[j, i] --> roughly(jac_orig[j, i], atol=1e-12)
+    end
+  end
+
+  for i=1:mesh.numBoundaryFaces
+    for j=1:mesh.numNodesPerFace
+      for k=1:mesh.dim
+        @fact mesh.nrm_bndry[k, j, i] --> roughly(nrm_bndry_orig[k, j, i], atol=1e-12)
+      end
+    end
+  end
+
+  for i=1:mesh.numInterfaces
+    for j=1:mesh.numNodesPerFace
+      for k=1:mesh.dim
+        @fact mesh.nrm_face[k, j, i] --> roughly(nrm_face_orig[k, j, i], atol=1e-12)
+      end
+    end
+  end
+      
 
   println("finished")
 
