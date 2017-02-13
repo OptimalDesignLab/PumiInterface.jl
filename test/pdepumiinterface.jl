@@ -368,6 +368,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact mesh.typeOffsetsPerElement --> [1, 1, 1, 4]
    @fact mesh.typeOffsetsPerElement_ --> mesh.typeOffsetsPerElement
    @fact mesh.volume --> roughly(4.0, atol=1e-12)
+   volume2 = PdePumiInterface.calcVolumeIntegral(mesh, sbp)
+   @fact volume2 --> roughly(mesh.volume, atol=1e-12)
    @fact mesh.dim --> 2
    @fact mesh.isDG --> true
    @fact mesh.coloringDistance --> 2
@@ -384,8 +386,6 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact iface.elementR --> 2
    @fact iface.faceL --> 1
    @fact iface.faceR --> 3
-   println("mesh.vert_coords = ", mesh.vert_coords)
-   println("mesh.coords = ", mesh.coords)
    @fact mesh.coords[:, :, 1] --> roughly([-2/3 -2/3 1/3; 2/3 -1/3 2/3], atol=1e-13)
    @fact mesh.coords[:, :, 2] --> roughly([2/3 -1/3 2/3; 1/3 -2/3 -2/3], atol=1e-13)
    @fact sort(unique(mesh.dofs)) --> collect(1:mesh.numDof)

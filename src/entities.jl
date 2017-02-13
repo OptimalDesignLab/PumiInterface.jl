@@ -552,9 +552,6 @@ function getMeshCoordinates{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
     coords_i = sview(mesh.vert_coords, :, :, i)
-    println("typeof(coords_i) = ", typeof(coords_i))
-    println("stride(1) = ", stride(coords_i, 1))
-    println("stride(2) = ", stride(coords_i, 2))
     getAllEntityCoords(mesh.m_ptr, el_i, coords_i)
   end
 
@@ -622,7 +619,6 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
                     nrm_face::AbstractArray{Tmsh, 3})
 
   #TODO: do this in a block format to avoid a temporary array of size O(numEl)
-  println("-----entered calcFaceCoordinatesAndNormals-----")
   nfaces = length(faces)
   numNodesPerElement = mesh.coord_numNodesPerElement
   numNodesPerFace = mesh.coord_numNodesPerType[mesh.dim]
@@ -632,12 +628,8 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
   coords_lag_face = Array(Float64, mesh.dim, mesh.coord_numNodesPerFace, nfaces)
 
   # get the parametic coordinates of the face nodes
-  println("typeof(mesh) = ", typeof(mesh))
-  println("mesh.dim = ", mesh.dim)
   face_xi = mesh.coord_facexi
   ref_verts = baryToXY(face_xi, mesh.sbpface.vtx)
-  println("face_xi = ", face_xi)
-  println("ref_verts = ", ref_verts)
   for i=1:nfaces
     el_i = getElementL(faces[i])
     face_i = getFaceL(faces[i])
@@ -654,11 +646,8 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
   end
 
   # call SBP
-  println("coords_lag_face = \n", coords_lag_face)
   calcFaceNormals!(mesh.sbpface, mesh.coord_order, ref_verts, coords_lag_face, 
                    coords_face, nrm_face)
-
-  println("coords_face = \n", coords_face)
 
   fixOutwardNormal(mesh, faces, nrm_face)
 
@@ -764,7 +753,6 @@ end
 function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh}, 
                                                   sbp::AbstractSBP)
 
-  println("-----entered getCurvilinearCoordinatesAnMetics-----")
   if !isFieldDefined(mesh, :coords, :dxidx, :jac)
     allocateCurvilinearCoordinateAndMetricArrays(mesh, sbp)
   else
@@ -773,16 +761,8 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
     fill!(mesh.jac, 0.0)
   end
 
-  println("mesh.coord_order = ", mesh.coord_order)
-  println("mesh.coord_xi = \n", mesh.coord_xi)
-  println("mesh.vert_coords = \n", mesh.vert_coords)
-  println("mesh.coords = \n")
-
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
-  println("ref_vtx = \n", ref_vtx)
   calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, mesh.coords, mesh.dxidx, mesh.jac)
-
-  println("after, mesh.coords = ", mesh.coords)
 end
 #------------------------------------------------------------------------------
 # misc. helper functions

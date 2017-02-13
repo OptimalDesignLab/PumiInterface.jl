@@ -19,8 +19,6 @@ function baryToXY{T2}(bary::AbstractMatrix{T2}, vtx::AbstractMatrix)
   @assert (size(vtx, 2) >= 1 && size(vtx, 2) <= 3)
   @assert (size(vtx, 1) >= 2 && size(vtx, 1) <= 4)
 
-  println("bary = \n", bary)
-  println("vtx = \n", vtx)
   npoints = size(bary, 2)
   dim = size(bary, 1)
   coords = zeros(bary)
@@ -31,9 +29,6 @@ function baryToXY{T2}(bary::AbstractMatrix{T2}, vtx::AbstractMatrix)
   for i=1:dim
     T[i, :] = vtx[i+1, :] - r1
   end
-
-  println("T = ", T)
-  println("r1 = ", r1)
 
   # compute xyz coordinates
   for i=1:npoints

@@ -159,3 +159,18 @@ function calcVolume(mesh::PumiMesh3DG)
   return volume
 end
 
+"""
+  Calculate the volume of the mesh by integrating the 1/|dxidx|.
+"""
+function calcVolumeIntegral(mesh::PumiMesh, sbp)
+
+  volume = 0.0
+  for i=1:mesh.numEl
+    for j=1:mesh.numNodesPerElement
+      volume += sbp.w[j]*real(mesh.jac[j, i])
+    end
+  end
+
+  return volume
+end
+
