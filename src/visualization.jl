@@ -77,6 +77,7 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 # getNodeEntities(mnew_ptr)
 
   @assert mesh.m_ptr == mesh.mnew_ptr  # needed for averaging step
+  @assert size(mesh.interp_op, 1) == mesh.coord_numNodesPerElement
 
  # println(mesh.f, "entered interpolateToMesh")
  # flush(mesh.f)
@@ -88,7 +89,7 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
   jac_verts = zeros(T, size(interp, 1))
   u_node = zeros(Float64, mesh.numDofPerNode)  # hold new node values
   u_node2 = zeros(u_node)  # hold existing node values
-  node_entities = Array(Ptr{Void}, mesh.numNodesPerElement)
+  node_entities = Array(Ptr{Void}, mesh.coord_numNodesPerElement)
   dofs = mesh.dofs
   numTypePerElement = mesh.numTypePerElement
   numEntitiesPerType = mesh.numEntitiesPerType
@@ -156,12 +157,12 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
       for j=1:numTypePerElement[i]
         for k=1:numNodesPerType[i]
           entity = node_entities[col]
-          @assert i == 1
-          vertnum = getNumberJ(mesh.vert_Nptr, entity, 0, 0) + 1
+#          @assert i == 1
+          vertnum = getNumberJ(mesh.entity_Nptrs[i], entity, 0, 0) + 1
           getPoint(mesh.m_ptr, entity, 0, coords)
 
           # pack array to send to other processes
-          if haskey(vshare.rev_mapping, vertnum)
+          if i == 1 && haskey(vshare.rev_mapping, vertnum)
 #            println(mesh.f, "\nvert number ", vertnum)
             pair = vshare.rev_mapping[vertnum]
 #            println(mesh.f, "peers = \n", pair.first)
@@ -196,7 +197,7 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 
           # check for local matches
           nmatches = countMatches(mesh.m_ptr, entity)
-          if nmatches > 0
+          if i == 1 && nmatches > 0
             @assert nmatches <= length(matches_partnums)
             getMatches(matches_partnums, matches_entities)
             for match_idx = 1:nmatches
@@ -273,18 +274,17 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 
 
 
-
   up_els = Array(Ptr{Void}, 400)  # equivalent of apf::Up
   # divide by the total volume of elements that contributed to each node
   # so the result is the average value
   for dim=1:(mesh.dim + 1)
     if numNodesPerType[dim] > 0
-      @assert dim == 1
+#      @assert dim == 1
       resetIt(dim - 1) 
       for i=1:numEntitiesPerType[dim]
         entity_i = getEntity(dim - 1)
-        entity_num = getNumberJ(mesh.vert_Nptr, entity_i, 0, 0) + 1
-        getPoint(mesh.m_ptr, entity_i, 0, coords)
+        entity_num = getNumberJ(mesh.entity_Nptrs[dim], entity_i, 0, 0) + 1
+#        getPoint(mesh.m_ptr, entity_i, 0, coords)
         nel = countAdjacent(mesh.mnew_ptr, entity_i, mesh.dim)
         getAdjacent(up_els)
         # compute the sum of the volumes of the elements
@@ -312,7 +312,7 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
         end  # end loop j
 
         # add in the parallel contributions
-        if haskey(vshare.rev_mapping, entity_num)
+        if dim == 1 && haskey(vshare.rev_mapping, entity_num)
           pair = vshare.rev_mapping[entity_num]
           for i=1:length(pair.first)  # loop over peers that share this vert
 #            println(mesh.f, "adding parallel jac contributions from peer ", pair.first[i])
@@ -324,10 +324,12 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
           end
         end  # end if haskey
 
-        jac_entity = match_data[mesh.numDofPerNode + 1, entity_num]
+        if dim == 1
+          jac_entity = match_data[mesh.numDofPerNode + 1, entity_num]
 
-#        println(mesh.f, "adding local match jac contribution ", jac_entity , " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
-        jac_sum += jac_entity
+#          println(mesh.f, "adding local match jac contribution ", jac_entity , " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
+          jac_sum += jac_entity
+        end
 
 #        println(mesh.f, "jac_sum = ", jac_sum, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
 

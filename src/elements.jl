@@ -127,8 +127,11 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
 =#
   elseif mesh.shape_type == 3 || mesh.shape_type == 2  # DG SBP Omega or Gamma
     # I don't think subtriangulation will work in this case, so create a 
-    # linear field on the existing mesh, and interpolate the solution onto it
-    fshape_new = getFieldShape(0, 1, mesh.dim)
+    # field with the same degree as a coordinate field on the existing mesh, 
+    # and interpolate the solution onto it
+    # it appears the pumi vtu writing bumps the field up the same as the
+    # coordinate field, so we might as well do  it ourselves
+    fshape_new = getFieldShape(0, mesh.coord_order, mesh.dim)
 
     mesh.mnew_ptr = mesh.m_ptr
     mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field_interp", dofpernode)
