@@ -420,7 +420,7 @@ function getInterfaceCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh},
 
   coords_i = zeros(3, 3)
   coords_it = zeros(3, 2)
-  coords_edge = zeros(2, 2)
+  coords_edge = zeros(2, 2)  # one point per row
 
   for i=1:length(bndryfaces)
     bndry_i = bndryfaces[i]
@@ -444,6 +444,9 @@ function getInterfaceCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh},
     coords_edge[2, 1] = coords_it[v2, 1]
     coords_edge[2, 2] = coords_it[v2 ,2]
 
+    if i == 4
+      println("interface 4 edge coordinates = \n", coords_edge)
+    end
     coords_bndry[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbpface.cub, coords_edge)
 
   end
@@ -635,16 +638,22 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
     face_i = getFaceL(faces[i])
     el_ptr = mesh.elements[el_i]
 
+    coords_i = sview(coords_lag_face, :, :, i)
+    getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
+    #=
     # get the MeshEntity* for the face
     getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, down_faces)
     face_ptr = down_faces[face_i]
 
     # get the lagrangian node coordinates
-    coords_i = sview(coords_lag_face, :, :, i)
+    # this might not be in the orientation specified by mesh.topo.vertmap
     getAllEntityCoords(mesh.m_ptr, face_ptr, coords_i)
-
+    =#
   end
 
+  if nfaces > 0
+    println("interface 4 face lagrangian coordinates = \n", coords_lag_face[:, :, 4])
+  end
   # call SBP
   calcFaceNormals!(mesh.sbpface, mesh.coord_order, ref_verts, coords_lag_face, 
                    coords_face, nrm_face)
@@ -966,3 +975,63 @@ function getElementVertMap(mesh::PumiMesh)
   return elvertmap
 end
 
+# get the coordinates of the nodes on a given face (in the coordinate field, not
+# the solution field)
+# this only works up to second order, and uses the ElementTopology to figure
+# out the orientation of the edge
+# elnum is the global element number
+# facenum is the local face number
+"""
+  This function gets the coordinates of the coordinate field nodes of the
+  face of an element, in the orientation specified by mesh.topo.  This only
+  works up to second order.  In 3D it makes the assumption that edge 1 of
+  the triangle is defined from v1 -> v2, edge 2 is v2 -> v3, and edge 3 is
+  v3 -> v1.
+
+  Inputs:
+    mesh: a 2D mesh
+    elnum: the global element number
+    facenum: the local face number
+
+  Inputs/Outputs:
+    coords: array to be populated with the coordinates, Tdim x 
+            number of coordinate nodes on a face (2 for linear 2D, 
+            3 for quadratic 2D)
+"""
+function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum, facenum, coords::AbstractMatrix)
+
+# coords = a 2 x number of nodes on the face array to be populated with the
+# coordinates
+
+  vertmap = mesh.topo.face_verts
+  el = mesh.elements[elnum]
+  el_verts = Array(Ptr{Void}, 12)
+  coords_tmp = Array(Float64, 3)
+  
+  getDownward(mesh.m_ptr, el, 0, el_verts)
+
+  v1 = el_verts[vertmap[1, facenum]]
+  v2 = el_verts[vertmap[2, facenum]]
+
+  getPoint(mesh.m_ptr, v1, 0, coords_tmp)
+
+  coords[1, 1] = coords_tmp[1]
+  coords[2, 1] = coords_tmp[2]
+
+  getPoint(mesh.m_ptr, v2, 0, coords_tmp)
+  coords[1, 2] = coords_tmp[1]
+  coords[2, 2] = coords_tmp[2]
+
+  if hasNodesIn(mesh.coordshape_ptr, 1)
+    getDownward(mesh.m_ptr, el, 1, el_verts)
+    edge = el_verts[facenum]
+    getPoint(mesh.m_ptr, edge, 0, coords_tmp)
+
+    coords[1, 3] = coords_tmp[1]
+    coords[2, 3] = coords_tmp[2]
+  end
+
+  return nothing
+end
+
+#TODO: 3D version

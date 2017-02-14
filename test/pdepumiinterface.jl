@@ -344,11 +344,11 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
     sbp = TriSBP{Float64}(degree=order, reorder=false, internal=true)
     vtx = sbp.vtx
-    interp_op = SummationByParts.buildinterpolation(sbp, vtx.')
+#    interp_op = SummationByParts.buildinterpolation(sbp, vtx.')
 
     sbpface = TriFace{Float64}(order, sbp.cub, vtx)
     println("sbpface.numnodes = ", sbpface.numnodes)
-    mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface, coloring_distance=2, dofpernode=4)
+    mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
    @fact mesh.m_ptr --> not(C_NULL)
    @fact mesh.mnew_ptr --> not(C_NULL)
@@ -579,7 +579,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    PdePumiInterface.numberNodesWindy(mesh, [0.0, 0.0, 0.0])
 
     smb_name = "tri8l.smb"
-    mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface, coloring_distance=2, dofpernode=4)
+    mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
   # check mapping interpolation
   # should be constant within an element for straight-sided elementsa
@@ -703,7 +703,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
   smb_name = "tri3_px.smb"
   opts["BC1"] = [0, 2]
-  mesh = PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface, coloring_distance=2, dofpernode=4)
+  mesh = PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
   @fact mesh.numPeriodicInterfaces --> 3
   @fact length(mesh.interfaces) --> 24
@@ -727,7 +727,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   # a 0 - 5 square that used a sin wave to remap the nondimensionalized
   # coordinates
   smb_name = "square_05_curve.smb"
-  mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface, coloring_distance=2, dofpernode=4)
+  mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
   function test_volume_curvilinear(mesh, sbp)
 
