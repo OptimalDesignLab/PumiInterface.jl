@@ -10,7 +10,12 @@
 function allocateMeshCoordinateArray{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
 
   num_coord_nodes = mesh.coord_numNodesPerElement
-  mesh.vert_coords = Array(Float64, mesh.dim, num_coord_nodes, mesh.numEl)
+
+  if !isFieldDefined(mesh, :vert_coords)
+    mesh.vert_coords = Array(Float64, mesh.dim, num_coord_nodes, mesh.numEl)
+  else
+    fill!(mesh.vert_coords, 0.0)
+  end
 
   return nothing
 end
@@ -34,23 +39,30 @@ function allocateCurvilinearCoordinateAndMetricArrays{Tmsh}(mesh::PumiMeshDG{Tms
   dim = mesh.dim
   sbpface = mesh.sbpface
   
-  mesh.coords = zeros(Tmsh, mesh.dim, mesh.numNodesPerElement, mesh.numEl)
-  mesh.dxidx = zeros(Tmsh, mesh.dim, mesh.dim, mesh.numNodesPerElement, mesh.numEl)
-  mesh.jac = zeros(Tmsh, mesh.numNodesPerElement, mesh.numEl)
+  if !isFieldDefined(mesh, :coords, :dxidx, :jac)
+    mesh.coords = zeros(Tmsh, mesh.dim, mesh.numNodesPerElement, mesh.numEl)
+    mesh.dxidx = zeros(Tmsh, mesh.dim, mesh.dim, mesh.numNodesPerElement, mesh.numEl)
+    mesh.jac = zeros(Tmsh, mesh.numNodesPerElement, mesh.numEl)
 
-  # these arrays are not used for 3D curvilinear meshes
+    # these arrays are not used for curvilinear meshes
 
-  # interior faces
-  mesh.dxidx_face = zeros(Tmsh, 0, 0, 0, 0)
-  mesh.jac_face = zeros(Tmsh, 0, 0)
+    # interior faces
+    mesh.dxidx_face = zeros(Tmsh, 0, 0, 0, 0)
+    mesh.jac_face = zeros(Tmsh, 0, 0)
 
-  # boundary faces
-  mesh.dxidx_bndry = zeros(Tmsh, 0, 0, 0, 0)
-  mesh.jac_bndry = zeros(Tmsh, 0, 0)
+    # boundary faces
+    mesh.dxidx_bndry = zeros(Tmsh, 0, 0, 0, 0)
+    mesh.jac_bndry = zeros(Tmsh, 0, 0)
 
-  # parallel shared faces
-  mesh.dxidx_sharedface = Array(Array{Tmsh, 4}, 0)
-  mesh.jac_sharedface = Array(Array{Tmsh, 2}, 0)
+    # parallel shared faces
+    mesh.dxidx_sharedface = Array(Array{Tmsh, 4}, 0)
+    mesh.jac_sharedface = Array(Array{Tmsh, 2}, 0)
+
+  else
+    fill!(mesh.coords, 0.0)
+    fill!(mesh.dxidx, 0.0)
+    fill!(mesh.jac, 0.0)
+  end
 
 
   return nothing
@@ -72,11 +84,7 @@ end
 """
 function getMeshCoordinates{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
 
-  if !isFieldDefined(mesh, :vert_coords)
-    allocateMeshCoordinateArray(mesh, sbp)
-  else
-    fill!(mesh.vert_coords, 0.0)
-  end
+  allocateMeshCoordinateArray(mesh, sbp)
 
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
@@ -93,25 +101,10 @@ end
   smart allocators to allocate the arrays if needed
 """
 function getFaceCoordinatesAndNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
-  if !isFieldDefined(mesh, :coords_bndry, :coords_sharedface)
-    allocateFaceCoordinates(mesh)
-  else  # zero out arrays that might need it
-    fill!(mesh.coords_bndry, 0.0)
-    fill!(mesh.coords_interface, 0.0)
-    for i=1:mesh.npeers
-      fill!(mesh.coords_sharedface[i], 0.0)
-    end
-  end
 
-  if !isFieldDefined(mesh, :nrm_bndry, :nrm_face, :nrm_sharedface)
-    allocateNormals(mesh, sbp)
-  else
-    fill!(mesh.nrm_bndry, 0.0)
-    fill!(mesh.nrm_face, 0.0)
-    for i=1:mesh.npeers
-      fill!(mesh.coords_sharedface[i], 0.0)
-    end
-  end
+  allocateFaceCoordinates(mesh)
+
+  allocateNormals(mesh, sbp)
 
   calcFaceCoordinatesAndNormals(mesh, sbp, mesh.bndryfaces, mesh.coords_bndry, 
                                mesh.nrm_bndry)
@@ -285,13 +278,7 @@ end
 function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh}, 
                                                   sbp::AbstractSBP)
 
-  if !isFieldDefined(mesh, :coords, :dxidx, :jac)
-    allocateCurvilinearCoordinateAndMetricArrays(mesh, sbp)
-  else
-    fill!(mesh.coords, 0.0)
-    fill!(mesh.dxidx, 0.0)
-    fill!(mesh.jac, 0.0)
-  end
+  allocateCurvilinearCoordinateAndMetricArrays(mesh, sbp)
 
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
   calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, mesh.coords, mesh.dxidx, mesh.jac)

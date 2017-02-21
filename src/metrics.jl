@@ -102,13 +102,21 @@ function allocateNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
 
   dim = mesh.dim
   numfacenodes = mesh.numNodesPerFace
-  mesh.nrm_bndry = Array(Tmsh, dim, numfacenodes, mesh.numBoundaryFaces )
 
+  if !isFieldDefined(mesh, :nrm_bndry, :nrm_face, :nrm_sharedface)
+    mesh.nrm_bndry = Array(Tmsh, dim, numfacenodes, mesh.numBoundaryFaces )
+    mesh.nrm_face = Array(Tmsh, mesh.dim, numfacenodes, mesh.numInterfaces)
+    mesh.nrm_sharedface = Array(Array{Tmsh, 3}, mesh.npeers)
 
-  mesh.nrm_face = Array(Tmsh, mesh.dim, numfacenodes, mesh.numInterfaces)
-  mesh.nrm_sharedface = Array(Array{Tmsh, 3}, mesh.npeers)
-  for i=1:mesh.npeers
-    mesh.nrm_sharedface[i] = Array(Tmsh, mesh.dim, numfacenodes, mesh.peer_face_counts[i])
+    for i=1:mesh.npeers
+      mesh.nrm_sharedface[i] = Array(Tmsh, mesh.dim, numfacenodes, mesh.peer_face_counts[i])
+    end
+  else
+    fill!(mesh.nrm_bndry, 0.0)
+    fill!(mesh.nrm_face, 0.0)
+    for i=1:mesh.npeers
+      fill!(mesh.nrm_sharedface[i], 0.0)
+    end
   end
 
   return nothing

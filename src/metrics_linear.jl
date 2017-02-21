@@ -12,8 +12,14 @@ function allocateCoordinateArrays{Tmsh}(mesh::PumiMeshDG{Tmsh},
                                                  sbp::AbstractSBP)
 
   num_coord_nodes = mesh.coord_numNodesPerElement
-  mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
-  mesh.vert_coords = Array(Float64, mesh.dim, num_coord_nodes, mesh.numEl)
+
+  if !isFieldDefined(mesh, :coords, :vert_coords)
+    mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
+    mesh.vert_coords = Array(Float64, mesh.dim, num_coord_nodes, mesh.numEl)
+  else
+    fill!(mesh.coords, 0.0)
+    fill!(mesh.vert_coords, 0.0)
+  end
 
   return nothing
 end
@@ -24,8 +30,13 @@ end
 """
 function allocateMetricsArrays{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
 
-  mesh.dxidx = Array(Tmsh, mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
-  mesh.jac = Array(Tmsh, sbp.numnodes, mesh.numEl)
+  if !isFieldDefined(mesh, :jac, :dxidx)
+    mesh.dxidx = Array(Tmsh, mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
+    mesh.jac = Array(Tmsh, sbp.numnodes, mesh.numEl)
+  else
+    fill!(mesh.dxidx, 0.0)
+    fill!(mesh.jac, 0.0)
+  end
 
   return nothing
 end
@@ -49,9 +60,7 @@ function getCoordinates(mesh::PumiMeshDG, sbp::AbstractSBP)
 #  mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
 #  mesh.vert_coords = Array(Float64, mesh.dim, nvert_per_el, mesh.numEl)
 
-  if !isFieldDefined(mesh, :coords, :vert_coords)
-    allocateCoordinateArrays(mesh, sbp)
-  end
+  allocateCoordinateArrays(mesh, sbp)
 
   nvert_per_el = mesh.numTypePerElement[1]
   @assert size(mesh.coords) == (mesh.dim, sbp.numnodes, mesh.numEl)
@@ -82,9 +91,7 @@ end
 """
 function getMetrics(mesh::PumiMeshDG, sbp::AbstractSBP)
 
-  if !isFieldDefined(mesh, :jac, :dxidx)
-    allocateMetricsArrays(mesh, sbp)
-  end
+  allocateMetricsArrays(mesh, sbp)
 
   mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
 
@@ -320,9 +327,7 @@ end
 """
 function getFaceNormals(mesh::PumiMeshDG, sbp)
 
-  if !isFieldDefined(mesh, :nrm_bndry, :nrm_face, :nrm_sharedface)
-    allocateNormals(mesh, sbp)
-  end
+  allocateNormals(mesh, sbp)
 
   calcFaceNormal(mesh, sbp, mesh.bndryfaces, mesh.dxidx_bndry, mesh.nrm_bndry)
   calcFaceNormal(mesh, sbp, mesh.interfaces, mesh.dxidx_face, mesh.nrm_face)

@@ -42,14 +42,7 @@ function interpolateCoordinatesAndMetrics(mesh::PumiMeshDG)
   interpolateMapping(mesh)
 
   #  allocate coordinate arrays if needed
-  if !isFieldDefined(mesh, :coords_bndry, :coords_sharedface)
-    allocateFaceCoordinates(mesh)
-  else  # zero out arrays that might need it
-    fill!(mesh.coords_bndry, 0.0)
-    for i=1:mesh.npeers
-      fill!(mesh.coords_sharedface[i], 0.0)
-    end
-  end
+  allocateFaceCoordinates(mesh)
 
   # get the coordinates
   getBndryCoordinates(mesh, mesh.bndryfaces, mesh.coords_bndry)
@@ -76,24 +69,36 @@ function allocateInterpolatedMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh})
 
   dim = mesh.dim
   sbpface = mesh.sbpface
-  
-  # interior faces
-  mesh.dxidx_face = zeros(Tmsh, dim, dim, sbpface.numnodes, mesh.numInterfaces)
-  mesh.jac_face = zeros(Tmsh, sbpface.numnodes, mesh.numInterfaces)
+   if !isFieldDefined(mesh, :dxidx_face, :jac_face, :dxidx_sharedface, 
+                           :jac_sharedface, :dxidx_bndry, :jac_bndry)
+    # interior faces
+    mesh.dxidx_face = zeros(Tmsh, dim, dim, sbpface.numnodes, mesh.numInterfaces)
+    mesh.jac_face = zeros(Tmsh, sbpface.numnodes, mesh.numInterfaces)
 
-  # boundary faces
-  mesh.dxidx_bndry = zeros(Tmsh, dim, dim, sbpface.numnodes, 
-                                 mesh.numBoundaryFaces)
-  mesh.jac_bndry = zeros(Tmsh, sbpface.numnodes, mesh.numBoundaryFaces)
+    # boundary faces
+    mesh.dxidx_bndry = zeros(Tmsh, dim, dim, sbpface.numnodes, 
+                                   mesh.numBoundaryFaces)
+    mesh.jac_bndry = zeros(Tmsh, sbpface.numnodes, mesh.numBoundaryFaces)
 
-  # parallel shared faces
-  mesh.dxidx_sharedface = Array(Array{Tmsh, 4}, mesh.npeers)
-  mesh.jac_sharedface = Array(Array{Tmsh, 2}, mesh.npeers)
-  for i=1:mesh.npeers
-    mesh.dxidx_sharedface[i] = zeros(Tmsh, dim, dim, sbpface.numnodes, 
-                                     mesh.peer_face_counts[i])
+    # parallel shared faces
+    mesh.dxidx_sharedface = Array(Array{Tmsh, 4}, mesh.npeers)
+    mesh.jac_sharedface = Array(Array{Tmsh, 2}, mesh.npeers)
+    for i=1:mesh.npeers
+      mesh.dxidx_sharedface[i] = zeros(Tmsh, dim, dim, sbpface.numnodes, 
+                                       mesh.peer_face_counts[i])
 
-    mesh.jac_sharedface[i] = Array(Tmsh, sbpface.numnodes, mesh.peer_face_counts[i])
+      mesh.jac_sharedface[i] = Array(Tmsh, sbpface.numnodes, mesh.peer_face_counts[i])
+    end
+  else
+
+    fill!(mesh.dxidx_face, 0.0)
+    fill!(mesh.jac_face, 0.0)
+    fill!(mesh.dxidx_bndry, 0.0)
+    fill!(mesh.jac_bndry, 0.0)
+    for i=1:mesh.npeers
+      fill!(mesh.dxidx_sharedface[i], 0.0)
+      fill!(mesh.jac_sharedface[i], 0.0)
+    end
   end
 
 
@@ -109,13 +114,23 @@ end
 function allocateFaceCoordinates{Tmsh}(mesh::PumiMeshDG{Tmsh})
 
   sbpface = mesh.sbpface
-  mesh.coords_bndry = zeros(Tmsh, mesh.dim, sbpface.numnodes, 
-                                mesh.numBoundaryFaces)
-  mesh.coords_interface = zeros(Tmsh, mesh.dim, sbpface.numnodes, mesh.numInterfaces)
-  mesh.coords_sharedface = Array(Array{Tmsh, 3}, mesh.npeers)
-  for i=1:mesh.npeers
-    mesh.coords_sharedface[i] = zeros(Tmsh, mesh.dim, sbpface.numnodes, 
-                                           mesh.peer_face_counts[i])
+
+  if !isFieldDefined(mesh, :coords_bndry, :coords_sharedface)
+    mesh.coords_bndry = zeros(Tmsh, mesh.dim, sbpface.numnodes, 
+                                  mesh.numBoundaryFaces)
+    mesh.coords_interface = zeros(Tmsh, mesh.dim, sbpface.numnodes, mesh.numInterfaces)
+    mesh.coords_sharedface = Array(Array{Tmsh, 3}, mesh.npeers)
+    for i=1:mesh.npeers
+      mesh.coords_sharedface[i] = zeros(Tmsh, mesh.dim, sbpface.numnodes, 
+                                             mesh.peer_face_counts[i])
+    end
+  else
+    fill!(mesh.coords_bndry, 0.0)
+    fill!(mesh.coords_interface, 0.0)
+    for i=1:mesh.npeers
+      fill!(mesh.coords_sharedface[i], 0.0)
+    end
+
   end
 
 
@@ -135,22 +150,8 @@ end
 # only do this for elementL of each interface
 function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
 
-#  if (!isdefined(mesh, :dxidx_face) || !isdefined(mesh, :jac_face) ||
-#      !isdefined(mesh, :dxidx_sharedface) || !isdefined(mesh, :jac_sharedface
-#      || !isdefined(mesh, :dxidx_bndry) || !isdefined(mesh, :jac_bndry)
+  allocateInterpolatedMetrics(mesh)
 
-  if !isFieldDefined(mesh, :dxidx_face, :jac_face, :dxidx_sharedface, 
-                           :jac_sharedface, :dxidx_bndry, :jac_bndry)
-    allocateInterpolatedMetrics(mesh)
-  else  # zero out any arrays that might need it
-    fill!(mesh.dxidx_face, 0.0)
-    fill!(mesh.jac_face, 0.0)
-    fill!(mesh.dxidx_bndry, 0.0)
-    fill!(mesh.jac_bndry, 0.0)
-    for i=1:mesh.npeers
-      fill!(mesh.dxidx_sharedface[i], 0.0)
-    end
-  end
   sbpface = mesh.sbpface
   dim = mesh.dim
 
