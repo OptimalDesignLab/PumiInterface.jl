@@ -670,28 +670,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   getInterfaceArray(mesh)
   sort!(mesh.interfaces)
 
-  if mesh.coord_order == 1  # DEBUGGING: disable linear calculation
-    getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
-    getMetrics(mesh, sbp)
-
-    if mesh.isInterpolated
-      interpolateCoordinatesAndMetrics(mesh)
-    end
-
-    getFaceNormals(mesh, sbp)
-  else  # curvilinear
-
-    # do other things
-    # getMeshCoordinates
-    getMeshCoordinates(mesh, sbp)
-    getFaceCoordinatesAndNormals(mesh, sbp)
-    getCurvilinearCoordinatesAndMetrics(mesh, sbp)
-
-  end
-
-  mesh.min_el_size = getMinElementSize(mesh)
-  mesh.volume = calcVolumeIntegral(mesh, sbp)
-
+  getAllCoordinatesAndMetrics(mesh, sbp)
 
   createSubtriangulatedMesh(mesh, opts)
 

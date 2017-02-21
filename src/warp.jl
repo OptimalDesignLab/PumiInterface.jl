@@ -76,25 +76,6 @@ function commit_coords(mesh::PumiMesh, sbp; verify=true)
     Verify(mesh.m_ptr)
   end
 
-  if mesh.coord_order == 1
-    getCoordinates(mesh, sbp)
-    getMetrics(mesh, sbp)
-    
-    if mesh.isInterpolated
-      interpolateCoordinatesAndMetrics(mesh)
-    end
-
-    getFaceNormals(mesh, sbp)
-  else
-
-    getMeshCoordinates(mesh, sbp)
-    getFaceCoordinatesAndNormals(mesh, sbp)
-    getCurvilinearCoordinatesAndMetrics(mesh, sbp)
-  end
-
-  mesh.min_el_size = getMinElementSize(mesh)
-  mesh.volume = calcVolumeIntegral(mesh, sbp)
-  # TODO: recalculate volume?
-
+  getAllCoordinatesAndMetrics(mesh, sbp)
 
 end
