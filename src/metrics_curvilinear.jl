@@ -140,40 +140,74 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
                     coords_face::AbstractArray{Tmsh, 3}, 
                     nrm_face::AbstractArray{Tmsh, 3})
 
-  #TODO: do this in a block format to avoid a temporary array of size O(numEl)
+  blocksize = 1000  # magic parameter: number of faces to do in a group
   nfaces = length(faces)
+
+  # calculate number of blocks
+  nblocks_full = div(nfaces, blocksize)
+  nrem = nfaces % blocksize
+  
   numNodesPerElement = mesh.coord_numNodesPerElement
   numNodesPerFace = mesh.coord_numNodesPerType[mesh.dim]
 
   # some temporary arrays
   down_faces = Array(Ptr{Void}, 12)
-  coords_lag_face = Array(Float64, mesh.dim, mesh.coord_numNodesPerFace, nfaces)
+  coords_lag_face = Array(Float64, mesh.dim, mesh.coord_numNodesPerFace, blocksize)
 
   # get the parametic coordinates of the face nodes
   face_xi = mesh.coord_facexi
   ref_verts = baryToXY(face_xi, mesh.sbpface.vtx)
-  for i=1:nfaces
-    el_i = getElementL(faces[i])
-    face_i = getFaceL(faces[i])
+
+  face_idx = 1  # index in faces array
+  for block=1:nblocks_full
+    start_idx = (block - 1)*blocksize + 1
+    end_idx = block*blocksize
+    coords_face_block = sview(coords_face, :, :, start_idx:end_idx)
+    nrm_face_block = sview(nrm_frame, :, :, start_idx:end_idx)
+
+    # load up data for current block
+    for i=1:blocksize
+      el_i = getElementL(faces[face_idx])
+      face_i = getFaceL(faces[face_idx])
+      el_ptr = mesh.elements[el_i]
+
+      coords_i = sview(coords_lag_face, :, :, i)
+      getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
+      face_idx += 1
+    end
+
+    # populate output array for current block
+    calcFaceNormals!(mesh.sbpface, mesh.coord_order, ref_verts, coords_lag_face,
+                     coords_face_block, nrm_face_block)
+    fill!(coords_lag_face, 0.0)
+
+  end  # end loop over full blocks
+
+  # do remainder loop
+  start_idx = nblocks_full*blocksize + 1
+  end_idx = nfaces
+  @assert end_idx - start_idx + 1 <= blocksize
+  @assert end_idx - start_idx + 1 == nrem
+
+  coords_face_block = sview(coords_face, :, :, start_idx:end_idx)
+  nrm_face_block = sview(nrm_face, :, :, start_idx:end_idx)
+  coords_lag_face_block = sview(coords_lag_face, :, :, 1:nrem)
+
+  for i=1:nrem  # loop over remaining faces
+    el_i = getElementL(faces[face_idx])
+    face_i = getFaceL(faces[face_idx])
     el_ptr = mesh.elements[el_i]
 
     coords_i = sview(coords_lag_face, :, :, i)
     getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
-    #=
-    # get the MeshEntity* for the face
-    getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, down_faces)
-    face_ptr = down_faces[face_i]
-
-    # get the lagrangian node coordinates
-    # this might not be in the orientation specified by mesh.topo.vertmap
-    getAllEntityCoords(mesh.m_ptr, face_ptr, coords_i)
-    =#
+    face_idx += 1
   end
 
-  # call SBP
-  calcFaceNormals!(mesh.sbpface, mesh.coord_order, ref_verts, coords_lag_face, 
-                   coords_face, nrm_face)
+  calcFaceNormals!(mesh.sbpface, mesh.coord_order, ref_verts, 
+                   coords_lag_face_block, coords_face_block, nrm_face_block)
 
+
+  # make sure the normal vectors point outwards
   fixOutwardNormal(mesh, faces, nrm_face)
 
   return nothing
