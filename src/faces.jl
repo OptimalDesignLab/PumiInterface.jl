@@ -234,6 +234,8 @@ function getInterfaceArray(mesh::PumiMesh2D)
         edge2_ptr = matched_entities[1]
         push!(seen_entities, edge2_ptr)
         element1 = adjacent_nums[1]
+
+        # get the element of the other edge
         num_adjacent = countAdjacent(mesh.m_ptr, edge2_ptr, mesh.dim)
         adjacent_entities = getAdjacent(num_adjacent)
         element2 = getNumberJ(mesh.el_Nptr, adjacent_entities[1], 0, 0) + 1
@@ -256,11 +258,15 @@ function getInterfaceArray(mesh::PumiMesh2D)
     elementR = element2
     edgeL = edge1
     edgeR = edge2
+    centroidL = centroid1
+    centroidR = centroid2
         else
     elementL = element2
     elementR = element1
     edgeL = edge2
     edgeR = edge1
+    centroidL = centroid2
+    centroidR = centroid1
         end
       else  # use y coordinate to decide
         if centroid1[2] < centroid2[2]
@@ -268,11 +274,15 @@ function getInterfaceArray(mesh::PumiMesh2D)
     elementR = element2
     edgeL = edge1
     edgeR = edge2
+    centroidL = centroid1
+    centroidR = centroid2
         else
     elementL = element2
     elementR = element1
     edgeL = edge2
     edgeR = edge1
+    centroidL = centroid2
+    centroidR = centroid1
         end
       end
 

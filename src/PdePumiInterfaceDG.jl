@@ -670,7 +670,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   getInterfaceArray(mesh)
   sort!(mesh.interfaces)
 
-  if mesh.coord_order == -1  # DEBUGGING: disable linear calculation
+  if mesh.coord_order == 1  # DEBUGGING: disable linear calculation
     getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
     getMetrics(mesh, sbp)
 
@@ -744,7 +744,13 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   if opts["write_dxidx"]
     rmfile("dxidx_$myrank.dat")
-    printdxidx("dxidx_$myrank.dat", mesh.dxidx)
+    writedlm("dxidx_$myrank.dat", mesh.dxidx)
+#    printdxidx("dxidx_$myrank.dat", mesh.dxidx)
+  end
+
+  if opts["write_jac"]
+    rmfile("jac_$myrank.dat")
+    writedlm("jac_$myrank.dat", mesh.jac)
   end
 
 

@@ -444,9 +444,6 @@ function getInterfaceCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh},
     coords_edge[2, 1] = coords_it[v2, 1]
     coords_edge[2, 2] = coords_it[v2 ,2]
 
-    if i == 4
-      println("interface 4 edge coordinates = \n", coords_edge)
-    end
     coords_bndry[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbpface.cub, coords_edge)
 
   end
@@ -651,9 +648,6 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
     =#
   end
 
-  if nfaces > 0
-    println("interface 4 face lagrangian coordinates = \n", coords_lag_face[:, :, 4])
-  end
   # call SBP
   calcFaceNormals!(mesh.sbpface, mesh.coord_order, ref_verts, coords_lag_face, 
                    coords_face, nrm_face)

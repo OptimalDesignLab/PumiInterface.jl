@@ -749,7 +749,9 @@ end
 
 
 function getMinElementSize(mesh::AbstractMesh)
-  return sqrt(1./maximum(mesh.jac))*mesh.min_node_dist
+  local_min = ((1./maximum(mesh.jac) )^(1/mesh.dim) )*mesh.min_node_dist
+  global_min = MPI.Allreduce(local_min, MPI.MIN, mesh.comm)
+  return global_min
 end
 
 
