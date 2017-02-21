@@ -190,6 +190,14 @@ elements for the purpose of coloring.  Thus the global coloring problem can be
 decomposed into a local coloring problem on each part.  This requires adjacency
 information for the remote elements, which is calculated during initialization.
 
+## Curvilinear grids
+There is early support for curvilinear grids, currently 2D only.  For
+curvilinear grids, dxidx and jac are not calculated at the face nodes (ie.
+`dxidx_face`, `dxidx_bndry`, `dxidx_sharedface`, `jac_face`, `jac_bndry`, `jac_shareface`
+are arrays of size zero).  Instead, users should use the normal vectors
+calculated at the face nodes, `nrm_face`, nrm_bndry`, `nrm_sharedface`.
+These arrays are calculated for non-curvilinear meshes as well, and should
+be used whenever possible.
 
 ## Periodic Boundary Conditions
 DG meshes support periodic boundary conditions.  The .smb file contains 

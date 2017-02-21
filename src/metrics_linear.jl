@@ -92,8 +92,10 @@ function getMetrics(mesh::PumiMeshDG, sbp::AbstractSBP)
 end
 
 
-    
-
+"""
+  This function dispatches on the type of the mesh to get the coordinates of
+  a mesh element (a face in 2d or a region in 3d)
+"""
 function getElementCoords(mesh::PumiMesh2D, entity::Ptr{Void}, coords::AbstractMatrix)
   # coords must be 3 x numVertsPerElement
   sx, sy = size(coords)
@@ -110,6 +112,10 @@ end
 
 
 #TODO: stop using slice notation
+"""
+  This function calculates the node coordinates, dxidx, jac, for a 
+  CG mesh
+"""
 function getCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshCG{Tmsh}, sbp::AbstractSBP)
 # populate the coords array of the mesh object
 mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
@@ -139,7 +145,8 @@ end
 
 """
   Populates the input array with the coordinates of the nodes on list of
-  boundary faces.  Non-curvilinear meshes only.
+  boundary faces.  Non-curvilinear meshes only.  In 3D it uses mesh.topo
+  to get the vertices of the correct order.
 
   Inputs:
     mesh: a mesh object
@@ -220,6 +227,12 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMesh3DG{Tmsh}, bndryfaces::Array{Bo
   return nothing
 end
 
+"""
+  This is basically the same as getBndryCoordinates, except it operates on
+  interfaces.  It calculates all quantities from the perspective of elementL
+
+  I think this can be combined with getBndryCoordinates
+"""
 function getInterfaceCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh}, 
                              bndryfaces::Array{Interface}, 
                              coords_bndry::Array{Tmsh, 3})

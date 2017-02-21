@@ -4,6 +4,9 @@
 #------------------------------------------------------------------------------
 # allocators for curvilinear meshes
 
+"""
+  Allocates mesh.vert_coords
+"""
 function allocateMeshCoordinateArray{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
 
   num_coord_nodes = mesh.coord_numNodesPerElement
@@ -12,15 +15,20 @@ function allocateMeshCoordinateArray{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::Abstract
   return nothing
 end
 
-function allocateNodeCoordinateArray{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
+"""
+  Allocates the following fields of mesh:
+    coords
+    dxidx
+    jac
 
-
-  mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
-
-  return nothing
-end
-
-
+  Also allocates the following fields with size zero (because they are not used):
+   dxidx_face
+   jac_face
+   dxidx_bndry
+   jac_bndry
+   dxidx_sharedface
+   jac_sharedface
+"""
 function allocateCurvilinearCoordinateAndMetricArrays{Tmsh}(mesh::PumiMeshDG{Tmsh},                                                         sbp::AbstractSBP)
 
   dim = mesh.dim
