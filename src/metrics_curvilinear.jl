@@ -153,6 +153,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
   # some temporary arrays
   down_faces = Array(Ptr{Void}, 12)
   coords_lag_face = Array(Float64, mesh.dim, mesh.coord_numNodesPerFace, blocksize)
+  storage = FaceCoordinateStorage()
 
   # get the parametic coordinates of the face nodes
   face_xi = mesh.coord_facexi
@@ -172,7 +173,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
       el_ptr = mesh.elements[el_i]
 
       coords_i = sview(coords_lag_face, :, :, i)
-      getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
+      getMeshFaceCoordinates(mesh, el_i, face_i, storage, coords_i)
       face_idx += 1
     end
 
@@ -199,7 +200,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
     el_ptr = mesh.elements[el_i]
 
     coords_i = sview(coords_lag_face, :, :, i)
-    getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
+    getMeshFaceCoordinates(mesh, el_i, face_i, storage, coords_i)
     face_idx += 1
   end
 
@@ -315,9 +316,210 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
   allocateCurvilinearCoordinateAndMetricArrays(mesh, sbp)
 
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
-  calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, mesh.coords, mesh.dxidx, mesh.jac)
+  if mesh.dim == 2
+    calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, 
+                         mesh.coords, mesh.dxidx, mesh.jac)
+  else
+
+    # block format
+    blocksize = 1000  # number of elements per block
+    nblocks_full = div(mesh.numEl, blocksize)
+    nrem = nfaces % blocksize
+
+    Eone = zeros(mesh.numNodesPerElement, mesh.dim, blocksize)
+    for block=1:nblocks_full
+      start_idx = (block - 1)*blocksize + 1
+      end_idx = block*blocksize
+      element_range = start_idx:end_idx
+      
+      getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range)
+     
+    end  # end loop over blocks
+
+    # remainder block
+    start_idx = nblocks_full*blocksize
+    end_idx = mesh.numEl
+    @assert start_idx - end_idx + 1 <= blocksize
+    @assert start_idx - end_idx + 1 == nrem
+
+    element_range = start_idx:end_idx
+
+    getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range)
+  end  # end if dim == 2
+
+  return nothing
 end
 
+"""
+  This function calculates the metrics and coordinates for one block of 
+  elements.  Used by getCurvilinearMetricsAndCoordinates
+"""
+function getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eone)
+
+  # calculate Eone for current range
+
+  vert_coords_block = sview(mesh.vert_coords, :, :, element_range)
+  coords_block = sview(mesh.coords, :, :, element_range)
+  dxidx_block = sview(mesh.dxidx, :, :, :, element_range)
+  jac_block = sview(mesh.jac, :, element_range)
+
+  calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
+                       coords_block, dxidx_block, jac_block, Eone)
+
+  fill!(Eone, 0.0)
+  return nothing
+end
+
+function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range, Eone::AbstractArray{Tmsh, 3})
+
+  # search interfaces and bndryfaces
+
+  first_el = element_range[1]
+  last_el = element_range[end]
+
+  # R times vector of ones
+  Rone = sum(mesh.sbpface.interp.', 2)
+  sbpface = mesh.sbpface
+  tmp = zeros(Rone)
+  nrmL = zeros(Tmsh, mesh.dim, sbpface.numnodes)
+
+  # accumulate E1 for a given element
+  Eone_el = zeros(Tmsh, sbpface.stencilsize, mesh.dim)
+
+  for i=1:mesh.numInterfaces
+    iface_i = mesh.interfaces[i]
+
+    if iface_i.elementL >= first_el && iface_i.elementL <= last_el
+      elnum = iface_i.elementL
+      facenum_local = iface_i.faceL
+      nrm = sview(mesh.nrm_face, :, :, i)
+
+      # call inner functions
+      calcEoneElement(sbpface, nrm, Rone, Eone_el)
+      assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
+
+    end
+
+    if iface_i.elementR >= first_el && iface_i.elementR <= last_el
+      # do same as above, negating and permuting nrm
+      elnum = iface_i.elementL
+      facenum_local = iface_i.faceL
+      orient = iface_i.orient
+      for j=1:sbpface.numnodes
+        for d=1:mesh.dim
+          #TODO: is this the right use of nbrperm?  or should it the
+          # receiving array be permuted
+          nrmL[d, j] = -mesh.nrm_face[d, sbpface.nbrperm[j, orient], i]
+        end
+      end
+ 
+      calcEoneElement(sbpface, nrmL, Rone, Eone_el)
+      assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
+
+    end  # end if/else
+
+  end  # end loop over interfaces
+
+  for i=1:mesh.numBoundaryFaces
+    bface_i = mesh.bndryfaces[i]
+
+    if bface_i.element >= first_el && bface_i.element <= last_el
+      elnum = bface_i.elementL
+      facenum_local = bface_i.faceL
+      nrm = sview(mesh.nrm_bndry, :, :, i)
+
+      # call inner functions
+      calcEoneElement(sbpface, nrm, Rone, Eone_el)
+      assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
+
+    end
+  end  # end loop over boundary faces
+
+  return nothing
+end
+
+"""
+  Calculates E1 for a given interface.  Used by calcEone.
+
+  Inputs:
+    sbpface: an AbstractFace
+    nrm: the normal vectors for each node of the face, dim x numFaceNodes
+    Rone: the interpolation operator R times the vector of ones
+    tmp: a temporary vector of length numFaceNodes, overwritten
+
+  Inputs/Outputs:
+    Eone_el: sbp.stencilsize x dim matrix to be populated with the E
+             contribution for this face.  Overwritten.
+
+"""
+function calcEoneElement{Tmsh}(sbpface::AbstractFace, nrm::AbstractMatrix, 
+                         Rone::AbstractVector, tmp::AbstractVector, 
+                         Eone_el::AbstractMatrix{Tmsh})
+
+  dim = size(Eone_el, 2)
+
+  numFaceNodes = length(Rone)
+  for d=1:dim
+    for i=1:numFaceNodes
+      tmp[i] = Rone[i]*nrm[dim, i]*sbpface.wface[i]
+    end
+
+    Eone_dim = sview(Eone, :, dim)
+    smallmatvec!(sbpface.interp, tmp, Eone_dim)
+  end
+
+  return nothing
+end
+
+"""
+  Takes an Eone_el matrix from calcEoneElement and assemble it into the big
+  Eone.
+
+  Inputs:
+    sbpface: an SBP face
+    elnum: the element index of Eone to put the values into.  Note that if
+           Eone is for the entire mesh, then this is the element number.  If
+           Eone is for a range of elements, then elnum is the index of the
+           element within the range.
+    Eone_el: the E1 contribution of an element
+
+  Inputs/Output
+    Eone: a numNodesPerElement x dim x blocksize array to store E1 for a
+          range of elements, updated with the new contribution
+"""
+function assembleEone{Tmsh}(sbpface::AbstractFace, elnum::Integer, 
+                      facenum_local::Integer, Eone_el::AbstractMatrix{Tmsh}, 
+                      Eone::AbstractMatrix{Tmsh})
+
+  dim = size(Eone, 2)
+  for d=1:dim
+    for i=1:sbp.stencilsize
+      p_i = sbpface.perm[i, facenum_local]
+      Eone[p_j, dim, elnum] += Eone_el[i, dim]
+    end
+  end
+
+  return nothing
+end
+
+"""
+  Type to store the temporary arrays needed by getMeshFaceCoordinates
+"""
+immutable FaceCoordinateStorage
+  el_verts::Array{Ptr{Void}, 1}
+  coords_tmp::Array{Float64, 1}
+  v1_edges::Array{Ptr{Void}, 1}
+  v2_edges::Array{Ptr{Void}, 1}
+
+  function FaceCoordinateStorage()
+    el_verts = Array(Ptr{Void}, 12)
+    coords_tmp = Array(Float64, 3)
+    v1_edges = Array(Ptr{Void}, 400)
+    v2_edges = Array(Ptr{Void}, 400)
+
+    return new(el_verts, coords_tmp, v1_edges, v2_edges)
+  end
+end
 
 # get the coordinates of the nodes on a given face (in the coordinate field, not
 # the solution field)
@@ -342,15 +544,17 @@ end
             number of coordinate nodes on a face (2 for linear 2D, 
             3 for quadratic 2D)
 """
-function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum, facenum, coords::AbstractMatrix)
+function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum, facenum, storage::FaceCoordinateStorage, coords::AbstractMatrix)
 
 # coords = a 2 x number of nodes on the face array to be populated with the
 # coordinates
 
   vertmap = mesh.topo.face_verts
   el = mesh.elements[elnum]
-  el_verts = Array(Ptr{Void}, 12)
-  coords_tmp = Array(Float64, 3)
+  el_verts = storage.el_verts
+  coords_tmp = storage.coords_tmp
+#  el_verts = Array(Ptr{Void}, 12)
+#  coords_tmp = Array(Float64, 3)
   
   getDownward(mesh.m_ptr, el, 0, el_verts)
 
@@ -378,4 +582,60 @@ function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum, facenum, coords::Abstr
   return nothing
 end
 
-#TODO: 3D version
+
+function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum, facenum, storage::FaceCoordinateStorage, coords::AbstractMatrix)
+
+  vertmap = mesh.topo.face_verts
+  el = mesh.elements[elnum]
+  el_verts = storage.el_verts
+#  el_verts = Array(Ptr{Void}, 12)
+  
+  getDownward(mesh.m_ptr, el, 0, el_verts)
+
+  for i=1:3  # 3 vertices per face
+    v_i = el_verts[ vertmap[i, facenum] ]
+    coords_i = sview(coords, :, i)
+    getPoint(mesh.m_ptr, v_i, 0, coords_i)
+  end
+
+  if hasNodesIn(mesh.coordshape_ptr, 1)
+    offset = 3
+    # edge nodes
+    v1_edges = storage.v1_edges
+    v2_edges = storage.v2_edges
+#    v1_edges = Array(Ptr{Void}, 400)  # apf::Up
+#    v2_edges = Array(Ptr{Void}, 400)
+
+    for i=1:3  # 3 edges per face
+      i2 = mod(i, 3) + 1
+      v1 = el_verts[i]
+      v2 = el_verts[i2]
+      countAdjacent(mesh.m_ptr, v1, 1)
+      getAdjacent(v1_edges)
+      countAdjacent(mesh.m_ptr, v2, 1)
+      getAdjacent(v2_edges)
+
+      # simple linear search for common edge
+      # in the average case this is fine because there are only 20 or so
+      # edges upward ajacent to a vertex, but in the worst case there could
+      # be 400
+      common_edge = first_common(v1_edges, v2_edges)
+
+      coords_i = sview(coords, :, i + offset)
+      getPoint(mesh.m_ptr, common_edge, 0, coords_i)
+    end
+  end
+
+  return nothing
+end
+
+
+    
+
+
+
+
+
+
+
+

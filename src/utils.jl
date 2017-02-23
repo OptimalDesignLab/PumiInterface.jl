@@ -88,6 +88,24 @@ function common(A::AbstractArray, B::AbstractArray)
     return arr_ret, num_found
 end
 
+"""
+  Gets the first element in A that is also in B.  If none found, returns
+  first element of A
+"""
+function first_common(A::AbstractArray, B::AbstractArray)
+
+  for i=1:length(A)
+    A_i = A[i]
+    for j=1:length(B)
+      if A_i == B[i]
+        return A_i
+      end
+    end
+  end
+
+  return A[1]
+end
+
 
 function calcNewNode(i, offset_pumi, offset_orient)
 # this function calculates the new node index on the entity

@@ -75,15 +75,16 @@ function getAllCoordinatesAndMetrics(mesh, sbp)
 
     getFaceNormals(mesh, sbp)
   else  # curvilinear
+    # 3rd order and above are not supported yet
+    @assert mesh.coord_order == 2
 
-    # do other things
-    # getMeshCoordinates
     getMeshCoordinates(mesh, sbp)
     getFaceCoordinatesAndNormals(mesh, sbp)
     getCurvilinearCoordinatesAndMetrics(mesh, sbp)
 
   end
 
+  # calculate things that depend on the above
   mesh.min_el_size = getMinElementSize(mesh)
   mesh.volume = calcVolumeIntegral(mesh, sbp)
 

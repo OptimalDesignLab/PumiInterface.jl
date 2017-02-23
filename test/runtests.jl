@@ -498,6 +498,6 @@ end
 =#
 println("about to test pdepumiinterface")
 include("pdepumiinterface.jl")
-println("TEMPORARY: not running 3D tests")
-#include("pdepumiinterface3.jl")
+#println("TEMPORARY: not running 3D tests")
+include("pdepumiinterface3.jl")
 FactCheck.exitstatus()
