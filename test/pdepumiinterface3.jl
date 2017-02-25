@@ -269,6 +269,65 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   end  # end loop order
 
+  # test curvilinear is same as linear for linear mesh
+  dxidx_orig = copy(mesh.dxidx)
+  jac_orig = copy(mesh.jac)
+  nrm_bndry_orig = copy(mesh.nrm_bndry)
+  nrm_face_orig = copy(mesh.nrm_face)
+  coords_orig = copy(mesh.coords)
+  coords_bndry_orig = copy(mesh.coords_bndry)
+  coords_interface_orig = copy(mesh.coords_interface)
+
+  PdePumiInterface.getMeshCoordinates(mesh, sbp)
+  PdePumiInterface.getFaceCoordinatesAndNormals(mesh, sbp)
+  PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+
+  for i=1:mesh.numEl
+    println("element ", i)
+    for j=1:mesh.numNodesPerElement
+      println("node ", j)
+      for k=1:mesh.dim
+        for p=1:mesh.dim
+          @fact mesh.dxidx[p, k, j, i] --> roughly(dxidx_orig[p, k, j, i], atol=1e-12)
+        end
+      end
+
+      @fact mesh.jac[j, i] --> roughly(jac_orig[j, i], atol=1e-12)
+    end
+  end
+
+  println("size(dxidx) = ", size(mesh.dxidx))
+  writedlm("dxidx_tmp.dat", mesh.dxidx)
+
+  for i=1:mesh.numBoundaryFaces
+    for j=1:mesh.numNodesPerFace
+      for k=1:mesh.dim
+        @fact mesh.nrm_bndry[k, j, i] --> roughly(nrm_bndry_orig[k, j, i], atol=1e-12)a
+        @fact mesh.coords_bndry[k, j, i] --> roughly(coords_bndry_orig[k, j, i], atol=1e-12)
+      end
+    end
+  end
+
+  for i=1:mesh.numInterfaces
+    for j=1:mesh.numNodesPerFace
+      for k=1:mesh.dim
+        @fact mesh.nrm_face[k, j, i] --> roughly(nrm_face_orig[k, j, i], atol=1e-12)
+        @fact mesh.coords_interface[k, j, i] --> roughly(coords_interface_orig[k, j, i], atol=1e-12)
+      end
+    end
+  end
+
+  for i=1:mesh.numEl
+    for j=1:mesh.numNodesPerElement
+      for d=1:mesh.dim
+        @fact mesh.coords[d, j, i] --> roughly(coords_orig[d, j, i], atol=1e-13)
+      end
+    end
+  end
+ 
+
+
+
 
 
 

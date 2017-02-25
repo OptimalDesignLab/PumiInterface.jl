@@ -164,7 +164,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
     start_idx = (block - 1)*blocksize + 1
     end_idx = block*blocksize
     coords_face_block = sview(coords_face, :, :, start_idx:end_idx)
-    nrm_face_block = sview(nrm_frame, :, :, start_idx:end_idx)
+    nrm_face_block = sview(nrm_face, :, :, start_idx:end_idx)
 
     # load up data for current block
     for i=1:blocksize
@@ -319,42 +319,48 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
   if mesh.dim == 2
     calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, 
                          mesh.coords, mesh.dxidx, mesh.jac)
-  else
+  else  # need to calculate Eone
+    println("doing 3d curvilinear coordinate and metric calcullation")
 
     # block format
     blocksize = 1000  # number of elements per block
     nblocks_full = div(mesh.numEl, blocksize)
-    nrem = nfaces % blocksize
+    nrem = mesh.numEl % blocksize
 
     Eone = zeros(mesh.numNodesPerElement, mesh.dim, blocksize)
+
     for block=1:nblocks_full
+      println("full block ", block)
       start_idx = (block - 1)*blocksize + 1
       end_idx = block*blocksize
       element_range = start_idx:end_idx
       
-      getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range)
+      getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eone)
      
     end  # end loop over blocks
 
     # remainder block
-    start_idx = nblocks_full*blocksize
+    println("doing remainder block")
+    start_idx = nblocks_full*blocksize + 1
     end_idx = mesh.numEl
-    @assert start_idx - end_idx + 1 <= blocksize
-    @assert start_idx - end_idx + 1 == nrem
+    @assert end_idx - start_idx + 1 <= blocksize
+    @assert end_idx - start_idx + 1 == nrem
 
     element_range = start_idx:end_idx
 
-    getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range)
+    getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eone)
   end  # end if dim == 2
 
   return nothing
 end
 
+global call_cnt = 1
 """
   This function calculates the metrics and coordinates for one block of 
   elements.  Used by getCurvilinearMetricsAndCoordinates
 """
-function getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eone)
+function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp, 
+                             element_range::UnitRange, Eone::AbstractArray{T, 3})
 
   # calculate Eone for current range
 
@@ -362,15 +368,27 @@ function getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eon
   coords_block = sview(mesh.coords, :, :, element_range)
   dxidx_block = sview(mesh.dxidx, :, :, :, element_range)
   jac_block = sview(mesh.jac, :, element_range)
+  ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
 
+  # for the remainder loop, make sure the last dimensions of Eone matches the
+  # other arrays
+  Eone_block = sview(Eone, :, :, element_range)
+
+  global call_cnt
+  println("call_cnt = ", call_cnt)
+  calcEone(mesh, sbp, element_range, Eone_block)
+  
+  writedlm("Eone_$call_cnt.dat", Eone_block)
+  call_cnt += 1
   calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
-                       coords_block, dxidx_block, jac_block, Eone)
+                       coords_block, dxidx_block, jac_block, Eone_block)
 
   fill!(Eone, 0.0)
   return nothing
 end
 
-function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range, Eone::AbstractArray{Tmsh, 3})
+function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range, 
+                        Eone::AbstractArray{Tmsh, 3})
 
   # search interfaces and bndryfaces
 
@@ -378,7 +396,9 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range, Eone::Abstra
   last_el = element_range[end]
 
   # R times vector of ones
-  Rone = sum(mesh.sbpface.interp.', 2)
+  println("R = \n", mesh.sbpface.interp.')
+  Rone = vec(sum(mesh.sbpface.interp.', 2))
+  println("Rone = \n", Rone)
   sbpface = mesh.sbpface
   tmp = zeros(Rone)
   nrmL = zeros(Tmsh, mesh.dim, sbpface.numnodes)
@@ -387,23 +407,30 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range, Eone::Abstra
   Eone_el = zeros(Tmsh, sbpface.stencilsize, mesh.dim)
 
   for i=1:mesh.numInterfaces
+    println("interface ", i)
     iface_i = mesh.interfaces[i]
 
     if iface_i.elementL >= first_el && iface_i.elementL <= last_el
+      println("first element in range")
       elnum = iface_i.elementL
       facenum_local = iface_i.faceL
       nrm = sview(mesh.nrm_face, :, :, i)
 
       # call inner functions
-      calcEoneElement(sbpface, nrm, Rone, Eone_el)
+      calcEoneElement(sbpface, nrm, Rone, tmp, Eone_el)
+      println("iface = ", iface_i)
+      println("nrm = \n", nrm)
+      println("Eone_el = \n", Eone_el)
       assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
+      println("Eone[:, :, $elnum] = \n", Eone[:, :, elnum])
 
     end
 
     if iface_i.elementR >= first_el && iface_i.elementR <= last_el
+      println("second element in ranage")
       # do same as above, negating and permuting nrm
-      elnum = iface_i.elementL
-      facenum_local = iface_i.faceL
+      elnum = iface_i.elementR
+      facenum_local = iface_i.faceR
       orient = iface_i.orient
       for j=1:sbpface.numnodes
         for d=1:mesh.dim
@@ -413,25 +440,36 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range, Eone::Abstra
         end
       end
  
-      calcEoneElement(sbpface, nrmL, Rone, Eone_el)
-      assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
+      calcEoneElement(sbpface, nrmL, Rone, tmp, Eone_el)
+      println("iface = ", iface_i)
+      println("nrm = \n", nrm)
+      println("Eone_el = \n", Eone_el)
 
+      assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
+      println("Eone[:, :, $elnum] = \n", Eone[:, :, elnum])
     end  # end if/else
 
   end  # end loop over interfaces
 
   for i=1:mesh.numBoundaryFaces
+    println("boundary ", i)
     bface_i = mesh.bndryfaces[i]
 
     if bface_i.element >= first_el && bface_i.element <= last_el
-      elnum = bface_i.elementL
-      facenum_local = bface_i.faceL
+      println("boundary face in range")
+      elnum = bface_i.element
+      facenum_local = bface_i.face
       nrm = sview(mesh.nrm_bndry, :, :, i)
 
       # call inner functions
-      calcEoneElement(sbpface, nrm, Rone, Eone_el)
+      calcEoneElement(sbpface, nrm, Rone, tmp, Eone_el)
+      println("iface = ", bface_i)
+      println("nrm = \n", nrm)
+      println("Eone_el = \n", Eone_el)
+
       assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
 
+      println("Eone[:, :, $elnum] = \n", Eone[:, :, elnum])
     end
   end  # end loop over boundary faces
 
@@ -457,15 +495,19 @@ function calcEoneElement{Tmsh}(sbpface::AbstractFace, nrm::AbstractMatrix,
                          Eone_el::AbstractMatrix{Tmsh})
 
   dim = size(Eone_el, 2)
-
+  println("wface = \n", sbpface.wface)
   numFaceNodes = length(Rone)
   for d=1:dim
+    println("d = ", d)
     for i=1:numFaceNodes
-      tmp[i] = Rone[i]*nrm[dim, i]*sbpface.wface[i]
+      tmp[i] = Rone[i]*nrm[d, i]*sbpface.wface[i]
     end
 
-    Eone_dim = sview(Eone, :, dim)
+    println("tmp = \n", tmp)
+
+    Eone_dim = sview(Eone_el, :, d)
     smallmatvec!(sbpface.interp, tmp, Eone_dim)
+    println("Eone_dim = \n", Eone_dim)
   end
 
   return nothing
@@ -489,13 +531,15 @@ end
 """
 function assembleEone{Tmsh}(sbpface::AbstractFace, elnum::Integer, 
                       facenum_local::Integer, Eone_el::AbstractMatrix{Tmsh}, 
-                      Eone::AbstractMatrix{Tmsh})
+                      Eone::AbstractArray{Tmsh, 3})
 
+  println("assembling into element ", elnum)
+#  println("Eone_el = \n", Eone_el)
   dim = size(Eone, 2)
   for d=1:dim
-    for i=1:sbp.stencilsize
+    for i=1:sbpface.stencilsize
       p_i = sbpface.perm[i, facenum_local]
-      Eone[p_j, dim, elnum] += Eone_el[i, dim]
+      Eone[p_i, d, elnum] += Eone_el[i, d]
     end
   end
 
