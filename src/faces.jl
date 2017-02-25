@@ -17,7 +17,6 @@ function getBoundaryArray(mesh::PumiMesh, boundary_nums::AbstractArray{Int, 2})
   return nothing
 end
 
-
 # deprecated
 function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2D, sbp::AbstractSBP, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
 

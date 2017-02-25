@@ -143,8 +143,6 @@ function getNodeIdx(e_type::Integer, e_idx::Integer, node_idx::Integer, typeOffs
   nodes_on_type = numNodesPerType[e_type]
   return type_offset -1 + (e_idx - 1)*nodes_on_type + node_idx
 end
-
-
 #------------------------------------------------------------------------------
 # misc. helper functions
 

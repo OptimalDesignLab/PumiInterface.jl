@@ -1036,4 +1036,3 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
   writeVtkFiles("mesh_complete", m_ptr)
 end
 
-

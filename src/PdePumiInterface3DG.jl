@@ -455,8 +455,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh.coord_facexi = getXiCoords(mesh.coord_order, mesh.dim-1)
   mesh.coord_numNodesPerFace = size(mesh.coord_facexi, 2)
 
-
-
   mesh. numNodesPerElement = mesh.typeOffsetsPerElement[end] - 1
   numnodes = mesh.numNodesPerElement*mesh.numEl
   mesh.numNodes = numnodes      # we assume there are no non-free nodes/dofs
@@ -659,7 +657,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 #  sort!(mesh.interfaces)
 
   if mesh.coord_order == 1
-#    getCoordinatesAndMetrics(mesh, sbp)  # store coordinates of all nodes into array
     getCoordinates(mesh, sbp)
     getMetrics(mesh, sbp)
 

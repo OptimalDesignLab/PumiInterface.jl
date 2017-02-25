@@ -1234,8 +1234,43 @@ void getAllEntityCoords(apf::Mesh* m, apf::MeshEntity* e, double* coords)
 {
 
   apf::FieldShape* coordshape = m->getShape();
-  int max_dim = m->getDimension();
-//  int max_dim = apf::Mesh::typeDimension[m->getType(e)];
+  int max_dim = apf::Mesh::typeDimension[m->getType(e)];
+
+  int nentities=0;
+  apf::Downward down_entities;
+  apf::Vector3 coords_vec;
+  apf::MeshEntity* down_entity;
+
+  int idx=0;
+  for ( int dim=0; dim <= max_dim; ++dim)
+  {
+    if ( coordshape->hasNodesIn(dim) )
+    {
+      nentities = m->getDownward(e, dim, down_entities);
+      // loop over entities of current dimensions
+      for ( int entitynum=0; entitynum < nentities; entitynum++)
+      {
+        down_entity = down_entities[entitynum];
+        int entity_type = m->getType(down_entity);
+        int nnodes = coordshape->countNodesOn(entity_type);
+        // loop over nodes on current entity
+        for (int nodenum=0; nodenum < nnodes; nodenum++)
+        {
+          m->getPoint(down_entity, nodenum, coords_vec);
+          for (int i=0; i < max_dim; ++i)
+          {
+            coords[idx] = coords_vec[i];
+            idx++;
+          }  // end loop i
+        }  // end loop over nodes
+      }  // end loop over entities
+    } // end if nodes in this dimension
+  }   // end loop over dimensions
+}  // function getAllElementCoords
+
+
+//TODO: create a similar function to the above calling getNodeXi
+// look at apf.h for vertex xi coordinates
 
   int nentities=0;
   apf::Downward down_entities;

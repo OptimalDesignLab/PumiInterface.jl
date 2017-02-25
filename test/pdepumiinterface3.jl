@@ -326,12 +326,6 @@ facts("----- Testing PdePumiInterface3DG -----") do
   end
  
 
-
-
-
-
-
-
 end
 
 
