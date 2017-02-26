@@ -320,7 +320,6 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
     calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, 
                          mesh.coords, mesh.dxidx, mesh.jac)
   else  # need to calculate Eone
-    println("doing 3d curvilinear coordinate and metric calcullation")
 
     # block format
     blocksize = 1000  # number of elements per block
@@ -330,7 +329,6 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
     Eone = zeros(mesh.numNodesPerElement, mesh.dim, blocksize)
 
     for block=1:nblocks_full
-      println("full block ", block)
       start_idx = (block - 1)*blocksize + 1
       end_idx = block*blocksize
       element_range = start_idx:end_idx
@@ -340,7 +338,6 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
     end  # end loop over blocks
 
     # remainder block
-    println("doing remainder block")
     start_idx = nblocks_full*blocksize + 1
     end_idx = mesh.numEl
     @assert end_idx - start_idx + 1 <= blocksize
@@ -354,7 +351,6 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
   return nothing
 end
 
-global call_cnt = 1
 """
   This function calculates the metrics and coordinates for one block of 
   elements.  Used by getCurvilinearMetricsAndCoordinates
@@ -374,12 +370,7 @@ function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp,
   # other arrays
   Eone_block = sview(Eone, :, :, element_range)
 
-  global call_cnt
-  println("call_cnt = ", call_cnt)
   calcEone(mesh, sbp, element_range, Eone_block)
-  
-  writedlm("Eone_$call_cnt.dat", Eone_block)
-  call_cnt += 1
   calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
                        coords_block, dxidx_block, jac_block, Eone_block)
 
@@ -396,9 +387,7 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
   last_el = element_range[end]
 
   # R times vector of ones
-  println("R = \n", mesh.sbpface.interp.')
   Rone = vec(sum(mesh.sbpface.interp.', 2))
-  println("Rone = \n", Rone)
   sbpface = mesh.sbpface
   tmp = zeros(Rone)
   nrmL = zeros(Tmsh, mesh.dim, sbpface.numnodes)
@@ -407,69 +396,47 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
   Eone_el = zeros(Tmsh, sbpface.stencilsize, mesh.dim)
 
   for i=1:mesh.numInterfaces
-    println("interface ", i)
     iface_i = mesh.interfaces[i]
 
     if iface_i.elementL >= first_el && iface_i.elementL <= last_el
-      println("first element in range")
       elnum = iface_i.elementL
       facenum_local = iface_i.faceL
       nrm = sview(mesh.nrm_face, :, :, i)
 
       # call inner functions
       calcEoneElement(sbpface, nrm, Rone, tmp, Eone_el)
-      println("iface = ", iface_i)
-      println("nrm = \n", nrm)
-      println("Eone_el = \n", Eone_el)
       assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
-      println("Eone[:, :, $elnum] = \n", Eone[:, :, elnum])
 
     end
 
     if iface_i.elementR >= first_el && iface_i.elementR <= last_el
-      println("second element in ranage")
       # do same as above, negating and permuting nrm
       elnum = iface_i.elementR
       facenum_local = iface_i.faceR
       orient = iface_i.orient
       for j=1:sbpface.numnodes
         for d=1:mesh.dim
-          #TODO: is this the right use of nbrperm?  or should it the
-          # receiving array be permuted
           nrmL[d, j] = -mesh.nrm_face[d, sbpface.nbrperm[j, orient], i]
         end
       end
  
       calcEoneElement(sbpface, nrmL, Rone, tmp, Eone_el)
-      println("iface = ", iface_i)
-      println("nrm = \n", nrm)
-      println("Eone_el = \n", Eone_el)
-
       assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
-      println("Eone[:, :, $elnum] = \n", Eone[:, :, elnum])
     end  # end if/else
 
   end  # end loop over interfaces
 
   for i=1:mesh.numBoundaryFaces
-    println("boundary ", i)
     bface_i = mesh.bndryfaces[i]
 
     if bface_i.element >= first_el && bface_i.element <= last_el
-      println("boundary face in range")
       elnum = bface_i.element
       facenum_local = bface_i.face
       nrm = sview(mesh.nrm_bndry, :, :, i)
 
       # call inner functions
       calcEoneElement(sbpface, nrm, Rone, tmp, Eone_el)
-      println("iface = ", bface_i)
-      println("nrm = \n", nrm)
-      println("Eone_el = \n", Eone_el)
-
       assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
-
-      println("Eone[:, :, $elnum] = \n", Eone[:, :, elnum])
     end
   end  # end loop over boundary faces
 
@@ -495,19 +462,14 @@ function calcEoneElement{Tmsh}(sbpface::AbstractFace, nrm::AbstractMatrix,
                          Eone_el::AbstractMatrix{Tmsh})
 
   dim = size(Eone_el, 2)
-  println("wface = \n", sbpface.wface)
   numFaceNodes = length(Rone)
   for d=1:dim
-    println("d = ", d)
     for i=1:numFaceNodes
       tmp[i] = Rone[i]*nrm[d, i]*sbpface.wface[i]
     end
 
-    println("tmp = \n", tmp)
-
     Eone_dim = sview(Eone_el, :, d)
     smallmatvec!(sbpface.interp, tmp, Eone_dim)
-    println("Eone_dim = \n", Eone_dim)
   end
 
   return nothing
@@ -533,8 +495,6 @@ function assembleEone{Tmsh}(sbpface::AbstractFace, elnum::Integer,
                       facenum_local::Integer, Eone_el::AbstractMatrix{Tmsh}, 
                       Eone::AbstractArray{Tmsh, 3})
 
-  println("assembling into element ", elnum)
-#  println("Eone_el = \n", Eone_el)
   dim = size(Eone, 2)
   for d=1:dim
     for i=1:sbpface.stencilsize
