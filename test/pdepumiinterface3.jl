@@ -283,9 +283,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
 
   for i=1:mesh.numEl
-    println("element ", i)
     for j=1:mesh.numNodesPerElement
-      println("node ", j)
       for k=1:mesh.dim
         for p=1:mesh.dim
           @fact mesh.dxidx[p, k, j, i] --> roughly(dxidx_orig[p, k, j, i], atol=1e-12)
@@ -295,9 +293,6 @@ facts("----- Testing PdePumiInterface3DG -----") do
       @fact mesh.jac[j, i] --> roughly(jac_orig[j, i], atol=1e-12)
     end
   end
-
-  println("size(dxidx) = ", size(mesh.dxidx))
-  writedlm("dxidx_tmp.dat", mesh.dxidx)
 
   for i=1:mesh.numBoundaryFaces
     for j=1:mesh.numNodesPerFace
