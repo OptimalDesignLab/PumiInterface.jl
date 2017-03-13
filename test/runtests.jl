@@ -500,4 +500,9 @@ println("about to test pdepumiinterface")
 include("pdepumiinterface.jl")
 #println("TEMPORARY: not running 3D tests")
 include("pdepumiinterface3.jl")
+
+MPI.Barrier(MPI.COMM_WORLD)
+if MPI.Initialized()
+  MPI.Finalize()
+end
 FactCheck.exitstatus()

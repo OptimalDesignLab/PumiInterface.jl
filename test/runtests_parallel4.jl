@@ -24,8 +24,8 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
-  interp_op = eye(4)
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+#  interp_op = eye(4)
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   # check coloring
   @fact mesh.maxColors --> less_than(18)
@@ -66,3 +66,7 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
 
 end
 
+MPI.Barrier(MPI.COMM_WORLD)
+if MPI.Initialized()
+  MPI.Finalize()
+end

@@ -24,8 +24,8 @@ facts("----- Testing PdePumiInterface3DG -----") do
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
-  interp_op = eye(4)
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+#  interp_op = eye(4)
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.m_ptr --> not(C_NULL)
   @fact mesh.mshape_ptr --> not(C_NULL)
@@ -221,7 +221,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   smb_name = "tet3_pxz.smb"
   opts["BC1"] = [0,2,4,5,6]
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 18
   for i=1:mesh.numInterfaces
@@ -242,7 +242,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   opts["numBC"] = 0
   delete!(opts, "BC1")
 
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 3*(5*5*2)
   for i=1:mesh.numInterfaces

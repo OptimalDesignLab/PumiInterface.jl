@@ -405,7 +405,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   field_shape_type = 0 # integer to indicate the FieldShape of the nodes
   mesh_order = order  # order of the coordinate field
   if shape_type == 2 || shape_type == 3
-    coord_shape_type = -1  # lagrange
+    coord_shape_type = -1  # keep coordinate field already present
     field_shape_type = shape_type
     mesh_order = 1  # TODO: change this to an input-output parameter
   else  # same coordinate, field shape
@@ -463,7 +463,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   mesh.coord_numNodesPerFace = size(mesh.coord_facexi, 2)
 
   # build interpolation operator
-  println("sbp.vtx = ", sbp.vtx)
   ref_coords = baryToXY(mesh.coord_xi, sbp.vtx)
   mesh.interp_op = SummationByParts.buildinterpolation(sbp, ref_coords)
 

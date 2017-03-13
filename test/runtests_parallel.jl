@@ -109,10 +109,10 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   sbp = TriSBP{Float64}(degree=order, reorder=false, internal=true)
 
   vtx = [-1. 1 -1; -1 -1 1]
-  interp_op = SummationByParts.buildinterpolation(sbp, vtx)
+#  interp_op = SummationByParts.buildinterpolation(sbp, vtx)
   sbpface = TriFace{Float64}(order, sbp.cub, vtx.')
 
-  mesh = PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface)
+  mesh = PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface)
 
   @fact mesh.numVert --> 6
   @fact mesh.numEdge --> 9
@@ -334,8 +334,8 @@ facts("----- Testing PdePumiInterface3DG -----") do
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
-  interp_op = eye(4)
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+#  interp_op = eye(4)
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numEl --> 12
   @fact mesh.numGlobalEl --> 16
@@ -430,7 +430,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   opts["numBC"] = 1
   opts["BC1"] = [0,2,4,5]
 
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 4
   @fact mesh.numInterfaces --> (mesh.numFace - 8 - 3*4 - 8)
@@ -439,7 +439,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   smb_name = "tet2_pxy_p2_.smb"
 
   opts["BC1"] = [1,2,3,4]
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 0
   @fact mesh.numInterfaces --> (mesh.numFace - 2*8 - 4*4)
@@ -472,13 +472,9 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
 end
 
-
-#=
-MPI.Barrier( MPI.COMM_WORLD)
+MPI.Barrier(MPI.COMM_WORLD)
 if MPI.Initialized()
-  println("finalizing mpi")
   MPI.Finalize()
 end
-=#
 
 FactCheck.exitstatus()

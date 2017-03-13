@@ -337,7 +337,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 
   vert_sharing::VertSharing
 
- function PumiMeshDG3(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, interp_op, sbpface, topo::ElementTopology{3}; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
+ function PumiMeshDG3(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface, topo::ElementTopology{3}; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -359,7 +359,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh.order = order
   mesh.shape_type = shape_type
   mesh.coloringDistance = coloring_distance
-  mesh.interp_op = interp_op
+#  mesh.interp_op = interp_op
   mesh.ref_verts = [0.0 1 0; 0 0 1]  # ???
   mesh.numNodesPerFace = sbpface.numnodes
   mesh.comm = comm
@@ -388,7 +388,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   field_shape_type = 0 # integer to indicate the FieldShape of the nodes
   mesh_order = order  # order of the coordinate field
   if shape_type == 2 || shape_type == 3
-    coord_shape_type = -1  # lagrange
+    coord_shape_type = -1  # keep coordinate field already present
     field_shape_type = shape_type
     mesh_order = 1  # TODO: change this to an input-output parameter
   else  # same coordinate, field shape
@@ -459,6 +459,11 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   numnodes = mesh.numNodesPerElement*mesh.numEl
   mesh.numNodes = numnodes      # we assume there are no non-free nodes/dofs
   mesh.numDof = numnodes*dofpernode
+
+  # build interpolation operator
+  ref_coords = baryToXY(mesh.coord_xi, sbp.vtx)
+  mesh.interp_op = SummationByParts.buildinterpolation(sbp, ref_coords)
+
 
   # get nodemaps
   mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(order, shape_type, mesh.numNodesPerElement, mesh.dim)
@@ -656,23 +661,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   getInterfaceArray(mesh)
 #  sort!(mesh.interfaces)
 
-  if mesh.coord_order == 1
-    getCoordinates(mesh, sbp)
-    getMetrics(mesh, sbp)
-
-    if mesh.isInterpolated
-      interpolateCoordinatesAndMetrics(mesh)
-    end
-
-    getFaceNormals(mesh, sbp)
-
-  else
-    throw(ErrorException("curvilinear meshes not supported yet"))
-  end
-
-  mesh.min_el_size = getMinElementSize(mesh)
-  mesh.volume = calcVolumeIntegral(mesh, sbp)
-
+  getAllCoordinatesAndMetrics(mesh, sbp)
 
 #  if mesh.dim == 2
 #    @time createSubtriangulatedMesh(mesh)
