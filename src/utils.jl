@@ -97,12 +97,13 @@ function first_common(A::AbstractArray, B::AbstractArray)
   for i=1:length(A)
     A_i = A[i]
     for j=1:length(B)
-      if A_i == B[i]
+      if A_i == B[j]
         return A_i
       end
     end
   end
 
+  throw(ErrorException("No common element found"))
   return A[1]
 end
 

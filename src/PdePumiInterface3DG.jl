@@ -727,6 +727,12 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
     rmfile("dxidx_$myrank.dat")
     printdxidx("dxidx_$myrank.dat", mesh.dxidx)
   end
+#=
+  if opts["write_jac2"]
+    rmfile("jac_$myrank.dat")
+    writedlm("jac_$myrank.dat", mesh.jac)
+  end
+=#
 
 
   if opts["write_coords"]
