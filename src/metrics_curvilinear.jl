@@ -107,12 +107,10 @@ function getFaceCoordinatesAndNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::Abstrac
   allocateNormals(mesh, sbp)
 
   if length(mesh.bndryfaces) > 0  # debugging: don't call if unneeded
-    println("getting boundayr face normals")
     calcFaceCoordinatesAndNormals(mesh, sbp, mesh.bndryfaces, mesh.coords_bndry, 
                                mesh.nrm_bndry)
   end
 
-  println("getting interface normals")
   calcFaceCoordinatesAndNormals(mesh, sbp, mesh.interfaces, 
                                mesh.coords_interface, mesh.nrm_face)
   for i=1:mesh.npeers
@@ -208,7 +206,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
     getMeshFaceCoordinates(mesh, el_i, face_i, storage, coords_i)
     face_idx += 1
 
-    println("coords_lag_face for face ", i, " = \n", coords_i)
+
   end
 
   calcFaceNormals!(mesh.sbpface, mesh.coord_order, ref_verts, 
@@ -243,7 +241,6 @@ function fixOutwardNormal{I <: Union{Boundary, Interface}, Tmsh}(mesh,
 
   nfaces = length(faces)
   for i=1:nfaces
-    println("face ", i)
     iface_i = faces[i]
     elnum = getElementL(iface_i)
     facenum_local = getFaceL(iface_i)
@@ -281,8 +278,6 @@ function fixOutwardNormal{I <: Union{Boundary, Interface}, Tmsh}(mesh,
     should_flip = false
     max_mag = 0.0  # maximum dot product
     for j=1:mesh.numNodesPerFace
-      println("face node ", j)
-      println("face node coords = ", mesh.coords_interface[:, j, i])
       outward_count = 0  # count number of calculations that showed outward
       for k=1:numVertPerFace
         val = zero(Float64)
@@ -381,8 +376,9 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
     @assert end_idx - start_idx + 1 == nrem
 
     element_range = start_idx:end_idx
+    Eone_rem = sview(Eone, :, :, 1:nrem)
 
-    getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eone)
+    getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eone_rem)
   end  # end if dim == 2
 
   return nothing
@@ -405,11 +401,11 @@ function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp,
 
   # for the remainder loop, make sure the last dimensions of Eone matches the
   # other arrays
-  Eone_block = sview(Eone, :, :, element_range)
+#  Eone_block = sview(Eone, :, :, element_range)
 
-  calcEone(mesh, sbp, element_range, Eone_block)
+  calcEone(mesh, sbp, element_range, Eone)
   calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
-                       coords_block, dxidx_block, jac_block, Eone_block)
+                       coords_block, dxidx_block, jac_block, Eone)
 
   fill!(Eone, 0.0)
   return nothing
@@ -422,6 +418,8 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
 
   first_el = element_range[1]
   last_el = element_range[end]
+
+  offset = first_el - 1
 
   # R times vector of ones
   Rone = vec(sum(mesh.sbpface.interp.', 2))
@@ -442,7 +440,7 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
 
       # call inner functions
       calcEoneElement(sbpface, nrm, Rone, tmp, Eone_el)
-      assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
+      assembleEone(sbpface, elnum - offset, facenum_local, Eone_el, Eone)
 
     end
 
@@ -458,7 +456,7 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
       end
  
       calcEoneElement(sbpface, nrmL, Rone, tmp, Eone_el)
-      assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
+      assembleEone(sbpface, elnum - offset, facenum_local, Eone_el, Eone)
     end  # end if/else
 
   end  # end loop over interfaces
@@ -473,9 +471,30 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
 
       # call inner functions
       calcEoneElement(sbpface, nrm, Rone, tmp, Eone_el)
-      assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
+      assembleEone(sbpface, elnum - offset, facenum_local, Eone_el, Eone)
     end
   end  # end loop over boundary faces
+
+  #TODO: check shared faces too
+
+  for peer=1:mesh.npeers
+    bndryfaces_peer = mesh.bndries_local[peer]
+    nrm_peer = mesh.nrm_sharedface[peer]
+    for i=1:mesh.peer_face_counts[peer]
+      bface_i = bndryfaces_peer[i]
+
+      if bface_i.element >= first_el && bface_i.element <= last_el
+        elnum = bface_i.element
+        facenum_local = bface_i.face
+        nrm = sview(nrm_peer, :, :, i)
+
+        calcEoneElement(sbpface, nrm, Rone, tmp, Eone_el)
+        assembleEone(sbpface, elnum - offset, facenum_local, Eone_el, Eone)
+      end
+    end
+  end
+
+
 
   return nothing
 end

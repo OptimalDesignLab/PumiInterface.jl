@@ -357,7 +357,7 @@ void destroyNumberings(int dim)
 // FieldShape itself
 apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_shape)
 {
-  std::cout << "dimension " << dim << " mesh requests shape type " << shape_type << " of order " << order << std::endl;
+//  std::cout << "dimension " << dim << " mesh requests shape type " << shape_type << " of order " << order << std::endl;
   apf::FieldShape* fshape;
   if (dim == 2)
   {
