@@ -369,16 +369,18 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
      
     end  # end loop over blocks
 
-    # remainder block
-    start_idx = nblocks_full*blocksize + 1
-    end_idx = mesh.numEl
-    @assert end_idx - start_idx + 1 <= blocksize
-    @assert end_idx - start_idx + 1 == nrem
+    if nrem != 0
+      # remainder block
+      start_idx = nblocks_full*blocksize + 1
+      end_idx = mesh.numEl
+      @assert end_idx - start_idx + 1 <= blocksize
+      @assert end_idx - start_idx + 1 == nrem
 
-    element_range = start_idx:end_idx
-    Eone_rem = sview(Eone, :, :, 1:nrem)
+      element_range = start_idx:end_idx
+      Eone_rem = sview(Eone, :, :, 1:nrem)
 
-    getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eone_rem)
+      getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eone_rem)
+    end
   end  # end if dim == 2
 
   return nothing
