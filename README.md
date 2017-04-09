@@ -244,4 +244,9 @@ in the origonal mesh are vertices in the new mesh.  This allows the
 visualization of the exact nodal values.  The nodal values are interpolated
 to the vertices.
 
+# Version History
+
+
+v0.3: curvilinear elements
+ 
 [![Build Status](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl.svg?branch=build_system)](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl)
