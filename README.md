@@ -236,4 +236,8 @@ in the origonal mesh are vertices in the new mesh.  This allows the
 visualization of the exact nodal values.  The nodal values are interpolated
 to the vertices.
 
+
+# Release History
+v0.1: the old code, before Pumi switched to the CMake build system.  This version is no longer supported
+v0.2: after the build system switch to CMake
 [![Build Status](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl.svg?branch=build_system)](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl)
