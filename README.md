@@ -247,6 +247,6 @@ to the vertices.
 # Version History
 
 
-v0.3: curvilinear elements
+v0.3: curvilinear elements (compatable with SBP versions broken_ticon and fixed_ticon)
  
 [![Build Status](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl.svg?branch=build_system)](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl)
