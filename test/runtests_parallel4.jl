@@ -10,7 +10,7 @@ include("defs.jl")
 facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   degree = 1
   Tsbp = Float64
-  sbp = TetSBP{Tsbp}(degree=degree, reorder=false, internal=true)
+  sbp = TetSBP{Tsbp}(degree=degree, internal=true)
   ref_verts = sbp.vtx
   interp_op = SummationByParts.buildinterpolation(sbp, ref_verts.')
   face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)

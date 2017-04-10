@@ -106,7 +106,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     "write_sharedboundaries" => false,
     )
 
-  sbp = TriSBP{Float64}(degree=order, reorder=false, internal=true)
+  sbp = TriSBP{Float64}(degree=order, internal=true)
 
   vtx = [-1. 1 -1; -1 -1 1]
 #  interp_op = SummationByParts.buildinterpolation(sbp, vtx)
@@ -319,7 +319,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   degree = 1
   Tsbp = Float64
-  sbp = TetSBP{Tsbp}(degree=degree, reorder=false, internal=true)
+  sbp = TetSBP{Tsbp}(degree=degree, internal=true)
   ref_verts = sbp.vtx
   interp_op = SummationByParts.buildinterpolation(sbp, ref_verts.')
   face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)

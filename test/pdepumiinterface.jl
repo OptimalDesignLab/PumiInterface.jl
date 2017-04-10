@@ -29,7 +29,7 @@ facts("--- Testing PdePumiInterface --- ") do
     dmg_name = ".null"
     for order = 1:4
       println("testing order ", order, " CG mesh")
-      sbp = TriSBP{Float64}(degree=order, reorder=true)
+      sbp = TriSBP{Float64}(degree=order)
       ref_verts = [-1. 1 -1; -1 -1 1]
       sbpface = TriFace{Float64}(order, sbp.cub, ref_verts.')
 
@@ -282,7 +282,7 @@ facts("--- Testing PdePumiInterface --- ") do
 
   for order = 1:4
     println("testing order ", order, " CG mesh against files")
-    sbp = TriSBP{Float64}(degree=order, reorder=true)
+    sbp = TriSBP{Float64}(degree=order)
     ref_verts = [-1. 1 -1; -1 -1 1]
     sbpface = TriFace{Float64}(order, sbp.cub, ref_verts.')
 
@@ -342,7 +342,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     dmg_name = ".null"
 #    interp_op = [0.5 0 0; 0 0.5 0; 0 0 0.5]
 
-    sbp = TriSBP{Float64}(degree=order, reorder=false, internal=true)
+    sbp = TriSBP{Float64}(degree=order, internal=true)
     vtx = sbp.vtx
 #    interp_op = SummationByParts.buildinterpolation(sbp, vtx.')
 
