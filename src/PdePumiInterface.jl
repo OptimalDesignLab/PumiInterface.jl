@@ -289,6 +289,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   coords::Array{T1, 3}  # store coordinates of all nodes
   dxidx::Array{T1, 4}  # store scaled mapping jacobian
+  dxidx_bar::Array{T1, 4}  # needed for compatability with DG
   jac::Array{T1,2}  # store mapping jacobian output
 
   dofs::Array{Int32, 3}  # store dof numbers of solution array to speed assembly

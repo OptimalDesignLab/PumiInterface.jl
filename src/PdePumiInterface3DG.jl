@@ -237,12 +237,16 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
                                  # 3 x numFaceNodes x numInterfaces
   coords_sharedface::Array{Array{T1, 3}, 1}  # coordinates of shared interface nodes
   dxidx::Array{T1, 4}  # store scaled mapping jacobian
+  dxidx_bar::Array{T1, 4}
   dxidx_face::Array{T1, 4} # store scaled mapping jacobian at face nodes
                            # 2 x 2 x numfacenodes x numInterfaces
+  dxidx_face_bar::Array{T1, 4}
   dxidx_sharedface::Array{Array{T1, 4}, 1}  # array of arrays for dxidx
+  dxidx_sharedface_bar::Array{Array{T1, 4}, 1}
                                             # on shared edges
   dxidx_bndry::Array{T1, 4} # store scaled mapping jacobian at boundary nodes,
                             # similar to dxidx_face
+  dxidx_bndry_bar::Array{T1, 4}
   jac::Array{T1,2}  # store mapping jacobian output
   jac_face::Array{T1,2}  # store jacobian determanent at face nodes
                          # numfacenodes x numInterfaces

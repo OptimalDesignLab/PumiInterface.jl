@@ -113,6 +113,9 @@ function allocateCoordinateAndMetricArrays{Tmsh}(mesh::PumiMeshDG{Tmsh},
   mesh.dxidx = Array(Tmsh, mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
   mesh.jac = Array(Tmsh, sbp.numnodes, mesh.numEl)
 
+  # allocate adjoint part
+  mesh.dxidx_bar = Array(Tmsh, size(mesh.dxidx)...)
+
   return nothing
 end
 
@@ -197,6 +200,8 @@ end
   mesh.jac = Array(Tmsh, sbp.numnodes, mesh.numEl)
   mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
 
+  # allocate adjoint part
+  mesh.dxidx_bar = Array(Tmsh, size(mesh.dxidx)...)
 
 return nothing
 

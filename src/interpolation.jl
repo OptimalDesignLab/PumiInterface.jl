@@ -80,20 +80,24 @@ function allocateInterpolatedMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh})
   # interior faces
   mesh.dxidx_face = zeros(Tmsh, dim, dim, sbpface.numnodes, mesh.numInterfaces)
   mesh.jac_face = zeros(Tmsh, sbpface.numnodes, mesh.numInterfaces)
+  mesh.dxidx_face_bar = zeros(mesh.dxidx_face)
 
   # boundary faces
   mesh.dxidx_bndry = zeros(Tmsh, dim, dim, sbpface.numnodes, 
                                  mesh.numBoundaryFaces)
   mesh.jac_bndry = zeros(Tmsh, sbpface.numnodes, mesh.numBoundaryFaces)
+  mesh.dxidx_bndry = zeros(mesh.dxidx_bndry)
 
   # parallel shared faces
   mesh.dxidx_sharedface = Array(Array{Tmsh, 4}, mesh.npeers)
   mesh.jac_sharedface = Array(Array{Tmsh, 2}, mesh.npeers)
+  mesh.dxidx_sharedface_bar = Array(Array{Tmsh, 4}, mesh.npeers)
   for i=1:mesh.npeers
     mesh.dxidx_sharedface[i] = zeros(Tmsh, dim, dim, sbpface.numnodes, 
                                      mesh.peer_face_counts[i])
 
     mesh.jac_sharedface[i] = Array(Tmsh, sbpface.numnodes, mesh.peer_face_counts[i])
+    mesh.dxidx_sharedface_bar[i] = zeros(mesh.dxidx_sharedface[i])
   end
 
 
