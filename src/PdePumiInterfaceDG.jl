@@ -226,6 +226,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 #  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
 
   bndry_funcs::Array{BCType, 1}  # array of boundary functors (Abstract type)
+  bndry_funcs_revm::Array{BCType_revm, 1}  # reverse mode functors
   bndry_normals::Array{T1, 3}  # array of normals to each face on the boundary
 #  bndry_facenums::Array{Array{Int, 1}, 1}  # hold array of faces corresponding to each boundary condition
   bndry_offsets::Array{Int, 1}  # location in bndryfaces where new type of BC 
@@ -529,6 +530,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 #  println("about to get boudnary offets")
   mesh.bndry_offsets = Array(Int, mesh.numBC + 1)
   mesh.bndry_funcs = Array(BCType, mesh.numBC)
+  mesh.bndry_funcs_revm = Array(BCType_revm, mesh.numBC)
   mesh.bndry_geo_nums = Array(Array{Int, 1}, mesh.numBC)
   boundary_nums = Array(Int, mesh.numBoundaryFaces, 2)
 
