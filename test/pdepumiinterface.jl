@@ -64,6 +64,7 @@ facts("--- Testing PdePumiInterface --- ") do
     @fact length(mesh.bndry_funcs) --> 1
     @fact mesh.bndry_offsets --> [1, 5]
     @fact mesh.bndry_geo_nums[1] --> opts["BC1"]
+
 #=
     for i=1:mesh.numBoundaryFaces
       for j=1:(sum(mesh.numNodesPerType[1:2]))
@@ -389,7 +390,13 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    @fact mesh.color_cnt[1] --> 1
    @fact mesh.color_cnt[2] --> 1
 
- 
+     # check that adjoint variables are right size
+  @fact size(mesh.dxidx) --> size(mesh.dxidx_bar)
+  @fact size(mesh.dxidx_bndry) --> size(mesh.dxidx_bndry_bar)
+  @fact size(mesh.dxidx_face) --> size(mesh.dxidx_face_bar)
+  @fact size(mesh.dxidx_sharedface_bar) --> size(mesh.dxidx_sharedface_bar)
+
+
   @fact mesh.jac --> roughly(ones(mesh.numNodesPerElement ,2))
 
    function test_interp{Tmsh}(mesh::AbstractMesh{Tmsh})
