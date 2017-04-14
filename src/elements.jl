@@ -74,7 +74,7 @@ function getNodeMaps(order::Integer, shape_type::Integer, numNodesPerElement, di
         pumiToSbp = UInt8[1:numNodesPerElement]
       end
 
-    elseif shape_type == 2 || shape_type == 3
+    elseif shape_type == 2 || shape_type == 3 || shape_type == 4
       if order <= 4
         sbpToPumi = collect(UInt8, 1:numNodesPerElement)
         pumiToSbp = collect(UInt8, 1:numNodesPerElement)
@@ -125,7 +125,7 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
       throw(ErrorException("Congratulations: you have reached and unreachable case"))
     end
 =#
-  elseif mesh.shape_type == 3 || mesh.shape_type == 2  # DG SBP Omega or Gamma
+  elseif mesh.shape_type == 3 || mesh.shape_type == 2  || mesh.shape_type == 4# DG SBP Omega or Gamma
     # I don't think subtriangulation will work in this case, so create a 
     # field with the same degree as a coordinate field on the existing mesh, 
     # and interpolate the solution onto it
@@ -137,7 +137,7 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
     mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field_interp", dofpernode)
     mesh.fnewshape_ptr = fshape_new
 
-    if mesh.shape_type == 2 && opts["exact_visualization"]
+    if (mesh.shape_type == 2 || mesh.shape_type == 4 ) && opts["exact_visualization"]
       mesh.mexact_ptr, mesh.fexact_ptr, mesh.fexactshape_ptr = createDGSubMesh(mesh)
     else
       mesh.mexact_ptr = C_NULL

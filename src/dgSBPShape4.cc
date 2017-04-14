@@ -12,6 +12,8 @@ class DG4SBPLinear : public FieldShape
 public:
   DG4SBPLinear() { registerSelf(apf::DG4SBPLinear::getName()); }
   const char* getName() const  {return "DG4SBPLinear"; }
+
+
   class Vertex : public EntityShape
     // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
 
@@ -33,6 +35,8 @@ public:
 
     int countNodes() const {return 0;}
   };
+
+
   class Edge : public EntityShape
   {
   public:
@@ -53,6 +57,8 @@ public:
 
 
   };
+
+
   class Triangle : public EntityShape
   {
   public:
@@ -121,7 +127,8 @@ public:
     //      static Pyramid pyramid;
     //     static Hexahedron hex;
     static EntityShape* shapes[Mesh::TYPES] =
-    {&vertex,
+    {
+      &vertex,
       &edge,
       &triangle,
       NULL, // quad
@@ -354,7 +361,8 @@ public:
       {xi = Vector3(0.3333333333333333, 0.3333333333333333, 0.0); break; }
     default:
       {xi = Vector3(0, 0, 0); break; }
-    }  // end function getNodeXi
+    } 
+  }  // end function getNodeXi
 };  // class DG4SBPQuadratic
 
 FieldShape* getDG4SBPShape(int order)
@@ -367,9 +375,9 @@ FieldShape* getDG4SBPShape(int order)
     return &linear1;
   case 2:
     return &quadratic1;
-  // case 3:
+    // case 3:
     // return &cubic1;
-  // case 4:
+    // case 4:
     // return &quartic1;
   default:
     std::cout << "order " << order << " is not supported by apfSBPShape.cc" << std::endl;
