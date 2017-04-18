@@ -1,30 +1,65 @@
 # file for functions related to interpolating from solution points to 
 # faces
 
+"""
+  Holds all the temporary arrays needed to interpolate the metrics
+"""
 type Interpolation{Tmsh, Tdim}
   dxdxi_el::Array{Tmsh, 3}
+  dxdxi_el_bar::Array{Tmsh, 3}
+
   dxdxi_elface::Array{Tmsh, 3}
+  dxdxi_elface_bar::Array{Tmsh, 3}
+
   dxidx_node::Array{Tmsh, 2}
+  dxidx_node_bar::Array{Tmsh, 2}
+
   dxdxi_node::Array{Tmsh, 2}
+  dxdxi_node_bar::Array{Tmsh, 2}
+
   bndry_arr::Array{Boundary, 1}
 end
 
 function Interpolation{Tmsh}(mesh::PumiMesh2D{Tmsh})
   dxdxi_el = zeros(Tmsh, 4, mesh.numNodesPerElement, 1)
+  dxdxi_el_bar = zeros(dxdxi_el)
+
   dxdxi_elface = zeros(Tmsh, 4, mesh.sbpface.numnodes, 1)
+  dxdxi_elface_bar = zeros(dxdxi_elface)
+
   dxidx_node = zeros(Tmsh, 2, 2)
+  dxidx_node_bar = zeros(dxidx_node)
+
   dxdxi_node = zeros(Tmsh, 2, 2)
+  dxdxi_node_bar = zeros(dxdxi_node)
+
   bndry_arr = Array(Boundary, 1)
-  return Interpolation{Tmsh, 2}(dxdxi_el, dxdxi_elface, dxidx_node, dxdxi_node, bndry_arr)
+  return Interpolation{Tmsh, 2}(dxdxi_el, dxdxi_el_bar,
+                                dxdxi_elface, dxdxi_elface_bar,
+                                dxidx_node, dxidx_node_bar,
+                                dxdxi_node, dxdxi_node_bar,
+                                bndry_arr)
 end
 
 function Interpolation{Tmsh}(mesh::PumiMesh3D{Tmsh})
   dxdxi_el = zeros(Tmsh, 9, mesh.numNodesPerElement, 1)
+  dxdxi_el_bar = zeros(dxdxi_el)
+
   dxdxi_elface = zeros(Tmsh, 9, mesh.sbpface.numnodes, 1)
+  dxdxi_elface_bar = zeros(dxdxi_elface)
+
   dxidx_node = zeros(Tmsh, 3, 3)
+  dxidx_node_bar = zeros(dxidx_node)
+
   dxdxi_node = zeros(Tmsh, 3, 3)
+  dxdxi_node_bar = zeros(dxdxi_node)
+
   bndry_arr = Array(Boundary, 1)
-  return Interpolation{Tmsh, 3}(dxdxi_el, dxdxi_elface, dxidx_node, dxdxi_node, bndry_arr)
+  return Interpolation{Tmsh, 3}(dxdxi_el, dxdxi_el_bar,
+                                dxdxi_elface, dxdxi_elface_bar,
+                                dxidx_node, dxidx_node_bar,
+                                dxdxi_node, dxdxi_node_bar,
+                                bndry_arr)
 end
 
 """
@@ -348,12 +383,36 @@ function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 3}, sbpface, dxi
 
 end
 
-
+#TODO: reorder these operations for column major arrays
 function det2(A::AbstractMatrix)
 # determinet of 2x2 matrix
 
   return A[1,1]*A[2,2] - A[1,2]*A[2,1]
 end
+
+"""
+  Computes the reverse mode of det2, returning only the derivative and not
+  the value of the determinant.
+  
+  Inputs:
+    A: The matrix
+    y_bar: the adjoint part of the determinant (the primal part is not required
+           for the reverse calculation)
+
+  Inputs/Outputs:
+    A_bar: the adjoint part of A, which is incremented, not overwritten
+
+"""
+function det2_rev(A::AbstractMatrix, A_bar::AbstractMatrix, y_bar::Number)
+
+  A_bar[1,1] += y_bar*A[2,2]
+  A_bar[1,2] += -y_bar*A[2,1]
+  A_bar[2,1] += -y_bar*A[1,2]
+  A_bar[2,2] += y_bar*A[1,1]
+  
+  return nothing
+end
+
 
 function det3(A::AbstractMatrix)
 # determinent of 3x3 matrix
@@ -364,11 +423,74 @@ function det3(A::AbstractMatrix)
   return val1 + val2 + val3
 end
 
+function det3_rev(A::AbstractMatrix, A_bar::AbstractMatrix, y_bar::Number)
+  
+  # initialize intermediate adjoints to zero
+  val1_bar = y_bar
+  val2_bar = y_bar
+  val3_bar = y_bar
+
+  # val3 expression
+  # for true alias compatability, need to apply reverse mode to each line 
+  # right to left, rather than left to right
+  A_bar[1,1] += val3_bar*(A[2,2]*A[3,3] - A[2,3]*A[3,2])
+  A_bar[2,2] += val3_bar*(A[1,1]*A[3,3])
+  A_bar[3,3] += val3_bar*(A[1,1]*A[2,2])
+
+  A_bar[2,3] += -val3_bar*A[1,1]*A[3,2]
+  A_bar[3,2] += -val3_bar*A[1,1]*A[2,3]
+
+  # val2 expression
+  A_bar[2,1] += -val2_bar*(A[1,2]*A[3,3] - A[1,3]*A[3,2])
+  A_bar[1,2] += -val2_bar*A[2,1]*A[3,3]
+  A_bar[3,3] += -val2_bar*A[2,1]*A[1,2]
+
+  A_bar[1,3] += val2_bar*A[2,1]*A[3,2]
+  A_bar[3,2] += val2_bar*A[2,1]*A[1,3]
+
+  # val1 expression
+  A_bar[3,1] += val1_bar*(A[1,2]*A[2,3] - A[1,3]*A[2,2])
+  A_bar[1,2] += val1_bar*A[3,1]*A[2,3]
+  A_bar[2,3] += val1_bar*A[3,1]*A[1,2]
+
+  A_bar[1,3] += -val1_bar*A[3,1]*A[2,2]
+  A_bar[2,2] += -val1_bar*A[3,1]*A[1,3]
+
+  return nothing
+end
+
+
+
 function adjugate2(A::AbstractMatrix, B::AbstractMatrix)
   B[1,1] = A[2,2]
   B[1,2] = -A[1,2]
   B[2,1] = -A[2,1]
   B[2,2] = A[1,1]
+end
+
+"""
+  Computes the reverse mode of adjugate2, without modifying A or B
+
+  Inputs:
+    A: The original matrix
+    B: The adjuage matrix (presumably computed by adjugate2)
+    B_bar: the adjoint part of B
+
+  Inputs/Outputs:
+    A_bar: The adjoint part of A, which is incremented, not overwritten
+
+  Aliasing restrictions: I'm not sure what happens if things alias, so don't
+                         do it.
+"""
+function adjugate2_rev(A::AbstractMatrix, A_bar::AbstractMatrix, 
+                       B::AbstractMatrix, B_bar::AbstractMatrix)
+
+  A_bar[2,2] += B_bar[1,1]
+  A_bar[1,2] += -B_bar[1,2]
+  A_bar[2,1] += -B_bar[2,1]
+  A_bar[1,1] += B_bar[2,2]
+
+
 end
 
 function adjugate3(A::AbstractMatrix, B::AbstractMatrix)
@@ -386,4 +508,78 @@ function adjugate3(A::AbstractMatrix, B::AbstractMatrix)
   B[3,3] = A[1,1]*A[2,2] - A[1,2]*A[2,1]
 end
 
+
+"""
+  Computes the reverse mode of adjugate2, without modifying A or B
+  
+  Inputs:
+    A: the original matrix
+    B: the adjugate matrix (presumably computed by adjugate3)
+    B_bar: the adjoint part of B
+
+  Inputs/Outputs
+    A_bar: the adjoint part of A, which is incremented, not overwritten
+
+  Aliasing restrictions: Please don't
+"""
+function adjugate3_rev(A::AbstractMatrix, A_bar::AbstractMatrix,
+                       B::AbstractMatrix, B_bar::AbstractMatrix)
+
+  # B11
+  B11_bar = B_bar[1,1]
+  A_bar[2,2] += B11_bar*A[3,3]
+  A_bar[3,3] += B11_bar*A[2,2]
+  A_bar[2,3] += -B11_bar*A[3,2]
+  A_bar[3,2] += -B11_bar*A[2,3]
+
+  bar = B_bar[1,2]
+  A_bar[1,2] += -bar*A[3,3]
+  A_bar[3,3] += -bar*A[1,2]
+  A_bar[1,3] += bar*A[3,2]
+  A_bar[3,2] += bar*A[1,3]
+
+  bar = B_bar[1,3]
+  A_bar[1,2] += bar*A[2,3]
+  A_bar[2,3] += bar*A[1,2]
+  A_bar[1,3] += -bar*A[2,2]
+  A_bar[2,2] += -bar*A[1,3]
+
+  bar = B_bar[2,1]
+  A_bar[2,1] += -bar*A[3,3]
+  A_bar[3,3] += -bar*A[2,1]
+  A_bar[2,3] += bar*A[3,1]
+  A_bar[3,1] += bar*A[2,3]
+
+  bar = B_bar[2,2]
+  A_bar[1,1] += bar*A[3,3]
+  A_bar[3,3] += bar*A[1,1]
+  A_bar[1,3] += -bar*A[3,1]
+  A_bar[3,1] += -bar*A[1,3]
+
+  bar = B_bar[2,3]
+  A_bar[1,1] += -bar*A[2,3]
+  A_bar[2,3] += -bar*A[1,1]
+  A_bar[1,3] += bar*A[2,1]
+  A_bar[2,1] += bar*A[1,3]
+
+  bar = B_bar[3,1]
+  A_bar[2,1] += bar*A[3,2]
+  A_bar[3,2] += bar*A[2,1]
+  A_bar[2,2] += -bar*A[3,1]
+  A_bar[3,1] += -bar*A[2,2]
+
+  bar = B_bar[3,2]
+  A_bar[1,1] += -bar*A[3,2]
+  A_bar[3,2] += -bar*A[1,1]
+  A_bar[1,2] += bar*A[3,1]
+  A_bar[3,1] += bar*A[1,2]
+
+  bar = B_bar[3,3]
+  A_bar[1,1] += bar*A[2,2]
+  A_bar[2,2] += bar*A[1,1]
+  A_bar[1,2] += -bar*A[2,1]
+  A_bar[2,1] += -bar*A[1,2]
+
+  return nothing
+end
 
