@@ -261,7 +261,11 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
 end  # end function
 
 # 2D version
-function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 2}, sbpface, dxidx_hat_in, jac_in, dxidx_i, jac_i)
+function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 2}, sbpface, 
+                               dxidx_hat_in::AbstractArray{Tmsh, 3}, 
+                               jac_in::AbstractVector{Tmsh}, 
+                               dxidx_hat_out::AbstractArray{Tmsh, 3}, 
+                               jac_out::AbstractVector{Tmsh})
 
   # unpack argumetns
   dxdxi_el = interp_data.dxdxi_el
@@ -310,10 +314,10 @@ function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 2}, sbpface, dxi
     fac = 1./detJ
     for k=1:dim
       for p=1:dim
-        dxidx_i[p, k, j] = dxidx_node[p, k]*fac
+        dxidx_hat_out[p, k, j] = dxidx_node[p, k]*fac
       end
     end
-    jac_i[j] = detJ
+    jac_out[j] = detJ
   end
 
   return nothing
@@ -321,7 +325,38 @@ function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 2}, sbpface, dxi
 end
 
 # 3d version
-function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 3}, sbpface, dxidx_hat_in, jac_in, dxidx_i, jac_i)
+"""
+  Interpolates the metric terms from the volume nodes of an element to 
+  the nodes of a particular face.
+
+  Inputs:
+    interp_data:  Interpolation object containing the temporary arrays.
+                  Which face is interpolated to depends 
+                  interp_data.bndry_arr.face.  The element field does
+                  not matter.  This array is overwritten.
+
+    sbpface: an SBPFace
+    dxidx_hat_in: 3D array holding dxidx/|J| at the volume nodes,
+                   2 x 2 x numNodesPerElement in 2D or 
+                   3 x 3 x numNodesPerElemente in 3D.
+    jac_hat_in: determanent of the dxidx at the volume nodes, vector of
+                length numNodesPerElement
+
+  Outputs:
+    dxidx_i: array to be populated with dxidx/|J| at the face nodes,
+             2 x 2 x numNodesPerFace in 2 or
+             3 x 3 x numNodesPerFace in 3D
+
+    jac_i: array to be populated with |J|, vector of length numNodesPerFAce
+
+  Aliasing restrictions: do not alias
+"""
+function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 3}, sbpface, 
+                               dxidx_hat_in::AbstractArray{Tmsh, 3}, 
+                               jac_in::AbstractVector{Tmsh}, 
+                               dxidx_hat_out::AbstractArray{Tmsh, 3}, 
+                               jac_out::AbstractVector{Tmsh})
+# herein, dxidx_hat is dxidx/|J|, and dxidx is the true dxidx
 
   dxdxi_el = interp_data.dxdxi_el
   dxdxi_elface = interp_data.dxdxi_elface
@@ -373,10 +408,10 @@ function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 3}, sbpface, dxi
     fac = 1./detJ
     for k=1:dim
       for p=1:dim
-        dxidx_i[p, k, j] = dxidx_node[p, k]*fac
+        dxidx_hat_out[p, k, j] = dxidx_node[p, k]*fac
       end
     end
-    jac_i[j] = detJ
+    jac_out[j] = detJ
   end
 
   return nothing
