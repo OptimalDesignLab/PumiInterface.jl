@@ -8,7 +8,6 @@ using ODLCommonTools
 using SummationByParts
 using PdePumiInterface
 
-
 import Base.isapprox
 
 # generic fallback

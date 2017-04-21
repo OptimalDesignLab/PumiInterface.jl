@@ -248,13 +248,17 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
                             # similar to dxidx_face
   dxidx_bndry_bar::Array{T1, 4}
   jac::Array{T1,2}  # store mapping jacobian output
+  jac_bar::Array{T1, 2}  
   jac_face::Array{T1,2}  # store jacobian determanent at face nodes
                          # numfacenodes x numInterfaces
+  jac_face_bar::Array{T1, 2}
   jac_sharedface::Array{Array{T1, 2}, 1}  # array of arrays for shared
                                           # edge jacobian determinent
+  jac_sharedface_bar::Array{Array{T1, 2}, 1}
 
   jac_bndry::Array{T1, 2} # store jacobian determinant at boundry nodes
                           # similar to jac_bndry
+  jac_bndry_bar::Array{T1, 2}
 
   dof_offset::Int  # local to global offset for dofs
   dofs::Array{Int, 3}  # store dof numbers of solution array to speed assembly

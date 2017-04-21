@@ -167,6 +167,10 @@ facts("----- Testing PdePumiInterface3DG -----") do
     end
   end  # end loop over interfaces
 
+
+  # the 2D tests should work for this too
+  test_interp_rev(mesh)
+
   # test update_coords
   coords_orig = copy(mesh.vert_coords)
   
