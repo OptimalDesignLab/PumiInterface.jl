@@ -84,6 +84,28 @@ function Interpolation{Tmsh}(mesh::PumiMesh3D{Tmsh})
                                 bndry_arr)
 end
 
+function Interpolation{Tmsh}(mesh::PumiMesh3D, ::Type{Tmsh})
+  dxdxi_el = zeros(Tmsh, 9, mesh.numNodesPerElement, 1)
+  dxdxi_el_bar = zeros(dxdxi_el)
+
+  dxdxi_elface = zeros(Tmsh, 9, mesh.sbpface.numnodes, 1)
+  dxdxi_elface_bar = zeros(dxdxi_elface)
+
+  dxidx_node = zeros(Tmsh, 3, 3)
+  dxidx_node_bar = zeros(dxidx_node)
+
+  dxdxi_node = zeros(Tmsh, 3, 3)
+  dxdxi_node_bar = zeros(dxdxi_node)
+
+  bndry_arr = Array(Boundary, 1)
+  return Interpolation{Tmsh, 3}(dxdxi_el, dxdxi_el_bar,
+                                dxdxi_elface, dxdxi_elface_bar,
+                                dxidx_node, dxidx_node_bar,
+                                dxdxi_node, dxdxi_node_bar,
+                                bndry_arr)
+end
+
+
 """
   Interpolates dxidx and jac to the face nodes, faces shared in parallel and
   boundary faces, as well as gets the coordinates of the nodes for
@@ -128,6 +150,10 @@ end
     mesh.dxidx_bndry, mesh.jac_bndry
     mesh.dxidx_sharedface, mesh.jac_shareface (and their internal arrays)
 
+    Also the corresponding bar variables
+      mesh.dxidx_face_bar, mesh.jac_face_bar
+      mesh.dxidx_bndry_bar, mesh.jac_bndry_bar
+      mesh.dxidx_sharedface_bar, mesh.jac_sharedface_bar
 """
 function allocateInterpolatedMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh})
 
@@ -137,23 +163,29 @@ function allocateInterpolatedMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh})
   # interior faces
   mesh.dxidx_face = zeros(Tmsh, dim, dim, sbpface.numnodes, mesh.numInterfaces)
   mesh.jac_face = zeros(Tmsh, sbpface.numnodes, mesh.numInterfaces)
+
   mesh.dxidx_face_bar = zeros(mesh.dxidx_face)
+  mesh.jac_face_bar = zeros(mesh.jac_face)
 
   # boundary faces
   mesh.dxidx_bndry = zeros(Tmsh, dim, dim, sbpface.numnodes, 
                                  mesh.numBoundaryFaces)
   mesh.jac_bndry = zeros(Tmsh, sbpface.numnodes, mesh.numBoundaryFaces)
   mesh.dxidx_bndry_bar = zeros(mesh.dxidx_bndry)
+  mesh.jac_bndry_bar = zeros(mesh.jac_bndry)
+
   # parallel shared faces
   mesh.dxidx_sharedface = Array(Array{Tmsh, 4}, mesh.npeers)
   mesh.jac_sharedface = Array(Array{Tmsh, 2}, mesh.npeers)
   mesh.dxidx_sharedface_bar = Array(Array{Tmsh, 4}, mesh.npeers)
+  mesh.jac_sharedface_bar = Array(Array{Tmsh, 2}, mesh.npeers)
   for i=1:mesh.npeers
     mesh.dxidx_sharedface[i] = zeros(Tmsh, dim, dim, sbpface.numnodes, 
                                      mesh.peer_face_counts[i])
 
     mesh.jac_sharedface[i] = Array(Tmsh, sbpface.numnodes, mesh.peer_face_counts[i])
     mesh.dxidx_sharedface_bar[i] = zeros(mesh.dxidx_sharedface[i])
+    mesh.jac_sharedface_bar[i] = zeros(mesh.jac_sharedface[i])
   end
 
 
@@ -188,16 +220,13 @@ end
   allocate the relevent fields of the mesh object if they have been been
   allocated previously and to not allocate them if they have been previously.
 
+  By convention, the metrics of elementL of an interface are interpolated
+  (recall elementL is always the local elements for shared faces).
+
   See allocateInterpolatedMetrics for the fields that are populated by this
   function.
 """
-# interpolates dxidx, jac to the face nodes
-# only do this for elementL of each interface
 function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
-
-#  if (!isdefined(mesh, :dxidx_face) || !isdefined(mesh, :jac_face) ||
-#      !isdefined(mesh, :dxidx_sharedface) || !isdefined(mesh, :jac_sharedface
-#      || !isdefined(mesh, :dxidx_bndry) || !isdefined(mesh, :jac_bndry)
 
   if !isFieldDefined(mesh, :dxidx_face, :jac_face, :dxidx_sharedface, 
                            :jac_sharedface, :dxidx_bndry, :jac_bndry)
@@ -282,6 +311,123 @@ function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
 
 end  # end function
 
+"""
+  Reverse mode of interpolateMapping.  This function propigates the adjoint
+  parts of the metrics at the interfaces, boundary faces, and shared faces
+  back to the volume nodes.
+
+  This function back propigates both dxidx and jac, although for 2D it turns
+  out jac has no effect on the computation.
+
+"""
+function interpolateMapping_rev{Tmsh}(mesh::PumiMeshDG{Tmsh})
+
+  sbpface = mesh.sbpface
+  dim = mesh.dim
+
+  # pull out the needed arrays
+  dxidx_face = mesh.dxidx_face
+  dxidx_face_bar = mesh.dxidx_face_bar
+
+  dxidx_sharedface = mesh.dxidx_sharedface
+  dxidx_sharedface_bar = mesh.dxidx_sharedface_bar
+
+  dxidx_bndry = mesh.dxidx_bndry
+  dxidx_bndry_bar = mesh.dxidx_bndry_bar
+
+  jac_face = mesh.jac_face
+  jac_face_bar = mesh.jac_face_bar
+
+
+  jac_bndry = mesh.jac_bndry
+  jac_bndry_bar = mesh.jac_bndry_bar
+
+  jac_sharedface = mesh.jac_sharedface
+  jac_sharedface_bar = mesh.jac_sharedface_bar
+
+  # temporary storage
+  interp_data = Interpolation(mesh)
+
+  for i=1:mesh.numInterfaces
+    dxidx_i = sview(dxidx_face, :, :, :, i)
+    dxidx_bar_i = sview(dxidx_face_bar, :, :, :, i)
+    jac_i = sview(jac_face, :, i)
+    jac_bar_i = sview(jac_face_bar, :, i)
+
+    interface_i = mesh.interfaces[i]
+    el = interface_i.elementL
+    face = interface_i.faceL
+    interp_data.bndry_arr[1] =  Boundary(1, face)
+
+    dxidx_in = sview(mesh.dxidx, :, :, :, el)
+    dxidx_bar_in = sview(mesh.dxidx_bar, :, :, :, el)
+    jac_in = sview(mesh.jac, :, el)
+    jac_bar_in = sview(mesh.jac_bar, :, el)
+
+    interpolateFace_rev(interp_data, mesh.sbpface, 
+                         dxidx_in, dxidx_bar_in, jac_in, jac_bar_in,
+                         dxidx_i, dxidx_bar_i, jac_i, jac_bar_i)
+
+  end
+  # now do shared edges
+  for peer = 1:mesh.npeers
+    dxidx_p = dxidx_sharedface[peer]
+    dxidx_bar_p = dxidx_sharedface_bar[peer]
+    jac_p = jac_sharedface[peer]
+    jac_bar_p = jac_sharedface_bar[perr]
+
+    interfaces_p = mesh.shared_interfaces[peer]
+    for i=1:mesh.peer_face_counts[peer]
+      dxidx_i = sview(dxidx_p, :, :, :, i)
+      dxidx_bar_i = sview(dxidx_bar_p, :, :, :, i)
+      jac_i = sview(jac_p, :, i)
+      jac_bar_i = sview(jac_bar_p, :, i)
+
+      interface_i = interfaces_p[i]
+      el = interface_i.elementL
+      face = interface_i.faceL
+
+      interp_data.bndry_arr[1] = Boundary(1, face)
+
+
+      dxidx_in = sview(mesh.dxidx, :, :, :, el)
+      dxidx_bar_in = sview(mesh.dxidx_bar, :, :, :, el)
+      jac_in = sview(mesh.jac, :, el)
+      jac_bar_in = sview(mesh.jac_bar, :, el)
+
+      interpolateFace_rev(interp_data, mesh.sbpface,
+                      dxidx_in, dxidx_bar_in, jac_in, jac_bar_in,
+                      dxidx_i, dxidx_bar_i, jac_i, jac_bar_i)
+    end
+  end
+
+  # now do boundary
+  for i=1:mesh.numBoundaryFaces
+    bndry = mesh.bndryfaces[i]
+
+    dxidx_i = sview(dxidx_bndry, :, :, :, i)
+    dxidx_bar_i = sview(dxidx_bndry_bar, :, :, :, i)
+    jac_i = sview(jac_bndry, :, i)
+    jac_bar_i = sview(jac_bndry_bar, :, i)
+
+    el = bndry.element
+
+    dxidx_in = sview(mesh.dxidx, :, :, :, el)
+    dxidx_bar_in = sview(mesh.dxidx_bar, :, :, :, el)
+    jac_in = sview(mesh.jac, :, el)
+    jac_bar_in = sview(mesh.jac_bar, :, el)
+
+    interp_data.bndry_arr[1] = bndry
+    interpolateFace_rev(interp_data, mesh.sbpface, 
+                    dxidx_in, dxidx_bar_in, jac_in, jac_bar_in,
+                    dxidx_i, dxidx_bar_i, jac_i, jac_bar_i)
+  end
+
+
+  return nothing
+end
+
+
 # 2D version
 function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 2}, sbpface, 
                                dxidx_hat_in::AbstractArray{Tmsh, 3}, 
@@ -346,198 +492,30 @@ function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 2}, sbpface,
 
 end
 
-#=
-function interpolateFace_rev{Tmsh}(interp_data::Interpolation{Tmsh, 2}, 
-                               sbpface, 
-                               dxidx_hat_in::AbstractArray{Tmsh, 3}, 
-                               dxidx_hat_in_bar::AbstractArray{Tmsh, 3},
-                               jac_in::AbstractVector{Tmsh}, 
-                               jac_in_bar::AbstractVector{Tmsh},
-                               dxidx_hat_out::AbstractArray{Tmsh, 3}, 
-                               dxidx_hat_out_bar::AbstractArray{Tmsh, 3},
-                               jac_out::AbstractVector{Tmsh}, 
-                               jac_out_bar::AbstractVector{Tmsh})
+"""
+  Reverse mode of interpolateFace.
 
-  #----------------------------------------------------------------------------
-  # forward sweep
+  Propigates the adjoint parts of the inputs to the adjoint parts of the
+  outputs.  This function also verifies the primal parts have not been modified
+  (ie. it computes values dxidx_hat_out and verifies they are the same as
+  the ones already present in the array).
 
-  # unpack arguments
-  dxdxi_el = interp_data.dxdxi_el
-  dxdxi_elface = interp_data.dxdxi_elface
-  dxdxi_node = interp_data.dxdxi_node
-  dxidx_node = interp_data.dxidx_node
+  Inputs (see interpolateFace):
+    interp_data
+    sbpface
+    dxidx_hat_in
+    jac_in
+    dxidx_hat_out
+    dxidx_hat_out_bar: the adjoint part of dxidx_hat_out
+    jac_out
+    jac_out_bar: the adjoint part of jac_out
 
-  dim = 2
-  numNodesPerElement = size(dxidx_hat_in, 3)
+  Outputs:
+    dxidx_hat_in_bar: the adjoint part of dxidx_hat_in
+    jac_in_bar: the adjoint part of jac_in
 
-  # get the data
-  for j=1:numNodesPerElement
-    dxidx_hat = sview(dxidx_hat_in, :, :, j)
-    detJ = jac_in[j]
-
-    adjugate2(dxidx_hat, dxidx_node)
-    for k=1:dim
-      for p=1:dim
-        pos = p + dim*(k-1)
-        dxdxi_el[pos,j,1] = dxidx_node[k, p]
-      end
-    end
-  end
-
-
-  # interpolate to the face
-  face = interp_data.bndry_arr[1].face
-  interp_data.bndry_arr[1] = Boundary(1, face)
-  boundaryinterpolate!(sbpface, interp_data.bndry_arr, dxdxi_el, dxdxi_elface)
-
-  # everything in here is local to the loop, no need to compute it here
-  #=
-  # now store dxidx, |J| at the boundary nodesa
-  for j=1:sbpface.numnodes
-    for k=1:dim
-      for p=1:dim
-        pos = p + dim*(k-1)
-        dxdxi_node[k,p] = dxdxi_elface[pos, j, 1]
-      end
-    end
-
-    # inv(A) = adj(A)/|A|
-    det_dxdxi = det2(dxdxi_node)
-    adjugate2(dxdxi_node, dxidx_node)
-    scale!(dxidx_node, 1./det_dxdxi)
- 
-    detJ = det2(dxidx_node)
-    fac = 1./detJ
-    for k=1:dim
-      for p=1:dim
-        dxidx_hat_out[p, k, j] = dxidx_node[p, k]*fac
-      end
-    end
-    jac_out[j] = detJ
-  end
-  =#
-
-  #----------------------------------------------------------------------------
-  # reverse sweep
-  # unpack arguments
-  dxdxi_el_bar = interp_data.dxdxi_el_bar
-  dxdxi_elface_bar = interp_data.dxdxi_elface_bar
-  dxdxi_node_bar = interp_data.dxdxi_node_bar
-  dxidx_node_bar = interp_data.dxidx_node_bar
-
-  # zero them out
-  fill!(dxdxi_el_bar, 0.0)
-  fill!(dxdxi_elface_bar, 0.0)
-
-  # each interation of this loop is independent - combine forward and reverse
-  for j=sbpface.numnodes:-1:1
-    println("j = ", j)
-    fill!(dxdxi_node_bar, 0.0)
-    fill!(dxidx_node_bar, 0.0)
-
-    #--------------------------------------------------------------------------
-    # forward sweep
-    for k=1:dim
-      for p=1:dim
-        pos = p + dim*(k-1)
-        dxdxi_node[k,p] = dxdxi_elface[pos, j, 1]
-      end
-    end
-
-    # inv(A) = adj(A)/|A|
-    det_dxdxi = det2(dxdxi_node)
-    adjugate2(dxdxi_node, dxidx_node)
-    scale!(dxidx_node, 1./det_dxdxi)
- 
-    detJ = det2(dxidx_node)
-    fac = 1./detJ
-    println("fac = ", fac)
-    println("dxidx_hat_out_bar[:, :, j] = \n", dxidx_hat_out_bar[:, :, j])
-
-    #--------------------------------------------------------------------------
-    # reverse sweep
-
-    det_dxdxi_bar = zero(det_dxdxi)
-    fac_bar = zero(eltype(dxidx_hat_out))
-    detJ_bar = jac_out_bar[j]*1
-    for k=dim:-1:1
-      for p=dim:-1:1
-        dxidx_node_bar[p, k] += dxidx_hat_out_bar[p, k, j]*fac
-
-        fac_bar += dxidx_hat_out_bar[p, k, j]*dxidx_node[p, k]
-      end
-    end
-
-    println("dxidx_node_bar = \n", dxidx_node_bar)
-    println("fac_bar = ", fac_bar)
-    println("detJ_bar = ", detJ_bar)
-    println("detJ = ", detJ)
-
-    detJ_bar += fac_bar*-1/(detJ*detJ)
-    det2_rev(dxidx_node, dxidx_node_bar, detJ_bar)
-
-    println("detJ_bar = ", detJ_bar)
-    println("dxidx_node_bar = \n", dxidx_node_bar)
-
-    # TODO: verify this is the correct way to handle a self-updating operation
-    for i=1:length(dxidx_node)
-      dxidx_node[i] /= det_dxdxi
-      det_dxdxi_bar += dxidx_node_bar[i]*(dxidx_node[i]*-1/(det_dxdxi*det_dxdxi))
-      dxidx_node_bar[i] = dxidx_node_bar[i]/det_dxdxi
-    end
-
-    println("dxidx_node_bar = \n", dxidx_node_bar)
-
-    adjugate2_rev(dxdxi_node, dxdxi_node_bar, dxidx_node, dxidx_node_bar)
-    println("dxdxi_node_bar = \n", dxdxi_node_bar)
-    det2_rev(dxdxi_node, dxdxi_node_bar, det_dxdxi_bar)
-    println("dxdxi_node_bar = \n", dxdxi_node_bar)
-
-    for k=dim:-1:1
-      for p=dim:-1:1
-        pos = p + dim*(k-1)
-        dxdxi_elface_bar[pos, j, 1] += dxdxi_node_bar[k, p]
-      end
-    end
-
-  end  # end loop j
-
-  println("before interpolation, dxdxi_elface_bar = \n", dxdxi_elface_bar)
-
-  # interpolate to the face
-  face = interp_data.bndry_arr[1].face
-  interp_data.bndry_arr[1] = Boundary(1, face)
-  boundaryinterpolate_rev!(sbpface, interp_data.bndry_arr, dxdxi_el_bar, dxdxi_elface_bar)
-
-  println("after interpolation, dxdxi_el_bar[:, :, 1] = \n", dxdxi_el_bar[:, :, 1])
-
-  # propagate back to the inputs
-  for j=numNodesPerElement:-1:1
-    fill!(dxidx_node_bar, 0.0)
-    dxidx_hat = sview(dxidx_hat_in, :, :, j)
-    dxidx_hat_bar = sview(dxidx_hat_in_bar, :, :, j)
-
-    for k=dim:-1:1
-      for p=dim:-1:1
-        pos = p + dim*(k-1)
-        dxidx_node_bar[k, p] += dxdxi_el_bar[pos, j, 1]
-      end
-    end
-
-    adjugate2_rev(dxidx_hat, dxidx_hat_bar, dxidx_node, dxidx_node_bar)
-
-    if j == 1
-      println("dxidx_hat_bar = \n", dxidx_hat_bar)
-    end
-  end  # end loop j
-    
-
-
-  return nothing
-
-end
-=#
-
+  Aliasing restrictions: please don't
+"""
 function interpolateFace_rev{Tmsh}(interp_data::Interpolation{Tmsh, 2}, 
                                sbpface, 
                                dxidx_hat_in::AbstractArray{Tmsh, 3}, 
@@ -616,7 +594,6 @@ function interpolateFace_rev{Tmsh}(interp_data::Interpolation{Tmsh, 2},
 
   #----------------------------------------------------------------------------
   # reverse sweep
-  println("reverse sweep")
 
   # unpack arguments
   dxdxi_el_bar = interp_data.dxdxi_el_bar
@@ -828,6 +805,205 @@ function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 3}, sbpface,
   return nothing
 
 end
+
+function interpolateFace_rev{Tmsh}(interp_data::Interpolation{Tmsh, 3}, 
+                               sbpface, 
+                               dxidx_hat_in::AbstractArray{Tmsh, 3}, 
+                               dxidx_hat_in_bar::AbstractArray{Tmsh, 3},
+                               jac_in::AbstractVector{Tmsh}, 
+                               jac_in_bar::AbstractVector{Tmsh},
+                               dxidx_hat_out::AbstractArray{Tmsh, 3}, 
+                               dxidx_hat_out_bar::AbstractArray{Tmsh, 3},
+                               jac_out::AbstractVector{Tmsh}, 
+                               jac_out_bar::AbstractVector{Tmsh})
+
+  #----------------------------------------------------------------------------
+  # forward sweep
+  # unpack arguments
+  dxdxi_el = interp_data.dxdxi_el
+  dxdxi_elface = interp_data.dxdxi_elface
+  dxdxi_node = interp_data.dxdxi_node
+  dxidx_node = interp_data.dxidx_node
+
+  fill!(dxdxi_el, 0.0)
+  fill!(dxdxi_elface, 0.0)
+
+  dim = 3
+  numNodesPerElement = size(dxidx_hat_in, 3)
+
+  # get the data
+  for j=1:numNodesPerElement
+    dxidx_hat = sview(dxidx_hat_in, :, :, j)
+    detJ = jac_in[j]
+
+    adjugate3(dxidx_hat, dxidx_node)
+    for k=1:dim
+      for p=1:dim
+        dxidx_node[k, p] *= detJ
+        pos = p + dim*(k-1)
+        dxdxi_el[pos,j,1] = dxidx_node[k, p]
+      end
+    end
+  end
+
+
+  # interpolate to the face
+  face = interp_data.bndry_arr[1].face
+  interp_data.bndry_arr[1] = Boundary(1, face)
+  boundaryinterpolate!(sbpface, interp_data.bndry_arr, dxdxi_el, dxdxi_elface)
+
+
+  # everything in here is local to the loop, no need to compute it here
+  for j=1:sbpface.numnodes
+    for k=1:dim
+      for p=1:dim
+        pos = p + dim*(k-1)
+        dxdxi_node[k,p] = dxdxi_elface[pos, j, 1]
+      end
+    end
+
+    # inv(A) = adj(A)/|A|
+    det_dxdxi = det3(dxdxi_node)
+    adjugate3(dxdxi_node, dxidx_node)
+    for i=1:length(dxidx_node)
+       dxidx_node[i] = dxidx_node[i] / det_dxdxi
+    end
+
+    detJ = det3(dxidx_node)
+    fac = 1./detJ
+
+    for k=1:dim
+      for p=1:dim
+        # verify this forward sweep is consistent with the original function
+        @assert (dxidx_hat_out[p, k, j] - dxidx_node[p, k]*fac) < 1e-13
+#        dxidx_hat_out[p, k, j] = dxidx_node[p, k]*fac
+      end
+    end
+#    jac_out[j] = detJ
+  end
+
+  #----------------------------------------------------------------------------
+  # reverse sweep
+
+  # unpack arguments
+  dxdxi_el_bar = interp_data.dxdxi_el_bar
+  dxdxi_elface_bar = interp_data.dxdxi_elface_bar
+  dxdxi_node_bar = interp_data.dxdxi_node_bar
+  dxidx_node_bar = interp_data.dxidx_node_bar
+
+  # zero them out
+  fill!(dxdxi_el_bar, 0.0)
+  fill!(dxdxi_elface_bar, 0.0)
+
+  # each interation of this loop is independent - combine forward and reverse
+  for j=sbpface.numnodes:-1:1
+
+    #--------------------------------------------------------------------------
+    # forward sweep
+    fill!(dxdxi_node_bar, 0.0)
+    fill!(dxidx_node_bar, 0.0)
+
+    for k=1:dim
+      for p=1:dim
+        pos = p + dim*(k-1)
+        dxdxi_node[k,p] = dxdxi_elface[pos, j, 1]
+      end
+    end
+
+    # inv(A) = adj(A)/|A|
+    det_dxdxi = det3(dxdxi_node)
+    adjugate3(dxdxi_node, dxidx_node)
+    for i=1:length(dxidx_node)
+       dxidx_node[i] = dxidx_node[i] / det_dxdxi
+    end
+
+    detJ = det3(dxidx_node)
+    fac = 1./detJ
+#=
+    for k=1:dim
+      for p=1:dim
+        @assert (dxidx_hat_out[p, k, j] - dxidx_node[p, k]*fac) < 1e-13
+        dxidx_hat_out[p, k, j] = dxidx_node[p, k]*fac
+      end
+    end
+    jac_out[j] = detJ
+=#
+    #--------------------------------------------------------------------------
+    # reverse sweep
+    det_dxdxi_bar = zero(det_dxdxi)
+    fac_bar = zero(eltype(dxidx_hat_out))
+
+    detJ_bar = jac_out_bar[j]*1
+
+    for k=dim:-1:1
+      for p=dim:-1:1
+        dxidx_node_bar[p, k] += dxidx_hat_out_bar[p, k, j]*fac
+
+        fac_bar += dxidx_hat_out_bar[p, k, j]*dxidx_node[p, k]
+      end
+    end
+
+    detJ_bar -= fac_bar*1/(detJ*detJ)
+    det3_rev(dxidx_node, dxidx_node_bar, detJ_bar)
+
+
+    # uncomment this to introdue the bug
+    for i=1:length(dxidx_node)
+       dxidx_node[i] *= det_dxdxi  # need to reverse the primal variables too
+       det_dxdxi_bar += dxidx_node_bar[i]*dxidx_node[i]*(-1/(det_dxdxi*det_dxdxi))
+       dxidx_node_bar[i] = dxidx_node_bar[i]/det_dxdxi
+    end
+
+
+    adjugate3_rev(dxdxi_node, dxdxi_node_bar, dxidx_node, dxidx_node_bar)
+    det3_rev(dxdxi_node, dxdxi_node_bar, det_dxdxi_bar)
+
+
+    for k=dim:-1:1
+      for p=dim:-1:1
+        pos = p + dim*(k-1)
+        dxdxi_elface_bar[pos, j, 1] += dxdxi_node_bar[k, p]
+      end
+    end
+
+  end  # end loop j
+  
+
+  # interpolate to the face
+  face = interp_data.bndry_arr[1].face
+  interp_data.bndry_arr[1] = Boundary(1, face)
+  boundaryinterpolate_rev!(sbpface, interp_data.bndry_arr, dxdxi_el_bar, dxdxi_elface_bar)
+
+  # propagate back to the inputs
+  for j=numNodesPerElement:-1:1
+    fill!(dxidx_node_bar, 0.0)
+    fill!(dxdxi_node_bar, 0.0)
+    detJ = jac_in[j]
+    detJ_bar = zero(detJ)
+
+    dxidx_hat = sview(dxidx_hat_in, :, :, j)
+    dxidx_hat_bar = sview(dxidx_hat_in_bar, :, :, j)
+
+    for k=dim:-1:1
+      for p=dim:-1:1
+        pos = p + dim*(k-1)
+        dxidx_node_bar[k, p] += dxdxi_el_bar[pos, j, 1]
+        
+        dxidx_node[k, p] /= detJ
+        detJ_bar += dxidx_node_bar[k, p]*dxidx_node[k, p]
+        dxidx_node_bar[k, p] = dxidx_node_bar[k, p]*detJ
+      end
+    end
+
+    adjugate3_rev(dxidx_hat, dxidx_hat_bar, dxidx_node, dxidx_node_bar)
+
+    jac_in_bar[j] = detJ_bar
+  end  # end loop j
+    
+  return nothing
+
+end
+
 
 #TODO: reorder these operations for column major arrays
 function det2(A::AbstractMatrix)

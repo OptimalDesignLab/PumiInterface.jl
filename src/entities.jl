@@ -115,6 +115,7 @@ function allocateCoordinateAndMetricArrays{Tmsh}(mesh::PumiMeshDG{Tmsh},
 
   # allocate adjoint part
   mesh.dxidx_bar = Array(Tmsh, size(mesh.dxidx)...)
+  mesh.jac_bar = Array(Tmsh, size(mesh.jac)...)
 
   return nothing
 end

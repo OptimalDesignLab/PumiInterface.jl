@@ -1,4 +1,140 @@
 
+  function test_interp_rev(mesh)
+    facts("\n ----- Testing interp rev -----") do
+
+    dim = mesh.dim
+
+    interp_data = PdePumiInterface.Interpolation(mesh)
+    interp_datac = PdePumiInterface.Interpolation(mesh, Complex128)
+    interp_data.bndry_arr[1] = Boundary(2, 1)
+    interp_datac.bndry_arr[1] = Boundary(2, 1)
+
+    if mesh.dim == 2
+      dxidx_in = zeros(dim, dim, mesh.numNodesPerElement)
+      jac_in = zeros(mesh.numNodesPerElement)
+
+      for i=1:length(dxidx_in)
+        dxidx_in[i] = i
+      end
+      for i=1:length(jac_in)
+        jac_in[i] = i
+      end
+    else
+      dxidx_in = mesh.dxidx[ :, :, :, 1]
+      jac_in = mesh.jac[ :, 1]
+    end
+
+
+    dxidx_out = zeros(dim, dim, mesh.numNodesPerFace)
+    jac_out = zeros(mesh.numNodesPerFace)
+
+    PdePumiInterface.interpolateFace(interp_data, mesh.sbpface, dxidx_in, jac_in, dxidx_out, jac_out)
+
+    # compute forward jacobian
+    jac_size = dim*dim*mesh.numNodesPerFace
+    jac_forward = zeros(jac_size, jac_size)
+    
+    dxidx_in2 = zeros(Complex128, size(dxidx_in)...)
+    copy!(dxidx_in2, dxidx_in)
+    jac_in2 = zeros(Complex128, size(jac_in)...)
+    copy!(jac_in2, jac_in)
+
+    dxidx_out2 = zeros(Complex128, dim, dim, mesh.numNodesPerFace)
+    jac_out2 = zeros(Complex128, mesh.numNodesPerFace)
+
+
+    h =1e-20
+    pert = Complex128(0, h)
+
+    for i=1:jac_size
+      dxidx_in2[i] += pert
+      PdePumiInterface.interpolateFace(interp_datac, mesh.sbpface, dxidx_in2, jac_in2, dxidx_out2, jac_out2)
+      
+      for j=1:jac_size
+        jac_forward[j, i] = imag(dxidx_out2[j])/h
+      end
+
+      dxidx_in2[i] -= pert
+    end
+
+    # compute reverse mode
+    jac_rev = zeros(jac_size, jac_size)
+    dxidx_in_bar = zeros(dxidx_in)
+    jac_in_bar = zeros(jac_in)
+    dxidx_out_bar = zeros(dxidx_out)
+    jac_out_bar = zeros(jac_out)
+
+    for i=1:jac_size
+      dxidx_out_bar[i] = 1
+      fill!(dxidx_in_bar, 0.0)
+      fill!(jac_in_bar, 0.0)
+      fill!(jac_out_bar, 0.0)
+
+      PdePumiInterface.interpolateFace_rev(interp_data, mesh.sbpface, dxidx_in, 
+                                       dxidx_in_bar, jac_in, jac_in_bar, 
+                                       dxidx_out, dxidx_out_bar, jac_out, 
+                                       jac_out_bar)
+
+      for j=1:jac_size
+        jac_rev[i, j] = dxidx_in_bar[j]
+      end
+
+      dxidx_out_bar[i] -= 1
+    end
+
+
+    @fact norm(jac_forward - jac_rev) --> roughly(0.0, atol=1e-11)
+
+    # now test the full routine
+    fill!(mesh.dxidx_bar, 0.0)
+#    mesh.dxidx_face_bar[1] = 1
+    fill!(mesh.dxidx_face_bar, 1.0)
+
+    # check regular interfaces
+    PdePumiInterface.interpolateMapping_rev(mesh)
+    for i=1:mesh.numInterfaces
+      el = mesh.interfaces[i].elementL
+      for j=1:mesh.numNodesPerFace
+        @fact norm(mesh.dxidx_bar[:, :, j, el]) --> greater_than(0.0)
+      end
+    end
+    
+    # check boundary faces
+    fill!(mesh.dxidx_bar, 0.0)
+    fill!(mesh.dxidx_bndry_bar, 1.0)
+    PdePumiInterface.interpolateMapping_rev(mesh)
+    for i=1:mesh.numBoundaryFaces
+      el = mesh.bndryfaces[i].element
+      for j=1:mesh.numNodesPerFace
+        @fact norm(mesh.dxidx_bar[:, :, j, el]) --> greater_than(0.0)
+      end
+    end
+ 
+    fill!(mesh.dxidx_bndry_bar, 1.0)
+    
+    # check sharedfaces
+    for peer = 1:mesh.npeers
+      fill!(mesh.dxidx_bar, 0.0)
+      fill!(mesh.dxidx_sharedface[peer], 1.0)
+      PdePumiInterface.interpolateMapping_rev(mesh)
+      for i=1:mesh.numBoundaryFaces
+        el = mesh.shared_interfacesfaces[p][i].elementL
+        for j=1:mesh.numNodesPerFace
+          @fact norm(mesh.dxidx_bar[:, :, j, el]) --> greater_than(0.0)
+        end
+      end
+
+      fill!(mesh.dxidx_bar, 0.0)
+      fill!(mesh.dxidx_sharedface[peer]. 0.0)
+    end
+   
+    end
+
+
+  end
+
+
+
 facts("--- Testing PdePumiInterface --- ") do
 
   opts = Dict{Any, Any}(
@@ -509,87 +645,6 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
   # test reverse mode interpolation
 
-  function test_interp_rev(mesh)
-    println("\n ----- Testing interp rev -----")
-
-    interp_data = PdePumiInterface.Interpolation(mesh)
-    interp_datac = PdePumiInterface.Interpolation(mesh, Complex128)
-    interp_data.bndry_arr[1] = Boundary(2, 1)
-    interp_datac.bndry_arr[1] = Boundary(2, 1)
-
-    dxidx_in = zeros(2, 2, mesh.numNodesPerElement)
-    jac_in = zeros(mesh.numNodesPerElement)
-
-    for i=1:length(dxidx_in)
-      dxidx_in[i] = i
-    end
-    for i=1:length(jac_in)
-      jac_in[i] = i
-    end
-
-    dxidx_out = zeros(2, 2, mesh.numNodesPerFace)
-    jac_out = zeros(mesh.numNodesPerFace)
-
-    PdePumiInterface.interpolateFace(interp_data, mesh.sbpface, dxidx_in, jac_in, dxidx_out, jac_out)
-
-    # compute forward jacobian
-    jac_size = 2*2*mesh.numNodesPerFace
-    jac_forward = zeros(jac_size, jac_size)
-    
-    dxidx_in2 = zeros(Complex128, size(dxidx_in)...)
-    copy!(dxidx_in2, dxidx_in)
-    jac_in2 = zeros(Complex128, size(jac_in)...)
-    copy!(jac_in2, jac_in)
-
-    dxidx_out2 = zeros(Complex128, 2, 2, mesh.numNodesPerFace)
-    jac_out2 = zeros(Complex128, mesh.numNodesPerFace)
-
-
-    h =1e-20
-    pert = Complex128(0, h)
-
-    for i=1:jac_size
-      dxidx_in2[i] += pert
-      PdePumiInterface.interpolateFace(interp_datac, mesh.sbpface, dxidx_in2, jac_in2, dxidx_out2, jac_out2)
-      
-      for j=1:jac_size
-        jac_forward[j, i] = imag(dxidx_out2[j])/h
-      end
-
-      dxidx_in2[i] -= pert
-    end
-
-    # compute reverse mode
-    jac_rev = zeros(jac_size, jac_size)
-    dxidx_in_bar = zeros(dxidx_in)
-    jac_in_bar = zeros(jac_in)
-    dxidx_out_bar = zeros(dxidx_out)
-    jac_out_bar = zeros(jac_out)
-
-    for i=1:jac_size
-      dxidx_out_bar[i] = 1
-      fill!(dxidx_in_bar, 0.0)
-      fill!(jac_in_bar, 0.0)
-      fill!(jac_out_bar, 0.0)
-
-      PdePumiInterface.interpolateFace_rev(interp_data, mesh.sbpface, dxidx_in, 
-                                       dxidx_in_bar, jac_in, jac_in_bar, 
-                                       dxidx_out, dxidx_out_bar, jac_out, 
-                                       jac_out_bar)
-
-      for j=1:jac_size
-        jac_rev[i, j] = dxidx_in_bar[j]
-      end
-
-      dxidx_out_bar[i] -= 1
-    end
-
-
-    @fact norm(jac_forward - jac_rev) --> roughly(0.0, atol=1e-11)
-    #TODO: check jac
-
-  end
-
   test_interp_rev(mesh)
 
   # test update_coords
@@ -711,5 +766,3 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
 
 end
-
-
