@@ -535,6 +535,27 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
   @fact mesh.jac --> roughly(ones(mesh.numNodesPerElement ,2))
 
+  # check if dxidx is consistent with the old way of calculating it
+  dxidx2 = zeros(mesh.dxidx)
+  jac2 = zeros(mesh.jac)
+
+  SummationByParts.mappingjacobian!(sbp, mesh.coords, dxidx2, jac2)
+
+  println("mesh.jac = \n", mesh.jac)
+  println("jac2 = \n", jac2)
+
+
+  println("mesh.dxidx = \n", mesh.dxidx)
+  println("dxidx2 = \n", dxidx2)
+
+  @fact norm(mesh.jac - jac2)/length(mesh.jac) --> roughly(0.0, atol=1e-13)
+
+  for i=1:mesh.numEl
+    for j=1:mesh.numNodesPerElement
+      @fact norm(mesh.dxidx[:, :, j, i]  - dxidx2[:, :, j, i]) --> roughly(0.0, atol=1e-13)
+    end
+  end
+
    function test_interp{Tmsh}(mesh::AbstractMesh{Tmsh})
      sbpface = mesh.sbpface
      dxdxi_element = zeros(2, 2, mesh.numNodesPerElement, 1)

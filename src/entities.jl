@@ -156,7 +156,15 @@ function getCoordinatesAndMetrics(mesh::PumiMeshDG, sbp::AbstractSBP)
     mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
   end
 
-  mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+  if mesh.dim == 2
+    fill!(mesh.coords, 0.0)  # when using calcMappingJacobian, this isn't needed
+    @assert size(mesh.vert_coords, 2) == 3
+    coord_order = 1
+    calcMappingJacobian!(sbp, coord_order, sbp.vtx.', mesh.vert_coords, 
+                         mesh.coords, mesh.dxidx, mesh.jac)
+  else
+    mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+  end
 
 
   return nothing
