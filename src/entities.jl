@@ -114,8 +114,11 @@ function allocateCoordinateAndMetricArrays{Tmsh}(mesh::PumiMeshDG{Tmsh},
   mesh.jac = Array(Tmsh, sbp.numnodes, mesh.numEl)
 
   # allocate adjoint part
-  mesh.dxidx_bar = Array(Tmsh, size(mesh.dxidx)...)
-  mesh.jac_bar = Array(Tmsh, size(mesh.jac)...)
+  if mesh.dim == 2
+    mesh.vert_coords_bar = zeros(mesh.vert_coords)
+  end
+  mesh.dxidx_bar = zeros(mesh.dxidx)
+  mesh.jac_bar = zeros(mesh.jac)
 
   return nothing
 end
@@ -156,12 +159,46 @@ function getCoordinatesAndMetrics(mesh::PumiMeshDG, sbp::AbstractSBP)
     mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
   end
 
-  mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+  if mesh.dim == 2
+    fill!(mesh.coords, 0.0)  # when using calcMappingJacobian, this isn't needed
+    @assert size(mesh.vert_coords, 2) == 3
+    coord_order = 1
+    calcMappingJacobian!(sbp, coord_order, sbp.vtx.', mesh.vert_coords, 
+                         mesh.coords, mesh.dxidx, mesh.jac)
+  else
+    mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+  end
 
 
   return nothing
 
 end
+
+"""
+  This function uses reverse mode differentiation to back propigate dxidx_bar
+  to vert_coords_bar
+
+  Inputs/Outputs:
+    mesh: a DG mesh object, must be 2D.  The mesh.vert_coords_bar field is 
+          incremented (ie. not overwritten) by this function.
+
+    sbp: an SBP operator
+"""
+function getVertCoords_rev(mesh::PumiMeshDG, sbp)
+  @assert mesh.dim == 2
+
+  coord_order = 1
+  coords_bar = zeros(mesh.coords)  # we don't allow perturbing the mesh coords
+  Eone_bar = zeros(mesh.numNodesPerElement, mesh.dim, mesh.numEl)
+  calcMappingJacobianRevDiff!(sbp, coord_order, sbp.vtx.', 
+                          mesh.vert_coords_bar, coords_bar, mesh.dxidx,
+                          mesh.dxidx_bar, 
+                          mesh.jac, mesh.jac_bar, 
+                          Eone_bar)
+
+  return nothing
+end
+
 
 function getElementCoords(mesh::PumiMesh2D, entity::Ptr{Void}, coords::AbstractMatrix)
   # coords must be 3 x numVertsPerElement

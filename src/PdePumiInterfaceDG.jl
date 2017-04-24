@@ -247,6 +247,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   vert_coords::Array{T1, 3}  # dim x numVertsPerElement x numEl array of 
                              # coordinates of vertices of each element
+  vert_coords_bar::Array{T1, 3}  # adjoint part
   coords::Array{T1, 3}  # store coordinates of all nodes
   coords_bndry::Array{T1, 3}  # store coordinates of nodes on boundary,
                               # 2 x numFaceNodes x numBoundaryFaces
