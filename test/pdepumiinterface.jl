@@ -541,19 +541,22 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
   SummationByParts.mappingjacobian!(sbp, mesh.coords, dxidx2, jac2)
 
-  println("mesh.jac = \n", mesh.jac)
-  println("jac2 = \n", jac2)
-
-
-  println("mesh.dxidx = \n", mesh.dxidx)
-  println("dxidx2 = \n", dxidx2)
-
   @fact norm(mesh.jac - jac2)/length(mesh.jac) --> roughly(0.0, atol=1e-13)
 
   for i=1:mesh.numEl
     for j=1:mesh.numNodesPerElement
       @fact norm(mesh.dxidx[:, :, j, i]  - dxidx2[:, :, j, i]) --> roughly(0.0, atol=1e-13)
     end
+  end
+
+  # check reverse mode
+  # SBP testing the correctness, these tests only verify values get to the right place
+
+  fill!(mesh.dxidx_bar, 1.0)
+  getVertCoords_rev(mesh, sbp)
+
+  for i=1:mesh.numEl
+    @fact norm(mesh.vert_coords_bar[:, :, i]) --> greater_than(0.0)
   end
 
    function test_interp{Tmsh}(mesh::AbstractMesh{Tmsh})
