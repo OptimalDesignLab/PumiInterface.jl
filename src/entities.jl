@@ -184,12 +184,12 @@ end
 
     sbp: an SBP operator
 """
-function getVertCoords_rev(mesh::PumiMeshDG, sbp)
+function getVertCoords_rev{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
   @assert mesh.dim == 2
 
   coord_order = 1
-  coords_bar = zeros(mesh.coords)  # we don't allow perturbing the mesh coords
-  Eone_bar = zeros(mesh.numNodesPerElement, mesh.dim, mesh.numEl)
+  coords_bar = zeros(Tmsh, size(mesh.coords)...)  # we don't allow perturbing the mesh coords
+  Eone_bar = zeros(Tmsh, mesh.numNodesPerElement, mesh.dim, mesh.numEl)
   calcMappingJacobianRevDiff!(sbp, coord_order, sbp.vtx.', 
                           mesh.vert_coords_bar, coords_bar, mesh.dxidx,
                           mesh.dxidx_bar, 
