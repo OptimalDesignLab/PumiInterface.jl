@@ -139,8 +139,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   shr_ptr::Ptr{Void}  # pointer to the apf::Sharing object
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
-  min_el_size::Float64 # size of the smallest element (units of length)
-  volume::Float64  # volume of entire mesh
+  min_el_size::T1 # size of the smallest element (units of length)
+  volume::T1  # volume of entire mesh
   f::IOStream
   vert_Nptr::Ptr{Void}  # numbering of vertices (zero based)
   edge_Nptr::Ptr{Void}  # numbering of edges (zero based)
