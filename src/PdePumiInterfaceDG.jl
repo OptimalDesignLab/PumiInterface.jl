@@ -237,6 +237,9 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 #  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
 
   bndry_funcs::Array{BCType, 1}  # array of boundary functors (Abstract type)
+  bndry_funcs_revm::Array{BCType_revm, 1}  # reverse mode functors
+  bndry_normals::Array{T1, 3}  # array of normals to each face on the boundary
+#  bndry_facenums::Array{Array{Int, 1}, 1}  # hold array of faces corresponding to each boundary condition
   bndry_offsets::Array{Int, 1}  # location in bndryfaces where new type of BC 
                                 # starts
                                 # and one past the end of the last BC type
@@ -253,6 +256,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   vert_coords::Array{T1, 3}  # dim x numVertsPerElement x numEl array of 
                              # coordinates of vertices of each element
+  vert_coords_bar::Array{T1, 3}  # adjoint part
   coords::Array{T1, 3}  # store coordinates of all nodes
   coords_bndry::Array{T1, 3}  # store coordinates of nodes on boundary,
                               # 2 x numFaceNodes x numBoundaryFaces
@@ -261,20 +265,29 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   coords_sharedface::Array{Array{T1, 3}, 1}  # coordinates of shared interface nodes
   dxidx::Array{T1, 4}  # store scaled mapping jacobian
+  dxidx_bar::Array{T1, 4}
   dxidx_face::Array{T1, 4} # store scaled mapping jacobian at face nodes
+  dxidx_face_bar::Array{T1, 4}
                            # 2 x 2 x numfacenodes x numInterfaces
   dxidx_sharedface::Array{Array{T1, 4}, 1}  # array of arrays for dxidx
+  dxidx_sharedface_bar::Array{Array{T1, 4}, 1}
                                             # on shared edges
   dxidx_bndry::Array{T1, 4} # store scaled mapping jacobian at boundary nodes,
                             # similar to dxidx_face
+  dxidx_bndry_bar::Array{T1, 4}
+
   jac::Array{T1,2}  # store mapping jacobian output
+  jac_bar::Array{T1, 2}
   jac_face::Array{T1,2}  # store jacobian determanent at face nodes
                          # numfacenodes x numInterfaces
+  jac_face_bar::Array{T1, 2}
   jac_sharedface::Array{Array{T1, 2}, 1}  # array of arrays for shared
                                           # edge jacobian determinent
+  jac_sharedface_bar::Array{Array{T1, 2}, 1}
 
   jac_bndry::Array{T1, 2} # store jacobian determinant at boundry nodes
                           # similar to jac_bndry
+  jac_bndry_bar::Array{T1, 2}
 
   nrm_bndry::Array{T1, 3}  # dim x numfacenodes x numBoundaryFaces array holding
                            # normal vector in x-y to each face node  on the boundary
@@ -561,6 +574,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 #  println("about to get boudnary offets")
   mesh.bndry_offsets = Array(Int, mesh.numBC + 1)
   mesh.bndry_funcs = Array(BCType, mesh.numBC)
+  mesh.bndry_funcs_revm = Array(BCType_revm, mesh.numBC)
   mesh.bndry_geo_nums = Array(Array{Int, 1}, mesh.numBC)
   boundary_nums = Array(Int, mesh.numBoundaryFaces, 2)
 

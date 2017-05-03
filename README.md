@@ -245,8 +245,9 @@ visualization of the exact nodal values.  The nodal values are interpolated
 to the vertices.
 
 # Version History
-
-
+# Release History
+v0.1: the old code, before Pumi switched to the CMake build system.  This version is no longer supported
+v0.2: after the build system switch to CMake
 v0.3: curvilinear elements (compatable with SBP versions broken_ticon and fixed_ticon)
  
 [![Build Status](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl.svg?branch=build_system)](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl)

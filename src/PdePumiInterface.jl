@@ -17,6 +17,7 @@ include("options.jl")
 
 export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryFaceLocalNum, getFaceLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles, update_coords, commit_coords
 
+export getVertCoords_rev, interpolateMapping_rev
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 
@@ -289,7 +290,9 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   coords::Array{T1, 3}  # store coordinates of all nodes
   dxidx::Array{T1, 4}  # store scaled mapping jacobian
+  dxidx_bar::Array{T1, 4}  # needed for compatability with DG
   jac::Array{T1,2}  # store mapping jacobian output
+  jac_bar::Array{T1, 2}  # needed for compatability with DG
 
   dofs::Array{Int32, 3}  # store dof numbers of solution array to speed assembly
   element_vertnums::Array{Int32, 2}  # map from elements to their vertex numbers

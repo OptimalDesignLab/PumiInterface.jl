@@ -9,7 +9,6 @@ import ODLCommonTools.sview
 using SummationByParts
 using PdePumiInterface
 
-
 import Base.isapprox
 
 # generic fallback

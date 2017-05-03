@@ -16,6 +16,10 @@ function allocateCoordinateArrays{Tmsh}(mesh::PumiMeshDG{Tmsh},
   if !isFieldDefined(mesh, :coords, :vert_coords)
     mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
     mesh.vert_coords = Array(Float64, mesh.dim, num_coord_nodes, mesh.numEl)
+    if mesh.dim == 2
+      mesh.vert_coords_bar = zeros(mesh.vert_coords)
+    end
+
   else
     fill!(mesh.coords, 0.0)
     fill!(mesh.vert_coords, 0.0)
@@ -37,6 +41,9 @@ function allocateMetricsArrays{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
     fill!(mesh.dxidx, 0.0)
     fill!(mesh.jac, 0.0)
   end
+  mesh.dxidx_bar = zeros(mesh.dxidx)
+  mesh.jac_bar = zeros(mesh.jac)
+
 
   return nothing
 end
@@ -93,10 +100,45 @@ function getMetrics(mesh::PumiMeshDG, sbp::AbstractSBP)
 
   allocateMetricsArrays(mesh, sbp)
 
-  mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+  if mesh.dim == 2
+    fill!(mesh.coords, 0.0)  # when using calcMappingJacobian, this isn't needed
+    @assert size(mesh.vert_coords, 2) == 3
+    coord_order = 1
+    calcMappingJacobian!(sbp, coord_order, sbp.vtx.', mesh.vert_coords, 
+                         mesh.coords, mesh.dxidx, mesh.jac)
+  else
+    mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+  end
 
   return nothing
 end
+
+"""
+  This function uses reverse mode differentiation to back propigate dxidx_bar
+  to vert_coords_bar
+
+  Inputs/Outputs:
+    mesh: a DG mesh object, must be 2D.  The mesh.vert_coords_bar field is 
+          incremented (ie. not overwritten) by this function.
+
+    sbp: an SBP operator
+"""
+function getVertCoords_rev{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
+  @assert mesh.dim == 2
+
+  coord_order = 1
+  coords_bar = zeros(Tmsh, size(mesh.coords)...)  # we don't allow perturbing the mesh coords
+  Eone_bar = zeros(Tmsh, mesh.numNodesPerElement, mesh.dim, mesh.numEl)
+  calcMappingJacobianRevDiff!(sbp, coord_order, sbp.vtx.', 
+                          mesh.vert_coords_bar, coords_bar, mesh.dxidx,
+                          mesh.dxidx_bar, 
+                          mesh.jac, mesh.jac_bar, 
+                          Eone_bar)
+
+  return nothing
+end
+
+
 
 
 """
