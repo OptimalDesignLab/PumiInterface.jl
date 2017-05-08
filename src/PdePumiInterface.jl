@@ -754,7 +754,7 @@ end
 
 function getMinElementSize(mesh::AbstractMesh)
   local_min = ((1./maximum(mesh.jac) )^(1/mesh.dim) )*mesh.min_node_dist
-  global_min = MPI.Allreduce(local_min, MPI.MIN, mesh.comm)
+  global_min = MPI.Allreduce(real(local_min), MPI.MIN, mesh.comm)  #TODO: is the complex part needed in general
   println("max jac = ", maximum(mesh.jac))
   println("min_node_dist = ", mesh.min_node_dist)
   return global_min
