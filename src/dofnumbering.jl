@@ -397,6 +397,8 @@ end
 function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
 # number nodes and elements starting from a particular location
 
+  println("numbering nodes windy")
+  println("startin from ", start_coords)
 
   # calculate number of nodes, dofs
   numDof = mesh.numDof
@@ -440,7 +442,7 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   curr_dof = 1
   # the dreaded while loop
   while (!isempty(que))
-    print("\n")
+i#    print("\n")
     curr_el = pop!(que)
 
     # only unlabelled entities are added to the que, and they are added 
@@ -483,6 +485,22 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
     throw(ErrorException("dof numbering failed"))
   end
 
+  if (curr_elnum - 1) != mesh.numEl
+    throw(ErrorException("element numbering failed"))
+  end
+
+  # the element number should have been zero based (oops), so decrement
+  # the element numbers
+  for i=1:mesh.numEl
+    el_i = mesh.elements[i]
+    idx = getNumberJ(mesh.el_Nptr, el_i, 0, 0)
+    numberJ(mesh.el_Nptr, el_i, 0, 0, idx - 1)
+  end
+
+  # need to update the element pointer array because element numbering has
+  # changed
+  #TODO: don't reallocate the arrays
+  mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
   return nothing
 end
 
@@ -507,9 +525,9 @@ function getStartEl(mesh::PumiMeshDG, start_coords)
     # compute centroid
     for j=1:dim
       for k=1:numVertsPerElement
-        centroid[j] += coords[k, j]
+        centroid[j] += coords[j, k]
       end
-      centroid[j] = coords[j]/numVertsPerElement
+      centroid[j] = centroid[j]/numVertsPerElement
     end
     
     # compute norm of distance from start_coords
