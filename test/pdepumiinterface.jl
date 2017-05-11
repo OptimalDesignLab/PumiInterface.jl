@@ -664,6 +664,10 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     end
   end
 
+  u = ones(mesh.numDofPerNode, mesh.numTypePerElement[1], mesh.numEl)
+  PdePumiInterface.saveNodalSolution(mesh, u)
+  writeVisFiles(mesh, "nodal_solution")
+
   # check reverse mode
   # SBP testing the correctness, these tests only verify values get to the right place
 

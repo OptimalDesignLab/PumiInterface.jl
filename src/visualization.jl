@@ -64,7 +64,7 @@ function saveNodalSolution(mesh::PumiMesh, u::AbstractArray{Float64, 3})
     for j=1:nverts
       vals_j = sview(u, :, j, el)
       vert_j = down_verts[j]
-      setComponents(mesh.f_ptr, vert_j, 0, vals_j)
+      setComponents(mesh.fnew_ptr, vert_j, 0, vals_j)
     end
   end
 
