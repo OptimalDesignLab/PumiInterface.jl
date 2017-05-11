@@ -83,12 +83,19 @@ function getCoordinates(mesh::PumiMeshDG, sbp::AbstractSBP)
     el_i = mesh.elements[i]
     getAllEntityCoords(mesh.m_ptr, el_i, coords_i)
     mesh.vert_coords[:, :, i] = coords_i[:, :]
-    coords_it[:,:] = coords_i[1:mesh.dim, :].'
-    mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
+    mesh.coords[:, :, i] = vertToVolumeCoords(mesh, sbp, coords_i)
+#    coords_it[:,:] = coords_i[1:mesh.dim, :].'
+#    mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
   end
 
   return nothing
 
+end
+
+function vertToVolumeCoords(mesh, sbp, vert_coords)
+  coords_it = vert_coords[1:mesh.dim, :].'
+  coords = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
+  return coords
 end
 
 """

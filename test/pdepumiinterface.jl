@@ -137,11 +137,11 @@ function test_coords_rev(mesh, sbp)
 
 #  sbp_complex = TriSBP{Complex128}(degree=sbp.degree, reorder=sbp.reorder, internal=sbp.internal, vertices=sbp.vertices)
 
-  function coords_forward(vert_coords)
-    coords_it = vert_coords.'
-    coords_volume = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
-    return coords_volume
-  end
+#  function coords_forward(vert_coords)
+#    coords_it = vert_coords.'
+#    coords_volume = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
+#    return coords_volume
+#  end
   numVertsPerElement = mesh.numTypePerElement[1]
   # define indexing for input and output dimensions
   idx1(dim, vert, el) = dim + mesh.dim*(vert-1) + (el-1)*numVertsPerElement*mesh.dim
@@ -167,7 +167,7 @@ function test_coords_rev(mesh, sbp)
         vertcoords_in[d, vert, el] += pert
 
         vertcoords_el = sview(vertcoords_in, :, :, el)
-        coords_el = coords_forward(vertcoords_el)
+        coords_el = PdePumiInterface.vertToVolumeCoords(mesh, sbp, vertcoords_el)
 
         vertcoords_in[d, vert, el] -= pert
 
