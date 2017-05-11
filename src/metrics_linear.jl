@@ -146,7 +146,7 @@ function getVertCoords_rev{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
       volumeToVertCoords_rev(mesh, sbp, mesh.vert_coords_bar, coords_bar)
 #    end
 
-  return nothing
+  return coords_bar
 end
 
 """
