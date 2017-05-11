@@ -100,15 +100,15 @@ function getMetrics(mesh::PumiMeshDG, sbp::AbstractSBP)
 
   allocateMetricsArrays(mesh, sbp)
 
-  if mesh.dim == 2
-    fill!(mesh.coords, 0.0)  # when using calcMappingJacobian, this isn't needed
-    @assert size(mesh.vert_coords, 2) == 3
-    coord_order = 1
-    calcMappingJacobian!(sbp, coord_order, sbp.vtx.', mesh.vert_coords, 
-                         mesh.coords, mesh.dxidx, mesh.jac)
-  else
+#  if mesh.dim == 2
+#    fill!(mesh.coords, 0.0)  # when using calcMappingJacobian, this isn't needed
+#    @assert size(mesh.vert_coords, 2) == 3
+#    coord_order = 1
+#    calcMappingJacobian!(sbp, coord_order, sbp.vtx.', mesh.vert_coords, 
+#                         mesh.coords, mesh.dxidx, mesh.jac)
+#  else
     mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
-  end
+#  end
 
   return nothing
 end
