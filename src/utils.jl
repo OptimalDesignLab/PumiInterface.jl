@@ -193,3 +193,30 @@ function calcVolumeIntegral(mesh::PumiMesh, sbp)
   return volume
 end
 
+
+function accumulateAtVerts(mesh::PumiMeshDG, u_volume::Abstract3DArray, u_verts::AbstractMatrix)
+# takes u_volume which is n x numVertsPerElement x numEl and does an addition
+# reduction to u_verts, which is n x numVerts
+
+  @assert size(u_volume, 1) == size(u_verts, 1)
+
+  n = size(u_volume, 1)
+  down_verts = Array(Ptr{Void}, 12)
+  
+  fill!(u_verts, 0.0)
+  for i=1:mesh.numEl
+    el_i = mesh.elements[i]
+    nverts = getDownward(mesh.m_ptr, el_i, 0, down_verts)
+
+    for j=1:nverts
+      vert_j = down_verts[j]
+      vertnum_j = getNumberJ(mesh.vert_Nptr, vert_j, 0, 0) + 1
+
+      for k=1:n
+        u_verts[k, vertnum_j] +=  u_volume[k, j, i]
+      end
+    end
+  end
+
+  return nothing
+end

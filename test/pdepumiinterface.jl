@@ -668,6 +668,22 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   PdePumiInterface.saveNodalSolution(mesh, u)
   writeVisFiles(mesh, "nodal_solution")
 
+  # test accumulation at vertices
+  u_volume = ones(6, mesh.numTypePerElement[1], mesh.numEl)
+  u_verts = ones(6, mesh.numVert)
+
+  PdePumiInterface.accumulateAtVerts(mesh, u_volume, u_verts)
+
+  # check that value at each vert is the number of elements using that vert
+  for i=1:mesh.numVert
+    vert_i = mesh.verts[i]
+    nel = countAdjacent(mesh.m_ptr, vert_i, mesh.dim)
+    for j=1:6
+      @fact u_verts[j, i] --> nel
+    end
+  end
+
+
   # check reverse mode
   # SBP testing the correctness, these tests only verify values get to the right place
 
