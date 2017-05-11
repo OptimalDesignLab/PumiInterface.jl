@@ -52,6 +52,26 @@ function _saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector,
   return nothing
 end  # end function saveSolutionToMesh
 
+
+function saveNodalSolution(mesh::PumiMesh, u::AbstractArray{Float64, 3})
+# u must be a nodal solution
+
+  down_verts = Array(Ptr{Void}, 12)
+  for el = 1:mesh.numEl
+    el_i = mesh.elements[el]
+    nverts = getDownward(mesh.m_ptr, el_i, 0, down_verts)
+
+    for j=1:nverts
+      vals_j sview(u, :, j, i)
+      vert_j = down_verts[j]
+      setComponents(mesh.f_ptr, entity, j-1, val_j)
+    end
+  end
+
+  return nothing
+end
+
+
 function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
   if mesh.isDG
     # all DG meshes interpolate directly
