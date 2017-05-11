@@ -1,6 +1,6 @@
 
-  function test_interp_rev(mesh)
-    facts("\n ----- Testing interp rev -----") do
+function test_interp_rev(mesh)
+  facts("\n ----- Testing interp rev -----") do
 
     dim = mesh.dim
 
@@ -128,10 +128,97 @@
       fill!(mesh.dxidx_sharedface[peer]. 0.0)
     end
    
+  end
+
+end  # end function
+
+
+function test_coords_rev(mesh, sbp)
+
+#  sbp_complex = TriSBP{Complex128}(degree=sbp.degree, reorder=sbp.reorder, internal=sbp.internal, vertices=sbp.vertices)
+
+  function coords_forward(vert_coords)
+    coords_it = vert_coords.'
+    coords_volume = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
+    return coords_volume
+  end
+  numVertsPerElement = mesh.numTypePerElement[1]
+  # define indexing for input and output dimensions
+  idx1(dim, vert, el) = dim + mesh.dim*(vert-1) + (el-1)*numVertsPerElement*mesh.dim
+  idx2(dim, node, el) = dim + mesh.dim*(node-1) + (el-1)*mesh.numNodesPerElement*mesh.dim
+
+  facts("----- Testing coordiate reverse mode -----") do
+  # compute the jacobian with forward mode
+  nin = mesh.dim*numVertsPerElement*mesh.numEl
+  nout = mesh.dim*mesh.numNodesPerElement*mesh.numEl
+  jac = zeros(nin, nout)
+
+  vertcoords_in = zeros(Complex128, size(mesh.vert_coords)...)
+#  coords_out = zeros(Complex128, size(mesh.coords)...)
+
+  copy!(vertcoords_in, mesh.vert_coords)
+  h = 1e-20
+  pert = Complex128(0, h)
+  for el=1:mesh.numEl
+    for vert=1:numVertsPerElement
+      for d=1:mesh.dim
+        idx_in = idx1(d, vert, el)
+
+        vertcoords_in[d, vert, el] += pert
+
+        vertcoords_el = sview(vertcoords_in, :, :, el)
+        coords_el = coords_forward(vertcoords_el)
+
+        vertcoords_in[d, vert, el] -= pert
+
+        # take advantage of the fact that the operation is element local
+        for node_out=1:mesh.numNodesPerElement
+          for d2=1:mesh.dim
+            idx_out = idx1(d2, node_out, el)
+            jac[idx_out, idx_in] = imag(coords_el[d2, node_out])/h
+          end
+        end
+
+      end
     end
+  end
+
+  jac2 = zeros(jac)
+  coords_bar = zeros(mesh.dim, mesh.numNodesPerElement, mesh.numEl)
+  vertcoords_bar = zeros(size(mesh.vert_coords))
+  # construct reverse mode jacobian
+  for el=1:mesh.numEl
+    for node=1:mesh.numNodesPerElement
+      for d=1:mesh.dim
+        coords_bar[d, node, el] = 1
+        PdePumiInterface.volumeToVertCoords_rev(mesh, sbp, vertcoords_bar, coords_bar)
+
+        coords_bar[d, node, el] = 0
+        idx_out = idx1(d, node, el)
+        for vert_in = 1:numVertsPerElement
+          for d2=1:mesh.dim
+            idx_in = idx1(d2, vert_in, el)
+            jac2[idx_out, idx_in] = vertcoords_bar[d2, vert_in, el]
+          end
+        end
+
+        fill!(vertcoords_bar, 0.0)
+
+      end
+    end
+  end
+
+  for i=1:nout
+    for j=1:nin
+      @fact jac[j, i] --> roughly(jac2[j, i], atol=1e-13)
+    end
+  end
 
 
   end
+
+  return nothing
+end
 
 
 
@@ -773,6 +860,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   # test reverse mode interpolation
 
   test_interp_rev(mesh)
+  test_coords_rev(mesh, sbp)
 
   # test update_coords
   println("testing update_coords")

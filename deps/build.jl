@@ -36,7 +36,7 @@ pkg_dict = Pkg.installed()  # get dictionary of installed package names to versi
 
 if !haskey(pkg_dict, "SummationByParts")
   Pkg.clone("https://github.com/OptimalDesignLab/SummationByParts.jl.git")
-  Pkg.checkout("SummationByParts", "work")
+  Pkg.checkout("SummationByParts", "jcwork3")
   Pkg.build("SummationByParts")
   # SBP installs ODLCOmmonTools
 end

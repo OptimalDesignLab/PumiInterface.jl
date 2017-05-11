@@ -124,19 +124,92 @@ end
     sbp: an SBP operator
 """
 function getVertCoords_rev{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
-  @assert mesh.dim == 2
+#  @assert mesh.dim == 2
+  @assert mesh.coord_order == 1
 
-  coord_order = 1
-  coords_bar = zeros(Tmsh, size(mesh.coords)...)  # we don't allow perturbing the mesh coords
-  Eone_bar = zeros(Tmsh, mesh.numNodesPerElement, mesh.dim, mesh.numEl)
-  calcMappingJacobianRevDiff!(sbp, coord_order, sbp.vtx.', 
-                          mesh.vert_coords_bar, coords_bar, mesh.dxidx,
-                          mesh.dxidx_bar, 
-                          mesh.jac, mesh.jac_bar, 
-                          Eone_bar)
+#  if mesh.dim == 2
+#    #TODO: go back to old mappingjacobian!
+#    coord_order = 1
+#    coords_bar = zeros(Tmsh, size(mesh.coords)...)  # we don't allow perturbing the mesh coords
+#    Eone_bar = zeros(Tmsh, mesh.numNodesPerElement, mesh.dim, mesh.numEl)
+#    calcMappingJacobianRevDiff!(sbp, coord_order, sbp.vtx.', 
+#                            mesh.vert_coords_bar, coords_bar, mesh.dxidx,
+#                            mesh.dxidx_bar, 
+#                            mesh.jac, mesh.jac_bar, 
+#                            Eone_bar)
+#
+#    else 
+
+      coords_bar = zeros(Tmsh, size(mesh.coords)...)
+      mappingjacobian_rev!(sbp, mesh.coords, coords_bar, mesh.dxidx_bar, 
+                           mesh.jac_bar)
+      volumeToVertCoords_rev(mesh, sbp, mesh.vert_coords_bar, coords_bar)
+#    end
 
   return nothing
 end
+
+"""
+  Back propigates the adjoint part of the volume coordinates to the adjoint
+  part of the vertex coordinates
+
+  Inputs/Outputs:
+    mesh: a DG mesh object. mesh.vert_coords_bar is updated with the result
+    sbp: an SBP operator
+    vertcoords_bar: updated with the results
+    coords_bar: the adjoint part of the volume node coordinates (input)
+"""
+function volumeToVertCoords_rev(mesh::PumiMeshDG, sbp, vertcoords_bar::Abstract3DArray,  coords_bar::Abstract3DArray)
+
+  #TODO; check that face/boundary/shareface coordinates are back propigated
+  #      to the volume coordinates
+  # because the mapping is linear, compute the jacobian using complex step 
+  # and apply it (transposed) to each element
+
+  numVertPerElement = mesh.numTypePerElement[1]
+  jac = zeros(mesh.dim*mesh.numNodesPerElement, numVertPerElement*mesh.dim)
+  coords_i = zeros(Complex128, mesh.dim, numVertPerElement)
+#  coords_it = zeros(Complex128, numVertPerElement, mesh.dim)
+  # coords_out = mesh.dim x mesh.numNodesPerElement
+  h = 1e-20
+  pert = Complex128(0, h)
+
+  # make a complex SBP operator because we need it for calcnodes
+  #TODO: make this work for 3D
+#  sbp_complex = TriSBP{Complex128}(degree=sbp.degree, reorder=sbp.reorder, internal=sbp.internal, vertices=sbp.vertices)
+
+  for i=1:length(coords_i)
+    coords_i[i] += pert
+    coords_it = coords_i.'
+    coords_out = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
+    for j=1:length(coords_out)
+      jac[j, i] = imag(coords_out[j])/h
+    end
+    coords_i[i] -= pert
+  end
+
+  # now apply it
+  coords_bar_reshaped = zeros(numVertPerElement* mesh.dim)
+  vertcoords_bar_reshaped = zeros(numVertPerElement*mesh.dim)
+  for i=1:mesh.numEl
+    coords_bar_i = sview(coords_bar, :, :, i)
+    vertcoords_bar_i = sview(vertcoords_bar, :, :, i)
+    # make coords_bar into a vector
+    for j=1:length(coords_bar_i)
+      coords_bar_reshaped[j] = coords_bar_i[j]
+    end
+
+    smallmatTvec!(jac, coords_bar_reshaped, vertcoords_bar_reshaped)
+
+    # move back to vertcoords_bar
+    for j=1:length(vertcoords_bar_i)
+      vertcoords_bar_i[j] += vertcoords_bar_reshaped[j]
+    end
+  end  # end loop i
+
+  return nothing
+end
+
 
 
 
