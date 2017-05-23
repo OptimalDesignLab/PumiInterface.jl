@@ -116,6 +116,21 @@ typealias PumiMeshDG{T1} Union{PumiMesh2DG{T1}, PumiMesh3DG{T1}}
 
 """
   Holds data describing vertices shared between parts
+
+  Fields:
+    npeers: number of other processes the current process shared vertices with
+    peer_nums: the MPI ranks of the peer processes
+    counts: the number of vertices shared with each peer process
+            (note: a vertex can be shared with several peer processes)
+    vert_nums: Array of arrays.  For each peer process, the inner array contains
+               the 1-based numbers of the vertices shared with each process.
+               The order of the vertices in each inner array is the same on
+               the local and remote process.
+    rev_mapping: a dictionary mapping from vert_nums to a
+                 Pair{Vector{Cint}, Vector{Int}).
+                 The fist vector contains the MPI ranks of all peer processes
+                 this vertex is shared with and the second vector is the index
+                 of vertex in vert_nums
 """
 type VertSharing
   npeers::Int  # number of peers this process shares verts with
