@@ -272,14 +272,18 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   
   nrm_bndry::Array{T1, 3}  # dim x numfacenodes x numBoundaryFaces array holding
                            # normal vector in x-y to each face node  on the boundary
+  nrm_bndry_bar::Array{T1, 3}  # similar to nrm_bndry
 
   nrm_face::Array{T1, 3}  # dim x numfacenodes x numInterfaces array holding
                           # normal vector to each face node on elementL of an
                           # interface
+  nrm_face_bar::Array{T1, 3}
+
   nrm_sharedface::Array{Array{T1, 3}, 1}  # array of arrays.  Outer array is of
                           # lench npeers.  Inner arrays are of size dim x
                           # numfacenodes x number of faces shared with current
                           # peer
+  nrm_sharedface_bar::Array{Array{T1, 3}, 1}
 
   dof_offset::Int  # local to global offset for dofs
   dofs::Array{Int, 3}  # store dof numbers of solution array to speed assembly

@@ -112,9 +112,24 @@ function allocateNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
     for i=1:mesh.npeers
       mesh.nrm_sharedface[i] = Array(Tmsh, mesh.dim, numfacenodes, mesh.peer_face_counts[i])
     end
+
+    # adjoint parts
+    mesh.nrm_bndry_bar = zeros(mesh.nrm_bndry)
+    mesh.nrm_face_bar = zeros(mesh.nrm_face)
+    mesh.nrm_sharedface_bar = Array(Array{Tmsh, 3}, mesh.npeers)
+    for i=1:mesh.npeers
+      mesh.nrm_sharedface_bar[i] = zeros(mesh.nrm_sharedface[i])
+    end
+
   else
     fill!(mesh.nrm_bndry, 0.0)
     fill!(mesh.nrm_face, 0.0)
+    for i=1:mesh.npeers
+      fill!(mesh.nrm_sharedface[i], 0.0)
+    end
+
+    fill!(mesh.nrm_bndry_bar, 0.0)
+    fill!(mesh.nrm_face_bar, 0.0)
     for i=1:mesh.npeers
       fill!(mesh.nrm_sharedface[i], 0.0)
     end

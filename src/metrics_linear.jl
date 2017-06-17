@@ -480,7 +480,10 @@ end
 
   Aliasing restrictions: none
 """
-function calcFaceNormal{Tmsh, Tbndry <: Union{Boundary, Interface}}(mesh::PumiMeshDG, sbp, faces::AbstractArray{Tbndry, 1}, dxidx::AbstractArray{Tmsh, 4}, nrm::AbstractArray{Tmsh, 3})
+function calcFaceNormal{Tmsh, Tbndry <: Union{Boundary, Interface}}(
+                        mesh::PumiMeshDG, sbp, faces::AbstractArray{Tbndry, 1},
+                        dxidx::AbstractArray{Tmsh, 4}, 
+                        nrm::AbstractArray{Tmsh, 3})
 
   nfaces = length(faces)
   Tdim = mesh.dim
