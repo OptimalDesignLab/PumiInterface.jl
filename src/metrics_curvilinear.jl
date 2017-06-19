@@ -377,6 +377,9 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
       @assert end_idx - start_idx + 1 == nrem
 
       element_range = start_idx:end_idx
+
+      # make sure dimensions of Eone is correct (number of elements might be
+      # less than before)
       Eone_rem = sview(Eone, :, :, 1:nrem)
 
       getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eone_rem)
@@ -401,10 +404,6 @@ function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp,
   jac_block = sview(mesh.jac, :, element_range)
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
 
-  # for the remainder loop, make sure the last dimensions of Eone matches the
-  # other arrays
-#  Eone_block = sview(Eone, :, :, element_range)
-
   calcEone(mesh, sbp, element_range, Eone)
   calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
                        coords_block, dxidx_block, jac_block, Eone)
@@ -424,6 +423,9 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
   offset = first_el - 1
 
   # R times vector of ones
+  # the permutation doesn't matter because it is being multiplied by a constant
+  # vector.
+  # also R1 = 1 by definition
   Rone = vec(sum(mesh.sbpface.interp.', 2))
   sbpface = mesh.sbpface
   tmp = zeros(Rone)
@@ -477,8 +479,7 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
     end
   end  # end loop over boundary faces
 
-  #TODO: check shared faces too
-
+  # check shared faces
   for peer=1:mesh.npeers
     bndryfaces_peer = mesh.bndries_local[peer]
     nrm_peer = mesh.nrm_sharedface[peer]
@@ -503,6 +504,12 @@ end
 
 """
   Calculates E1 for a given interface.  Used by calcEone.
+
+  Actually what it computes is:
+      (R^T)*N*B*R*P*1
+
+  Note that there should be a factor of P^T on the left.  That factor is
+  applied in assembleEone().
 
   Inputs:
     sbpface: an AbstractFace
@@ -532,6 +539,50 @@ function calcEoneElement{Tmsh}(sbpface::AbstractFace, nrm::AbstractMatrix,
 
   return nothing
 end
+
+# back propigate Eone_el_bar to nrm_bar
+"""
+  This function uses reverse mode to back-propigate Eone_el_bar to nrm_bar
+
+  Input:
+    sbpface: an AbstractFace
+    Rone: the interpolation operator R times a vector of ones
+    tmp: a temporary vector, overwritten
+    Eone_el_bar: the adjoint part of E1
+
+  Inputs/Outputs:
+    nrm_bar: the adjoint part of the scaled face normal vector in x-y space
+             updated with the contribution from this function
+
+"""
+function calcEoneElement_rev{Tmsh}(sbpface::AbstractFace,
+                         nrm_bar::AbstractMatrix,
+                         Rone::AbstractVector, tmp_bar::AbstractVector, 
+                         Eone_el_bar::AbstractMatrix{Tmsh})
+
+  dim = size(Eone_el, 2)
+  numFaceNodes = length(Rone)
+
+  for d=1:dim
+    # this function is linear, so no need for a forward sweep
+
+    # reverse sweep
+    Eone_dim_bar = sview(Eone_el_bar, :, d)
+    # only back propigate to tmp_bar (sbpface.interp is unimportant)
+    fill!(tmp_bar, 0.0)
+    smallmatvec_revv!(sbpface.interp, tmp_bar, Eone_dim_bar)
+
+    for i=1:numFaceNodes
+      nrm_bar[d, i] += tmp_bar[i]*Rone[i]*sbpface.wface[i]
+    end
+  end
+
+  return nothing
+end
+
+
+
+
 
 """
   Takes an Eone_el matrix from calcEoneElement and assemble it into the big
@@ -563,6 +614,43 @@ function assembleEone{Tmsh}(sbpface::AbstractFace, elnum::Integer,
 
   return nothing
 end
+
+"""
+  Back propigates Eone_bar to Eone_el_bar.  Also updates the primal values in
+  Eone to undo the effects of assembleEone.
+
+  Inputs:
+    sbpface: an AbstractFace
+    elnum: the element number
+    facenum_local: the local number of the face that Eone_el is calculated for
+    Eone_el: the boundary operator E times a vector of ones
+    Eone: see the primal method
+    Eone_bar: the adjoint part
+
+  Inputs/Outputs:
+    Eone_el_bar: the adjoint part
+"""
+function assembleEone_rev{Tmsh}(sbpface::AbstractFace, elnum::Integer, 
+                      facenum_local::Integer,
+                      Eone_el::AbstractMatrix{Tmsh},
+                      Eone_el_bar::AbstractMatrix{Tmsh},
+                      Eone::AbstractArray{Tmsh, 3},
+                      Eone_bar::AbstractArray{Tmsh, 3})
+
+  dim = size(Eone, 2)
+  for d=1:dim
+    for i=1:sbpface.stencilsize
+      p_i = sbpface.perm[i, facenum_local]
+      # reverse mode step
+      Eone_el_bar[i, d] += Eone_bar[p_i, d, elnum]*Eone[p_i, d, elnum]
+      # update the primal value too
+      Eone[p_i, d, elnum] -= Eone_el[i, d]
+    end
+  end
+
+  return nothing
+end
+
 
 """
   Type to store the temporary arrays needed by getMeshFaceCoordinates

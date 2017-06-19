@@ -65,7 +65,7 @@ include("metrics_curvilinear.jl")
 """
 function getAllCoordinatesAndMetrics(mesh, sbp)
 
-  if mesh.coord_order == 1  # DEBUGGING: disable linear calculation
+  if mesh.coord_order == 1
     getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
     getMetrics(mesh, sbp)
 

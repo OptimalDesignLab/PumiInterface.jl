@@ -274,6 +274,28 @@ facts("----- Testing PdePumiInterface3DG -----") do
   end  # end loop order
 
   # test curvilinear is same as linear for linear mesh
+  println("testing curvilinear")
+  degree = 4
+  Tsbp = Float64
+  sbp = TetSBP{Tsbp}(degree=degree, internal=true)
+  ref_verts = sbp.vtx
+  interp_op = SummationByParts.buildinterpolation(sbp, ref_verts.')
+  face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)
+  topo = ElementTopology{3}(face_verts)
+  sbpface = TetFace{Tsbp}(degree, sbp.cub, ref_verts)
+
+  dmg_name = ".null"
+#  smb_name = "tet1.smb"
+  smb_name = "unitcube.smb"
+
+  opts = PdePumiInterface.get_defaults()
+  opts["numBC"] = 1
+  opts["BC1"] = [0,1,2,3,4,5]
+
+#  interp_op = eye(4)
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+
+  #=
   dxidx_orig = copy(mesh.dxidx)
   jac_orig = copy(mesh.jac)
   nrm_bndry_orig = copy(mesh.nrm_bndry)
@@ -281,11 +303,35 @@ facts("----- Testing PdePumiInterface3DG -----") do
   coords_orig = copy(mesh.coords)
   coords_bndry_orig = copy(mesh.coords_bndry)
   coords_interface_orig = copy(mesh.coords_interface)
+  =#
 
   PdePumiInterface.getMeshCoordinates(mesh, sbp)
   PdePumiInterface.getFaceCoordinatesAndNormals(mesh, sbp)
   PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+  
 
+  # verify metrics are constant for a uniform linear mesh
+
+  for i=1:mesh.numEl
+    for j=1:mesh.numNodesPerElement
+      @fact norm(mesh.dxidx[:, :, j, i] - mesh.dxidx[:, :, 1, i]) --> roughly(0.0, atol=1e-12)
+    end
+  end
+
+  for i=1:mesh.numBoundaryFaces
+    for j=1:mesh.numNodesPerFace
+      @fact norm(mesh.nrm_bndry[:, j, i] - mesh.nrm_bndry[:, 1, i]) --> roughly(0.0, atol=1e-12)
+    end
+  end
+
+  for i=1:mesh.numInterfaces
+    for j=1:mesh.numNodesPerFace
+      @fact norm(mesh.nrm_face[:, j, i] - mesh.nrm_face[:, 1, i]) --> roughly(0.0, atol=1e-12)
+    end
+  end
+
+  
+#=
   for i=1:mesh.numEl
     for j=1:mesh.numNodesPerElement
       for k=1:mesh.dim
@@ -301,7 +347,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   for i=1:mesh.numBoundaryFaces
     for j=1:mesh.numNodesPerFace
       for k=1:mesh.dim
-        @fact mesh.nrm_bndry[k, j, i] --> roughly(nrm_bndry_orig[k, j, i], atol=1e-12)a
+        @fact mesh.nrm_bndry[k, j, i] --> roughly(nrm_bndry_orig[k, j, i], atol=1e-12)
         @fact mesh.coords_bndry[k, j, i] --> roughly(coords_bndry_orig[k, j, i], atol=1e-12)
       end
     end
@@ -323,6 +369,8 @@ facts("----- Testing PdePumiInterface3DG -----") do
       end
     end
   end
+=#
+  
  
 
 end
