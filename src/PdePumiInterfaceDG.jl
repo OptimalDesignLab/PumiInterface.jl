@@ -431,6 +431,22 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     mesh_order = order
   end
 
+  #
+  # DEBUG :  couldn't pass assertions in pumi. Try if the problem is here
+  #
+  if shape_type == 2 || shape_type == 3 || shape_type == 4
+    coord_shape_type = -1  # keep coordinate field already present
+    field_shape_type = shape_type
+    mesh_order = 1  # TODO: change this to an input-output parameter
+  else  # same coordinate, field shape
+    coord_shape_type = shape_type
+    field_shape_type = shape_type
+    mesh_order = order
+  end
+  
+  #
+  # END DEBUG
+  #
   num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
 
   if dim != mesh.dim

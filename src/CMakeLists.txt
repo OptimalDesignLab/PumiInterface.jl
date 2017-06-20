@@ -36,7 +36,7 @@ MESSAGE( STATUS "Pumi configuration file location: " ${SCOREC_CONFIG})
 
 #this is just example code, do your own thing
 add_executable(test_init test_init.cc)
-add_library(funcs1 funcs1.cc a2.cc adaptFuncsJ.cc apfSBPShape.cc apfSBPShape3.cc dgSBPShape1.cc dgSBPShape2.cc dgSBP3Shape1.cc dgSBP3Shape2.cc triangulation.cc triangulationDG.cc)
+add_library(funcs1 funcs1.cc a2.cc adaptFuncsJ.cc apfSBPShape.cc apfSBPShape3.cc dgSBPShape1.cc dgSBPShape2.cc dgSBPShape4.cc dgSBP3Shape1.cc dgSBP3Shape2.cc triangulation.cc triangulationDG.cc)
 
 #for any targets that use PUMI, just use this command
 #to it to include the right directories and link to all

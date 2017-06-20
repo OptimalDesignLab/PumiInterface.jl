@@ -83,11 +83,10 @@ function minNodeDist(sbp, isDG::Bool)
   return min_dist
 end
 
-#=
-sbp = TriSBP{Float64}(degree=1, reorder=false, internal=false)
-xi, coords = nodecalc(sbp, true)
-printCaseStatement(xi)
-printBaryCoords(xi, coords)
-writedlm("coordsout.dat", coords, ' ')
+# sbp = TriSBP{Float64}(degree=1, reorder=false, internal=false)
+# sbp = getTriSBPWithDiagE(degree=4)
+# xi, coords = nodecalc(sbp, true)
+# printCaseStatement(xi)
+# printBaryCoords(xi, coords)
+# writedlm("coordsout.dat", coords, ' ')
 #minNodeDist(2)
-=#
