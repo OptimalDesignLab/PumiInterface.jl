@@ -455,6 +455,8 @@ function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 2}, sbpface,
     detJ = jac_in[j]
 
     adjugate2(dxidx_hat, dxidx_node)
+    println("size(dxdxi_el) = ", size(dxdxi_el))
+    println("size(dxidx_node) = ", size(dxidx_node))
     for k=1:dim
       for p=1:dim
         pos = p + dim*(k-1)

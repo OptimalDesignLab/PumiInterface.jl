@@ -4,6 +4,8 @@ include("install_pumi.jl")
 
 start_dir = pwd()
 
+run(`./cleanup.sh`)
+
 install_pumi = try run(`cmake --find-package -DNAME=SCOREC -DCOMPILER_ID=GNU -DLANGUAGE=CXX -DMODE=EXIST`) 
           false
           catch 
