@@ -415,6 +415,10 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     {
       fshape = apf::getDG2SBP3Shape(order);
       change_shape = true;
+    } else if (shape_type == 5)
+    {
+      fshape = apf::getDG5SBP3Shape(order);
+      change_shape = true;
     } else  // default to lagrange shape functions
     {
       std::cout << "Warning: unrecognizes shape_type, not changing mesh shape" << std::endl;
