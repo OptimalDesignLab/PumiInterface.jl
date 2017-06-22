@@ -244,6 +244,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
     if (change_shape)
     {
       std::cout << "about to perform final mesh shape change" << std::endl;
+      std::cout << "changing to shape named " << fshape->getName() << std::endl;
       if ( order == 1 )
       {
         apf::changeMeshShape(m, fshape, true);
