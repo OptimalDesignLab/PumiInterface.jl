@@ -34,17 +34,17 @@ function convertToBary(coords_xy::Array)
     T[:, 1] = r2 - r1
     T[:, 2] = r3 - r1
   elseif dim == 3
-    #=
+    
     vtx = [-1.0 -1.0 -1.0
           1.0 -1.0 -1.0
          -1.0 1.0 -1.0
          -1.0 -1.0 1.0]
-    =#
+    #=
     vtx = [0 0  0;
            1. 0 0;
            0 1 0;
            0 0 1]
-           
+    =#       
     r1 = vtx[1, :]
     r2 = vtx[2, :]
     r3 = vtx[3, :]
@@ -109,17 +109,20 @@ function minNodeDist(sbp, isDG::Bool)
   return min_dist
 end
 
-#=
-sbp = TriSBP{Float64}(degree=1, reorder=false, internal=false)
+#sbp = getTriSBPWithDiagE(degree=4, vertices=false)
+sbp = getTetSBPWithDiagE(degree=2)
+#sbp = TriSBP{Float64}(degree=1, reorder=false, internal=false)
 #sbp = TetSBP{Float64}(degree=3, reorder=false, internal=true)
 xi, coords = nodecalc(sbp, true)
 printCaseStatement(xi)
 printBaryCoords(xi, coords)
 #writedlm("coordsout.dat", coords, ' ')
 #minNodeDist(2)
-=#
+
+#=
 coords = [0.5 0 0; 
           0 1 0; 
           0 0 1]
 xi = convertToBary(coords)
 println("xi = \n", xi)
+=#

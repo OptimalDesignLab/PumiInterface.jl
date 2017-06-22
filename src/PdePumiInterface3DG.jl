@@ -416,7 +416,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   #
   # DEBUG :  couldn't pass assertion in pumi. Try if it's here
   #
-  if shape_type == 2 || shape_type == 3 || shape_type == 4
+  if shape_type == 2 || shape_type == 3 || shape_type == 4 || shape_type == 5
     coord_shape_type = -1  # keep coordinate field already present
     field_shape_type = shape_type
     mesh_order = 1  # TODO: change this to an input-output parameter

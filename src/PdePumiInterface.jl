@@ -333,6 +333,11 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   sbpface::TriFace{Float64}
   topo::ElementTopology{2}
 
+  facenodes::Array{Int, 2}  # array of numNodesPerFace x numFacesPerElement 
+                            # giving the index of the volume node that
+                            # corresponds to each face node
+                            # this is a temporary hack to keep the PDESolver
+                            # test running
  function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface; dofpernode=1, shape_type=1, coloring_distance=2)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
@@ -371,6 +376,10 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     throw(ErrorException("loaded mesh is not 2 dimensions"))
   end
   mesh.sbpface = sbpface
+  if !haskey(ENV, "PDEPUMIINTERFACE_TESTING")
+    @assert mesh.order == 1
+  end
+  mesh.facenodes = Int[1 2 3; 2 3 1]
 
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)

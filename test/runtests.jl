@@ -2,6 +2,8 @@
 # because PUMI is not available on Travis, all tests are run locally
 
 push!(LOAD_PATH, "../src")
+ENV["PDEPUMIINTERFACE_TESTING"] = true
+
 using FactCheck
 using PumiInterface
 using ODLCommonTools

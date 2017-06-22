@@ -244,6 +244,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
     if (change_shape)
     {
       std::cout << "about to perform final mesh shape change" << std::endl;
+      std::cout << "changing to shape named " << fshape->getName() << std::endl;
       if ( order == 1 )
       {
         apf::changeMeshShape(m, fshape, true);
@@ -382,9 +383,13 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     {
       fshape = apf::getDG2SBPShape(order);
       change_shape = true;
-    } else if (shape_type == 4) 
+    } else if (shape_type == 4) // diagonal E with vertex nodes
     {
       fshape = apf::getDG4SBPShape(order);
+      change_shape = true;
+    } else if (shape_type == 5)  // diagonal E without vertex nodes
+    {
+      fshape = apf::getDG5SBPShape(order);
       change_shape = true;
     } else  // default to lagrange shape functions
     {
@@ -410,6 +415,10 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     } else if (shape_type == 3)
     {
       fshape = apf::getDG2SBP3Shape(order);
+      change_shape = true;
+    } else if (shape_type == 5)
+    {
+      fshape = apf::getDG5SBP3Shape(order);
       change_shape = true;
     } else  // default to lagrange shape functions
     {
