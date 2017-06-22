@@ -24,6 +24,7 @@
 #include "dgSBPShape1.h"
 #include "dgSBPShape2.h"
 #include "dgSBPShape4.h"
+#include "dgSBPShape5.h"
 #include "dgSBP3Shape1.h"
 #include "dgSBP3Shape2.h"
 #include "triangulation.h"

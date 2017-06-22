@@ -382,9 +382,13 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     {
       fshape = apf::getDG2SBPShape(order);
       change_shape = true;
-    } else if (shape_type == 4) 
+    } else if (shape_type == 4) // diagonal E with vertex nodes
     {
       fshape = apf::getDG4SBPShape(order);
+      change_shape = true;
+    } else if (shape_type == 5)  // diagonal E without vertex nodes
+    {
+      fshape = apf::getDG5SBPShape(order);
       change_shape = true;
     } else  // default to lagrange shape functions
     {
