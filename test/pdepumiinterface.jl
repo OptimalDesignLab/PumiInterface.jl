@@ -1,4 +1,6 @@
-
+"""
+  Test reverse mode of metric interpolation function
+"""
 function test_interp_rev(mesh)
   facts("\n ----- Testing interp rev -----") do
 
@@ -131,6 +133,121 @@ function test_interp_rev(mesh)
   end
 
 end  # end function
+
+"""
+  Test the reverse mode of the curvilinear metric calculation
+"""
+function test_metric_rev(mesh, sbp)
+
+  facts("----- testing metric reverse mode -----") do
+    sbpface = mesh.sbpface
+    nrm = rand(Complex128, mesh.dim, mesh.numNodesPerFace)
+    nrm[:, :] = real(nrm)
+    Rone = ones(mesh.numNodesPerFace)
+    tmp = zeros(Complex128, mesh.numNodesPerFace)
+
+    # test calcEoneElement
+    Eone_el_c = zeros(Complex128, sbpface.stencilsize, mesh.dim)
+    
+    nin = length(nrm)
+    nout = length(Eone_el_c)
+    jac = zeros(nin, nout)
+    jac2 = zeros(jac)
+
+    h = 1e-20
+    pert = Complex128(0, h)
+
+    println("computing forward mode")
+    for i=1:nin
+      nrm[i] += pert
+      fill!(Eone_el_c, 0.0)
+      PdePumiInterface.calcEoneElement(sbpface, nrm, Rone, tmp, Eone_el_c)
+
+      for j=1:nout
+        jac[i, j] = imag(Eone_el_c[j])/h
+      end
+
+      nrm[i] -= pert
+    end
+
+    nrm_bar = zeros(mesh.dim, mesh.numNodesPerFace)
+    tmp_bar = zeros(Float64, size(tmp)...)
+    Eone_el_bar = zeros(Float64, size(Eone_el_c)...)
+
+    println("computing reverse mode")
+    for j=1:nout
+      println("j = ", j)
+      Eone_el_bar[j] = 1
+      fill!(nrm_bar, 0.0)
+      PdePumiInterface.calcEoneElement_rev(sbpface, nrm_bar, Rone, tmp_bar, Eone_el_bar)
+
+      for i=1:nin
+        jac2[i, j] = nrm_bar[i]
+      end
+
+      Eone_el_bar[j] = 0
+    end
+
+    @fact norm(jac - jac2)/length(jac2) --> roughly(0.0, atol=1e-12)
+
+
+    # test assembleEone
+    Eone_c = zeros(Complex128, mesh.numNodesPerElement, mesh.dim, 1)
+    Eone_el_c[:, :] = real(Eone_el_c)
+    elnum = 1
+    facenum_local = 1
+    
+    nin = length(Eone_el_c)
+    nout = length(Eone_c)
+
+    jac = zeros(nin, nout)
+    jac2 = zeros(jac)
+
+    println("testing forward mode")
+    for i=1:nin
+      Eone_el_c[i] += pert
+      fill!(Eone_c, 0.0)
+      PdePumiInterface.assembleEone(sbpface, elnum, facenum_local, Eone_el_c, Eone_c)
+      for j=1:nout
+        jac[i, j] = imag(Eone_c[j])/h
+      end
+
+      Eone_el_c[i] -= pert
+    end
+
+    println("testing reverse mode")
+    Eone = zeros(Float64, mesh.numNodesPerElement, mesh.dim, 1)
+    Eone_bar = zeros(Eone)
+    Eone_el = zeros(Float64, size(Eone_el_c)...)
+    Eone_el[:, :] = real(Eone_el_c)
+
+    Eone_el2 = zeros(Eone_el)
+
+    for j=1:nout
+      Eone_bar[j] = 1
+
+      fill!(Eone_el_bar, 0.0)
+      # make sure we are linearizing at the right point
+      copy!(Eone_el2, Eone_el)
+      PdePumiInterface.assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
+      PdePumiInterface.assembleEone_rev(sbpface, elnum, facenum_local, Eone_el, Eone_el_bar, Eone, Eone_bar)
+
+      for i=1:nin
+        jac2[i, j] = Eone_el_bar[i]
+      end
+
+      @fact norm(Eone_el - Eone_el2) --> roughly(0.0, atol=1e-12)
+
+      Eone_bar[j] = 0
+    end
+
+    @fact norm(jac - jac2) --> roughly(0.0, atol=1e-12)
+
+
+  end  # end facts block
+
+  return nothing
+end
 
 
 function test_coords_rev(mesh, sbp)
@@ -689,6 +806,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
   fill!(mesh.dxidx_bar, 1.0)
   getVertCoords_rev(mesh, sbp)
+
+  test_metric_rev(mesh, sbp)
 
   for i=1:mesh.numEl
     @fact norm(mesh.vert_coords_bar[:, :, i]) --> greater_than(0.0)

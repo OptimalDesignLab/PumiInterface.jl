@@ -522,9 +522,9 @@ end
              contribution for this face.  Overwritten.
 
 """
-function calcEoneElement{Tmsh}(sbpface::AbstractFace, nrm::AbstractMatrix, 
+function calcEoneElement(sbpface::AbstractFace, nrm::AbstractMatrix, 
                          Rone::AbstractVector, tmp::AbstractVector, 
-                         Eone_el::AbstractMatrix{Tmsh})
+                         Eone_el::AbstractMatrix)
 
   dim = size(Eone_el, 2)
   numFaceNodes = length(Rone)
@@ -555,12 +555,12 @@ end
              updated with the contribution from this function
 
 """
-function calcEoneElement_rev{Tmsh}(sbpface::AbstractFace,
+function calcEoneElement_rev(sbpface::AbstractFace,
                          nrm_bar::AbstractMatrix,
                          Rone::AbstractVector, tmp_bar::AbstractVector, 
-                         Eone_el_bar::AbstractMatrix{Tmsh})
+                         Eone_el_bar::AbstractMatrix)
 
-  dim = size(Eone_el, 2)
+  dim = size(Eone_el_bar, 2)
   numFaceNodes = length(Rone)
 
   for d=1:dim
@@ -638,11 +638,11 @@ function assembleEone_rev{Tmsh}(sbpface::AbstractFace, elnum::Integer,
                       Eone_bar::AbstractArray{Tmsh, 3})
 
   dim = size(Eone, 2)
-  for d=1:dim
+  for d=1:dim  # TODO: switch loops: turn an indexed store into a strided store
     for i=1:sbpface.stencilsize
       p_i = sbpface.perm[i, facenum_local]
       # reverse mode step
-      Eone_el_bar[i, d] += Eone_bar[p_i, d, elnum]*Eone[p_i, d, elnum]
+      Eone_el_bar[i, d] += Eone_bar[p_i, d, elnum]
       # update the primal value too
       Eone[p_i, d, elnum] -= Eone_el[i, d]
     end
