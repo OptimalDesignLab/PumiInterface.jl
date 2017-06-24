@@ -358,7 +358,7 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
     nblocks_full = div(mesh.numEl, blocksize)
     nrem = mesh.numEl % blocksize
 
-    Eone = zeros(mesh.numNodesPerElement, mesh.dim, blocksize)
+    Eone = zeros(Tmsh, mesh.numNodesPerElement, mesh.dim, blocksize)
 
     for block=1:nblocks_full
       start_idx = (block - 1)*blocksize + 1
@@ -390,6 +390,55 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
 end
 
 """
+  Back propigate dxidx to mesh.vert_coords and mesh.nrm.  See the primal method
+  for details.
+
+  Inputs:
+    mesh: vert_coords_bar, nrm_face_bar, nrm_bndry_bar, nrm_sharedface are
+          updated with the results
+    sbp:
+"""
+function getCurvilinearCoordinatesAndMetrics_rev{Tmsh}(mesh::PumiMeshDG{Tmsh},
+                                                       sbp::AbstractSBP)
+
+  # we have to compute E1_bar for both 2d and 3D
+  blocksize = 1000  # number of elements per block
+  nblocks_full = div(mesh.numEl, blocksize)
+  nrem = mesh.numEl % blocksize
+
+  Eone_bar = zeros(Tmsh, mesh.numNodesPerElement, mesh.dim, blocksize)
+
+  for block=1:nblocks_full
+    start_idx = (block - 1)*blocksize + 1
+    end_idx = block*blocksize
+    element_range = start_idx:end_idx
+    
+    getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp, element_range,
+                                                  Eone_bar)
+  end
+
+ if nrem != 0
+    # remainder block
+    start_idx = nblocks_full*blocksize + 1
+    end_idx = mesh.numEl
+    @assert end_idx - start_idx + 1 <= blocksize
+    @assert end_idx - start_idx + 1 == nrem
+
+    element_range = start_idx:end_idx
+
+    # make sure dimensions of Eone is correct (number of elements might be
+    # less than before)
+    Eone_bar_rem = sview(Eone_bar, :, :, 1:nrem)
+
+    getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp, element_range,
+                                                  Eone_bar_rem)
+  end
+
+  return nothing
+end
+
+
+"""
   This function calculates the metrics and coordinates for one block of 
   elements.  Used by getCurvilinearMetricsAndCoordinates
 """
@@ -409,6 +458,39 @@ function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp,
                        coords_block, dxidx_block, jac_block, Eone)
 
   fill!(Eone, 0.0)
+  return nothing
+end
+
+"""
+  This function calculates the metrics and coordinates for one block of 
+  elements.  Used by getCurvilinearMetricsAndCoordinates
+"""
+function getCurvilinearMetricsAndCoordinates_inner_rev{T}(mesh, sbp, 
+                             element_range::UnitRange, Eone_bar::AbstractArray{T, 3})
+
+
+  vert_coords_block = sview(mesh.vert_coords, :, :, element_range)
+  # we don't allow perturbing mesh coordinate directly (yet)
+  coords_bar_block = zeros(T, mesh.dim, mesh.numNodesPerElement, length(element_range))
+  dxidx_block = sview(mesh.dxidx, :, :, :, element_range)
+  dxidx_bar_block = sview(mesh.dxidx_bar, :, :, :, element_range)
+  jac_block = sview(mesh.jac, :, element_range)
+  jac_bar_block = sview(mesh.jac_bar, :, element_range)
+
+  # outputs
+  vert_coords_bar_block = sview(mesh.vert_coords_bar, :, :, element_range)
+  fill!(Eone_bar, 0.0)
+
+  ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
+
+  # back propigate dxidx to vert_coords, E1
+  calcMappingJacobian_rev!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
+                           vert_coords_bar_block, coords_bar_block,
+                           dxidx_bar_block, jac_bar_block, Eone_bar)
+
+  # back propigate E1 to the face normals
+  calcEone_rev(mesh, sbp, element_range, Eone_bar)
+
   return nothing
 end
 
@@ -501,6 +583,117 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
 
   return nothing
 end
+
+"""
+  Back propigates Eone_bar to the various normal vectors stored in the
+  mesh objects (bndry, face, sharedface)
+
+  Inputs:
+    mesh: mesh.nrm_face_bar, mesh.nrm_bndry_bar, mesh.nrm_sharedface_bar are
+          updated
+    sbp
+    element range: range of elements to compute
+    Eone_bar: the adjoint part of Eone, see the primal method for details
+"""
+function calcEone_rev{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range, 
+                            Eone_bar::AbstractArray{Tmsh, 3})
+
+  # search interfaces and bndryfaces
+
+  first_el = element_range[1]
+  last_el = element_range[end]
+
+  offset = first_el - 1
+
+  # R times vector of ones
+  # the permutation doesn't matter because it is being multiplied by a constant
+  # vector.
+  # also R1 = 1 by definition
+  Rone = vec(sum(mesh.sbpface.interp.', 2))
+  sbpface = mesh.sbpface
+  tmp = zeros(Rone)
+  nrmL_bar = zeros(Tmsh, mesh.dim, sbpface.numnodes)
+
+  # accumulate E1 for a given element
+  Eone_el_bar = zeros(Tmsh, sbpface.stencilsize, mesh.dim)
+
+  for i=1:mesh.numInterfaces
+    iface_i = mesh.interfaces[i]
+
+    if iface_i.elementL >= first_el && iface_i.elementL <= last_el
+      elnum = iface_i.elementL
+      facenum_local = iface_i.faceL
+      nrm_bar = sview(mesh.nrm_face_bar, :, :, i)
+
+      # call inner functions
+      fill!(Eone_el_bar, 0.0)
+      assembleEone_rev(sbpface, elnum - offset, facenum_local, Eone_el_bar,
+                       Eone_bar)
+      calcEoneElement_rev(sbpface, nrm_bar, Rone, tmp, Eone_el_bar)
+
+    end
+
+    if iface_i.elementR >= first_el && iface_i.elementR <= last_el
+      # do same as above, negating and permuting nrm
+      elnum = iface_i.elementR
+      facenum_local = iface_i.faceR
+      orient = iface_i.orient
+
+      fill!(Eone_el_bar, 0.0)
+      assembleEone_rev(sbpface, elnum - offset, facenum_local, Eone_el_bar,
+                       Eone_bar)
+      calcEoneElement_rev(sbpface, nrmL_bar, Rone, tmp, Eone_el_bar)
+
+      for j=1:sbpface.numnodes
+        for d=1:mesh.dim
+          mesh.nrm_face_bar[d, sbpface.nbrperm[j, orient], i] -= nrmL_bar[d, j]
+        end
+      end
+ 
+    end  # end if/else
+
+  end  # end loop over interfaces
+
+  for i=1:mesh.numBoundaryFaces
+    bface_i = mesh.bndryfaces[i]
+
+    if bface_i.element >= first_el && bface_i.element <= last_el
+      elnum = bface_i.element
+      facenum_local = bface_i.face
+      nrm_bar = sview(mesh.nrm_bndry_bar, :, :, i)
+
+      # call inner functions
+      fill!(Eone_el_bar, 0.0)
+      assembleEone_rev(sbpface, elnum - offset, facenum_local, Eone_el_bar, 
+                       Eone_bar)
+      calcEoneElement_rev(sbpface, nrm_bar, Rone, tmp, Eone_el_bar)
+    end
+  end  # end loop over boundary faces
+
+  # check shared faces
+  for peer=1:mesh.npeers
+    bndryfaces_peer = mesh.bndries_local[peer]
+    nrm_peer_bar = mesh.nrm_sharedface_bar[peer]
+    for i=1:mesh.peer_face_counts[peer]
+      bface_i = bndryfaces_peer[i]
+
+      if bface_i.element >= first_el && bface_i.element <= last_el
+        elnum = bface_i.element
+        facenum_local = bface_i.face
+        nrm_bar = sview(nrm_peer_bar, :, :, i)
+
+        fill!(Eone_el_bar, 0.0)
+        assembleEone_rev(sbpface, elnum - offset, facenum_local, Eone_el_bar,
+                     Eone_bar)
+        calcEoneElement_rev(sbpface, nrm_bar, Rone, tmp, Eone_el_bar)
+      end
+    end
+  end
+
+  return nothing
+end
+
+
 
 """
   Calculates E1 for a given interface.  Used by calcEone.
@@ -616,15 +809,12 @@ function assembleEone{Tmsh}(sbpface::AbstractFace, elnum::Integer,
 end
 
 """
-  Back propigates Eone_bar to Eone_el_bar.  Also updates the primal values in
-  Eone to undo the effects of assembleEone.
+  Back propigates Eone_bar to Eone_el_bar.
 
   Inputs:
     sbpface: an AbstractFace
     elnum: the element number
     facenum_local: the local number of the face that Eone_el is calculated for
-    Eone_el: the boundary operator E times a vector of ones
-    Eone: see the primal method
     Eone_bar: the adjoint part
 
   Inputs/Outputs:
@@ -632,19 +822,15 @@ end
 """
 function assembleEone_rev{Tmsh}(sbpface::AbstractFace, elnum::Integer, 
                       facenum_local::Integer,
-                      Eone_el::AbstractMatrix{Tmsh},
                       Eone_el_bar::AbstractMatrix{Tmsh},
-                      Eone::AbstractArray{Tmsh, 3},
                       Eone_bar::AbstractArray{Tmsh, 3})
 
-  dim = size(Eone, 2)
+  dim = size(Eone_bar, 2)
   for d=1:dim  # TODO: switch loops: turn an indexed store into a strided store
     for i=1:sbpface.stencilsize
       p_i = sbpface.perm[i, facenum_local]
       # reverse mode step
       Eone_el_bar[i, d] += Eone_bar[p_i, d, elnum]
-      # update the primal value too
-      Eone[p_i, d, elnum] -= Eone_el[i, d]
     end
   end
 

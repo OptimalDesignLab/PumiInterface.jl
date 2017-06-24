@@ -176,7 +176,6 @@ function test_metric_rev(mesh, sbp)
 
     println("computing reverse mode")
     for j=1:nout
-      println("j = ", j)
       Eone_el_bar[j] = 1
       fill!(nrm_bar, 0.0)
       PdePumiInterface.calcEoneElement_rev(sbpface, nrm_bar, Rone, tmp_bar, Eone_el_bar)
@@ -216,27 +215,19 @@ function test_metric_rev(mesh, sbp)
     end
 
     println("testing reverse mode")
-    Eone = zeros(Float64, mesh.numNodesPerElement, mesh.dim, 1)
-    Eone_bar = zeros(Eone)
-    Eone_el = zeros(Float64, size(Eone_el_c)...)
-    Eone_el[:, :] = real(Eone_el_c)
+    Eone_bar = zeros(Float64, mesh.numNodesPerElement, mesh.dim, 1)
 
-    Eone_el2 = zeros(Eone_el)
 
     for j=1:nout
       Eone_bar[j] = 1
 
       fill!(Eone_el_bar, 0.0)
-      # make sure we are linearizing at the right point
-      copy!(Eone_el2, Eone_el)
-      PdePumiInterface.assembleEone(sbpface, elnum, facenum_local, Eone_el, Eone)
-      PdePumiInterface.assembleEone_rev(sbpface, elnum, facenum_local, Eone_el, Eone_el_bar, Eone, Eone_bar)
+      PdePumiInterface.assembleEone_rev(sbpface, elnum, facenum_local, Eone_el_bar, Eone_bar)
 
       for i=1:nin
         jac2[i, j] = Eone_el_bar[i]
       end
 
-      @fact norm(Eone_el - Eone_el2) --> roughly(0.0, atol=1e-12)
 
       Eone_bar[j] = 0
     end
@@ -244,7 +235,252 @@ function test_metric_rev(mesh, sbp)
     @fact norm(jac - jac2) --> roughly(0.0, atol=1e-12)
 
 
+    test_metric2_rev(mesh, sbp)
+#    test_metrics3_rev(mesh, sbp)
+
+#    error("stop here")
   end  # end facts block
+
+  return nothing
+end
+
+"""
+  Test calcEone_rev
+"""
+function test_metric2_rev(mesh, sbp)
+
+  facts("----- Testing second part of Metric reverse mode -----") do
+    # test calcEone_rev
+    # use finite differences because the perturbation is applied to the fields
+    # of the mesh
+
+    pert = 1e-6
+    nin = length(mesh.nrm_face) + length(mesh.nrm_bndry)
+    for i=1:mesh.npeers
+      nin += length(mesh.nrm_sharedface[i])
+    end
+    nout = mesh.numNodesPerElement*mesh.dim*mesh.numEl
+
+    Eone = zeros(mesh.numNodesPerElement, mesh.dim, mesh.numEl)
+    Eone_orig = zeros(Eone)
+
+    jac = zeros(nin, nout)
+    jac2 = zeros(jac)
+    element_range = 1:mesh.numEl
+
+    PdePumiInterface.calcEone(mesh, sbp, element_range, Eone_orig)
+
+    in_idx = 1
+    for i=1:length(mesh.nrm_face)
+      mesh.nrm_face[i] += pert
+      fill!(Eone, 0.0)
+      PdePumiInterface.calcEone(mesh, sbp, element_range, Eone)
+
+      for j=1:nout
+        jac[in_idx, j] = (Eone[j] - Eone_orig[j])/pert
+      end
+
+      in_idx += 1
+      mesh.nrm_face[i] -= pert
+    end
+
+    for i=1:length(mesh.nrm_bndry)
+      mesh.nrm_bndry[i] += pert
+      fill!(Eone, 0.0)
+      PdePumiInterface.calcEone(mesh, sbp, element_range, Eone)
+      for j=1:nout
+        jac[in_idx, j] = (Eone[j] - Eone_orig[j])/pert
+      end
+
+      in_idx += 1
+      mesh.nrm_bndry[i] -= pert
+    end
+
+    for peer=1:mesh.npeers
+      nrm_peer = mesh.nrm_sharedface[peer]
+      for i=1:length(nrm_peer)
+        nrm_peer[i] += pert
+        fill!(Eone, 0.0)
+        PdePumiInterface.calcEone(mesh, sbp, element_range, Eone)
+        for j=1:nout
+          jac[in_idx, j] = (Eone[j] - Eone_orig[j])/pert
+        end
+
+        in_idx += 1
+        nrm_peer[i] -= pert
+      end
+    end
+
+    # reverse mode
+    Eone_bar = zeros(Eone)
+    for j=1:nout
+      Eone_bar[j] = 1
+
+      fill!(mesh.nrm_face_bar, 0.0)
+      fill!(mesh.nrm_bndry_bar, 0.0)
+      for i=1:mesh.npeers
+        fill!(mesh.nrm_sharedface[i], 0.0)
+      end
+      PdePumiInterface.calcEone_rev(mesh, sbp, element_range, Eone_bar)
+
+      in_idx = 1
+      for i=1:length(mesh.nrm_face_bar)
+        jac2[in_idx, j] = mesh.nrm_face_bar[i]
+        in_idx += 1
+      end
+
+      for i=1:length(mesh.nrm_bndry_bar)
+        jac2[in_idx, j] = mesh.nrm_bndry_bar[i]
+        in_idx += 1
+      end
+
+      for peer=1:mesh.npeers
+        nrm_bar_peer = mesh.nrm_sharedface_bar[peer]
+        for i=1:length(nrm_bar_peer)
+          jac2[in_idx, j] = nrm_bar_peer[i]
+          in_idx += 1
+        end
+      end
+
+      Eone_bar[j] = 0
+
+    end  # end loop j
+
+    @fact norm(jac - jac2)/length(jac) --> roughly(0.0, atol=1e-5)
+
+
+
+  end  # end facts block
+
+  return nothing
+end
+
+"""
+  Test getCurvilinearCoordinatesAndMetrics_rev (dxidx -> vert_coord, nrm)
+"""
+function test_metrics3_rev(mesh, sbp)
+
+  facts("----- testing metrics reverse mode 3 -----") do
+    nout = length(mesh.dxidx)
+    nin = length(mesh.vert_coords) + length(mesh.nrm_face) + length(mesh.nrm_bndry)
+    for i=1:mesh.npeers
+      nin += length(mesh.nrm_sharedface[i])
+    end
+
+    jac = zeros(nin, nout)
+    jac2 = zeros(jac)
+
+    pert = 1e-6
+
+    PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+    dxidx_orig = copy(mesh.dxidx)
+    for i=1:mesh.npeers
+      nrm_sharedface[i] = copy(mesh.nrm_sharedface[i])
+    end
+
+    # forward mode
+    in_idx = 1
+    for i=1:length(mesh.vert_coords)
+      mesh.vert_coords[i] += pert
+
+      PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+
+      for j=1:nout
+        jac[in_idx, j] = (mesh.dxidx[j] - dxidx_orig[j])/pert
+      end
+
+      in_idx += 1
+      mesh.vert_coords[i] -= pert
+    end
+
+    for i=1:length(mesh.nrm_face)
+      mesh.nrm_face[i] += pert
+      PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+
+      for j=1:nout
+        jac[in_idx, j] = (mesh.dxidx[j] - dxidx_orig[j])/pert
+      end
+
+      in_idx += 1
+      mesh.nrm_face[i] -= pert
+    end
+
+    for i=1:length(mesh.nrm_bndry)
+      mesh.nrm_bndry[i] += pert
+      PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+
+      for j=1:nout
+        jac[in_idx, j] = (mesh.dxidx[j] - dxidx_orig[j])/pert
+      end
+
+      in_idx += 1
+      mesh.nrm_bndry[i] -= pert
+    end
+
+    for peer=1:mesh.npeers
+      nrm_peer = mesh.nrm_sharedface[peer]
+      for i=1:length(nrm_peer)
+        nrm_peer[i] += pert
+        PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+
+        for j=1:nout
+          jac[in_idx, j] = (mesh.dxiddx[j] - dxidx_orig[j])/pert
+        end
+
+        in_idx += 1
+        nrm_peer[i] -= pert
+      end
+    end
+
+
+    # reverse mode
+    for j=1:nout
+      mesh.dxidx_bar[j] = 1
+      PdePumiInterface.getCurvilinearCoordinatesAndMetrics_rev(mesh, sbp)
+
+      in_idx = 1
+      for i=1:length(mesh.vert_coords)
+        jac2[in_idx, j] = mesh.vert_coords_bar[i]
+        in_idx += 1
+      end
+
+      for i=1:length(mesh.nrm_face)
+        jac2[in_idx, j] = mesh.nrm_face_bar[i]
+        in_idx += 1
+      end
+
+      for i=1:length(mesh.nrm_bndry)
+        jac2[in_idx, j] = mesh.nrm_bndry_bar[i]
+        in_idx += 1
+      end
+
+      for peer=1:mesh.npeers
+        nrm_peer_bar = mesh.nrm_sharedface_bar[peer]
+        for i=1:length(nrm_peer)
+          jac2[in_idx, j] = nrm_peer_bar[i]
+          in_idx += 1
+        end
+      end
+
+      mesh.dxidx_bar[j] = 0
+    end  # end loop i
+
+    in_region1 = 1:length(mesh.vert_coords)
+    in_region2 = 1:length(mesh.nrm_face) + in_region1[end]
+    in_region3 = 1:length(mesh.nrm_bndry) + in_region2[end]
+    in_region4 = (in_region3[end]+1):nin
+    println("vert_coords diff = ", norm(vec(jac[in_region1, :] - jac2[in_region1, :]))/length(in_region1))
+    println("nrm_face diff = ", norm(vec(jac[in_region2, :] - jac2[in_region2, :]))/length(in_region2))
+    println("nrm_bndry diff = ", norm(vec(jac[in_region3, :] - jac2[in_region3, :]))/length(in_region3))
+    println("nrm_sharedface diff = ", norm(vec(jac[in_region4, :] - jac2[in_region4, :]))/length(in_region4))
+
+    println("jac = \n", jac)
+    println("jac2 = \n", jac2)
+    println("diff = \n", jac - jac2)
+
+    @fact norm(jac - jac2)/length(jac) --> roughly(0.0, atol=1e-5)
+
+  end
 
   return nothing
 end
@@ -1114,7 +1350,6 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact iface_i.elementL --> less_than(mesh.numEl + 1)
     @fact iface_i.elementR --> greater_than(0)
     @fact iface_i.elementR --> less_than(mesh.numEl + 1)
-    @fact iface_i.faceL --> greater_than(0)
     @fact iface_i.faceL --> less_than(4)
     @fact iface_i.faceR --> greater_than(0)
     @fact iface_i.faceR --> less_than(4)
