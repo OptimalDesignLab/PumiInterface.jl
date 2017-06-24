@@ -34,6 +34,7 @@ function installPumi()
     ENV["LD_LIBRARY_PATH"] = str1
   end
 
+  # for backwards compatibility with the pkg-config days
   if haskey(ENV, "PKG_CONFIG_PATH")
     pkg_path = ENV["PKG_CONFIG_PATH"]
     pkg_path = string(str3,":", pkg_path)
