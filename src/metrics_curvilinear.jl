@@ -348,10 +348,10 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
   allocateCurvilinearCoordinateAndMetricArrays(mesh, sbp)
 
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
-  if mesh.dim == 2
-    calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, 
-                         mesh.coords, mesh.dxidx, mesh.jac)
-  else  # need to calculate Eone
+#  if mesh.dim == 2
+#    calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, 
+#                         mesh.coords, mesh.dxidx, mesh.jac)
+#  else  # need to calculate Eone
 
     # block format
     blocksize = 1000  # number of elements per block
@@ -360,6 +360,7 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
 
     Eone = zeros(Tmsh, mesh.numNodesPerElement, mesh.dim, blocksize)
 
+#    println("Eone = ", Eone[:, :, 1:mesh.numEl])
     for block=1:nblocks_full
       start_idx = (block - 1)*blocksize + 1
       end_idx = block*blocksize
@@ -384,9 +385,10 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
 
       getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eone_rem)
     end
-  end  # end if dim == 2
+#  end  # end if dim == 2
 
-  return nothing
+#  println("Eone = \n", Eone[:, :, 1:mesh.numEl])
+  return Eone
 end
 
 """
@@ -434,7 +436,7 @@ function getCurvilinearCoordinatesAndMetrics_rev{Tmsh}(mesh::PumiMeshDG{Tmsh},
                                                   Eone_bar_rem)
   end
 
-  return nothing
+  return Eone_bar
 end
 
 
@@ -454,10 +456,10 @@ function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp,
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
 
   calcEone(mesh, sbp, element_range, Eone)
-  calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
-                       coords_block, dxidx_block, jac_block, Eone)
+#  calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
+#                       coords_block, dxidx_block, jac_block, Eone)
 
-  fill!(Eone, 0.0)
+#  fill!(Eone, 0.0)  #TODO: debugging
   return nothing
 end
 
@@ -479,14 +481,14 @@ function getCurvilinearMetricsAndCoordinates_inner_rev{T}(mesh, sbp,
 
   # outputs
   vert_coords_bar_block = sview(mesh.vert_coords_bar, :, :, element_range)
-  fill!(Eone_bar, 0.0)
+#  fill!(Eone_bar, 0.0)
 
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
 
   # back propigate dxidx to vert_coords, E1
-  calcMappingJacobian_rev!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
-                           vert_coords_bar_block, coords_bar_block,
-                           dxidx_bar_block, jac_bar_block, Eone_bar)
+#  calcMappingJacobian_rev!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
+#                           vert_coords_bar_block, coords_bar_block,
+#                           dxidx_bar_block, jac_bar_block, Eone_bar)
 
   # back propigate E1 to the face normals
   calcEone_rev(mesh, sbp, element_range, Eone_bar)
