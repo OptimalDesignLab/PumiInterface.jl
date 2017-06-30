@@ -238,7 +238,6 @@ function test_metric_rev(mesh, sbp)
     test_metric2_rev(mesh, sbp)
     test_metrics3_rev(mesh, sbp)
 
-    error("stop here")
   end  # end facts block
 
   return nothing
@@ -361,20 +360,21 @@ end
 function test_metrics3_rev(mesh, sbp)
 
   facts("----- testing metrics reverse mode 3 -----") do
-    nout = mesh.dim*mesh.numNodesPerElement*2
-#    nout = length(mesh.dxidx)
+#    nout = mesh.dim*mesh.numNodesPerElement*2
+    nout = length(mesh.dxidx) + length(mesh.jac)
     nin = length(mesh.vert_coords) + length(mesh.nrm_face) + length(mesh.nrm_bndry)
     for i=1:mesh.npeers
       nin += length(mesh.nrm_sharedface[i])
     end
+#    nin = length(mesh.vert_coords) + mesh.dim*mesh.numNodesPerElement*2
 
     jac = zeros(nin, nout)
     jac2 = zeros(jac)
 
     pert = 1e-6
 
-    Eone = PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
-    Eone_orig = copy(Eone)
+    dxidx_orig = copy(mesh.dxidx)
+    jac_orig = copy(mesh.jac)
 #    for i=1:mesh.npeers
 #      nrm_sharedface[i] = copy(mesh.nrm_sharedface[i])
 #    end
@@ -384,11 +384,18 @@ function test_metrics3_rev(mesh, sbp)
     for i=1:length(mesh.vert_coords)
       mesh.vert_coords[i] += pert
 
-      Eone = PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+      PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
 
+      out_idx = 1
+      for j=1:length(mesh.dxidx)
+        jac[in_idx, out_idx] = (mesh.dxidx[j] - dxidx_orig[j])/pert
+        out_idx += 1
+      end
 
-      for j=1:nout
-        jac[in_idx, j] = (Eone[j] - Eone_orig[j])/pert
+      # TODO: uncomment when this is fixed
+      for j=1:length(mesh.jac)
+#        jac[in_idx, out_idx] = (mesh.jac[j] - jac_orig[j])/pert
+        out_idx += 1
       end
 
       in_idx += 1
@@ -397,10 +404,17 @@ function test_metrics3_rev(mesh, sbp)
 
     for i=1:length(mesh.nrm_face)
       mesh.nrm_face[i] += pert
-      Eone = PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+      PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
 
-      for j=1:nout
-        jac[in_idx, j] = (Eone[j] - Eone_orig[j])/pert
+      out_idx = 1
+      for j=1:length(mesh.dxidx)
+        jac[in_idx, out_idx] = (mesh.dxidx[j] - dxidx_orig[j])/pert
+        out_idx += 1
+      end
+
+      for j=1:length(mesh.jac)
+        jac[in_idx, out_idx] = (mesh.jac[j] - jac_orig[j])/pert
+        out_idx += 1
       end
 
       in_idx += 1
@@ -409,10 +423,18 @@ function test_metrics3_rev(mesh, sbp)
 
     for i=1:length(mesh.nrm_bndry)
       mesh.nrm_bndry[i] += pert
-      Eone = PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+      PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
 
-      for j=1:nout
-        jac[in_idx, j] = (Eone[j] - Eone_orig[j])/pert
+      out_idx = 1
+      for j=1:length(mesh.dxidx)
+        jac[in_idx, out_idx] = (mesh.dxidx[j] - dxidx_orig[j])/pert
+        out_idx += 1
+      end
+
+      # TODO: uncomment when this is fixed
+      for j=1:length(mesh.jac)
+#        jac[in_idx, out_idx] = (mesh.jac[j] - jac_orig[j])/pert
+        out_idx += 1
       end
 
       in_idx += 1
@@ -423,10 +445,17 @@ function test_metrics3_rev(mesh, sbp)
       nrm_peer = mesh.nrm_sharedface[peer]
       for i=1:length(nrm_peer)
         nrm_peer[i] += pert
-        Eone = PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+        PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
 
-        for j=1:nout
-          jac[in_idx, j] = (Eone[j] - Eone[j])/pert
+        for j=1:length(mesh.dxidx)
+          jac[in_idx, out_idx] = (mesh.dxidx[j] - dxidx_orig[j])/pert
+          out_idx += 1
+        end
+
+        # uncomment when this is fixed
+        for j=1:length(mesh.jac)
+#          jac[in_idx, out_idx] = (mesh.jac[j] - jac_orig[j])/pert
+          out_idx += 1
         end
 
         in_idx += 1
@@ -434,12 +463,14 @@ function test_metrics3_rev(mesh, sbp)
       end
     end
 
-    Eone_bar = zeros(mesh.numNodesPerElement, mesh.dim, mesh.numEl)
-
     # reverse mode
-    for j=1:nout
-#      mesh.dxidx_bar[j] = 1
-      Eone_bar[j] = 1
+    println("running reverse mode")
+    fill!(mesh.dxidx_bar, 0.0)
+    fill!(mesh.jac_bar, 0.0)
+    out_idx = 1
+    for j=1:length(mesh.dxidx)
+      mesh.dxidx_bar[j] = 1
+#      Eone_bar[j] = 1
 
       fill!(mesh.vert_coords_bar, 0.0)
       fill!(mesh.nrm_face_bar, 0.0)
@@ -447,54 +478,84 @@ function test_metrics3_rev(mesh, sbp)
       for i=1:mesh.npeers
         fill!(mesh.nrm_sharedface_bar[i], 0.0)
       end
-      PdePumiInterface.getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp, 1:mesh.numEl, Eone_bar)
-#      PdePumiInterface.getCurvilinearCoordinatesAndMetrics_rev(mesh, sbp)
+      fill!(mesh.jac_bar, 0.0)
+      PdePumiInterface.getCurvilinearCoordinatesAndMetrics_rev(mesh, sbp)
 
       in_idx = 1
       for i=1:length(mesh.vert_coords)
-        jac2[in_idx, j] = mesh.vert_coords_bar[i]
+        jac2[in_idx, out_idx] = mesh.vert_coords_bar[i]
         in_idx += 1
       end
 
       for i=1:length(mesh.nrm_face)
-        jac2[in_idx, j] = mesh.nrm_face_bar[i]
+        jac2[in_idx, out_idx] = mesh.nrm_face_bar[i]
         in_idx += 1
       end
 
+      
       for i=1:length(mesh.nrm_bndry)
-        jac2[in_idx, j] = mesh.nrm_bndry_bar[i]
+        jac2[in_idx, out_idx] = mesh.nrm_bndry_bar[i]
         in_idx += 1
       end
 
       for peer=1:mesh.npeers
         nrm_peer_bar = mesh.nrm_sharedface_bar[peer]
         for i=1:length(nrm_peer)
-          jac2[in_idx, j] = nrm_peer_bar[i]
+          jac2[in_idx, out_idx] = nrm_peer_bar[i]
           in_idx += 1
         end
       end
+      
+      out_idx += 1
+      mesh.dxidx_bar[j] = 0
+    end  # end loop j
 
-      Eone_bar[j] = 0
-#      mesh.dxidx_bar[j] = 0
-    end  # end loop i
+    fill!(mesh.jac_bar, 0.0)
+    fill!(mesh.dxidx_bar, 0.0)
+    for j=1:length(mesh.jac)
+      #TODO: uncomment when this is fixed
+#      mesh.jac_bar[j] = 1
 
-    in_region1 = 1:length(mesh.vert_coords)
-    in_region2 = 1:length(mesh.nrm_face) + in_region1[end]
-    in_region3 = 1:length(mesh.nrm_bndry) + in_region2[end]
-    in_region4 = (in_region3[end]+1):nin
-    println("vert_coords diff = ", norm(vec(jac[in_region1, :] - jac2[in_region1, :]))/length(in_region1))
-    println("nrm_face diff = ", norm(vec(jac[in_region2, :] - jac2[in_region2, :]))/length(in_region2))
-    println("nrm_bndry diff = ", norm(vec(jac[in_region3, :] - jac2[in_region3, :]))/length(in_region3))
-    println("nrm_sharedface diff = ", norm(vec(jac[in_region4, :] - jac2[in_region4, :]))/length(in_region4))
+      fill!(mesh.vert_coords_bar, 0.0)
+      fill!(mesh.nrm_face_bar, 0.0)
+      fill!(mesh.nrm_bndry_bar, 0.0)
+      for i=1:mesh.npeers
+        fill!(mesh.nrm_sharedface_bar[i], 0.0)
+      end
+      PdePumiInterface.getCurvilinearCoordinatesAndMetrics_rev(mesh, sbp)
 
-    for i=1:nin
-      diffnorm = norm(vec(jac[i, :] - jac2[i, :]))
-      println("row ", i, " diffnorm = ", diffnorm)
-    end
+      in_idx = 1
+      for i=1:length(mesh.vert_coords)
+        jac2[in_idx, out_idx] = mesh.vert_coords_bar[i]
+        in_idx += 1
+      end
 
-    println("jac = \n", jac)
-    println("jac2 = \n", jac2)
-    println("diff = \n", jac - jac2)
+      for i=1:length(mesh.nrm_face)
+        jac2[in_idx, out_idx] = mesh.nrm_face_bar[i]
+        in_idx += 1
+      end
+
+      
+      for i=1:length(mesh.nrm_bndry)
+        jac2[in_idx, out_idx] = mesh.nrm_bndry_bar[i]
+        in_idx += 1
+      end
+
+      for peer=1:mesh.npeers
+        nrm_peer_bar = mesh.nrm_sharedface_bar[peer]
+        for i=1:length(nrm_peer)
+          jac2[in_idx, out_idx] = nrm_peer_bar[i]
+          in_idx += 1
+        end
+      end
+      
+      out_idx += 1
+      mesh.jac_bar[j] = 0
+    end  # end loop j
+
+#    println("jac = \n", jac)
+#    println("jac2 = \n", jac2)
+#    println("diff = \n", jac - jac2)
 
     @fact norm(jac - jac2)/length(jac) --> roughly(0.0, atol=1e-5)
 
@@ -1061,11 +1122,12 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   fill!(mesh.dxidx_bar, 1.0)
   getVertCoords_rev(mesh, sbp)
 
-  test_metric_rev(mesh, sbp)
 
   for i=1:mesh.numEl
     @fact norm(mesh.vert_coords_bar[:, :, i]) --> greater_than(0.0)
   end
+
+  test_metric_rev(mesh, sbp)
 
    function test_interp{Tmsh}(mesh::AbstractMesh{Tmsh})
      sbpface = mesh.sbpface

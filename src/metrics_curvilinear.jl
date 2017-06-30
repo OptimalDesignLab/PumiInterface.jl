@@ -360,7 +360,6 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
 
     Eone = zeros(Tmsh, mesh.numNodesPerElement, mesh.dim, blocksize)
 
-#    println("Eone = ", Eone[:, :, 1:mesh.numEl])
     for block=1:nblocks_full
       start_idx = (block - 1)*blocksize + 1
       end_idx = block*blocksize
@@ -387,8 +386,7 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
     end
 #  end  # end if dim == 2
 
-#  println("Eone = \n", Eone[:, :, 1:mesh.numEl])
-  return Eone
+  return nothing
 end
 
 """
@@ -456,10 +454,10 @@ function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp,
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
 
   calcEone(mesh, sbp, element_range, Eone)
-#  calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
-#                       coords_block, dxidx_block, jac_block, Eone)
+  calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
+                       coords_block, dxidx_block, jac_block, Eone)
 
-#  fill!(Eone, 0.0)  #TODO: debugging
+  fill!(Eone, 0.0)
   return nothing
 end
 
@@ -476,19 +474,21 @@ function getCurvilinearMetricsAndCoordinates_inner_rev{T}(mesh, sbp,
   coords_bar_block = zeros(T, mesh.dim, mesh.numNodesPerElement, length(element_range))
   dxidx_block = sview(mesh.dxidx, :, :, :, element_range)
   dxidx_bar_block = sview(mesh.dxidx_bar, :, :, :, element_range)
-  jac_block = sview(mesh.jac, :, element_range)
+#  jac_block = sview(mesh.jac, :, element_range)
   jac_bar_block = sview(mesh.jac_bar, :, element_range)
+  @assert vecnorm(jac_bar_block) < 1e-13  # this is currently broken in SBP
 
   # outputs
   vert_coords_bar_block = sview(mesh.vert_coords_bar, :, :, element_range)
-#  fill!(Eone_bar, 0.0)
+  fill!(Eone_bar, 0.0)
 
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
 
   # back propigate dxidx to vert_coords, E1
-#  calcMappingJacobian_rev!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
-#                           vert_coords_bar_block, coords_bar_block,
-#                           dxidx_bar_block, jac_bar_block, Eone_bar)
+  calcMappingJacobian_rev!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
+                           vert_coords_bar_block, coords_bar_block,
+                           dxidx_bar_block, jac_bar_block, Eone_bar)
+
 
   # back propigate E1 to the face normals
   calcEone_rev(mesh, sbp, element_range, Eone_bar)
