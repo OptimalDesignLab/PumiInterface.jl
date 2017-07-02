@@ -1505,6 +1505,11 @@ void zeroField(apf::Field* f)
   apf::zeroField(f);
 }
 
+apf::Field* getCoordinateField(apf::Mesh* m_ptr)
+{
+  return m_ptr->getCoordinateField();
+}
+
 //-----------------------------------------------------------------------------
 // Parallelization function
 //-----------------------------------------------------------------------------

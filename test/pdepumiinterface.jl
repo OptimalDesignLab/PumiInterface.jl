@@ -1,3 +1,13 @@
+function filter_noise(A::AbstractArray)
+  for i=1:length(A)
+    if abs(A[i]) < 1e-8
+      A[i] = 0
+    end
+  end
+
+  return A
+end
+
 """
   Test reverse mode of metric interpolation function
 """
@@ -237,6 +247,7 @@ function test_metric_rev(mesh, sbp)
 
     test_metric2_rev(mesh, sbp)
     test_metrics3_rev(mesh, sbp)
+    test_metrics4_rev(mesh, sbp)
 
   end  # end facts block
 
@@ -564,6 +575,84 @@ function test_metrics3_rev(mesh, sbp)
   return nothing
 end
 
+
+function test_metrics4_rev(mesh, sbp)
+
+  # zero out all bar variables, just in case
+  fill!(mesh.dxidx_bar, 0.0)
+  fill!(mesh.jac_bar, 0.0)
+  fill!(mesh.vert_coords_bar, 0.0)
+  fill!(mesh.nrm_face_bar, 0.0)
+  fill!(mesh.nrm_bndry_bar, 0.0)
+  for i=1:mesh.npeers
+    fill!(mesh.nrm_sharedface_bar[i], 0.0)
+  end
+
+  facts("----- Testing metrics4_rev -----") do
+    nin = length(mesh.vert_coords)
+    nout = length(mesh.nrm_face)
+
+    jac = zeros(nin, nout)
+    jac2 = zeros(jac)
+
+    PdePumiInterface.getFaceCoordinatesAndNormals(mesh, sbp)
+    nrm_face_orig = copy(mesh.nrm_face)
+
+    pert = 1e-6
+
+    # forward mode
+    in_idx = 1
+    for i=1:length(mesh.vert_coords)
+      mesh.vert_coords[i] += pert
+      PdePumiInterface.writeCoordinateFieldToMesh(mesh)
+
+      PdePumiInterface.getFaceCoordinatesAndNormals(mesh, sbp)
+
+      out_idx = 1
+      for j=1:length(mesh.nrm_face)
+        jac[in_idx, out_idx] = (mesh.nrm_face[j] - nrm_face_orig[j])/pert
+        out_idx += 1
+      end
+
+      in_idx += 1
+      mesh.vert_coords[i] -= pert
+    end
+
+    # reverse mode
+    println("reverse mode")
+    out_idx = 1
+    for j=1:length(mesh.nrm_face)
+      println("j = ", j)
+      mesh.nrm_face_bar[j] = 1
+
+      PdePumiInterface.getFaceCoordinatesAndNormals_rev(mesh, sbp)
+
+      in_idx = 1
+      for i=1:length(mesh.vert_coords_bar)
+        jac2[in_idx, out_idx] = mesh.vert_coords_bar[i]
+        in_idx += 1
+      end
+
+      out_idx += 1
+      mesh.nrm_face_bar[j] = 0
+    end
+
+    println("jac = \n", filter_noise(jac))
+    println("jac2 = \n", filter_noise(jac2))
+    println("diff = \n", filter_noise(jac - jac2))
+    diffnorm = norm(jac - jac2)/length(jac)
+    println("diffnorm = ", diffnorm)
+
+    @fact diffnorm --> roughly(0.0, atol=1e-5)
+  end
+
+  println("mesh.vert_coords = \n", mesh.vert_coords)
+  error("stop here")
+  return nothing
+end
+
+
+  
 
 function test_coords_rev(mesh, sbp)
 

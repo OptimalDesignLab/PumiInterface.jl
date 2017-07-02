@@ -129,6 +129,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   mshape_ptr::Ptr{Void} # pointer to the FieldShape of the node field
   coordshape_ptr::Ptr{Void}  # pointer to FieldShape of the coordinate 
                              # field
+  coords_bar_ptr::Ptr{Void}  # pointer to the apf::Field for the adjoint part
+                             # of the solution
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution
   fnew_ptr::Ptr{Void}  # pointer to field on mnew_ptr
   fnewshape_ptr::Ptr{Void}  # fieldshape of fnew_ptr
@@ -254,7 +256,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   bndryfaces::Array{Boundary, 1}  # store data on external boundary of mesh
   interfaces::Array{Interface, 1}  # store data on internal edges
 
-  vert_coords::Array{T1, 3}  # dim x numVertsPerElement x numEl array of 
+  vert_coords::Array{T1, 3}  # dim x coords_numNodesPerElement x numEl array of 
                              # coordinates of vertices of each element
   vert_coords_bar::Array{T1, 3}  # adjoint part
   coords::Array{T1, 3}  # store coordinates of all nodes
@@ -453,6 +455,10 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   if dim != mesh.dim
     throw(ErrorException("loaded mesh is not 2 dimensions"))
   end
+
+  # create the adjoint part of the coordinate field
+  # 3 components always, even in 2D for consistency with Pumi's coordinate field
+  mesh.coords_bar_ptr = createPackedField(mesh.m_ptr, "coords_bar", 3, mesh.coordshape_ptr)
 
   # create the solution field
   mesh.mshape_ptr = getFieldShape(field_shape_type, order, mesh.dim)
