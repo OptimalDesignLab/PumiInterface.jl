@@ -129,32 +129,27 @@ end
 function getFaceCoordinatesAndNormals_rev{Tmsh}(mesh::PumiMeshDG{Tmsh},
                                                 sbp::AbstractSBP)
 
-  zeroField(mesh.coords_bar_ptr)
-
   if length(mesh.bndryfaces) > 0  # debugging: don't call if unneeded
     #TODO: don't allocate this every time
-    println("boundary faces")
     coords_bndry_bar = zeros(mesh.dim, mesh.numNodesPerFace, mesh.numBoundaryFaces)
     calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.bndryfaces, 
-                                      coords_bndry_bar, 
+                                      coords_bndry_bar,
+                                      mesh.nrm_bndry,
                                       mesh.nrm_bndry_bar)
   end
 
 
-  println("interfaces")
   coords_face_bar = zeros(mesh.dim, mesh.numNodesPerFace, mesh.numInterfaces)
   calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.interfaces, 
-                                coords_face_bar, mesh.nrm_face_bar)
+                                coords_face_bar, mesh.nrm_face,
+                                mesh.nrm_face_bar)
   for i=1:mesh.npeers
     coords_sharedface_bar = zeros(mesh.dim, mesh.numNodesPerFace, length(mesh.bndries_local[i]))
     calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.bndries_local[i], 
                                   coords_sharedface_bar[i], 
+                                  mesh.nrm_sharedface[i],
                                   mesh.nrm_sharedface_bar[i])
   end
-
-  retrieveVertCoords_bar(mesh)
-
-  println("mesh.vert_coords_bar = ", mesh.vert_coords_bar)
 
   return nothing
 end
@@ -265,7 +260,8 @@ end
 function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}}(
                     mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP,
                     faces::AbstractArray{I, 1}, 
-                    coords_face_bar::AbstractArray{Tmsh, 3}, 
+                    coords_face_bar::AbstractArray{Tmsh, 3},
+                    nrm_face::AbstractArray{Tmsh, 3},
                     nrm_face_bar::AbstractArray{Tmsh, 3})
 
   blocksize = 1000  # magic parameter: number of faces to do in a group
@@ -274,9 +270,6 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
   # calculate number of blocks
   nblocks_full = div(nfaces, blocksize)
   nrem = nfaces % blocksize
-
-  println("nblocks_full = ", nblocks_full)
-  println("nrem = ", nrem)
 
   numNodesPerElement = mesh.coord_numNodesPerElement
   numNodesPerFace = mesh.coord_numNodesPerType[mesh.dim]
@@ -350,12 +343,10 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
     getMeshFaceCoordinates(mesh, el_i, face_i, storage, coords_i)
   end
 
-  println("nrm_face_bar_block = \n", nrm_face_bar_block)
   calcFaceNormals_rev!(mesh.sbpface, mesh.coord_order, ref_verts, 
                    coords_lag_face_block, coords_lag_face_bar_block,
                    coords_face_bar_block, nrm_face_bar_block)
 
-  println("coords_lag_face_bar_block = \n", coords_lag_face_bar_block)
 
   # write coords_lag_face_bar to Pumi field (to be retrieved later)
   for i=1:nrem
@@ -368,7 +359,8 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
   end
 
 
-  #TODO: fix outward normals
+  fixOutwardNormal_rev(mesh, faces, nrm_face, nrm_face_bar)
+
   return nothing
 end
 
@@ -377,11 +369,98 @@ end
 """
   This function check to make sure each face normal vector is oriented
   outwards, and flips it if needed.
+
+  Inputs:
+    mesh
+    faces: array of Boundary of Interfaces to check for normal orientation
+
+  Inputs/Outputs:
+    nrm_face: array of size mesh.dim x mesh.numNodesPerFace x length(faces)
+              containing the normal vector at each node of each face.
+              Updated in place to make normal vector point outward
 """
 function fixOutwardNormal{I <: Union{Boundary, Interface}, Tmsh}(mesh, 
                           faces::AbstractArray{I, 1},
                           nrm_face::AbstractArray{Tmsh, 3})
 
+
+  nfaces = length(faces)
+  should_flip_node = Array(Bool, mesh.numNodesPerFace)
+  for i=1:nfaces
+    is_inward_normal(mesh, faces[i], sview(nrm_face, :, :, i), should_flip_node)
+
+    for j=1:mesh.numNodesPerFace
+      if should_flip_node[j]
+        for p=1:mesh.dim
+          nrm_face[p, j, i] = -nrm_face[p, j, i]
+        end
+      end
+    end  # end j
+
+  end  # end loop i
+
+   return nothing
+end
+
+"""
+  Reverse mode of fixOutwardNormal.
+
+  Inputs:
+    mesh
+    faces
+    nrm_face
+
+  Inputs/Outputs:
+    nrm_face_bar: adjoint part of nrm_face
+"""
+function fixOutwardNormal_rev{Tmsh, I <: Union{Boundary, Interface}}(mesh,
+                          faces::AbstractArray{I, 1},
+                          nrm_face::AbstractArray{Tmsh, 3},
+                          nrm_face_bar::AbstractArray{Tmsh, 3})
+
+  nfaces = length(faces)
+  should_flip_node = Array(Bool, mesh.numNodesPerFace)
+  for i=1:nfaces
+    is_inward_normal(mesh, faces[i], sview(nrm_face, :, :, i), should_flip_node)
+
+    for j=1:mesh.numNodesPerFace
+      if should_flip_node[j]
+        for p=1:mesh.dim
+          nrm_face_bar[p, j, i] = nrm_face_bar[p, j, i]
+        end
+      end
+    end  # end j
+
+  end  # end loop i
+
+  return nothing
+end
+
+
+
+"""
+  Check if the normal vector on each node of a face is pointing inward
+
+  The algorithm determines orientation by comparing the normal vector against
+  the vector along an edge of the simplex (from the vertex not on the face to
+  the vertex on the face).  For highly skewed elements, using different
+  vertices on the face to compute the vector can give different results, so
+  only the vector with the largest magnitude dot product with the normal vector
+  is considered.
+
+  Inputs:
+    mesh: the mesh
+    iface: either a Boundary or an Interface
+    nrm_face: mesh.dim x mesh.numNodesPerFace array containing the normal
+              vectors for each face node
+
+  Inputs/Outputs:
+    should_flip_node: an Bool array of length numNodesPerFace specifying whether
+                      the normal vector at each node is pointing inward
+"""
+function is_inward_normal(mesh, iface::Union{Boundary, Interface},
+                          nrm_face::AbstractMatrix,
+                          should_flip_node::AbstractVector{Bool})
 
   tmp = zeros(3)  # temporary vector to hold coordinates
   topo = mesh.topo
@@ -394,96 +473,71 @@ function fixOutwardNormal{I <: Union{Boundary, Interface}, Tmsh}(mesh,
   face_verts = Array(Ptr{Void}, numVertPerElement - 1)
   face_vert_coords = zeros(mesh.dim, numVertPerFace)
 
-  nfaces = length(faces)
-  for i=1:nfaces
-    iface_i = faces[i]
-    elnum = getElementL(iface_i)
-    facenum_local = getFaceL(iface_i)
+  elnum = getElementL(iface)
+  facenum_local = getFaceL(iface)
 
-    el_i = mesh.elements[elnum]
-    getDownward(mesh.m_ptr, el_i, 0, el_verts)
+  el_i = mesh.elements[elnum]
+  getDownward(mesh.m_ptr, el_i, 0, el_verts)
 
-    for j=1:numVertPerFace
-      face_verts[j] = el_verts[topo.face_verts[j, facenum_local]]
-      getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
+  for j=1:numVertPerFace
+    face_verts[j] = el_verts[topo.face_verts[j, facenum_local]]
+    getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
 
-      for p=1:mesh.dim
-        face_vert_coords[p, j] = tmp[p]
-      end
-    end
-
-    # get the vert not on the face
-    other_vert = Ptr{Void}(0)
-    for j=1:numVertPerElement
-      if !(el_verts[j] in face_verts)
-        other_vert = el_verts[j]
-      end
-    end
-
-    getPoint(mesh.m_ptr, other_vert, 0, tmp)
     for p=1:mesh.dim
-      other_vert_coords[p] = tmp[p]
+      face_vert_coords[p, j] = tmp[p]
     end
+  end
 
-    # check that the face normal is in the opposite direction as the
-    # vectors from a vertex on the face to the vertex not on the face
+  # get the vert not on the face
+  other_vert = Ptr{Void}(0)
+  for j=1:numVertPerElement
+    if !(el_verts[j] in face_verts)
+      other_vert = el_verts[j]
+    end
+  end
 
-    # in some cases the normal vector can be nearly orthoogonal to vertex
-    # vectors, so use the one with the greatest magnitude dot product
-    should_flip = false
-    max_mag = 0.0  # maximum dot product
-    for j=1:mesh.numNodesPerFace
-      outward_count = 0  # count number of calculations that showed outward
-      for k=1:numVertPerFace
-        val = zero(Float64)
-        for p=1:mesh.dim
-          r1_p = other_vert_coords[p] - face_vert_coords[p, k]
-          val += nrm_face[p, j, i]*r1_p  # accumulate dot product
-        end
-        
-        if abs(val) > max_mag
-          max_mag = abs(val)
-          # flip if the value is greater than 0
-          should_flip = val > 0
-          #=
-          if val < 0
-            should_flip = false
-          else 
-            should_flip = true
-          end  # end if
-          =#
+  getPoint(mesh.m_ptr, other_vert, 0, tmp)
+  for p=1:mesh.dim
+    other_vert_coords[p] = tmp[p]
+  end
 
-        end  
-      end  # end k
+  # check that the face normal is in the opposite direction as the
+  # vectors from a vertex on the face to the vertex not on the face
 
-      if should_flip
-        for p=1:mesh.dim
-          nrm_face[p, j, i] = -nrm_face[p, j, i]
-        end
+  # in some cases the normal vector can be nearly orthoogonal to vertex
+  # vectors, so use the one with the greatest magnitude dot product
+  should_flip = false
+  max_mag = 0.0  # maximum dot product
+  for j=1:mesh.numNodesPerFace
+    outward_count = 0  # count number of calculations that showed outward
+    for k=1:numVertPerFace
+      val = zero(Float64)
+      for p=1:mesh.dim
+        r1_p = other_vert_coords[p] - face_vert_coords[p, k]
+        val += nrm_face[p, j]*r1_p  # accumulate dot product
       end
+      
+      if abs(val) > max_mag
+        max_mag = abs(val)
+        # flip if the value is greater than 0
+        should_flip = val > 0
+        #=
+        if val < 0
+          should_flip = false
+        else 
+          should_flip = true
+        end  # end if
+        =#
 
+      end  
+    end  # end k
 
-      #=
-      # reverse face if needed, throw exception if unclear
-      if outward_count == 0  # no calculation found the normal is outward
-        for p=1:mesh.dim
-          nrm_face[p, j, i] = -nrm_face[p, j, i]
-        end
-      # some, but not all, calculations found outward
-      elseif outward_count < numVertPerFace
-        println("face_vert_coords = \n", face_vert_coords)
-        println("other_vert_coords = \n", other_vert_coords)
-        println("face normal = ", nrm_face[:, j, i])
-        throw(ErrorException("face $iface_i, node $j has indeterminate orientation"))
-      end  # else the face is oriented outwards, do nothing
-      =#
+    should_flip_node[j] = should_flip
+  end  # end loop j
 
-    end  # end j
-
-  end  # end loop i
-
-   return nothing
+  return nothing
 end
+
 
 
 
@@ -1053,28 +1107,21 @@ function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum::Integer,
   coords_tmp = storage.coords_tmp
 #  el_verts = Array(Ptr{Void}, 12)
 #  coords_tmp = Array(Float64, 3)
-  
-  getDownward(mesh.m_ptr, el, 0, el_verts)
 
-  v1 = el_verts[vertmap[1, facenum]]
-  v2 = el_verts[vertmap[2, facenum]]
+  # equivalent to topo.face_verts[:, facenum]
+  v1_idx = facenum
+  v2_idx = mod(facenum, 3) + 1
 
-  getPoint(mesh.m_ptr, v1, 0, coords_tmp)
+  coords[1, 1] = mesh.vert_coords[1, v1_idx, elnum]
+  coords[2, 1] = mesh.vert_coords[2, v1_idx, elnum]
 
-  coords[1, 1] = coords_tmp[1]
-  coords[2, 1] = coords_tmp[2]
-
-  getPoint(mesh.m_ptr, v2, 0, coords_tmp)
-  coords[1, 2] = coords_tmp[1]
-  coords[2, 2] = coords_tmp[2]
+  coords[1, 2] = mesh.vert_coords[1, v2_idx, elnum]
+  coords[2, 2] = mesh.vert_coords[2, v2_idx, elnum]
 
   if hasNodesIn(mesh.coordshape_ptr, 1)
-    getDownward(mesh.m_ptr, el, 1, el_verts)
-    edge = el_verts[facenum]
-    getPoint(mesh.m_ptr, edge, 0, coords_tmp)
-
-    coords[1, 3] = coords_tmp[1]
-    coords[2, 3] = coords_tmp[2]
+    edge_idx = facenum + 3  # for simplex elements
+    coords[1, 3] = mesh.vert_coords[1, edge_idx, elnum]
+    coords[2, 3] = mesh.vert_coords[2, edge_idx, elnum]
   end
 
   return nothing
@@ -1112,26 +1159,20 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh2DG, elnum::Integer,
   
   getDownward(mesh.m_ptr, el, 0, el_verts)
 
-  v1 = el_verts[vertmap[1, facenum]]
-  v2 = el_verts[vertmap[2, facenum]]
+  # equivalent to topo.face_verts[:, facenum]
+  v1_idx = facenum
+  v2_idx = mod(facenum, 3) + 1
 
-  getComponents(mesh.coords_bar_ptr, v1, 0, coords_tmp)
-  coords_tmp[1] += coords_bar[1, 1]
-  coords_tmp[2] += coords_bar[2, 1]
-  setComponents(mesh.coords_bar_ptr, v1, 0, coords_tmp)
+  mesh.vert_coords_bar[1, v1_idx, elnum] += coords_bar[1, 1]
+  mesh.vert_coords_bar[2, v1_idx, elnum] += coords_bar[2, 1]
 
-  getComponents(mesh.coords_bar_ptr, v2, 0, coords_tmp)
-  coords_tmp[1] += coords_bar[1, 2]
-  coords_tmp[2] += coords_bar[2, 2]
-  setComponents(mesh.coords_bar_ptr, v2, 0, coords_tmp)
+  mesh.vert_coords_bar[1, v2_idx, elnum] += coords_bar[1, 2]
+  mesh.vert_coords_bar[2, v2_idx, elnum] += coords_bar[2, 2]
 
   if hasNodesIn(mesh.coordshape_ptr, 1)
-    getDownward(mesh.m_ptr, el, 1, el_verts)
-    edge = el_verts[facenum]
-    getComponents(mesh.coords_bar_ptr, edge, 0, coords_tmp)
-    coords_tmp[1] += coords[1, 3]
-    coords_tmp[2] += coords[2, 3]
-    setComponents(mesh.coords_bar_ptr, edge, 0, coords_tmp)
+    edge_idx = facenum + 3  # for simplex elements
+    mesh.vert_coords_bar[1, edge_idx, elnum] += coords_bar[1, 3]
+    mesh.vert_coords_bar[2, edge_idx, elnum] += coords_bar[2, 3]
   end
 
 
@@ -1145,45 +1186,25 @@ function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum, facenum, storage::Face
   el = mesh.elements[elnum]
   el_verts = storage.el_verts
   face_verts = storage.face_verts
-  
-  getDownward(mesh.m_ptr, el, 0, el_verts)
 
   # get the face vertices
-  for i=1:3  # 3 vertices per face
-    face_verts[i] = el_verts[ vertmap[i, facenum] ]
-  end
+  face_vert_idx = sview(vertmap, :, facenum)
 
   for i=1:3  # 3 vertices per face
-    v_i = face_verts[i]
-    coords_i = sview(coords, :, i)
-    getPoint(mesh.m_ptr, v_i, 0, coords_i)
+    for j=1:3  # 3 coordinates at each vertex
+      coords[j, i] = mesh.vert_coords[j, face_vert_idx[i]]
+    end
   end
 
   if hasNodesIn(mesh.coordshape_ptr, 1)
-    offset = 3
-    # edge nodes
-    v1_edges = storage.v1_edges
-    v2_edges = storage.v2_edges
+    offset = 3 + (facenum - 1)*3  # 3 vertices + 3 edges per face
 
     for i=1:3  # 3 edges per face
-      i2 = mod(i, 3) + 1
-      v1 = face_verts[i]
-      v2 = face_verts[i2]
-      fill!(v1_edges, C_NULL)
-      fill!(v2_edges, C_NULL)
-      n1 = countAdjacent(mesh.m_ptr, v1, 1)
-      getAdjacent(v1_edges)
-      n2 = countAdjacent(mesh.m_ptr, v2, 1)
-      getAdjacent(v2_edges)
-
-      # simple linear search for common edge
-      # in the average case this is fine because there are only 20 or so
-      # edges upward ajacent to a vertex, but in the worst case there could
-      # be 400
-      common_edge = first_common(sview(v1_edges, 1:n1), sview(v2_edges, 1:n2))
-      coords_i = sview(coords, :, i + offset)
-      getPoint(mesh.m_ptr, common_edge, 0, coords_i)
+      for j=1:3  # 3 coordinates per face
+        coords[j, 3 + i] = mesh.vert_coords[j, i + offset]
+      end
     end
+
   end
 
   return nothing
@@ -1205,53 +1226,24 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh3DG, elnum::Integer,
   face_verts = storage.face_verts
   coords_tmp = storage.coords_tmp
   
-  getDownward(mesh.m_ptr, el, 0, el_verts)
-
   # get the face vertices
-  for i=1:3  # 3 vertices per face
-    face_verts[i] = el_verts[ vertmap[i, facenum] ]
-  end
+  face_vert_idx = sview(vertmap, :, facenum)
 
   for i=1:3  # 3 vertices per face
-    v_i = face_verts[i]
-    coords_i = sview(coords, :, i)
-    getComponents(mesh.coords_bar_ptr, v_i, 0, coords_tmp)
-    coords_tmp[1] += coords_bar[1, j]
-    coords_tmp[2] += coords_bar[2, j]
-    coords_tmp[3] += coords_bar[3, j]
-    setComponents(mesh.coords_bat_ptr, v_i, 0, coords_tmp)
+    for j=1:3  # 3 coordinates at each vertex
+      mesh.vert_coords_bar[j, face_vert_idx[i]] += coords_bar[j, i]
+    end
   end
 
    if hasNodesIn(mesh.coordshape_ptr, 1)
-    offset = 3
-    # edge nodes
-    v1_edges = storage.v1_edges
-    v2_edges = storage.v2_edges
- 
+    offset = 3 + (facenum - 1)*3  # 3 vertices + 3 edges per face
+
     for i=1:3  # 3 edges per face
-      i2 = mod(i, 3) + 1
-      v1 = face_verts[i]
-      v2 = face_verts[i2]
-      fill!(v1_edges, C_NULL)
-      fill!(v2_edges, C_NULL)
-      n1 = countAdjacent(mesh.m_ptr, v1, 1)
-      getAdjacent(v1_edges)
-      n2 = countAdjacent(mesh.m_ptr, v2, 1)
-      getAdjacent(v2_edges)
-
-      # simple linear search for common edge
-      # in the average case this is fine because there are only 20 or so
-      # edges upward ajacent to a vertex, but in the worst case there could
-      # be 400
-      common_edge = first_common(sview(v1_edges, 1:n1), sview(v2_edges, 1:n2))
-      coords_i = sview(coords_bar, :, i + offset)
-
-      getComponents(mesh.coords_bar_ptr, v_i, 0, coords_tmp)
-      coords_tmp[1] += coords_i[1]
-      coords_tmp[2] += coords_i[2]
-      coords_tmp[3] += coords_i[3]
-      setComponents(mesh.coords_bat_ptr, v_i, 0, coords_tmp)
+      for j=1:3  # 3 coordinates per face
+        mesh.vert_coords_bar[j, i + offset] += coords_bar[j, 3 + i]  # 3 verts
+      end
     end
+
   end
 
 

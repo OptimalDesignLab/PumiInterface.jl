@@ -590,13 +590,21 @@ function test_metrics4_rev(mesh, sbp)
 
   facts("----- Testing metrics4_rev -----") do
     nin = length(mesh.vert_coords)
-    nout = length(mesh.nrm_face)
+    nout = length(mesh.nrm_bndry) + length(mesh.nrm_face)
+    for i=1:mesh.npeers
+      nout += length(mesh.nrm_sharedface[i])
+    end
 
     jac = zeros(nin, nout)
     jac2 = zeros(jac)
 
     PdePumiInterface.getFaceCoordinatesAndNormals(mesh, sbp)
+    nrm_bndry_orig = copy(mesh.nrm_bndry)
     nrm_face_orig = copy(mesh.nrm_face)
+    nrm_sharedface_orig = copy(mesh.nrm_sharedface)
+    for i=1:mesh.npeers
+      nrm_sharedface_orig[i] = copy(mesh.nrm_sharedface[i])
+    end
 
     pert = 1e-6
 
@@ -604,15 +612,28 @@ function test_metrics4_rev(mesh, sbp)
     in_idx = 1
     for i=1:length(mesh.vert_coords)
       mesh.vert_coords[i] += pert
-      PdePumiInterface.writeCoordinateFieldToMesh(mesh)
 
       PdePumiInterface.getFaceCoordinatesAndNormals(mesh, sbp)
 
       out_idx = 1
+
+      for j=1:length(mesh.nrm_bndry)
+        jac[in_idx, out_idx] = (mesh.nrm_bndry[j] - nrm_bndry_orig[j])/pert
+        out_idx += 1
+      end
+
       for j=1:length(mesh.nrm_face)
         jac[in_idx, out_idx] = (mesh.nrm_face[j] - nrm_face_orig[j])/pert
         out_idx += 1
       end
+
+      for peer=1:mesh.npeers
+        for j=1:length(mesh.nrm_sharedface[peer])
+          jac[in_idx, out_idx] = (mesh.nrm_sharedface[peer][j] - nrm_sharedface_orig[peer][j])/pert
+          out_idx += 1
+        end
+      end
+
 
       in_idx += 1
       mesh.vert_coords[i] -= pert
@@ -621,9 +642,26 @@ function test_metrics4_rev(mesh, sbp)
     # reverse mode
     println("reverse mode")
     out_idx = 1
+    for j=1:length(mesh.nrm_bndry)
+      mesh.nrm_bndry_bar[j] = 1
+      fill!(mesh.vert_coords_bar, 0.0)
+
+      PdePumiInterface.getFaceCoordinatesAndNormals_rev(mesh, sbp)
+
+      in_idx = 1
+      for i=1:length(mesh.vert_coords_bar)
+        jac2[in_idx, out_idx] = mesh.vert_coords_bar[i]
+        in_idx += 1
+      end
+
+      out_idx += 1
+      mesh.nrm_bndry_bar[j] = 0
+    end
+
+
     for j=1:length(mesh.nrm_face)
-      println("j = ", j)
       mesh.nrm_face_bar[j] = 1
+      fill!(mesh.vert_coords_bar, 0.0)
 
       PdePumiInterface.getFaceCoordinatesAndNormals_rev(mesh, sbp)
 
@@ -637,16 +675,29 @@ function test_metrics4_rev(mesh, sbp)
       mesh.nrm_face_bar[j] = 0
     end
 
-    println("jac = \n", filter_noise(jac))
-    println("jac2 = \n", filter_noise(jac2))
-    println("diff = \n", filter_noise(jac - jac2))
-    diffnorm = norm(jac - jac2)/length(jac)
-    println("diffnorm = ", diffnorm)
+    for peer=1:mesh.npeers
+      nrm_sharedface_bar = mesh.nrm_sharedface_bar[peer]
+      for j=1:length(nrm_sharedface_bar)
+        nrm_sharedface_bar[j] = 1
+        fill!(mesh.vert_coords_bar, 0.0)
 
+        PdePumiInterface.getFaceCoordinatesAndNormals_rev(mesh, sbp)
+
+        in_idx = 1
+        for i=1:length(mesh.vert_coords_bar)
+          jac2[in_idx, out_idx] = mesh.vert_coords_bar[i]
+          in_idx += 1
+        end
+
+        out_idx += 1
+        nrm_sharedface_bar[j] = 0
+      end
+    end
+
+    diffnorm = norm(jac - jac2)/length(jac)
     @fact diffnorm --> roughly(0.0, atol=1e-5)
   end
 
-  println("mesh.vert_coords = \n", mesh.vert_coords)
   error("stop here")
   return nothing
 end
