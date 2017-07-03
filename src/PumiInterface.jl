@@ -1,7 +1,6 @@
 __precompile__(false)
 # functions to test the julia/PUMI interface
 module PumiInterface
-include("PumiInterface2.jl")  # higher level functions
 
 # no names should exported because there should be higher level functions
 # wrapping these
@@ -1543,6 +1542,21 @@ function getMatches(part_nums::AbstractArray{Cint}, entities::AbstractArray{Ptr{
 end
 
 
+"""
+  Get information about the Pumi reference element
+"""
+function getTopologyMaps()
+
+  tri_edge_verts = Array(Cint, 3, 2)
+  tet_edge_verts = Array(Cint, 6, 2)
+  tet_tri_verts = Array(Cint, 4, 3)
+
+  ccall( (:getTopologyMaps, pumi_libname), Void, (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}), tri_edge_verts, tet_edge_verts, tet_tri_verts)
+
+  return tri_edge_verts, tet_edge_verts, tet_tri_verts
+end
+
 declareNames()  # will this execute when module is compiled?
 
+include("PumiInterface2.jl")  # higher level functions
 end  # end of module

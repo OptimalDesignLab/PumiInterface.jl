@@ -698,7 +698,6 @@ function test_metrics4_rev(mesh, sbp)
     @fact diffnorm --> roughly(0.0, atol=1e-5)
   end
 
-  error("stop here")
   return nothing
 end
 
@@ -1575,8 +1574,25 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact iface_i.faceR --> less_than(4)
   end
 
+  
   # test curvilinear
   println("testing curvilinear")
+  # check curvilinear routines reproduce linear results
+  coords_face_orig = copy(mesh.coords_interface)
+  nrm_face_orig = copy(mesh.nrm_face)
+
+  PdePumiInterface.getCoordinates(mesh, sbp)
+  PdePumiInterface.getFaceCoordinatesAndNormals(mesh, sbp)
+  PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+
+  for i=1:mesh.numInterfaces
+    for j=1:mesh.numNodesPerFace
+      @fact mesh.coords_interface[:, j, i] --> roughly(coords_face_orig[:, j, i], atol=1e-12)
+      @fact mesh.nrm_face[:, j, i] --> roughly(nrm_face_orig[:, j, i], atol=1e-12)
+    end
+  end
+
+
   # a 0 - 5 square that used a sin wave to remap the nondimensionalized
   # coordinates
   smb_name = "square_05_curve.smb"

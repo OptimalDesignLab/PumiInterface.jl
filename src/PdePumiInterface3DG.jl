@@ -351,7 +351,8 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   shared_element_colormasks::Array{Array{BitArray{1}, 1}, 1}                               
   #TODO: remove this once SBP interface is clarified
   sbpface::SummationByParts.AbstractFace{Float64}  # SBP object needed to do interpolation
-  topo::ElementTopology{3}
+  topo::ElementTopology{3}  # SBP topology
+  topo_pumi::ElementTopology{3}  # Pumi topology
 
   vert_sharing::VertSharing
 
@@ -382,6 +383,9 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh.numNodesPerFace = sbpface.numnodes
   mesh.comm = comm
   mesh.topo = topo
+  topo2 = ElementTopology{2}(PumiInterface.tri_edge_verts.')
+  mesh.topo_pumi = ElementTopology{3}(PumiInterface.tet_tri_verts.',
+                                      PumiInterface.tet_edge_verts.', topo2=topo2)
 
   if !MPI.Initialized()
     MPI.Init()

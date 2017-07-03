@@ -369,7 +369,9 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   # on the current peer boundary
   shared_element_colormasks::Array{Array{BitArray{1}, 1}, 1}                               
   sbpface::TriFace{Float64}  # SBP object needed to do interpolation
-  topo::ElementTopology{2}
+  topo::ElementTopology{2}  # topology of the SBP element
+  topo_pumi::ElementTopology{2}  # topology of the pumi element
+  # add field that maps back and forth?
 
   vert_sharing::VertSharing
 
@@ -402,6 +404,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   mesh.comm = comm
   mesh.topo = ElementTopology2() # create default topology because it isn't
                                   # important for 2D
+  mesh.topo_pumi = ElementTopology{2}(PumiInterface.tri_edge_verts.')
 
   if !MPI.Initialized()
     MPI.Init()

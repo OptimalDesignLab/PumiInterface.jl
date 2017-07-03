@@ -295,7 +295,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
 #  interp_op = eye(4)
   mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
-  #=
+  
   dxidx_orig = copy(mesh.dxidx)
   jac_orig = copy(mesh.jac)
   nrm_bndry_orig = copy(mesh.nrm_bndry)
@@ -303,11 +303,11 @@ facts("----- Testing PdePumiInterface3DG -----") do
   coords_orig = copy(mesh.coords)
   coords_bndry_orig = copy(mesh.coords_bndry)
   coords_interface_orig = copy(mesh.coords_interface)
-  =#
+  
 
   PdePumiInterface.getMeshCoordinates(mesh, sbp)
   PdePumiInterface.getFaceCoordinatesAndNormals(mesh, sbp)
-  PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+ # PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
   
 
   # verify metrics are constant for a uniform linear mesh
@@ -331,7 +331,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   end
 
   
-#=
+
   for i=1:mesh.numEl
     for j=1:mesh.numNodesPerElement
       for k=1:mesh.dim
@@ -369,7 +369,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
       end
     end
   end
-=#
+
   
  
 

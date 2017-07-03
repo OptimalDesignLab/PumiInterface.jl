@@ -189,7 +189,6 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
   # some temporary arrays
   down_faces = Array(Ptr{Void}, 12)
   coords_lag_face = Array(Float64, mesh.dim, mesh.coord_numNodesPerFace, blocksize)
-  storage = FaceCoordinateStorage()
 
   # get the parametic coordinates of the face nodes
   face_xi = mesh.coord_facexi
@@ -209,7 +208,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
       el_ptr = mesh.elements[el_i]
 
       coords_i = sview(coords_lag_face, :, :, i)
-      getMeshFaceCoordinates(mesh, el_i, face_i, storage, coords_i)
+      getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
       face_idx += 1
     end
 
@@ -236,7 +235,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
     el_ptr = mesh.elements[el_i]
 
     coords_i = sview(coords_lag_face, :, :, i)
-    getMeshFaceCoordinates(mesh, el_i, face_i, storage, coords_i)
+    getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
     face_idx += 1
 
 
@@ -279,8 +278,6 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
   coords_lag_face = Array(Float64, mesh.dim, mesh.coord_numNodesPerFace, blocksize)
   coords_lag_face_bar = zeros(coords_lag_face)
 
-  storage = FaceCoordinateStorage()
-
   # get the parametic coordinates of the face nodes
   face_xi = mesh.coord_facexi
   ref_verts = baryToXY(face_xi, mesh.sbpface.vtx)
@@ -299,7 +296,7 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
       el_ptr = mesh.elements[el_i]
 
       coords_i = sview(coords_lag_face, :, :, i)
-      getMeshFaceCoordinates(mesh, el_i, face_i, storage, coords_i)
+      getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
     end
 
     # populate output array for current block
@@ -317,7 +314,7 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
       el_ptr = mesh.elements[el_i]
 
       coords_bar_i = sview(coords_lag_face_bar, :, :, i)
-      getMeshFaceCoordinates_rev(mesh, el_i, face_i, storage, coords_bar_i)
+      getMeshFaceCoordinates_rev(mesh, el_i, face_i, coords_bar_i)
     end
 
   end  # end loop over full blocks
@@ -340,7 +337,7 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
     el_ptr = mesh.elements[el_i]
 
     coords_i = sview(coords_lag_face, :, :, i)
-    getMeshFaceCoordinates(mesh, el_i, face_i, storage, coords_i)
+    getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
   end
 
   calcFaceNormals_rev!(mesh.sbpface, mesh.coord_order, ref_verts, 
@@ -355,7 +352,7 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
     el_ptr = mesh.elements[el_i]
 
     coords_bar_i = sview(coords_lag_face_bar_block, :, :, i)
-    getMeshFaceCoordinates_rev(mesh, el_i, face_i, storage, coords_bar_i)
+    getMeshFaceCoordinates_rev(mesh, el_i, face_i, coords_bar_i)
   end
 
 
@@ -557,10 +554,10 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
   allocateCurvilinearCoordinateAndMetricArrays(mesh, sbp)
 
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
-#  if mesh.dim == 2
-#    calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, 
-#                         mesh.coords, mesh.dxidx, mesh.jac)
-#  else  # need to calculate Eone
+  if mesh.dim == 2
+    calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, 
+                         mesh.coords, mesh.dxidx, mesh.jac)
+  else  # need to calculate Eone
 
     # block format
     blocksize = 1000  # number of elements per block
@@ -593,7 +590,7 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
 
       getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eone_rem)
     end
-#  end  # end if dim == 2
+  end  # end if dim == 2
 
   return nothing
 end
@@ -663,6 +660,18 @@ function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp,
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
 
   calcEone(mesh, sbp, element_range, Eone)
+
+  println("checking Eone")
+  for el=1:size(Eone, 3)
+    println("el = ", el)
+    println("Eone = \n", Eone[:, :, el])
+    for d=1:mesh.dim
+      println("  d = ", d)
+      val = abs(sum(Eone[:, d, el]))
+      println("  val = ", val)
+      @assert val < 1e-14
+    end
+  end
   calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
                        coords_block, dxidx_block, jac_block, Eone)
 
@@ -1049,27 +1058,6 @@ function assembleEone_rev{Tmsh}(sbpface::AbstractFace, elnum::Integer,
 end
 
 
-"""
-  Type to store the temporary arrays needed by getMeshFaceCoordinates
-"""
-immutable FaceCoordinateStorage
-  el_verts::Array{Ptr{Void}, 1}
-  face_verts::Array{Ptr{Void}, 1}
-  coords_tmp::Array{Float64, 1}
-  v1_edges::Array{Ptr{Void}, 1}
-  v2_edges::Array{Ptr{Void}, 1}
-
-  function FaceCoordinateStorage()
-    el_verts = Array(Ptr{Void}, 12)
-    face_verts = Array(Ptr{Void}, 3)
-    coords_tmp = Array(Float64, 3)
-    v1_edges = Array(Ptr{Void}, 400)
-    v2_edges = Array(Ptr{Void}, 400)
-
-    return new(el_verts, face_verts, coords_tmp, v1_edges, v2_edges)
-  end
-end
-
 # get the coordinates of the nodes on a given face (in the coordinate field, not
 # the solution field)
 # this only works up to second order, and uses the ElementTopology to figure
@@ -1095,18 +1083,12 @@ end
 """
 function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum::Integer,
                                 facenum::Integer, 
-                                storage::FaceCoordinateStorage, 
                                 coords::AbstractMatrix)
 
 # coords = a 2 x number of nodes on the face array to be populated with the
 # coordinates
 
   vertmap = mesh.topo.face_verts
-  el = mesh.elements[elnum]
-  el_verts = storage.el_verts
-  coords_tmp = storage.coords_tmp
-#  el_verts = Array(Ptr{Void}, 12)
-#  coords_tmp = Array(Float64, 3)
 
   # equivalent to topo.face_verts[:, facenum]
   v1_idx = facenum
@@ -1147,17 +1129,9 @@ end
 """
 function getMeshFaceCoordinates_rev(mesh::PumiMesh2DG, elnum::Integer,
                                 facenum::Integer, 
-                                storage::FaceCoordinateStorage, 
                                 coords_bar::AbstractMatrix)
 
   vertmap = mesh.topo.face_verts
-  el = mesh.elements[elnum]
-  el_verts = storage.el_verts
-  coords_tmp = storage.coords_tmp
-#  el_verts = Array(Ptr{Void}, 12)
-#  coords_tmp = Array(Float64, 3)
-  
-  getDownward(mesh.m_ptr, el, 0, el_verts)
 
   # equivalent to topo.face_verts[:, facenum]
   v1_idx = facenum
@@ -1180,15 +1154,16 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh2DG, elnum::Integer,
 end
 
 
-function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum, facenum, storage::FaceCoordinateStorage, coords::AbstractMatrix)
+function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum::Integer,
+                                facenum::Integer, coords::AbstractMatrix)
 
+  println("getting coordinate for element ", elnum, " face ", facenum)
   vertmap = mesh.topo.face_verts
-  el = mesh.elements[elnum]
-  el_verts = storage.el_verts
-  face_verts = storage.face_verts
+  println("vertmap = \n", vertmap)
 
   # get the face vertices
   face_vert_idx = sview(vertmap, :, facenum)
+  println("face ", facenum, " has verts \n", face_vert_idx)
 
   for i=1:3  # 3 vertices per face
     for j=1:3  # 3 coordinates at each vertex
@@ -1196,7 +1171,29 @@ function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum, facenum, storage::Face
     end
   end
 
+  # check against pumi
+  el_i = mesh.elements[elnum]
+  down_verts = Array(Ptr{Void}, 12)
+  getDownward(mesh.m_ptr, el_i, 0, down_verts)
+
+  println("coords = \n", coords)
+
+  coords_tmp = zeros(3)
+  failflag = false
+  for i=1:3  # 3 vertices per face
+    v_i = down_verts[ vertmap[i, facenum] ]
+    getPoint(mesh.m_ptr, v_i, 0, coords_tmp)
+    println("vertex ", i, " has coords = \n", coords_tmp)
+    for j=1:3
+      if abs(coords_tmp[j] - coords[j, i]) < 1e-13
+        failflag = failflag || true
+      end
+    end
+  end
+  @assert !failflag
+
   if hasNodesIn(mesh.coordshape_ptr, 1)
+    println("getting 2nd order node")
     offset = 3 + (facenum - 1)*3  # 3 vertices + 3 edges per face
 
     for i=1:3  # 3 edges per face
@@ -1217,14 +1214,9 @@ end
 """
 function getMeshFaceCoordinates_rev(mesh::PumiMesh3DG, elnum::Integer,
                                 facenum::Integer, 
-                                storage::FaceCoordinateStorage, 
                                 coords_bar::AbstractMatrix)
 
   vertmap = mesh.topo.face_verts
-  el = mesh.elements[elnum]
-  el_verts = storage.el_verts
-  face_verts = storage.face_verts
-  coords_tmp = storage.coords_tmp
   
   # get the face vertices
   face_vert_idx = sview(vertmap, :, facenum)
@@ -1236,7 +1228,7 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh3DG, elnum::Integer,
   end
 
    if hasNodesIn(mesh.coordshape_ptr, 1)
-    offset = 3 + (facenum - 1)*3  # 3 vertices + 3 edges per face
+    offset = 3 + (facenum - 1)*3  # 3 vertices + 1 edge node per face
 
     for i=1:3  # 3 edges per face
       for j=1:3  # 3 coordinates per face
@@ -1249,68 +1241,3 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh3DG, elnum::Integer,
 
   return nothing
 end
-
-"""
-  This function takes the values in mesh.coords_bar_ptr and adds them to the
-  mesh.vert_coords_bar array.
-"""
-function retrieveVertCoords_bar(mesh::PumiMeshDG)
-
-  # assumes all elements are same type
-  entity_type = getType(mesh.m_ptr, mesh.elements[1])
-  eshape_ptr = getEntityShape(mesh.mshape_ptr, entity_type)
-  nnodes = countNodes(eshape_ptr)
-  @assert nnodes == mesh.coord_numNodesPerElement
-  downward_entities = Array(Ptr{Void}, nnodes)  # holds mesh entities
-  coords_tmp = zeros(3)
-
-  for i=1:mesh.numEl
-    el_i = mesh.elements[i]
-    getNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, el_i, downward_entities)
-
-    for j=1:mesh.coord_numNodesPerElement
-      getComponents(mesh.coords_bar_ptr, downward_entities[j], 0, coords_tmp)
-
-      for k=1:mesh.dim
-        mesh.vert_coords_bar[k, j, i] += coords_tmp[k]
-      end
-    end
-  end
-
-  return nothing
-end
-
-
-"""
-  Writes a coordinate field-like array (ie. mesh.vert_coords) to the mesh.
-  This is for testing only
-"""
-function writeCoordinateFieldToMesh(mesh::PumiMeshDG)
-
-  entity_type = getType(mesh.m_ptr, mesh.elements[1])
-  eshape_ptr = getEntityShape(mesh.mshape_ptr, entity_type)
-  nnodes = countNodes(eshape_ptr)
-  @assert nnodes == mesh.coord_numNodesPerElement
-  downward_entities = Array(Ptr{Void}, nnodes)  # holds mesh entities
-  coords_tmp = zeros(3)
-
-  f_coords = getCoordinateField(mesh.m_ptr)
-
-  for i=1:mesh.numEl
-    el_i = mesh.elements[i]
-    getNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, el_i, downward_entities)
-
-    for j=1:mesh.coord_numNodesPerElement
-      for k=1:mesh.dim
-        coords_tmp[k] = mesh.vert_coords[k, j, i]
-      end
-      setComponents(f_coords, downward_entities[j], 0, coords_tmp)
-
-    end
-  end
-
-  return nothing
-end
-
-
-
