@@ -1067,10 +1067,14 @@ end
 """
   This function gets the coordinates of the coordinate field nodes of the
   face of an element, in the orientation specified by mesh.topo.  This only
-  works up to second order.  In 3D it makes the assumption that edge 1 of
-  the triangle is defined from v1 -> v2, edge 2 is v2 -> v3, and edge 3 is
-  v3 -> v1.
-
+  works up to second order.  It uses the SBP element topology to determine
+  the ordering of the nodes.  I guess this makes sense because calcFaceNormals
+  is an SBP function and requires its definition of the vertices that define the
+  face.  Because ref_vtx is passed into calcFaceNormals, it should be ok to 
+  use the Pumi definition of the coordinates of the reference nodes (precisely
+  because we use the SBP definition of which vertices define the face, the
+  face node coordinates are relative to those vertices).
+  
   Inputs:
     mesh: a 2D mesh
     elnum: the global element number
@@ -1088,11 +1092,13 @@ function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum::Integer,
 # coords = a 2 x number of nodes on the face array to be populated with the
 # coordinates
 
-  vertmap = mesh.topo.face_verts
+  topo = mesh.topo
 
   # equivalent to topo.face_verts[:, facenum]
-  v1_idx = facenum
-  v2_idx = mod(facenum, 3) + 1
+  v1_idx = topo.face_verts[1, facenum]
+  v2_idx = topo.face_verts[2, facenum]
+#  v1_idx = facenum
+#  v2_idx = mod(facenum, 3) + 1
 
   coords[1, 1] = mesh.vert_coords[1, v1_idx, elnum]
   coords[2, 1] = mesh.vert_coords[2, v1_idx, elnum]
@@ -1101,7 +1107,8 @@ function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum::Integer,
   coords[2, 2] = mesh.vert_coords[2, v2_idx, elnum]
 
   if hasNodesIn(mesh.coordshape_ptr, 1)
-    edge_idx = facenum + 3  # for simplex elements
+#    edge_idx = facenum + 3  # for simplex elements
+    edge_idx = 3 + topo.face_edges[1, facenum]
     coords[1, 3] = mesh.vert_coords[1, edge_idx, elnum]
     coords[2, 3] = mesh.vert_coords[2, edge_idx, elnum]
   end
@@ -1131,11 +1138,16 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh2DG, elnum::Integer,
                                 facenum::Integer, 
                                 coords_bar::AbstractMatrix)
 
-  vertmap = mesh.topo.face_verts
+#  vertmap = mesh.topo_pumi.face_verts
+  topo = mesh.topo_pumi
 
   # equivalent to topo.face_verts[:, facenum]
-  v1_idx = facenum
-  v2_idx = mod(facenum, 3) + 1
+  v1_idx = topo.face_verts[1, facenum]
+  v2_idx = topo.face_verts[2, facenum]
+
+  # equivalent to topo.face_verts[:, facenum]
+#  v1_idx = facenum
+#  v2_idx = mod(facenum, 3) + 1
 
   mesh.vert_coords_bar[1, v1_idx, elnum] += coords_bar[1, 1]
   mesh.vert_coords_bar[2, v1_idx, elnum] += coords_bar[2, 1]
@@ -1157,48 +1169,71 @@ end
 function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum::Integer,
                                 facenum::Integer, coords::AbstractMatrix)
 
-  println("getting coordinate for element ", elnum, " face ", facenum)
-  vertmap = mesh.topo.face_verts
-  println("vertmap = \n", vertmap)
-
+#  println("\ngetting coordinate for element ", elnum, " face ", facenum)
+#  vertmap = mesh.topo.face_verts
+  topo = mesh.topo
+#  println("topo_pumi.face_verts = \n", topo.face_verts)
   # get the face vertices
-  face_vert_idx = sview(vertmap, :, facenum)
-  println("face ", facenum, " has verts \n", face_vert_idx)
+  face_vert_idx = sview(topo.face_verts, :, facenum)
+#  println("face ", facenum, " has verts \n", face_vert_idx)
 
   for i=1:3  # 3 vertices per face
+    vert_i = face_vert_idx[i]
+#    println("vertex ", vert_i)
     for j=1:3  # 3 coordinates at each vertex
-      coords[j, i] = mesh.vert_coords[j, face_vert_idx[i]]
+      coords[j, i] = mesh.vert_coords[j, face_vert_idx[i], elnum]
     end
   end
 
+#  println("coords = \n", coords)
+#=
   # check against pumi
   el_i = mesh.elements[elnum]
   down_verts = Array(Ptr{Void}, 12)
   getDownward(mesh.m_ptr, el_i, 0, down_verts)
 
-  println("coords = \n", coords)
+  # get all vertex coordinates
+  coords_pumi = zeros(3, 4)
+  for i=1:4
+    getPoint(mesh.m_ptr, down_verts[i], 0, sview(coords_pumi, :, i))
+  end
 
-  coords_tmp = zeros(3)
+
+  println("all vertex coords (array) = \n", mesh.vert_coords[:, :, elnum])
+  println("all vertex coords (pumi) = \n", coords_pumi)
+
+  coords_tmp = zeros(3, 3)
   failflag = false
+  vertmap = mesh.topo.face_verts
+  println("topo_sbp.face_verts = \n", vertmap)
   for i=1:3  # 3 vertices per face
     v_i = down_verts[ vertmap[i, facenum] ]
-    getPoint(mesh.m_ptr, v_i, 0, coords_tmp)
-    println("vertex ", i, " has coords = \n", coords_tmp)
+    getPoint(mesh.m_ptr, v_i, 0, sview(coords_tmp, :, i))
+#    println("vertex ", vertmap[i, facenum], " has coords = \n", sview(coords_tmp, :, i))
     for j=1:3
-      if abs(coords_tmp[j] - coords[j, i]) < 1e-13
+      if abs(coords_tmp[j, i] - coords[j, i]) > 1e-13
+        #=
+        println("setting failflag")
+        println("i = ", i)
+        println("coords_tmp[:, i] = \n", coords_tmp[:, i])
+        println("coords[:, i] = \n", coords[:, i])
+        =#
         failflag = failflag || true
       end
     end
   end
-  @assert !failflag
 
+  println("array vertices ", face_vert_idx, " have coordinates = \n", coords)
+  println("pumi vertices ", vertmap[:, facenum], " have coordinates = \n", coords_tmp)
+#  @assert !failflag
+  =#
   if hasNodesIn(mesh.coordshape_ptr, 1)
-    println("getting 2nd order node")
-    offset = 3 + (facenum - 1)*3  # 3 vertices + 3 edges per face
+#    println("getting 2nd order node")
 
     for i=1:3  # 3 edges per face
+      edge_idx = topo.face_edges[i, facenum] + 4 # 4 = numVerts
       for j=1:3  # 3 coordinates per face
-        coords[j, 3 + i] = mesh.vert_coords[j, i + offset]
+        coords[j, 3 + i] = mesh.vert_coords[j, edge_idx]
       end
     end
 
@@ -1216,10 +1251,11 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh3DG, elnum::Integer,
                                 facenum::Integer, 
                                 coords_bar::AbstractMatrix)
 
-  vertmap = mesh.topo.face_verts
+#  vertmap = mesh.topo.face_verts
+  topo = mesh.topo
   
   # get the face vertices
-  face_vert_idx = sview(vertmap, :, facenum)
+  face_vert_idx = sview(topo.face_verts, :, facenum)
 
   for i=1:3  # 3 vertices per face
     for j=1:3  # 3 coordinates at each vertex
@@ -1231,8 +1267,9 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh3DG, elnum::Integer,
     offset = 3 + (facenum - 1)*3  # 3 vertices + 1 edge node per face
 
     for i=1:3  # 3 edges per face
+      edge_idx = topo.face_edges[i, facenum] + 4  # 4 = numVerts
       for j=1:3  # 3 coordinates per face
-        mesh.vert_coords_bar[j, i + offset] += coords_bar[j, 3 + i]  # 3 verts
+        mesh.vert_coords_bar[j, edge_idx] += coords_bar[j, 3 + i]  # 3 verts
       end
     end
 
