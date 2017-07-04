@@ -554,10 +554,10 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
   allocateCurvilinearCoordinateAndMetricArrays(mesh, sbp)
 
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
-  if mesh.dim == 2
-    calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, 
-                         mesh.coords, mesh.dxidx, mesh.jac)
-  else  # need to calculate Eone
+#  if mesh.dim == 2
+#    calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, 
+#                         mesh.coords, mesh.dxidx, mesh.jac)
+#  else  # need to calculate Eone
 
     # block format
     blocksize = 1000  # number of elements per block
@@ -590,7 +590,7 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
 
       getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eone_rem)
     end
-  end  # end if dim == 2
+#  end  # end if dim == 2
 
   return nothing
 end
