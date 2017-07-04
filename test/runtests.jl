@@ -497,7 +497,10 @@ facts("Testing PdePumiInterface3.jl") do
 
 end
 =#
+
+
 println("about to test pdepumiinterface")
+include("test_funcs.jl")  # include functions used by both 2d and 3D
 include("pdepumiinterface.jl")
 #println("TEMPORARY: not running 3D tests")
 include("pdepumiinterface3.jl")

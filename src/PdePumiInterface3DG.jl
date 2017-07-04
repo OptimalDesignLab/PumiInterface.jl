@@ -111,9 +111,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mshape_ptr::Ptr{Void} # pointer to the FieldShape of the node field
   coordshape_ptr::Ptr{Void}  # pointer to FieldShape of the coordinate 
                              # field
-
-  coords_bar_ptr::Ptr{Void}  # pointer to an apf::Field storing the adjoint part
-                             # of hte coordinate field
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution 
   fnew_ptr::Ptr{Void}  # pointer to apf::Field used for visualization
   mnew_ptr::Ptr{Void}  # pointer to mesh used for visualization
@@ -238,11 +235,11 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
                                            # the geometric face numbers of this
                                            # BC
 
-
   bndryfaces::Array{Boundary, 1}  # store data on external boundary of mesh
   interfaces::Array{Interface, 1}  # store data on internal edges
   vert_coords::Array{T1, 3}  # dim x numVertPerElement x numEl array of
                               # coordinates of the vertices of each element
+  vert_coords_bar::Array{T1, 3}  # adjoint part
   coords::Array{T1, 3}  # store coordinates of all nodes
   coords_bndry::Array{T1, 3}  # store coordinates of nodes on boundary,
                               # 3 x numFaceNodes x numBoundaryFaces
@@ -441,9 +438,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   if dim != mesh.dim
     throw(ErrorException("loaded mesh is not 3 dimensional"))
   end
-
-  # create adjoint part of coordinate field
-  mesh.coords_bar_ptr = createPackedField(mesh.m_ptr, "coords_bar", 3, mesh.coordshape_ptr)
 
   # create the solution field
   mesh.mshape_ptr = getFieldShape(field_shape_type, order, mesh.dim)

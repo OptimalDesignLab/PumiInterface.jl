@@ -275,7 +275,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   # test curvilinear is same as linear for linear mesh
   println("testing curvilinear")
-  degree = 4
+  degree = 2
   Tsbp = Float64
   sbp = TetSBP{Tsbp}(degree=degree, internal=true)
   ref_verts = sbp.vtx
@@ -304,7 +304,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   coords_bndry_orig = copy(mesh.coords_bndry)
   coords_interface_orig = copy(mesh.coords_interface)
   
-
+  # use curvilinear routines to do calculation
   PdePumiInterface.getMeshCoordinates(mesh, sbp)
   PdePumiInterface.getFaceCoordinatesAndNormals(mesh, sbp)
  # PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
@@ -371,7 +371,8 @@ facts("----- Testing PdePumiInterface3DG -----") do
   end
 
   
- 
+  # test reverse move
+  test_metric_rev(mesh, sbp)
 
 end
 

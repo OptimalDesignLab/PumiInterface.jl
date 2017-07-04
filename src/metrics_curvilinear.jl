@@ -12,7 +12,8 @@ function allocateMeshCoordinateArray{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::Abstract
   num_coord_nodes = mesh.coord_numNodesPerElement
 
   if !isFieldDefined(mesh, :vert_coords)
-    mesh.vert_coords = Array(Float64, mesh.dim, num_coord_nodes, mesh.numEl)
+    mesh.vert_coords = Array(Tmsh, mesh.dim, num_coord_nodes, mesh.numEl)
+    mesh.vert_coords_bar = Array(Tmsh, mesh.dim, num_coord_nodes, mesh.numEl)
   else
     fill!(mesh.vert_coords, 0.0)
   end
@@ -253,8 +254,7 @@ end
 
 """
   Reverse mode of calcFaceCoordinatesAndNormals_rev, back propigates
-  coords_face_bar and nrm_face_bar to mesh.coords_bar_ptr (which is
-  incremented, not overwritten).
+  coords_face_bar and nrm_face_bar to mesh.vertcoords_bar
 """
 function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}}(
                     mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP,
@@ -661,6 +661,7 @@ function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp,
 
   calcEone(mesh, sbp, element_range, Eone)
 
+  #=
   println("checking Eone")
   for el=1:size(Eone, 3)
     println("el = ", el)
@@ -669,9 +670,10 @@ function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp,
       println("  d = ", d)
       val = abs(sum(Eone[:, d, el]))
       println("  val = ", val)
-      @assert val < 1e-14
+      @assert val < 1e-6
     end
   end
+  =#
   calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
                        coords_block, dxidx_block, jac_block, Eone)
 
@@ -1117,19 +1119,17 @@ function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum::Integer,
 end
 
 """
-  This function stores the adjoint part of the vert_coords to a Pumi Field
+  This function is the reverse mode of getMeshFaceCoordinates
+  This function stores the adjoint part of the vert_coords to mesh.vert_coords
 
-  This stores to the adjoint part of the coordinate field, mesh.coords_bar_ptr.
   2nd order coordinate fields only.
 
-  This function *accumulates* into mesh.coords_bar_ptr.  Users should generally
-  call zeroField() on that pointer before using this function the first time.
+  This function *accumulates* into mesh.vertcoords_bar.
 
   Inputs
     mesh::PumiMesh2DG
     elnum: the element number
     facenum: the local face number
-    storage :FaceCoordinateStorage for some temporary arrays
     coords_bar:  the adjoint part of the coordinate field for the given face,
                  2 x coord_numNodesPerFace.
                  The data should be ordered vertices, then mid edge nodes.
