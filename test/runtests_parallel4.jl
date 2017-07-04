@@ -5,7 +5,7 @@ using ODLCommonTools
 using SummationByParts
 using PdePumiInterface
 include("defs.jl")
-
+include("common_functions.jl")
 
 facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   degree = 1
@@ -63,6 +63,9 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   end  # end loop over peers
 
 
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh_c = PumiMeshDG3{Complex128}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  compare_meshes(mesh, mesh_c)
 
 end
 

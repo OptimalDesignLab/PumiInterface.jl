@@ -273,6 +273,11 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   end  # end loop order
 
+  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh_c = PumiMeshDG3{Complex128}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+
+  compare_meshes(mesh, mesh_c)
+
   # test curvilinear is same as linear for linear mesh
   println("testing curvilinear")
   degree = 2

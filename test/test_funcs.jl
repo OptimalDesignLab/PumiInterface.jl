@@ -290,7 +290,7 @@ function test_metric2_rev(mesh, sbp)
       fill!(Eone, 0.0)
       PdePumiInterface.calcEone(mesh, sbp, element_range, Eone)
 
-      
+     #= 
       for block_el = 1:size(Eone_orig, 3)
         println("block_el = ", block_el, ", i = ", i)
         for d=1:mesh.dim
@@ -300,6 +300,7 @@ function test_metric2_rev(mesh, sbp)
           @assert val < 1e-14
         end
       end
+    =#
       
 
       for j=1:nout

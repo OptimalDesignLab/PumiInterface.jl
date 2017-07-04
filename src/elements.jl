@@ -182,7 +182,7 @@ function createDGSubMesh(mesh::PumiMeshDG)
   dofpernode = mesh.numDofPerNode
 
   mesh.triangulation = getTriangulation(order, shape_type)
-  mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, mesh.coords)
+  mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, real(mesh.coords))
 
   fnew_ptr = createPackedField(mnew_ptr, "solution_field", dofpernode)
   fnewshape_ptr = getMeshShapePtr(mnew_ptr)

@@ -87,10 +87,12 @@ function getMeshCoordinates{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
 
   allocateMeshCoordinateArray(mesh, sbp)
 
+  coords_tmp = zeros(Float64, mesh.dim, mesh.coord_numNodesPerElement)
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
     coords_i = sview(mesh.vert_coords, :, :, i)
-    getAllEntityCoords(mesh.m_ptr, el_i, coords_i)
+    getAllEntityCoords(mesh.m_ptr, el_i, coords_tmp)
+    copy!(coords_i, coords_tmp)
   end
 
   return nothing
@@ -189,7 +191,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
 
   # some temporary arrays
   down_faces = Array(Ptr{Void}, 12)
-  coords_lag_face = Array(Float64, mesh.dim, mesh.coord_numNodesPerFace, blocksize)
+  coords_lag_face = Array(Tmsh, mesh.dim, mesh.coord_numNodesPerFace, blocksize)
 
   # get the parametic coordinates of the face nodes
   face_xi = mesh.coord_facexi
@@ -455,8 +457,8 @@ end
     should_flip_node: an Bool array of length numNodesPerFace specifying whether
                       the normal vector at each node is pointing inward
 """
-function is_inward_normal(mesh, iface::Union{Boundary, Interface},
-                          nrm_face::AbstractMatrix,
+function is_inward_normal{Tmsh}(mesh, iface::Union{Boundary, Interface},
+                          nrm_face::AbstractMatrix{Tmsh},
                           should_flip_node::AbstractVector{Bool})
 
   tmp = zeros(3)  # temporary vector to hold coordinates
@@ -508,7 +510,7 @@ function is_inward_normal(mesh, iface::Union{Boundary, Interface},
   for j=1:mesh.numNodesPerFace
     outward_count = 0  # count number of calculations that showed outward
     for k=1:numVertPerFace
-      val = zero(Float64)
+      val = zero(Tmsh)
       for p=1:mesh.dim
         r1_p = other_vert_coords[p] - face_vert_coords[p, k]
         val += nrm_face[p, j]*r1_p  # accumulate dot product
@@ -517,7 +519,7 @@ function is_inward_normal(mesh, iface::Union{Boundary, Interface},
       if abs(val) > max_mag
         max_mag = abs(val)
         # flip if the value is greater than 0
-        should_flip = val > 0
+        should_flip = real(val) > 0
         #=
         if val < 0
           should_flip = false

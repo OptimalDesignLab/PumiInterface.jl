@@ -1,3 +1,4 @@
+# test 2D PdePumiInterface
 
 facts("--- Testing PdePumiInterface --- ") do
 
@@ -755,6 +756,11 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     end
   end
 
+  # just for good measure, create a new mesh
+  mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+  mesh_c =  PumiMeshDG2{Complex128}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+
+  compare_meshes(mesh, mesh_c)
 
   # test periodic
   println("testing periodic")
@@ -803,6 +809,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   # coordinates
   smb_name = "square_05_curve.smb"
   mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+
+  #TODO: check sizes of arrays
 
   function test_volume_curvilinear(mesh, sbp)
 
@@ -868,6 +876,10 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   end
       
 
+  mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+  mesh_c =  PumiMeshDG2{Complex128}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+
+  compare_meshes(mesh, mesh_c)
   println("finished")
 
 end
