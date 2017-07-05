@@ -349,6 +349,12 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
     sbpface = TriFace{Float64}(order, sbp.cub, vtx)
     println("sbpface.numnodes = ", sbpface.numnodes)
+
+    # make a complex mesh because it is needed later
+    # create it first so the underlying Pumi mesh gets destroyed and
+    # replaced by the Float64 version
+    mesh_c = PumiMeshDG2{Complex128}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+
     mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
    @fact mesh.m_ptr --> not(C_NULL)
@@ -473,6 +479,18 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact norm(mesh.vert_coords_bar[:, :, i]) --> greater_than(0.0)
   end
 
+  # make sure the data fields are the same
+  fill!(mesh_c.vert_coords, -1)
+  PdePumiInterface.copy_data!(mesh_c, mesh)
+  compare_meshes(mesh, mesh_c)
+
+  # test zero_bar_arrays
+  fill!(mesh.vert_coords_bar, 1.0)
+  zeroBarArrays(mesh)
+  @fact vecnorm(mesh.vert_coords_bar) --> 0.0
+
+
+  # test metrics reverse
   test_metric_rev(mesh, sbp)
 
    function test_interp{Tmsh}(mesh::AbstractMesh{Tmsh})

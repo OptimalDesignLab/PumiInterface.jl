@@ -17,7 +17,7 @@ include("options.jl")
 
 export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryFaceLocalNum, getFaceLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles, update_coords, commit_coords
 
-export getVertCoords_rev, interpolateMapping_rev
+export getVertCoords_rev, interpolateMapping_rev, zeroBarArrays
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 
@@ -147,6 +147,87 @@ type VertSharing
   rev_mapping::Dict{Int, Pair{Array{Cint, 1}, Array{Int, 1}}}
 
 end
+
+
+"""
+  This function copies the data fields of one mesh object to another
+  mesh object.  Pumi fields are not modified.  The two meshes should
+  generally represent the same Pumi mesh.  Any fields not present on both
+  meshes are skipped.
+
+  Data fields means: vert_coords, coords*, dxidx*, jac*, nrm*
+"""
+function copy_data!(dest::PumiMesh, src::PumiMesh)
+
+  # make sure these mesh objects have compatable numbers of things
+  @assert src.shape_type == dest.shape_type
+  @assert src.order == dest.order
+  @assert src.numEl == dest.numEl
+  @assert src.numDofPerNode == dest.numDofPerNode
+
+  src_fields = fieldnames(src)
+  dest_fields = fieldnames(dest)
+
+  fieldnames_serial = [:vert_coords, :coords_bndry, :coords_interface, :dxidx, 
+                :jac, :nrm_face, :nrm_bndry]
+  fieldnames_shared = [:coords_sharedface, :dxidx_sharedface, :jac_sharedface,
+                       :nrm_sharedface]
+
+  if src.coord_order == 1
+    push!(fieldnames_serial, :dxidx_face, :dxidx_bndry, :jac_face, :jac_bndry)
+    push!(fieldnames_shared, :dxidx_sharedface, :jac_sharedface)
+  end
+
+  for i in fieldnames_serial
+    if i in src_fields && i in dest_fields
+      f_src = getfield(src, i)
+      f_dest = getfield(dest, i)
+      copy!(f_dest, f_src)
+    end
+  end
+
+   for i in fieldnames_shared
+     if i in src_fields && i in dest_fields
+       f_src = getfield(src, i)
+       f_dest = getfield(dest, i)
+
+       for peer=1:src.npeers
+        copy!(f_dest[peer], f_src[peer])
+      end
+    end
+  end
+
+
+  return nothing
+end
+
+"""
+  Zero out all fields than end with _bar.  Useful for resetting everything
+  (including intermediate arrays) after doing a reverse mode evaluation.
+"""
+function zeroBarArrays(mesh::PumiMesh)
+
+  fnames = fieldnames(mesh)
+
+  for fname in fnames
+    fname_str = string(fname)
+    if endswith(fname_str, "_bar")
+      field = getfield(mesh, fname)
+
+      # treat parallel (Arrays-of-Arrays) separately
+      if contains(fname_str, "sharedface")
+        for i=1:mesh.npeers
+          fill!(field[i], 0.0)
+        end
+      else
+        fill!(field, 0.0)
+      end
+    end
+  end
+
+  return nothing
+end
+          
 
 
 
