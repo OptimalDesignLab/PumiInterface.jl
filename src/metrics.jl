@@ -91,6 +91,28 @@ function getAllCoordinatesAndMetrics(mesh, sbp)
   return nothing
 end
 
+"""
+  Reverse mode of getAllCoordinateAndMetrics.  Back propigates
+  mesh.nrm_*_bar, mesh.dxidx_bar, mesh.jac_bar to mesh.vert_coords_bar.
+
+  Users should generally call zeroBarArrays() before calling this function
+  a second time, to zero out all intermediate arrays.
+"""
+function getAllCoordinateAndMetrics_rev(mesh, sbp)
+
+  if mesh.coord_order == 1
+    interpolateMapping_rev(mesh)
+    getVertCoords_rev(mesh, sbp)
+  else
+    @assert mesh.coord_order == 2
+
+    getCurvilinearCoordinatesAndMetrics_rev(mesh, sbp)
+    getFaceCoordinateAndNormals_rev(mesh, sbp)  
+  end
+
+  return nothing
+end
+
 #------------------------------------------------------------------------------
 # functions common to linear and curvilinear
 """

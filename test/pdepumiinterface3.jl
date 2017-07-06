@@ -298,6 +298,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   opts["BC1"] = [0,1,2,3,4,5]
 
 #  interp_op = eye(4)
+  mesh_c = PumiMeshDG3{Complex128}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
   mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   
@@ -377,7 +378,8 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   
   # test reverse move
-  test_metric_rev(mesh, sbp)
+  PdePumiInterface.copy_data!(mesh_c, mesh)
+  test_metric_rev(mesh, mesh_c, sbp)
 
 end
 

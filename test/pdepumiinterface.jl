@@ -472,7 +472,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   # SBP testing the correctness, these tests only verify values get to the right place
 
   fill!(mesh.dxidx_bar, 1.0)
-  getVertCoords_rev(mesh, sbp)
+  PdePumiInterface.getVertCoords_rev(mesh, sbp)
 
 
   for i=1:mesh.numEl
@@ -491,7 +491,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
 
   # test metrics reverse
-  test_metric_rev(mesh, sbp)
+  test_metric_rev(mesh, mesh_c, sbp)
 
    function test_interp{Tmsh}(mesh::AbstractMesh{Tmsh})
      sbpface = mesh.sbpface

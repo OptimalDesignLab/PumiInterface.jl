@@ -249,7 +249,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
 
 
   # make sure the normal vectors point outwards
-  fixOutwardNormal(mesh, faces, nrm_face)
+#  fixOutwardNormal(mesh, faces, nrm_face)
 
   return nothing
 end
@@ -277,7 +277,7 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
 
   # some temporary arrays
   down_faces = Array(Ptr{Void}, 12)
-  coords_lag_face = Array(Float64, mesh.dim, mesh.coord_numNodesPerFace, blocksize)
+  coords_lag_face = Array(Tmsh, mesh.dim, mesh.coord_numNodesPerFace, blocksize)
   coords_lag_face_bar = zeros(coords_lag_face)
 
   # get the parametic coordinates of the face nodes
@@ -309,7 +309,6 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
 
     fill!(coords_lag_face, 0.0)
 
-    # write coords_lag_face_bar to Pumi field (to be retrieved later)
     for i=1:blocksize
       el_i = getElementL(faces_block[i])
       face_i = getFaceL(faces_block[i])
@@ -358,7 +357,7 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
   end
 
 
-  fixOutwardNormal_rev(mesh, faces, nrm_face, nrm_face_bar)
+#  fixOutwardNormal_rev(mesh, faces, nrm_face, nrm_face_bar)
 
   return nothing
 end
@@ -467,39 +466,48 @@ function is_inward_normal{Tmsh}(mesh, iface::Union{Boundary, Interface},
   numVertPerFace = numVertPerElement - 1
 
   # temporary arrays
-  el_verts = Array(Ptr{Void}, numVertPerElement)
-  other_vert_coords = zeros(mesh.dim)
-  face_verts = Array(Ptr{Void}, numVertPerElement - 1)
-  face_vert_coords = zeros(mesh.dim, numVertPerFace)
+#  el_verts = Array(Ptr{Void}, numVertPerElement)
+  other_vert_coords = zeros(Tmsh, mesh.dim)
+#  face_verts = Array(Ptr{Void}, numVertPerElement - 1)
+  face_vert_coords = zeros(Tmsh, mesh.dim, numVertPerFace)
 
   elnum = getElementL(iface)
   facenum_local = getFaceL(iface)
 
-  el_i = mesh.elements[elnum]
-  getDownward(mesh.m_ptr, el_i, 0, el_verts)
+#  el_i = mesh.elements[elnum]
+#  getDownward(mesh.m_ptr, el_i, 0, el_verts)
 
   for j=1:numVertPerFace
-    face_verts[j] = el_verts[topo.face_verts[j, facenum_local]]
-    getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
+    v_j = topo.face_verts[j, facenum_local]
+#    face_verts[j] = el_verts[topo.face_verts[j, facenum_local]]
+#    getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
 
     for p=1:mesh.dim
-      face_vert_coords[p, j] = tmp[p]
+      face_vert_coords[p, j] = mesh.vert_coords[p, v_j, elnum]
+#      face_vert_coords[p, j] = tmp[p]
     end
   end
 
   # get the vert not on the face
-  other_vert = Ptr{Void}(0)
+  other_vert = 0
   for j=1:numVertPerElement
-    if !(el_verts[j] in face_verts)
-      other_vert = el_verts[j]
-    end
+#    if !(el_verts[j] in face_verts)
+#      other_vert = el_verts[j]
+#    end
+     if !(j in sview(topo.face_verts, :, facenum_local))
+       other_vert = j
+     end
   end
 
+  for p=1:mesh.dim
+    other_vert_coords[p] = mesh.vert_coords[p, other_vert, elnum]
+  end
+  #=
   getPoint(mesh.m_ptr, other_vert, 0, tmp)
   for p=1:mesh.dim
     other_vert_coords[p] = tmp[p]
   end
-
+  =#
   # check that the face normal is in the opposite direction as the
   # vectors from a vertex on the face to the vertex not on the face
 
@@ -620,7 +628,8 @@ function getCurvilinearCoordinatesAndMetrics_rev{Tmsh}(mesh::PumiMeshDG{Tmsh},
     start_idx = (block - 1)*blocksize + 1
     end_idx = block*blocksize
     element_range = start_idx:end_idx
-    
+
+    fill!(Eone_bar, 0.0)
     getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp, element_range,
                                                   Eone_bar)
   end
@@ -638,6 +647,7 @@ function getCurvilinearCoordinatesAndMetrics_rev{Tmsh}(mesh::PumiMeshDG{Tmsh},
     # less than before)
     Eone_bar_rem = sview(Eone_bar, :, :, 1:nrem)
 
+    fill!(Eone_bar_rem, 0.0)
     getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp, element_range,
                                                   Eone_bar_rem)
   end
@@ -734,7 +744,7 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
   # also R1 = 1 by definition
   Rone = vec(sum(mesh.sbpface.interp.', 2))
   sbpface = mesh.sbpface
-  tmp = zeros(Rone)
+  tmp = zeros(Tmsh, length(Rone))
   nrmL = zeros(Tmsh, mesh.dim, sbpface.numnodes)
 
   # accumulate E1 for a given element
@@ -864,6 +874,7 @@ function calcEone_rev{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
       orient = iface_i.orient
 
       fill!(Eone_el_bar, 0.0)
+      fill!(nrmL_bar, 0.0)
       assembleEone_rev(sbpface, elnum - offset, facenum_local, Eone_el_bar,
                        Eone_bar)
       calcEoneElement_rev(sbpface, nrmL_bar, Rone, tmp, Eone_el_bar)
@@ -1261,7 +1272,7 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh3DG, elnum::Integer,
 
   for i=1:3  # 3 vertices per face
     for j=1:3  # 3 coordinates at each vertex
-      mesh.vert_coords_bar[j, face_vert_idx[i]] += coords_bar[j, i]
+      mesh.vert_coords_bar[j, face_vert_idx[i], elnum] += coords_bar[j, i]
     end
   end
 
@@ -1271,7 +1282,7 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh3DG, elnum::Integer,
     for i=1:3  # 3 edges per face
       edge_idx = topo.face_edges[i, facenum] + 4  # 4 = numVerts
       for j=1:3  # 3 coordinates per face
-        mesh.vert_coords_bar[j, edge_idx] += coords_bar[j, 3 + i]  # 3 verts
+        mesh.vert_coords_bar[j, edge_idx, elnum] += coords_bar[j, 3 + i]  # 3 verts
       end
     end
 

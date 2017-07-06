@@ -19,9 +19,6 @@ global const apfPYRAMID=7
 global const simplexTypes = [apfVERTEX, apfEDGE, apfTRIANGLE, apfTET]
 
 _tmp1, _tmp2, _tmp3 = getTopologyMaps()
-println("finished getTopologyMaps")
-println("size(_tmp1) = ",  size(_tmp1))
-println("size(_tmp2) = ", size(_tmp2))
 global const tri_edge_verts = _tmp1 + 1
 global const tet_edge_verts = _tmp2 + 1
 global const tet_tri_verts = _tmp3 + 1
