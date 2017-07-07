@@ -26,7 +26,10 @@ if install_mpi
   arg_str = "mpich3"
   run(`$cmd_string $arg_str`)
   Pkg.clone("MPI")
-  Pkg.checkout("MPI", "v0.5.0")
+  start_dir2 = pwd()
+  cd(Pkg.dir("MPI"))
+  run(`git checkout v0.5.0`)
+  cd(start_dir2)
   Pkg.build("MPI")
 end
 
