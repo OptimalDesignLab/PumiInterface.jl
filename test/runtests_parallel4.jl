@@ -68,7 +68,8 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
   compare_meshes(mesh, mesh_c)
 
-  test_metric_rev(mesh, mesh_c, sbp)
+  # this allocates a ton of memory - don't run
+#  test_metric_rev(mesh, mesh_c, sbp)
 end
 
 MPI.Barrier(MPI.COMM_WORLD)

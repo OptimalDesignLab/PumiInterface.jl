@@ -267,6 +267,7 @@ end
 function test_metric2_rev(mesh, mesh_c, sbp)
 
   facts("----- Testing second part of Metric reverse mode -----") do
+
     # test calcEone_rev
     # use finite differences because the perturbation is applied to the fields
     # of the mesh
@@ -287,7 +288,6 @@ function test_metric2_rev(mesh, mesh_c, sbp)
     jac = zeros(nin, nout)
     jac2 = zeros(jac)
     element_range = 1:mesh.numEl
-
  #   PdePumiInterface.calcEone(mesh, sbp, element_range, Eone_orig)
 
 
@@ -318,7 +318,6 @@ function test_metric2_rev(mesh, mesh_c, sbp)
       mesh_c.nrm_bndry[i] -= pert
     end
 
-    
     for peer=1:mesh_c.npeers
       nrm_peer = mesh_c.nrm_sharedface[peer]
       for i=1:length(nrm_peer)
