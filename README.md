@@ -191,7 +191,7 @@ decomposed into a local coloring problem on each part.  This requires adjacency
 information for the remote elements, which is calculated during initialization.
 
 ## Curvilinear grids
-There is early support for curvilinear grids, currently 2D only.  For
+  For
 curvilinear grids, dxidx and jac are not calculated at the face nodes (ie.
 `dxidx_face`, `dxidx_bndry`, `dxidx_sharedface`, `jac_face`, `jac_bndry`, `jac_shareface`
 are arrays of size zero).  Instead, users should use the normal vectors
@@ -245,7 +245,6 @@ visualization of the exact nodal values.  The nodal values are interpolated
 to the vertices.
 
 # Version History
-# Release History
 v0.1: the old code, before Pumi switched to the CMake build system.  This version is no longer supported
 v0.2: after the build system switch to CMake
 v0.3: curvilinear elements (compatable with SBP versions broken_ticon and fixed_ticon)

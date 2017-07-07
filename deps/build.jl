@@ -26,6 +26,7 @@ if install_mpi
   arg_str = "mpich3"
   run(`$cmd_string $arg_str`)
   Pkg.clone("MPI")
+  Pkg.checkout("MPI", branch="v0.5.0")
   Pkg.build("MPI")
 end
 
