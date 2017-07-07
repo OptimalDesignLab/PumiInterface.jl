@@ -22,6 +22,7 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   smb_name = "pcube10.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["use_linear_metrics"] = true
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 

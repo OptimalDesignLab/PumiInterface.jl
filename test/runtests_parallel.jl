@@ -105,6 +105,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     "write_interfaces" => false,
     "write_boundaries" => false,
     "write_sharedboundaries" => false,
+    "use_linear_metrics" => true,
     )
 
   sbp = TriSBP{Float64}(degree=order, internal=true)
@@ -336,6 +337,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   smb_name = "pcube2.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["use_linear_metrics"] = true
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
@@ -439,6 +441,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   smb_name = "tet2_pxz_p2_.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["use_linear_metrics"] = true
   opts["numBC"] = 1
   opts["BC1"] = [0,2,4,5]
 

@@ -66,7 +66,7 @@ end
   verifier on the updated mesh.  It can be expensive, so it is recommended
   to only run it on small meshes.
 """
-function commit_coords(mesh::PumiMesh, sbp; verify=true)
+function commit_coords(mesh::PumiMesh, sbp, opts; verify=true)
 # users must call this function when they have finished updating the coordinates
 # the verify kwarg determines if the Pumi verifier on the new mesh
 # that should check for negative volumes
@@ -76,6 +76,6 @@ function commit_coords(mesh::PumiMesh, sbp; verify=true)
     Verify(mesh.m_ptr)
   end
 
-  getAllCoordinatesAndMetrics(mesh, sbp)
+  getAllCoordinatesAndMetrics(mesh, sbp, opts)
 
 end

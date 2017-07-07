@@ -21,6 +21,7 @@ facts("--- Testing PdePumiInterface --- ") do
     "write_interfaces" => false,
     "write_boundaries" => false,
     "write_sharedboundaries" => false,
+    "use_linear_metrics" => true,
     )
 
     # names of output files
@@ -277,6 +278,7 @@ facts("--- Testing PdePumiInterface --- ") do
     "write_interfaces" => false,
     "write_boundaries" => false,
     "write_sharedboundaries" => false,
+    "use_linear_metrics" => true,
     )
 
 
@@ -337,6 +339,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     "write_boundaries" => false,
     "write_sharedboundaries" => false,
     "exact_visualization" => true,
+    "use_linear_metrics" => true,
     )
     order = 1
     smb_name = "tri2l.smb"
@@ -695,7 +698,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     update_coords(mesh, i, coords_i)
   end
 
-  commit_coords(mesh, sbp)
+  commit_coords(mesh, sbp, opts)
 
 #  PdePumiInterface.getCoordinatesAndMetrics(mesh, sbp)
   for i = 1:length(mesh.vert_coords)
@@ -826,6 +829,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   # a 0 - 5 square that used a sin wave to remap the nondimensionalized
   # coordinates
   smb_name = "square_05_curve.smb"
+  opts["use_linear_metrics"] = false
   mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
   #TODO: check sizes of arrays
@@ -863,7 +867,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     update_coords(mesh, i, coords_i)
   end
 
-  commit_coords(mesh, sbp)
+  commit_coords(mesh, sbp, opts)
 
   for i=1:mesh.numEl
     for j=1:mesh.numNodesPerElement

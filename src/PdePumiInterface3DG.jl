@@ -697,7 +697,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   getInterfaceArray(mesh)
 #  sort!(mesh.interfaces)
 
-  getAllCoordinatesAndMetrics(mesh, sbp)
+  getAllCoordinatesAndMetrics(mesh, sbp, opts)
 
 #  if mesh.dim == 2
 #    @time createSubtriangulatedMesh(mesh)

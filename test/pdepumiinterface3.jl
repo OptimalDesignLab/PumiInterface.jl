@@ -21,6 +21,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   smb_name = "unitcube.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["use_linear_metrics"] = true
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
@@ -185,7 +186,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
     update_coords(mesh, i, coords_i)
   end
 
-  commit_coords(mesh, sbp)
+  commit_coords(mesh, sbp, opts)
 
 #  PdePumiInterface.getCoordinatesAndMetrics(mesh, sbp)
   for i = 1:length(mesh.vert_coords)
@@ -294,6 +295,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   smb_name = "unitcube.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["use_linear_metrics"] = true
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
@@ -377,7 +379,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   end
 
   
-  # test reverse move
+  # test reverse mode
   PdePumiInterface.copy_data!(mesh_c, mesh)
   test_metric_rev(mesh, mesh_c, sbp)
 

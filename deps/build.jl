@@ -49,7 +49,7 @@ if !haskey(pkg_dict, "SummationByParts")
   Pkg.clone("https://github.com/OptimalDesignLab/SummationByParts.jl.git")
   Pkg.checkout("SummationByParts", "jcwork")
   Pkg.build("SummationByParts")
-  # SBP installs ODLCOmmonTools
+  # SBP installs ODLCommonTools
 end
 
 # now that all dependencies exist, install this package

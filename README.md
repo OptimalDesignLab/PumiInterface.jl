@@ -249,5 +249,12 @@ v0.1: the old code, before Pumi switched to the CMake build system.  This versio
 v0.2: after the build system switch to CMake
 v0.3: curvilinear elements (compatable with SBP versions broken_ticon and fixed_ticon)
 v0.4: 2D linear mesh reverse mode of metrics
- 
+v0.5: (WIP): 3D curvilinear metrics and their reverse mode
+             Breaking changes:
+               Curvilinear metrics are now the default.  interpolateMapping_rev
+               and getVertCoords_rev are no longer exported and are hidden
+               inside getAllCoordinateAndMetrics_rev.  An options dictionary
+               entry can force the use of the linear metrics.
+               commit_coords() now requires the options dictionary as an
+               argument. 
 [![Build Status](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl.svg?branch=build_system)](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl)

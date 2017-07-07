@@ -63,9 +63,10 @@ include("metrics_curvilinear.jl")
 
 
 """
-function getAllCoordinatesAndMetrics(mesh, sbp)
+function getAllCoordinatesAndMetrics(mesh, sbp, opts)
 
-  if mesh.coord_order == 1
+  if opts["use_linear_metrics"]
+    @assert mesh.coord_order == 1
     getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
     getMetrics(mesh, sbp)
 
@@ -76,7 +77,7 @@ function getAllCoordinatesAndMetrics(mesh, sbp)
     getFaceNormals(mesh, sbp)
   else  # curvilinear
     # 3rd order and above are not supported yet
-    @assert mesh.coord_order == 2
+    @assert mesh.coord_order <= 2
 
     getMeshCoordinates(mesh, sbp)
     getFaceCoordinatesAndNormals(mesh, sbp)
@@ -101,13 +102,14 @@ end
   This function also recalculates the face normal vectors and coordinates,
   overwriting the relevent arrays in the mesh object.
 """
-function getAllCoordinatesAndMetrics_rev(mesh, sbp)
+function getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
 
-  if mesh.coord_order == 1
+  if opts["use_linear_metrics"]
+    @assert mesh.coord_order == 1
     interpolateMapping_rev(mesh)
     getVertCoords_rev(mesh, sbp)
   else
-    @assert mesh.coord_order == 2
+    @assert mesh.coord_order <= 2
 
     getCurvilinearCoordinatesAndMetrics_rev(mesh, sbp)
     getFaceCoordinateAndNormals_rev(mesh, sbp)  
