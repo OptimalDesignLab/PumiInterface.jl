@@ -97,8 +97,11 @@ end
 
   Users should generally call zeroBarArrays() before calling this function
   a second time, to zero out all intermediate arrays.
+
+  This function also recalculates the face normal vectors and coordinates,
+  overwriting the relevent arrays in the mesh object.
 """
-function getAllCoordinateAndMetrics_rev(mesh, sbp)
+function getAllCoordinatesAndMetrics_rev(mesh, sbp)
 
   if mesh.coord_order == 1
     interpolateMapping_rev(mesh)

@@ -135,7 +135,8 @@ function getFaceCoordinatesAndNormals_rev{Tmsh}(mesh::PumiMeshDG{Tmsh},
   if length(mesh.bndryfaces) > 0  # debugging: don't call if unneeded
     #TODO: don't allocate this every time
     coords_bndry_bar = zeros(mesh.dim, mesh.numNodesPerFace, mesh.numBoundaryFaces)
-    calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.bndryfaces, 
+    calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.bndryfaces,
+                                      mesh.coords_bndry,
                                       coords_bndry_bar,
                                       mesh.nrm_bndry,
                                       mesh.nrm_bndry_bar)
@@ -144,12 +145,13 @@ function getFaceCoordinatesAndNormals_rev{Tmsh}(mesh::PumiMeshDG{Tmsh},
 
   coords_face_bar = zeros(mesh.dim, mesh.numNodesPerFace, mesh.numInterfaces)
   calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.interfaces, 
-                                coords_face_bar, mesh.nrm_face,
-                                mesh.nrm_face_bar)
+                                mesh.coords_interface, coords_face_bar,
+                                mesh.nrm_face, mesh.nrm_face_bar)
   for i=1:mesh.npeers
-    coords_sharedface_bar = zeros(mesh.dim, mesh.numNodesPerFace, length(mesh.bndries_local[i]))
-    calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.bndries_local[i], 
-                                  coords_sharedface_bar[i], 
+    coords_sharedface_bar = zeros(Tmsh, mesh.dim, mesh.numNodesPerFace, length(mesh.bndries_local[i]))
+    calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.bndries_local[i],
+                                  mesh.coords_sharedface[i],
+                                  coords_sharedface_bar, 
                                   mesh.nrm_sharedface[i],
                                   mesh.nrm_sharedface_bar[i])
   end
@@ -220,6 +222,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
                      coords_face_block, nrm_face_block)
     fill!(coords_lag_face, 0.0)
 
+    fixOutwardNormal(mesh, sview(faces, start_idx:end_idx), nrm_face_block)
   end  # end loop over full blocks
 
   # do remainder loop
@@ -249,18 +252,22 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
 
 
   # make sure the normal vectors point outwards
-#  fixOutwardNormal(mesh, faces, nrm_face)
+  fixOutwardNormal(mesh, sview(faces, start_idx:end_idx), nrm_face_block)
 
   return nothing
 end
 
 """
   Reverse mode of calcFaceCoordinatesAndNormals_rev, back propigates
-  coords_face_bar and nrm_face_bar to mesh.vertcoords_bar
+  coords_face_bar and nrm_face_bar to mesh.vertcoords_bar.
+
+  This function also recalculates coords_face and nrm_face in the course
+  of doing the reverse mode.
 """
 function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}}(
                     mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP,
-                    faces::AbstractArray{I, 1}, 
+                    faces::AbstractArray{I, 1},
+                    coords_face::AbstractArray{Tmsh, 3},
                     coords_face_bar::AbstractArray{Tmsh, 3},
                     nrm_face::AbstractArray{Tmsh, 3},
                     nrm_face_bar::AbstractArray{Tmsh, 3})
@@ -288,7 +295,9 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
     start_idx = (block - 1)*blocksize + 1
     end_idx = block*blocksize
     faces_block = sview(faces, start_idx:end_idx)
+    coords_face_block = sview(coords_face, :, :, start_idx:end_idx)
     coords_face_bar_block = sview(coords_face_bar, :, :, start_idx:end_idx)
+    nrm_face_block = sview(nrm_face, :, :, start_idx:end_idx)
     nrm_face_bar_block = sview(nrm_face_bar, :, :, start_idx:end_idx)
 
     # load up data for current block
@@ -301,12 +310,24 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
       getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
     end
 
-    # populate output array for current block
+
+    # forward sweep
+    # need the *original* face normals for fix_outward_normal, so recalculate
+    # them here
+    calcFaceNormals!(mesh.sbpface, mesh.coord_order, ref_verts, coords_lag_face,
+                     coords_face_block, nrm_face_block)
+
+    # reverse sweep
+    fixOutwardNormal_rev(mesh, sview(faces, start_idx:end_idx), nrm_face_block,
+                         nrm_face_bar_block)
+
     fill!(coords_lag_face_bar, 0.0)
+
     calcFaceNormals_rev!(mesh.sbpface, mesh.coord_order, ref_verts,
                          coords_lag_face, coords_lag_face_bar,
                          coords_face_bar_block, nrm_face_bar_block)
 
+    #TODO: unecessary?
     fill!(coords_lag_face, 0.0)
 
     for i=1:blocksize
@@ -327,7 +348,9 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
   @assert end_idx - start_idx + 1 == nrem
 
   faces_block = sview(faces, start_idx:end_idx)
+  coords_face_block = sview(coords_face, :, :, start_idx:end_idx)
   coords_face_bar_block = sview(coords_face_bar, :, :, start_idx:end_idx)
+  nrm_face_block = sview(nrm_face, :, :, start_idx:end_idx)
   nrm_face_bar_block = sview(nrm_face_bar, :, :, start_idx:end_idx)
   coords_lag_face_block = sview(coords_lag_face, :, :, 1:nrem)
   coords_lag_face_bar_block = sview(coords_lag_face_bar, :, :, 1:nrem)
@@ -341,12 +364,20 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
     getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
   end
 
+  # forward sweep
+  # we need to use the *original* face normals, not the already reversed
+  # ones for fixOutwardNormal_rev
+  calcFaceNormals!(mesh.sbpface, mesh.coord_order, ref_verts, 
+                   coords_lag_face_block, coords_face_block, nrm_face_block)
+
+  # reverse sweep
+  fixOutwardNormal_rev(mesh, sview(faces, start_idx:end_idx), nrm_face_block,
+                    nrm_face_bar_block)
+
   calcFaceNormals_rev!(mesh.sbpface, mesh.coord_order, ref_verts, 
                    coords_lag_face_block, coords_lag_face_bar_block,
                    coords_face_bar_block, nrm_face_bar_block)
 
-
-  # write coords_lag_face_bar to Pumi field (to be retrieved later)
   for i=1:nrem
     el_i = getElementL(faces_block[i])
     face_i = getFaceL(faces_block[i])
@@ -355,9 +386,6 @@ function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}
     coords_bar_i = sview(coords_lag_face_bar_block, :, :, i)
     getMeshFaceCoordinates_rev(mesh, el_i, face_i, coords_bar_i)
   end
-
-
-#  fixOutwardNormal_rev(mesh, faces, nrm_face, nrm_face_bar)
 
   return nothing
 end
@@ -401,14 +429,16 @@ function fixOutwardNormal{I <: Union{Boundary, Interface}, Tmsh}(mesh,
 end
 
 """
-  Reverse mode of fixOutwardNormal.
+  Reverse mode of fixOutwardNormal, reverses the primal normal vectors.
+  On entry nrm_face should have the normal vectors as calculated by
+  SBP.  On exit, they will point outwards.
 
   Inputs:
     mesh
     faces
-    nrm_face
 
   Inputs/Outputs:
+    nrm_face
     nrm_face_bar: adjoint part of nrm_face
 """
 function fixOutwardNormal_rev{Tmsh, I <: Union{Boundary, Interface}}(mesh,
@@ -424,7 +454,8 @@ function fixOutwardNormal_rev{Tmsh, I <: Union{Boundary, Interface}}(mesh,
     for j=1:mesh.numNodesPerFace
       if should_flip_node[j]
         for p=1:mesh.dim
-          nrm_face_bar[p, j, i] = nrm_face_bar[p, j, i]
+          nrm_face_bar[p, j, i] = -nrm_face_bar[p, j, i]
+          nrm_face[p, j, i] = -nrm_face[p, j, i]
         end
       end
     end  # end j
@@ -906,21 +937,25 @@ function calcEone_rev{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
   end  # end loop over boundary faces
 
   # check shared faces
+#  println("checking shared faces")
   for peer=1:mesh.npeers
     bndryfaces_peer = mesh.bndries_local[peer]
     nrm_peer_bar = mesh.nrm_sharedface_bar[peer]
     for i=1:mesh.peer_face_counts[peer]
+#      println("i = ", i)
       bface_i = bndryfaces_peer[i]
 
       if bface_i.element >= first_el && bface_i.element <= last_el
         elnum = bface_i.element
         facenum_local = bface_i.face
         nrm_bar = sview(nrm_peer_bar, :, :, i)
+#        println("before, nrm_bar = \n", nrm_bar)
 
         fill!(Eone_el_bar, 0.0)
         assembleEone_rev(sbpface, elnum - offset, facenum_local, Eone_el_bar,
-                     Eone_bar)
+                         Eone_bar)
         calcEoneElement_rev(sbpface, nrm_bar, Rone, tmp, Eone_el_bar)
+#        println("after, nrm_bar = \n", nrm_bar)
       end
     end
   end
