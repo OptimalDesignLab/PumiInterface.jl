@@ -21,10 +21,15 @@ install_mpi = try run(`which mpicxx`)
 	end
 println("install_mpi = ", install_mpi)
 
+# install MPI itself
 if install_mpi
   cmd_string = "./travis-install-mpi.sh"
   arg_str = "mpich3"
   run(`$cmd_string $arg_str`)
+end
+
+# install MPI.jl if needed
+if Pkg.installed("MPI") == nothing
   Pkg.clone("MPI")
   start_dir2 = pwd()
   cd(Pkg.dir("MPI"))
