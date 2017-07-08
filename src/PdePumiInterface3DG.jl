@@ -384,6 +384,8 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh.topo_pumi = ElementTopology{3}(PumiInterface.tet_tri_verts.',
                                       PumiInterface.tet_edge_verts.', topo2=topo2)
 
+  println("topo_sbp.face_verts = \n", mesh.topo.face_verts)
+  println("topo_pumi.face_verts = \n", mesh.topo_pumi.face_verts)
   if !MPI.Initialized()
     MPI.Init()
   end
@@ -703,6 +705,8 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 #    @time createSubtriangulatedMesh(mesh)
 #    println("finished creating sub mesh\n")
 #  end
+
+  checkFinalMesh(mesh)
 
   println("printin main mesh statistics")
 

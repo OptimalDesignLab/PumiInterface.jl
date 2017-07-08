@@ -1,8 +1,30 @@
 # functiosn related to data about faces (edges in 2D)
 
+"""
+  This function gets the information about boundary and interior faces
+  and stores it to the mesh object.  In particular, the following fields of
+  the mesh are populated by this function:
+
+"""
+function getFaceData(mesh, opts)
+
+
+"""
+  This function populates the mesh.bndryfaces field.
+
+  Inputs:
+    mesh: a mesh object
+    boundary_nums: the 2 x mesh.numBoundaryFaces array containing the
+                   [element number, global face number] for each
+                   boundary faces
+
+  Notes:
+    the local face number is found using the *Pumi* topology.  It really should
+    use the SBP topology, but they are the same for this purpose, so it
+    hasn't caused a problem (yet)
+"""
 function getBoundaryArray(mesh::PumiMesh, boundary_nums::AbstractArray{Int, 2})
 # get an array of type Boundary for SBP
-# creating an an array of a user defined type seems like a waste of memory operations
 # bnd_array is a vector of type Boundary with length equal to the number of edges on the boundary of the mesh
 
 #  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
@@ -213,8 +235,26 @@ function getInterfaceArray(mesh::PumiMesh2D)
 
 end  # end function
 
+"""
+  This function populates the mesh.interfaces array
 
+  Inputs/Outputs:
+    mesh: a 3D DG mesh object.  The mesh.interfaces field should already have 
+          been allocated to be of length mesh.numInterfaces.  This function
+          populates it with one Interface object for each face shared by
+          two elements, including periodic faces.  The face numbers are the
+          local face numbers, and the orientation is determined using the
+          SBP topology.
+
+    Notes:
+      The local face numbers use the Pumi topology.  This face numbering
+      (but not orientation) is consistent between Pumi and the SummationByParts
+      package, but this could be a problem if that ever changes.
+      
+"""
 function getInterfaceArray(mesh::PumiMesh3D)
+# Interface.orient is calculated using the *SBP* topology of the faces
+
   adj_elements = Array(Ptr{Void}, 2)
   coords1 = zeros(3, 4)
   coords2 = zeros(3, 4)

@@ -1,5 +1,32 @@
 # file for functions related to the geometry model underlying the mesh
 
+"""
+  This function gets an array describing the mesh edges (faces in 3D) on a set of geometric edges
+  (faces in 3D).
+
+  Inputs:
+    mesh: a mesh object (2d or 3d)
+    medges: an array of geometric mesh edges to get the mesh edges on
+    offset: the current index in boundary_nums (TODO: rename this: its an index not an offset)
+            This value should be 1 the first time this function is called
+
+  Inputs/Outputs:
+    boundary_nums: a two dimensional array, 2 x mesh.numBoundaryFaces will be updated with
+                   [element number, global face number] for each mesh edge classified on 
+                    medges
+
+  Outputs:
+    new_offset: the offset that should be passed in the next time this function is called
+    print_warning: a Bool indicated whether an edge classified on medges is periodic.
+                   This function is typically used to get the mesh edges to apply boundary
+                   conditions to.  Applying boundary conditions to periodic faces is not allowed.
+
+  The setup with the offset and boundary_nums allows this function to be called repeatedly
+  with different values in medges to get the mesh edges with different boundary
+  conditions applied to them.
+  TOOD: use sview to remove this machinery
+
+"""
 function getMeshEdgesFromModel{T}(mesh::PumiMesh, medges::AbstractArray{Int, 1}, offset::Integer, boundary_nums::AbstractArray{T, 2})
 # get the global numbers of the mesh edges lying on the model edges in medges
 # medges typically coresponds to all the model edges that have a particular
@@ -48,6 +75,23 @@ function getMeshEdgesFromModel{T}(mesh::PumiMesh, medges::AbstractArray{Int, 1},
 
 end  # end function
 
+"""
+  This function counts the number of mesh edges (faces in 3D) in several catagories
+
+  Inputs:
+    mesh: the Mesh object (2D or 3D)
+    bndry_edges_all: an array of geometric edges
+
+  Outputs:
+    bnd_edges_cnt:  The total number of mesh edges classified on the given geometric edges.
+                    A set of matched edges (ie. periodic edges) are counted only once (ie.
+                    treated as a single edge).
+    internal_edge_cnt:  The number of edges than are shared by two element, either because
+                        the edges are internal or they are periodic.  As with bnd_edges_cnt,
+                        a set of matched edges is counted only once.
+    periodic_edge_cnt: The number of periodic edges.  As with bnd_edges_cnt, each pair of
+                       matched edges is counted only once.
+"""
 function countBoundaryEdges(mesh::PumiMeshDG, bndry_edges_all)
   # count boundary edges by checking if their model edge has a BC
   # count number of external edges by checking the number of upward adjacencies
@@ -101,6 +145,8 @@ function countBoundaryEdges(mesh::PumiMeshDG, bndry_edges_all)
 #	facenum = getFaceNumber2(faces[1]) + 1
 
 	bnd_edges_cnt += 1
+
+        # bnd_edges array is unused?
 	bnd_edges[bnd_edges_cnt, 1] = elnum
 	bnd_edges[bnd_edges_cnt, 2] = i
       end

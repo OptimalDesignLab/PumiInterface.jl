@@ -716,6 +716,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   createSubtriangulatedMesh(mesh, opts)
 
+
   println("printin main mesh statistics")
 
 #=
@@ -842,6 +843,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   writeVisFiles(mesh, "mesh_complete")
 
+  checkFinalMesh(mesh)
 
   myrank = mesh.myrank
   f = open("load_balance_$myrank.dat", "a+")
@@ -853,6 +855,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   println(f, sum(mesh.peer_face_counts))
   close(f)
 
+  #TODO: remove this
   f = open("nrm_face.dat", "w")
   for i=1:mesh.numInterfaces
     coords = mesh.coords_interface

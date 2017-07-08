@@ -683,6 +683,8 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   # create subtriangulated mesh
   createSubtriangulatedMesh(mesh, opts)
 
+  checkFinalMesh(mesh)
+
   println("printin main mesh statistics")
 
 #=
