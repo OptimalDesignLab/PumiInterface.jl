@@ -568,6 +568,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh.element_vertnums = getElementVertMap(mesh)
 #  println("finished getting entity pointers")
 
+#=
 #  println("about to get boundary edge list")
   mesh.numBC = opts["numBC"]
 
@@ -614,6 +615,19 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 
   mesh.bndry_offsets[mesh.numBC + 1] = offset # = num boundary edges
 #  println("finished getting boundary offsets")
+
+  # get boundary information for entire mesh
+#  println("getting boundary info")
+  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
+  getBoundaryArray(mesh, boundary_nums)
+
+  # need to count the number of internal interfaces - do this during boundary edge counting
+#  println("getting interface info")
+  mesh.interfaces = Array(Interface, mesh.numInterfaces)
+  getInterfaceArray(mesh)
+#  sort!(mesh.interfaces)
+=#
+  getAllFaceData(mesh, opts)
 
   # get array of all boundary mesh edges in the same order as in mesh.bndry_faces
 #  boundary_nums = flattenArray(mesh.bndry_faces[i])
@@ -688,17 +702,6 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
     mesh.pertNeighborEls_edge = getPertEdgeNeighbors(mesh)
   end
 
-  # get boundary information for entire mesh
-#  println("getting boundary info")
-  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
-  getBoundaryArray(mesh, boundary_nums)
-
-  # need to count the number of internal interfaces - do this during boundary edge counting
-#  println("getting interface info")
-  mesh.interfaces = Array(Interface, mesh.numInterfaces)
-  getInterfaceArray(mesh)
-#  sort!(mesh.interfaces)
-
   getAllCoordinatesAndMetrics(mesh, sbp, opts)
 
 #  if mesh.dim == 2
@@ -706,7 +709,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 #    println("finished creating sub mesh\n")
 #  end
 
-  checkFinalMesh(mesh)
+#  checkFinalMesh(mesh)
 
   println("printin main mesh statistics")
 

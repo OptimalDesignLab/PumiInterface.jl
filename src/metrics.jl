@@ -65,7 +65,8 @@ include("metrics_curvilinear.jl")
 """
 function getAllCoordinatesAndMetrics(mesh, sbp, opts)
 
-  if opts["use_linear_metrics"]
+#  if opts["use_linear_metrics"]
+   if mesh.coord_order == 1
     @assert mesh.coord_order == 1
     getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
     getMetrics(mesh, sbp)
@@ -104,7 +105,9 @@ end
 """
 function getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
 
-  if opts["use_linear_metrics"]
+  #TODO: undo this
+#  if opts["use_linear_metrics"]
+   if mesh.coord_order == 1
     @assert mesh.coord_order == 1
     interpolateMapping_rev(mesh)
     getVertCoords_rev(mesh, sbp)

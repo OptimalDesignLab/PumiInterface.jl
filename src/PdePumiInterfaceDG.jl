@@ -582,6 +582,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   mesh.element_vertnums = getElementVertMap(mesh)
 
+  #=
 #  println("about to get boundary edge list")
   mesh.numBC = opts["numBC"]
 
@@ -626,6 +627,20 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
 
   mesh.bndry_offsets[mesh.numBC + 1] = offset # = num boundary edges
+
+  # get boundary information for entire mesh
+#  println("getting boundary info")
+  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
+  getBoundaryArray(mesh, boundary_nums)
+
+  # need to count the number of internal interfaces - do this during boundary edge counting
+#  println("getting interface info")
+  mesh.interfaces = Array(Interface, mesh.numInterfaces)
+  getInterfaceArray(mesh)
+  sort!(mesh.interfaces)
+=#
+  getAllFaceData(mesh, opts)
+
 #  println("finished getting boundary offsets")
 
   # get array of all boundary mesh edges in the same order as in mesh.bndry_faces
@@ -701,17 +716,6 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     mesh.pertNeighborEls_edge = getPertEdgeNeighbors(mesh)
   end
 
-  # get boundary information for entire mesh
-#  println("getting boundary info")
-  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
-  getBoundaryArray(mesh, boundary_nums)
-
-  # need to count the number of internal interfaces - do this during boundary edge counting
-#  println("getting interface info")
-  mesh.interfaces = Array(Interface, mesh.numInterfaces)
-  getInterfaceArray(mesh)
-  sort!(mesh.interfaces)
-
   getAllCoordinatesAndMetrics(mesh, sbp, opts)
 
   createSubtriangulatedMesh(mesh, opts)
@@ -756,14 +760,14 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     printFaceVertNumbers(mesh.el_Nptr, mesh.vert_Nptr, fstream=f)
     close(f)
   end
-
+#=
   if opts["write_boundarynums"]
     rmfile("boundary_nums_$myrank.dat")
     f = open("boundary_nums_$myrank.dat", "a+")
     println(f, boundary_nums)
     close(f)
   end
-
+=#
   if opts["write_dxidx"]
     rmfile("dxidx_$myrank.dat")
     writedlm("dxidx_$myrank.dat", mesh.dxidx)
@@ -843,7 +847,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   writeVisFiles(mesh, "mesh_complete")
 
-  checkFinalMesh(mesh)
+#  checkFinalMesh(mesh)
 
   myrank = mesh.myrank
   f = open("load_balance_$myrank.dat", "a+")

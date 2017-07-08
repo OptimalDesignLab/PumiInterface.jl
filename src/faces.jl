@@ -1,12 +1,184 @@
 # functiosn related to data about faces (edges in 2D)
 
+
 """
   This function gets the information about boundary and interior faces
   and stores it to the mesh object.  In particular, the following fields of
-  the mesh are populated by this function:
+  the mesh are allocated and populatedby this function:
+    numBoundaryFaces
+    numInterfaces
+    numPeriodicInterfaces
+    numBC
+    bndry_geo_nums
+    bndryfaces
+    interfaces
+
+  The following fields are allocated but not populated:
+    bndry_funcs
+    bndry_funcs_revm
+
+  Because the curvilinear metric calculation requires knowing about *all*
+  the mesh faces (to calculate Eone), this function creates a new boundary
+  condition and assigns all faces not used by one of the existing BCs to it.
+  The BC_name for this new BC is defaultBC, which allows the solver to do the
+  face integral for faces that don't have a regular BC.  The new boundary
+  condition is only created if there are faces not previously assigned to a BC.
+
+  Inputs/Outputs:
+    mesh: a mesh object
+    opts: the options dictionary, which contains BC info and is updated with the
+           new BC info if needed
 
 """
-function getFaceData(mesh, opts)
+function getAllFaceData(mesh::PumiMesh, opts)
+
+  # TODO: change countBoundaryEdges to only take 1 argument
+  nbndryfaces, ninterfaces, npinterfaces, geo_edge_nums = countBoundaryEdges(mesh)
+  mesh.numBoundaryFaces = nbndryfaces
+  mesh.numInterfaces = ninterfaces
+  mesh.numPeriodicInterfaces = npinterfaces
+
+  unused_geo_edge_nums = popBCEdges(geo_edge_nums, opts)
+
+  # create an additional BC if needed to make sure the face integral gets
+  # done for the unused edges
+  add_bc = length(unused_geo_edge_nums) != 0
+  if add_bc
+    numBC = opts["numBC"] + 1
+
+    opts["numBC"] = numBC
+    opts[string("BC", numBC)] = unused_geo_edge_nums
+    opts[string("BC", numBC, "_name")] = "defaultBC"
+  end
+
+  # populate mesh.bndry_faces from options dictionary
+  mesh.numBC = opts["numBC"]
+  allocateBoundaryAndInterfaceArrays(mesh, opts)
+  boundary_nums = Array(Int, mesh.numBoundaryFaces, 2)
+
+  # get the element number, global face number of the mesh edges that have BCs
+  offset = 1
+  for i=1:mesh.numBC
+    key_i = string("BC", i)
+    model_edges = opts[key_i]
+    # record geometric edges
+    ngeo = length(model_edges)
+    mesh.bndry_geo_nums[i] = Array(Int, ngeo)
+    copy!(mesh.bndry_geo_nums[i], model_edges)
+    mesh.bndry_offsets[i] = offset
+    offset, print_warning = getMeshEdgesFromModel(mesh, model_edges, offset, boundary_nums)  # get the mesh edges on the model edge
+    if !(add_bc && i == mesh.numBC)  # don't error for the added BC
+      if print_warning
+        throw(ErrorException("Cannot apply boundary conditions to periodic boundary, model entity $model_edges"))
+      end
+    end
+    # offset is incremented by getMeshEdgesFromModel
+  end
+
+  mesh.bndry_offsets[mesh.numBC + 1] = offset # = num boundary edges
+
+  # get boundary information for entire mesh
+  getBoundaryArray(mesh, boundary_nums)
+
+  # get interface info for the entire mesh
+  getInterfaceArray(mesh)
+  sort!(mesh.interfaces)  #TODO: see if this is actually a good idea
+
+  return nothing
+end
+
+"""
+  Smart allocator for the following fields of the mesh:
+
+    bndry_offsets
+    bndry_funcs
+    bndry_funcs_revm
+    bndry_geo_nums
+    bndryfaces
+    interfaces
+
+  Because there is no reaonsable default value for bndry_funcs and
+  bndry_funcs_revm, these fields are not modified if this function is called
+  repeatedly.
+"""
+function allocateBoundaryAndInterfaceArrays(mesh, opts)
+
+  if !isFieldDefined(mesh, :bndry_offsets, :bndry_funcs, :bndry_funcs_revm,
+                     :bndry_geo_nums, :bndryfaces, :interfaces)
+
+    mesh.bndry_offsets = Array(Int, mesh.numBC + 1)
+    mesh.bndry_funcs = Array(BCType, mesh.numBC)
+    mesh.bndry_funcs_revm = Array(BCType_revm, mesh.numBC)
+    mesh.bndry_geo_nums = Array(Array{Int, 1}, mesh.numBC)
+
+    mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
+    mesh.interfaces = Array(Interface, mesh.numInterfaces)
+  else
+    fill!(mesh.bndry_offsets, 0)
+    fill!(mesh.bndry_geo_nums, 0)
+    fill!(mesh.bndryfaces, Boundary(0, 0))
+    fill!(mesh.interfaces, Interface(0, 0, 0, 0, 0))
+  end
+
+  return nothing
+end
+
+
+"""
+  This function returns an array containing only the geometric edge numbers
+  that do not have boundary conditions applied to them
+
+  Inputs:
+    geo_edge_nums: vector containing the numbers of all the geometric edges
+    opts: the options dictionary
+
+  Outputs:
+    unused_geo_edge_nums: numbers of the geometric edges that do not have
+                          boundary conditions applied to them
+
+"""
+function popBCEdges{I <: Integer}(geo_edge_nums::AbstractArray{I, 1}, opts)
+
+  numBC = opts["numBC"]
+
+  # create array of all model edges that have a boundary condition
+  bndry_edges_BC = Array(Int, 0)
+  for i=1:numBC
+    key_i = string("BC", i)
+    bndry_edges_i = opts[key_i]
+    for j=1:length(bndry_edges_i)
+      push!(bndry_edges_BC, bndry_edges_i[j])
+    end
+  end
+
+  # find the (first) duplicate BC, throw error
+  for i=1:length(bndry_edges_BC)
+    for j=(i+1):length(bndry_edges_BC)
+      if bndry_edges_BC[i] == bndry_edges_BC[j]
+        dup_edge = bndry_edges_BC[i]
+        #TODO; find which BCs it is assigned to for an even better error 
+        #       message
+        throw(ErrorException("Only 1 boundary condition may be applied to each geometric edge/face, edge/face $dup_edge appears twice"))
+      end
+    end
+  end
+
+  unused_geo_edge_nums = Array(Int, 0)
+
+  for i=1:length(geo_edge_nums)
+    edge_i = geo_edge_nums[i]
+    if !(edge_i in bndry_edges_BC)
+      push!(unused_geo_edge_nums, edge_i)
+      continue
+    end
+  end
+
+  @assert unused_geo_edge_nums == unique(unused_geo_edge_nums)
+
+  return unused_geo_edge_nums
+end
+
+      
 
 
 """

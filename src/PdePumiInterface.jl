@@ -604,6 +604,16 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   mesh.bndry_offsets[mesh.numBC + 1] = offset # = num boundary edges
 
+  # get boundary information for entire mesh
+  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
+  getBoundaryArray(mesh, boundary_nums)
+
+  # need to count the number of internal interfaces - do this during boundary edge counting
+  mesh.numInterfaces = mesh.numEdge - num_ext_edges
+  mesh.interfaces = Array(Interface, mesh.numInterfaces)
+  getInterfaceArray(mesh)
+
+
   # get array of all boundary mesh edges in the same order as in mesh.bndry_faces
 #  boundary_nums = flattenArray(mesh.bndry_faces[i])
 #  boundary_edge_faces = getBoundaryElements(mesh, mesh.bndry_faces)
@@ -659,15 +669,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     mesh.pertNeighborEls_edge = getPertEdgeNeighbors(mesh)
   end
 
-  # get boundary information for entire mesh
-  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
-  getBoundaryArray(mesh, boundary_nums)
-
-  # need to count the number of internal interfaces - do this during boundary edge counting
-  mesh.numInterfaces = mesh.numEdge - num_ext_edges
-  mesh.interfaces = Array(Interface, mesh.numInterfaces)
-  getInterfaceArray(mesh)
-
   getCoordinatesAndMetrics(mesh, sbp)  # store coordinates of all nodes into array
 
   mesh.min_el_size = getMinElementSize(mesh)
@@ -683,7 +684,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   # create subtriangulated mesh
   createSubtriangulatedMesh(mesh, opts)
 
-  checkFinalMesh(mesh)
+#  checkFinalMesh(mesh)
 
   println("printin main mesh statistics")
 
