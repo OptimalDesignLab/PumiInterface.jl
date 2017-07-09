@@ -12,7 +12,8 @@ function allocateMeshCoordinateArray{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::Abstract
   num_coord_nodes = mesh.coord_numNodesPerElement
 
   if !isFieldDefined(mesh, :vert_coords)
-    mesh.vert_coords = Array(Float64, mesh.dim, num_coord_nodes, mesh.numEl)
+    mesh.vert_coords = Array(Tmsh, mesh.dim, num_coord_nodes, mesh.numEl)
+    mesh.vert_coords_bar = Array(Tmsh, mesh.dim, num_coord_nodes, mesh.numEl)
   else
     fill!(mesh.vert_coords, 0.0)
   end
@@ -73,7 +74,7 @@ end
 
 """
   This function gets the coordinates that define the mesh 
-  (not the node coordinates) and puts them the mesh.vert_coords field
+  (not the solution node coordinates) and puts them the mesh.vert_coords field
   of the mesh object.  For each element, the ordering of the coordinates
   is verts, then edges, then faces, then regions.  This function uses
   smart allocators to allocate the array if needed.
@@ -86,10 +87,12 @@ function getMeshCoordinates{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
 
   allocateMeshCoordinateArray(mesh, sbp)
 
+  coords_tmp = zeros(Float64, mesh.dim, mesh.coord_numNodesPerElement)
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
     coords_i = sview(mesh.vert_coords, :, :, i)
-    getAllEntityCoords(mesh.m_ptr, el_i, coords_i)
+    getAllEntityCoords(mesh.m_ptr, el_i, coords_tmp)
+    copy!(coords_i, coords_tmp)
   end
 
   return nothing
@@ -107,8 +110,8 @@ function getFaceCoordinatesAndNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::Abstrac
   allocateNormals(mesh, sbp)
 
   if length(mesh.bndryfaces) > 0  # debugging: don't call if unneeded
-    calcFaceCoordinatesAndNormals(mesh, sbp, mesh.bndryfaces, mesh.coords_bndry, 
-                               mesh.nrm_bndry)
+    calcFaceCoordinatesAndNormals(mesh, sbp, mesh.bndryfaces, 
+                                  mesh.coords_bndry, mesh.nrm_bndry)
   end
 
   calcFaceCoordinatesAndNormals(mesh, sbp, mesh.interfaces, 
@@ -116,6 +119,41 @@ function getFaceCoordinatesAndNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::Abstrac
   for i=1:mesh.npeers
     calcFaceCoordinatesAndNormals(mesh, sbp, mesh.bndries_local[i], 
                                mesh.coords_sharedface[i], mesh.nrm_sharedface[i])
+  end
+
+  return nothing
+end
+
+"""
+  This function back propigates mesh.nrm_*_bar and mesh.coords_*_bar to
+  mesh.vert_coords_bar.  mesh.vert_coords_bar is updated (not overwritten)
+  with the results.
+"""
+function getFaceCoordinatesAndNormals_rev{Tmsh}(mesh::PumiMeshDG{Tmsh},
+                                                sbp::AbstractSBP)
+
+  if length(mesh.bndryfaces) > 0  # debugging: don't call if unneeded
+    #TODO: don't allocate this every time
+    coords_bndry_bar = zeros(mesh.dim, mesh.numNodesPerFace, mesh.numBoundaryFaces)
+    calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.bndryfaces,
+                                      mesh.coords_bndry,
+                                      coords_bndry_bar,
+                                      mesh.nrm_bndry,
+                                      mesh.nrm_bndry_bar)
+  end
+
+
+  coords_face_bar = zeros(mesh.dim, mesh.numNodesPerFace, mesh.numInterfaces)
+  calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.interfaces, 
+                                mesh.coords_interface, coords_face_bar,
+                                mesh.nrm_face, mesh.nrm_face_bar)
+  for i=1:mesh.npeers
+    coords_sharedface_bar = zeros(Tmsh, mesh.dim, mesh.numNodesPerFace, length(mesh.bndries_local[i]))
+    calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.bndries_local[i],
+                                  mesh.coords_sharedface[i],
+                                  coords_sharedface_bar, 
+                                  mesh.nrm_sharedface[i],
+                                  mesh.nrm_sharedface_bar[i])
   end
 
   return nothing
@@ -155,8 +193,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
 
   # some temporary arrays
   down_faces = Array(Ptr{Void}, 12)
-  coords_lag_face = Array(Float64, mesh.dim, mesh.coord_numNodesPerFace, blocksize)
-  storage = FaceCoordinateStorage()
+  coords_lag_face = Array(Tmsh, mesh.dim, mesh.coord_numNodesPerFace, blocksize)
 
   # get the parametic coordinates of the face nodes
   face_xi = mesh.coord_facexi
@@ -176,7 +213,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
       el_ptr = mesh.elements[el_i]
 
       coords_i = sview(coords_lag_face, :, :, i)
-      getMeshFaceCoordinates(mesh, el_i, face_i, storage, coords_i)
+      getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
       face_idx += 1
     end
 
@@ -185,6 +222,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
                      coords_face_block, nrm_face_block)
     fill!(coords_lag_face, 0.0)
 
+    fixOutwardNormal(mesh, sview(faces, start_idx:end_idx), nrm_face_block)
   end  # end loop over full blocks
 
   # do remainder loop
@@ -203,7 +241,7 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
     el_ptr = mesh.elements[el_i]
 
     coords_i = sview(coords_lag_face, :, :, i)
-    getMeshFaceCoordinates(mesh, el_i, face_i, storage, coords_i)
+    getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
     face_idx += 1
 
 
@@ -214,19 +252,244 @@ function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
 
 
   # make sure the normal vectors point outwards
-  fixOutwardNormal(mesh, faces, nrm_face)
+  fixOutwardNormal(mesh, sview(faces, start_idx:end_idx), nrm_face_block)
 
   return nothing
 end
 
 """
+  Reverse mode of calcFaceCoordinatesAndNormals_rev, back propigates
+  coords_face_bar and nrm_face_bar to mesh.vertcoords_bar.
+
+  This function also recalculates coords_face and nrm_face in the course
+  of doing the reverse mode.
+"""
+function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}}(
+                    mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP,
+                    faces::AbstractArray{I, 1},
+                    coords_face::AbstractArray{Tmsh, 3},
+                    coords_face_bar::AbstractArray{Tmsh, 3},
+                    nrm_face::AbstractArray{Tmsh, 3},
+                    nrm_face_bar::AbstractArray{Tmsh, 3})
+
+  blocksize = 1000  # magic parameter: number of faces to do in a group
+  nfaces = length(faces)
+
+  # calculate number of blocks
+  nblocks_full = div(nfaces, blocksize)
+  nrem = nfaces % blocksize
+
+  numNodesPerElement = mesh.coord_numNodesPerElement
+  numNodesPerFace = mesh.coord_numNodesPerType[mesh.dim]
+
+  # some temporary arrays
+  down_faces = Array(Ptr{Void}, 12)
+  coords_lag_face = Array(Tmsh, mesh.dim, mesh.coord_numNodesPerFace, blocksize)
+  coords_lag_face_bar = zeros(coords_lag_face)
+
+  # get the parametic coordinates of the face nodes
+  face_xi = mesh.coord_facexi
+  ref_verts = baryToXY(face_xi, mesh.sbpface.vtx)
+
+  for block=1:nblocks_full
+    start_idx = (block - 1)*blocksize + 1
+    end_idx = block*blocksize
+    faces_block = sview(faces, start_idx:end_idx)
+    coords_face_block = sview(coords_face, :, :, start_idx:end_idx)
+    coords_face_bar_block = sview(coords_face_bar, :, :, start_idx:end_idx)
+    nrm_face_block = sview(nrm_face, :, :, start_idx:end_idx)
+    nrm_face_bar_block = sview(nrm_face_bar, :, :, start_idx:end_idx)
+
+    # load up data for current block
+    for i=1:blocksize
+      el_i = getElementL(faces_block[i])
+      face_i = getFaceL(faces_block[i])
+      el_ptr = mesh.elements[el_i]
+
+      coords_i = sview(coords_lag_face, :, :, i)
+      getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
+    end
+
+
+    # forward sweep
+    # need the *original* face normals for fix_outward_normal, so recalculate
+    # them here
+    calcFaceNormals!(mesh.sbpface, mesh.coord_order, ref_verts, coords_lag_face,
+                     coords_face_block, nrm_face_block)
+
+    # reverse sweep
+    fixOutwardNormal_rev(mesh, sview(faces, start_idx:end_idx), nrm_face_block,
+                         nrm_face_bar_block)
+
+    fill!(coords_lag_face_bar, 0.0)
+
+    calcFaceNormals_rev!(mesh.sbpface, mesh.coord_order, ref_verts,
+                         coords_lag_face, coords_lag_face_bar,
+                         coords_face_bar_block, nrm_face_bar_block)
+
+    #TODO: unecessary?
+    fill!(coords_lag_face, 0.0)
+
+    for i=1:blocksize
+      el_i = getElementL(faces_block[i])
+      face_i = getFaceL(faces_block[i])
+      el_ptr = mesh.elements[el_i]
+
+      coords_bar_i = sview(coords_lag_face_bar, :, :, i)
+      getMeshFaceCoordinates_rev(mesh, el_i, face_i, coords_bar_i)
+    end
+
+  end  # end loop over full blocks
+
+  # do remainder loop
+  start_idx = nblocks_full*blocksize + 1
+  end_idx = nfaces
+  @assert end_idx - start_idx + 1 <= blocksize
+  @assert end_idx - start_idx + 1 == nrem
+
+  faces_block = sview(faces, start_idx:end_idx)
+  coords_face_block = sview(coords_face, :, :, start_idx:end_idx)
+  coords_face_bar_block = sview(coords_face_bar, :, :, start_idx:end_idx)
+  nrm_face_block = sview(nrm_face, :, :, start_idx:end_idx)
+  nrm_face_bar_block = sview(nrm_face_bar, :, :, start_idx:end_idx)
+  coords_lag_face_block = sview(coords_lag_face, :, :, 1:nrem)
+  coords_lag_face_bar_block = sview(coords_lag_face_bar, :, :, 1:nrem)
+
+  for i=1:nrem  # loop over remaining faces
+    el_i = getElementL(faces_block[i])
+    face_i = getFaceL(faces_block[i])
+    el_ptr = mesh.elements[el_i]
+
+    coords_i = sview(coords_lag_face, :, :, i)
+    getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
+  end
+
+  # forward sweep
+  # we need to use the *original* face normals, not the already reversed
+  # ones for fixOutwardNormal_rev
+  calcFaceNormals!(mesh.sbpface, mesh.coord_order, ref_verts, 
+                   coords_lag_face_block, coords_face_block, nrm_face_block)
+
+  # reverse sweep
+  fixOutwardNormal_rev(mesh, sview(faces, start_idx:end_idx), nrm_face_block,
+                    nrm_face_bar_block)
+
+  calcFaceNormals_rev!(mesh.sbpface, mesh.coord_order, ref_verts, 
+                   coords_lag_face_block, coords_lag_face_bar_block,
+                   coords_face_bar_block, nrm_face_bar_block)
+
+  for i=1:nrem
+    el_i = getElementL(faces_block[i])
+    face_i = getFaceL(faces_block[i])
+    el_ptr = mesh.elements[el_i]
+
+    coords_bar_i = sview(coords_lag_face_bar_block, :, :, i)
+    getMeshFaceCoordinates_rev(mesh, el_i, face_i, coords_bar_i)
+  end
+
+  return nothing
+end
+
+
+
+"""
   This function check to make sure each face normal vector is oriented
   outwards, and flips it if needed.
+
+  Inputs:
+    mesh
+    faces: array of Boundary of Interfaces to check for normal orientation
+
+  Inputs/Outputs:
+    nrm_face: array of size mesh.dim x mesh.numNodesPerFace x length(faces)
+              containing the normal vector at each node of each face.
+              Updated in place to make normal vector point outward
 """
 function fixOutwardNormal{I <: Union{Boundary, Interface}, Tmsh}(mesh, 
                           faces::AbstractArray{I, 1},
                           nrm_face::AbstractArray{Tmsh, 3})
 
+
+  nfaces = length(faces)
+  should_flip_node = Array(Bool, mesh.numNodesPerFace)
+  for i=1:nfaces
+    is_inward_normal(mesh, faces[i], sview(nrm_face, :, :, i), should_flip_node)
+
+    for j=1:mesh.numNodesPerFace
+      if should_flip_node[j]
+        for p=1:mesh.dim
+          nrm_face[p, j, i] = -nrm_face[p, j, i]
+        end
+      end
+    end  # end j
+
+  end  # end loop i
+
+   return nothing
+end
+
+"""
+  Reverse mode of fixOutwardNormal, reverses the primal normal vectors.
+  On entry nrm_face should have the normal vectors as calculated by
+  SBP.  On exit, they will point outwards.
+
+  Inputs:
+    mesh
+    faces
+
+  Inputs/Outputs:
+    nrm_face
+    nrm_face_bar: adjoint part of nrm_face
+"""
+function fixOutwardNormal_rev{Tmsh, I <: Union{Boundary, Interface}}(mesh,
+                          faces::AbstractArray{I, 1},
+                          nrm_face::AbstractArray{Tmsh, 3},
+                          nrm_face_bar::AbstractArray{Tmsh, 3})
+
+  nfaces = length(faces)
+  should_flip_node = Array(Bool, mesh.numNodesPerFace)
+  for i=1:nfaces
+    is_inward_normal(mesh, faces[i], sview(nrm_face, :, :, i), should_flip_node)
+
+    for j=1:mesh.numNodesPerFace
+      if should_flip_node[j]
+        for p=1:mesh.dim
+          nrm_face_bar[p, j, i] = -nrm_face_bar[p, j, i]
+          nrm_face[p, j, i] = -nrm_face[p, j, i]
+        end
+      end
+    end  # end j
+
+  end  # end loop i
+
+  return nothing
+end
+
+
+
+"""
+  Check if the normal vector on each node of a face is pointing inward
+
+  The algorithm determines orientation by comparing the normal vector against
+  the vector along an edge of the simplex (from the vertex not on the face to
+  the vertex on the face).  For highly skewed elements, using different
+  vertices on the face to compute the vector can give different results, so
+  only the vector with the largest magnitude dot product with the normal vector
+  is considered.
+
+  Inputs:
+    mesh: the mesh
+    iface: either a Boundary or an Interface
+    nrm_face: mesh.dim x mesh.numNodesPerFace array containing the normal
+              vectors for each face node
+
+  Inputs/Outputs:
+    should_flip_node: an Bool array of length numNodesPerFace specifying whether
+                      the normal vector at each node is pointing inward
+"""
+function is_inward_normal{Tmsh}(mesh, iface::Union{Boundary, Interface},
+                          nrm_face::AbstractMatrix{Tmsh},
+                          should_flip_node::AbstractVector{Bool})
 
   tmp = zeros(3)  # temporary vector to hold coordinates
   topo = mesh.topo
@@ -234,101 +497,85 @@ function fixOutwardNormal{I <: Union{Boundary, Interface}, Tmsh}(mesh,
   numVertPerFace = numVertPerElement - 1
 
   # temporary arrays
-  el_verts = Array(Ptr{Void}, numVertPerElement)
-  other_vert_coords = zeros(mesh.dim)
-  face_verts = Array(Ptr{Void}, numVertPerElement - 1)
-  face_vert_coords = zeros(mesh.dim, numVertPerFace)
+#  el_verts = Array(Ptr{Void}, numVertPerElement)
+  other_vert_coords = zeros(Tmsh, mesh.dim)
+#  face_verts = Array(Ptr{Void}, numVertPerElement - 1)
+  face_vert_coords = zeros(Tmsh, mesh.dim, numVertPerFace)
 
-  nfaces = length(faces)
-  for i=1:nfaces
-    iface_i = faces[i]
-    elnum = getElementL(iface_i)
-    facenum_local = getFaceL(iface_i)
+  elnum = getElementL(iface)
+  facenum_local = getFaceL(iface)
 
-    el_i = mesh.elements[elnum]
-    getDownward(mesh.m_ptr, el_i, 0, el_verts)
+#  el_i = mesh.elements[elnum]
+#  getDownward(mesh.m_ptr, el_i, 0, el_verts)
 
-    for j=1:numVertPerFace
-      face_verts[j] = el_verts[topo.face_verts[j, facenum_local]]
-      getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
+  for j=1:numVertPerFace
+    v_j = topo.face_verts[j, facenum_local]
+#    face_verts[j] = el_verts[topo.face_verts[j, facenum_local]]
+#    getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
 
-      for p=1:mesh.dim
-        face_vert_coords[p, j] = tmp[p]
-      end
-    end
-
-    # get the vert not on the face
-    other_vert = Ptr{Void}(0)
-    for j=1:numVertPerElement
-      if !(el_verts[j] in face_verts)
-        other_vert = el_verts[j]
-      end
-    end
-
-    getPoint(mesh.m_ptr, other_vert, 0, tmp)
     for p=1:mesh.dim
-      other_vert_coords[p] = tmp[p]
+      face_vert_coords[p, j] = mesh.vert_coords[p, v_j, elnum]
+#      face_vert_coords[p, j] = tmp[p]
     end
+  end
 
-    # check that the face normal is in the opposite direction as the
-    # vectors from a vertex on the face to the vertex not on the face
+  # get the vert not on the face
+  other_vert = 0
+  for j=1:numVertPerElement
+#    if !(el_verts[j] in face_verts)
+#      other_vert = el_verts[j]
+#    end
+     if !(j in sview(topo.face_verts, :, facenum_local))
+       other_vert = j
+     end
+  end
 
-    # in some cases the normal vector can be nearly orthoogonal to vertex
-    # vectors, so use the one with the greatest magnitude dot product
-    should_flip = false
-    max_mag = 0.0  # maximum dot product
-    for j=1:mesh.numNodesPerFace
-      outward_count = 0  # count number of calculations that showed outward
-      for k=1:numVertPerFace
-        val = zero(Float64)
-        for p=1:mesh.dim
-          r1_p = other_vert_coords[p] - face_vert_coords[p, k]
-          val += nrm_face[p, j, i]*r1_p  # accumulate dot product
-        end
-        
-        if abs(val) > max_mag
-          max_mag = abs(val)
-          # flip if the value is greater than 0
-          should_flip = val > 0
-          #=
-          if val < 0
-            should_flip = false
-          else 
-            should_flip = true
-          end  # end if
-          =#
+  for p=1:mesh.dim
+    other_vert_coords[p] = mesh.vert_coords[p, other_vert, elnum]
+  end
+  #=
+  getPoint(mesh.m_ptr, other_vert, 0, tmp)
+  for p=1:mesh.dim
+    other_vert_coords[p] = tmp[p]
+  end
+  =#
+  # check that the face normal is in the opposite direction as the
+  # vectors from a vertex on the face to the vertex not on the face
 
-        end  
-      end  # end k
-
-      if should_flip
-        for p=1:mesh.dim
-          nrm_face[p, j, i] = -nrm_face[p, j, i]
-        end
+  # in some cases the normal vector can be nearly orthoogonal to vertex
+  # vectors, so use the one with the greatest magnitude dot product
+  should_flip = false
+  max_mag = 0.0  # maximum dot product
+  for j=1:mesh.numNodesPerFace
+    outward_count = 0  # count number of calculations that showed outward
+    for k=1:numVertPerFace
+      val = zero(Tmsh)
+      for p=1:mesh.dim
+        r1_p = other_vert_coords[p] - face_vert_coords[p, k]
+        val += nrm_face[p, j]*r1_p  # accumulate dot product
       end
+      
+      if abs(val) > max_mag
+        max_mag = abs(val)
+        # flip if the value is greater than 0
+        should_flip = real(val) > 0
+        #=
+        if val < 0
+          should_flip = false
+        else 
+          should_flip = true
+        end  # end if
+        =#
 
+      end  
+    end  # end k
 
-      #=
-      # reverse face if needed, throw exception if unclear
-      if outward_count == 0  # no calculation found the normal is outward
-        for p=1:mesh.dim
-          nrm_face[p, j, i] = -nrm_face[p, j, i]
-        end
-      # some, but not all, calculations found outward
-      elseif outward_count < numVertPerFace
-        println("face_vert_coords = \n", face_vert_coords)
-        println("other_vert_coords = \n", other_vert_coords)
-        println("face normal = ", nrm_face[:, j, i])
-        throw(ErrorException("face $iface_i, node $j has indeterminate orientation"))
-      end  # else the face is oriented outwards, do nothing
-      =#
+    should_flip_node[j] = should_flip
+  end  # end loop j
 
-    end  # end j
-
-  end  # end loop i
-
-   return nothing
+  return nothing
 end
+
 
 
 
@@ -348,17 +595,17 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
   allocateCurvilinearCoordinateAndMetricArrays(mesh, sbp)
 
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
-  if mesh.dim == 2
-    calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, 
-                         mesh.coords, mesh.dxidx, mesh.jac)
-  else  # need to calculate Eone
+#  if mesh.dim == 2
+#    calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, mesh.vert_coords, 
+#                         mesh.coords, mesh.dxidx, mesh.jac)
+#  else  # need to calculate Eone
 
     # block format
     blocksize = 1000  # number of elements per block
     nblocks_full = div(mesh.numEl, blocksize)
     nrem = mesh.numEl % blocksize
 
-    Eone = zeros(mesh.numNodesPerElement, mesh.dim, blocksize)
+    Eone = zeros(Tmsh, mesh.numNodesPerElement, mesh.dim, blocksize)
 
     for block=1:nblocks_full
       start_idx = (block - 1)*blocksize + 1
@@ -377,14 +624,68 @@ function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh},
       @assert end_idx - start_idx + 1 == nrem
 
       element_range = start_idx:end_idx
+
+      # make sure dimensions of Eone is correct (number of elements might be
+      # less than before)
       Eone_rem = sview(Eone, :, :, 1:nrem)
 
       getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, element_range, Eone_rem)
     end
-  end  # end if dim == 2
+#  end  # end if dim == 2
 
   return nothing
 end
+
+"""
+  Back propigate dxidx to mesh.vert_coords and mesh.nrm.  See the primal method
+  for details.
+
+  Inputs:
+    mesh: vert_coords_bar, nrm_face_bar, nrm_bndry_bar, nrm_sharedface are
+          updated with the results
+    sbp:
+"""
+function getCurvilinearCoordinatesAndMetrics_rev{Tmsh}(mesh::PumiMeshDG{Tmsh},
+                                                       sbp::AbstractSBP)
+
+  # we have to compute E1_bar for both 2d and 3D
+  blocksize = 1000  # number of elements per block
+  nblocks_full = div(mesh.numEl, blocksize)
+  nrem = mesh.numEl % blocksize
+
+  Eone_bar = zeros(Tmsh, mesh.numNodesPerElement, mesh.dim, blocksize)
+
+  for block=1:nblocks_full
+    start_idx = (block - 1)*blocksize + 1
+    end_idx = block*blocksize
+    element_range = start_idx:end_idx
+
+    fill!(Eone_bar, 0.0)
+    getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp, element_range,
+                                                  Eone_bar)
+  end
+
+ if nrem != 0
+    # remainder block
+    start_idx = nblocks_full*blocksize + 1
+    end_idx = mesh.numEl
+    @assert end_idx - start_idx + 1 <= blocksize
+    @assert end_idx - start_idx + 1 == nrem
+
+    element_range = start_idx:end_idx
+
+    # make sure dimensions of Eone is correct (number of elements might be
+    # less than before)
+    Eone_bar_rem = sview(Eone_bar, :, :, 1:nrem)
+
+    fill!(Eone_bar_rem, 0.0)
+    getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp, element_range,
+                                                  Eone_bar_rem)
+  end
+
+  return Eone_bar
+end
+
 
 """
   This function calculates the metrics and coordinates for one block of 
@@ -401,15 +702,60 @@ function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp,
   jac_block = sview(mesh.jac, :, element_range)
   ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
 
-  # for the remainder loop, make sure the last dimensions of Eone matches the
-  # other arrays
-#  Eone_block = sview(Eone, :, :, element_range)
-
   calcEone(mesh, sbp, element_range, Eone)
+
+  #=
+  println("checking Eone")
+  for el=1:size(Eone, 3)
+    println("el = ", el)
+    println("Eone = \n", Eone[:, :, el])
+    for d=1:mesh.dim
+      println("  d = ", d)
+      val = abs(sum(Eone[:, d, el]))
+      println("  val = ", val)
+      @assert val < 1e-6
+    end
+  end
+  =#
   calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
                        coords_block, dxidx_block, jac_block, Eone)
 
   fill!(Eone, 0.0)
+  return nothing
+end
+
+"""
+  This function calculates the metrics and coordinates for one block of 
+  elements.  Used by getCurvilinearMetricsAndCoordinates
+"""
+function getCurvilinearMetricsAndCoordinates_inner_rev{T}(mesh, sbp, 
+                             element_range::UnitRange, Eone_bar::AbstractArray{T, 3})
+
+
+  vert_coords_block = sview(mesh.vert_coords, :, :, element_range)
+  # we don't allow perturbing mesh coordinate directly (yet)
+  coords_bar_block = zeros(T, mesh.dim, mesh.numNodesPerElement, length(element_range))
+  dxidx_block = sview(mesh.dxidx, :, :, :, element_range)
+  dxidx_bar_block = sview(mesh.dxidx_bar, :, :, :, element_range)
+#  jac_block = sview(mesh.jac, :, element_range)
+  jac_bar_block = sview(mesh.jac_bar, :, element_range)
+  @assert vecnorm(jac_bar_block) < 1e-13  # this is currently broken in SBP
+
+  # outputs
+  vert_coords_bar_block = sview(mesh.vert_coords_bar, :, :, element_range)
+  fill!(Eone_bar, 0.0)
+
+  ref_vtx = baryToXY(mesh.coord_xi, sbp.vtx)
+
+  # back propigate dxidx to vert_coords, E1
+  calcMappingJacobian_rev!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
+                           vert_coords_bar_block, coords_bar_block,
+                           dxidx_bar_block, jac_bar_block, Eone_bar)
+
+
+  # back propigate E1 to the face normals
+  calcEone_rev(mesh, sbp, element_range, Eone_bar)
+
   return nothing
 end
 
@@ -424,9 +770,12 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
   offset = first_el - 1
 
   # R times vector of ones
+  # the permutation doesn't matter because it is being multiplied by a constant
+  # vector.
+  # also R1 = 1 by definition
   Rone = vec(sum(mesh.sbpface.interp.', 2))
   sbpface = mesh.sbpface
-  tmp = zeros(Rone)
+  tmp = zeros(Tmsh, length(Rone))
   nrmL = zeros(Tmsh, mesh.dim, sbpface.numnodes)
 
   # accumulate E1 for a given element
@@ -477,8 +826,7 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
     end
   end  # end loop over boundary faces
 
-  #TODO: check shared faces too
-
+  # check shared faces
   for peer=1:mesh.npeers
     bndryfaces_peer = mesh.bndries_local[peer]
     nrm_peer = mesh.nrm_sharedface[peer]
@@ -502,7 +850,125 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
 end
 
 """
+  Back propigates Eone_bar to the various normal vectors stored in the
+  mesh objects (bndry, face, sharedface)
+
+  Inputs:
+    mesh: mesh.nrm_face_bar, mesh.nrm_bndry_bar, mesh.nrm_sharedface_bar are
+          updated
+    sbp
+    element range: range of elements to compute
+    Eone_bar: the adjoint part of Eone, see the primal method for details
+"""
+function calcEone_rev{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range, 
+                            Eone_bar::AbstractArray{Tmsh, 3})
+
+  # search interfaces and bndryfaces
+
+  first_el = element_range[1]
+  last_el = element_range[end]
+
+  offset = first_el - 1
+
+  # R times vector of ones
+  # the permutation doesn't matter because it is being multiplied by a constant
+  # vector.
+  # also R1 = 1 by definition
+  Rone = vec(sum(mesh.sbpface.interp.', 2))
+  sbpface = mesh.sbpface
+  tmp = zeros(Rone)
+  nrmL_bar = zeros(Tmsh, mesh.dim, sbpface.numnodes)
+
+  # accumulate E1 for a given element
+  Eone_el_bar = zeros(Tmsh, sbpface.stencilsize, mesh.dim)
+
+  for i=1:mesh.numInterfaces
+    iface_i = mesh.interfaces[i]
+
+    if iface_i.elementL >= first_el && iface_i.elementL <= last_el
+      elnum = iface_i.elementL
+      facenum_local = iface_i.faceL
+      nrm_bar = sview(mesh.nrm_face_bar, :, :, i)
+
+      # call inner functions
+      fill!(Eone_el_bar, 0.0)
+      assembleEone_rev(sbpface, elnum - offset, facenum_local, Eone_el_bar,
+                       Eone_bar)
+      calcEoneElement_rev(sbpface, nrm_bar, Rone, tmp, Eone_el_bar)
+
+    end
+
+    if iface_i.elementR >= first_el && iface_i.elementR <= last_el
+      # do same as above, negating and permuting nrm
+      elnum = iface_i.elementR
+      facenum_local = iface_i.faceR
+      orient = iface_i.orient
+
+      fill!(Eone_el_bar, 0.0)
+      fill!(nrmL_bar, 0.0)
+      assembleEone_rev(sbpface, elnum - offset, facenum_local, Eone_el_bar,
+                       Eone_bar)
+      calcEoneElement_rev(sbpface, nrmL_bar, Rone, tmp, Eone_el_bar)
+
+      for j=1:sbpface.numnodes
+        for d=1:mesh.dim
+          mesh.nrm_face_bar[d, sbpface.nbrperm[j, orient], i] -= nrmL_bar[d, j]
+        end
+      end
+ 
+    end  # end if/else
+
+  end  # end loop over interfaces
+
+  for i=1:mesh.numBoundaryFaces
+    bface_i = mesh.bndryfaces[i]
+
+    if bface_i.element >= first_el && bface_i.element <= last_el
+      elnum = bface_i.element
+      facenum_local = bface_i.face
+      nrm_bar = sview(mesh.nrm_bndry_bar, :, :, i)
+
+      # call inner functions
+      fill!(Eone_el_bar, 0.0)
+      assembleEone_rev(sbpface, elnum - offset, facenum_local, Eone_el_bar, 
+                       Eone_bar)
+      calcEoneElement_rev(sbpface, nrm_bar, Rone, tmp, Eone_el_bar)
+    end
+  end  # end loop over boundary faces
+
+  # check shared faces
+  for peer=1:mesh.npeers
+    bndryfaces_peer = mesh.bndries_local[peer]
+    nrm_peer_bar = mesh.nrm_sharedface_bar[peer]
+    for i=1:mesh.peer_face_counts[peer]
+      bface_i = bndryfaces_peer[i]
+
+      if bface_i.element >= first_el && bface_i.element <= last_el
+        elnum = bface_i.element
+        facenum_local = bface_i.face
+        nrm_bar = sview(nrm_peer_bar, :, :, i)
+
+        fill!(Eone_el_bar, 0.0)
+        assembleEone_rev(sbpface, elnum - offset, facenum_local, Eone_el_bar,
+                         Eone_bar)
+        calcEoneElement_rev(sbpface, nrm_bar, Rone, tmp, Eone_el_bar)
+      end
+    end
+  end
+
+  return nothing
+end
+
+
+
+"""
   Calculates E1 for a given interface.  Used by calcEone.
+
+  Actually what it computes is:
+      (R^T)*N*B*R*P*1
+
+  Note that there should be a factor of P^T on the left.  That factor is
+  applied in assembleEone().
 
   Inputs:
     sbpface: an AbstractFace
@@ -515,9 +981,9 @@ end
              contribution for this face.  Overwritten.
 
 """
-function calcEoneElement{Tmsh}(sbpface::AbstractFace, nrm::AbstractMatrix, 
+function calcEoneElement(sbpface::AbstractFace, nrm::AbstractMatrix, 
                          Rone::AbstractVector, tmp::AbstractVector, 
-                         Eone_el::AbstractMatrix{Tmsh})
+                         Eone_el::AbstractMatrix)
 
   dim = size(Eone_el, 2)
   numFaceNodes = length(Rone)
@@ -532,6 +998,50 @@ function calcEoneElement{Tmsh}(sbpface::AbstractFace, nrm::AbstractMatrix,
 
   return nothing
 end
+
+# back propigate Eone_el_bar to nrm_bar
+"""
+  This function uses reverse mode to back-propigate Eone_el_bar to nrm_bar
+
+  Input:
+    sbpface: an AbstractFace
+    Rone: the interpolation operator R times a vector of ones
+    tmp: a temporary vector, overwritten
+    Eone_el_bar: the adjoint part of E1
+
+  Inputs/Outputs:
+    nrm_bar: the adjoint part of the scaled face normal vector in x-y space
+             updated with the contribution from this function
+
+"""
+function calcEoneElement_rev(sbpface::AbstractFace,
+                         nrm_bar::AbstractMatrix,
+                         Rone::AbstractVector, tmp_bar::AbstractVector, 
+                         Eone_el_bar::AbstractMatrix)
+
+  dim = size(Eone_el_bar, 2)
+  numFaceNodes = length(Rone)
+
+  for d=1:dim
+    # this function is linear, so no need for a forward sweep
+
+    # reverse sweep
+    Eone_dim_bar = sview(Eone_el_bar, :, d)
+    # only back propigate to tmp_bar (sbpface.interp is unimportant)
+    fill!(tmp_bar, 0.0)
+    smallmatvec_revv!(sbpface.interp, tmp_bar, Eone_dim_bar)
+
+    for i=1:numFaceNodes
+      nrm_bar[d, i] += tmp_bar[i]*Rone[i]*sbpface.wface[i]
+    end
+  end
+
+  return nothing
+end
+
+
+
+
 
 """
   Takes an Eone_el matrix from calcEoneElement and assemble it into the big
@@ -565,25 +1075,34 @@ function assembleEone{Tmsh}(sbpface::AbstractFace, elnum::Integer,
 end
 
 """
-  Type to store the temporary arrays needed by getMeshFaceCoordinates
+  Back propigates Eone_bar to Eone_el_bar.
+
+  Inputs:
+    sbpface: an AbstractFace
+    elnum: the element number
+    facenum_local: the local number of the face that Eone_el is calculated for
+    Eone_bar: the adjoint part
+
+  Inputs/Outputs:
+    Eone_el_bar: the adjoint part
 """
-immutable FaceCoordinateStorage
-  el_verts::Array{Ptr{Void}, 1}
-  face_verts::Array{Ptr{Void}, 1}
-  coords_tmp::Array{Float64, 1}
-  v1_edges::Array{Ptr{Void}, 1}
-  v2_edges::Array{Ptr{Void}, 1}
+function assembleEone_rev{Tmsh}(sbpface::AbstractFace, elnum::Integer, 
+                      facenum_local::Integer,
+                      Eone_el_bar::AbstractMatrix{Tmsh},
+                      Eone_bar::AbstractArray{Tmsh, 3})
 
-  function FaceCoordinateStorage()
-    el_verts = Array(Ptr{Void}, 12)
-    face_verts = Array(Ptr{Void}, 3)
-    coords_tmp = Array(Float64, 3)
-    v1_edges = Array(Ptr{Void}, 400)
-    v2_edges = Array(Ptr{Void}, 400)
-
-    return new(el_verts, face_verts, coords_tmp, v1_edges, v2_edges)
+  dim = size(Eone_bar, 2)
+  for d=1:dim  # TODO: switch loops: turn an indexed store into a strided store
+    for i=1:sbpface.stencilsize
+      p_i = sbpface.perm[i, facenum_local]
+      # reverse mode step
+      Eone_el_bar[i, d] += Eone_bar[p_i, d, elnum]
+    end
   end
+
+  return nothing
 end
+
 
 # get the coordinates of the nodes on a given face (in the coordinate field, not
 # the solution field)
@@ -594,10 +1113,14 @@ end
 """
   This function gets the coordinates of the coordinate field nodes of the
   face of an element, in the orientation specified by mesh.topo.  This only
-  works up to second order.  In 3D it makes the assumption that edge 1 of
-  the triangle is defined from v1 -> v2, edge 2 is v2 -> v3, and edge 3 is
-  v3 -> v1.
-
+  works up to second order.  It uses the SBP element topology to determine
+  the ordering of the nodes.  I guess this makes sense because calcFaceNormals
+  is an SBP function and requires its definition of the vertices that define the
+  face.  Because ref_vtx is passed into calcFaceNormals, it should be ok to 
+  use the Pumi definition of the coordinates of the reference nodes (precisely
+  because we use the SBP definition of which vertices define the face, the
+  face node coordinates are relative to those vertices).
+  
   Inputs:
     mesh: a 2D mesh
     elnum: the global element number
@@ -608,102 +1131,139 @@ end
             number of coordinate nodes on a face (2 for linear 2D, 
             3 for quadratic 2D)
 """
-function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum, facenum, storage::FaceCoordinateStorage, coords::AbstractMatrix)
+function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum::Integer,
+                                facenum::Integer, 
+                                coords::AbstractMatrix)
 
 # coords = a 2 x number of nodes on the face array to be populated with the
 # coordinates
 
-  vertmap = mesh.topo.face_verts
-  el = mesh.elements[elnum]
-  el_verts = storage.el_verts
-  coords_tmp = storage.coords_tmp
-#  el_verts = Array(Ptr{Void}, 12)
-#  coords_tmp = Array(Float64, 3)
-  
-  getDownward(mesh.m_ptr, el, 0, el_verts)
+  topo = mesh.topo
 
-  v1 = el_verts[vertmap[1, facenum]]
-  v2 = el_verts[vertmap[2, facenum]]
+  # equivalent to topo.face_verts[:, facenum]
+  v1_idx = topo.face_verts[1, facenum]
+  v2_idx = topo.face_verts[2, facenum]
 
-  getPoint(mesh.m_ptr, v1, 0, coords_tmp)
+  coords[1, 1] = mesh.vert_coords[1, v1_idx, elnum]
+  coords[2, 1] = mesh.vert_coords[2, v1_idx, elnum]
 
-  coords[1, 1] = coords_tmp[1]
-  coords[2, 1] = coords_tmp[2]
-
-  getPoint(mesh.m_ptr, v2, 0, coords_tmp)
-  coords[1, 2] = coords_tmp[1]
-  coords[2, 2] = coords_tmp[2]
+  coords[1, 2] = mesh.vert_coords[1, v2_idx, elnum]
+  coords[2, 2] = mesh.vert_coords[2, v2_idx, elnum]
 
   if hasNodesIn(mesh.coordshape_ptr, 1)
-    getDownward(mesh.m_ptr, el, 1, el_verts)
-    edge = el_verts[facenum]
-    getPoint(mesh.m_ptr, edge, 0, coords_tmp)
-
-    coords[1, 3] = coords_tmp[1]
-    coords[2, 3] = coords_tmp[2]
+    edge_idx = 3 + topo.face_edges[1, facenum]
+    coords[1, 3] = mesh.vert_coords[1, edge_idx, elnum]
+    coords[2, 3] = mesh.vert_coords[2, edge_idx, elnum]
   end
 
   return nothing
 end
 
+"""
+  This function is the reverse mode of getMeshFaceCoordinates
+  This function stores the adjoint part of the vert_coords to mesh.vert_coords
 
-function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum, facenum, storage::FaceCoordinateStorage, coords::AbstractMatrix)
+  2nd order coordinate fields only.
 
-  vertmap = mesh.topo.face_verts
-  el = mesh.elements[elnum]
-  el_verts = storage.el_verts
-  face_verts = storage.face_verts
-  
-  getDownward(mesh.m_ptr, el, 0, el_verts)
+  This function *accumulates* into mesh.vertcoords_bar.
 
-  # get the face vertices
-  for i=1:3  # 3 vertices per face
-    face_verts[i] = el_verts[ vertmap[i, facenum] ]
-  end
+  Inputs
+    mesh::PumiMesh2DG
+    elnum: the element number
+    facenum: the local face number
+    coords_bar:  the adjoint part of the coordinate field for the given face,
+                 2 x coord_numNodesPerFace.
+                 The data should be ordered vertices, then mid edge nodes.
+"""
+function getMeshFaceCoordinates_rev(mesh::PumiMesh2DG, elnum::Integer,
+                                facenum::Integer, 
+                                coords_bar::AbstractMatrix)
 
-  for i=1:3  # 3 vertices per face
-    v_i = face_verts[i]
-    coords_i = sview(coords, :, i)
-    getPoint(mesh.m_ptr, v_i, 0, coords_i)
-  end
+#  vertmap = mesh.topo_pumi.face_verts
+  topo = mesh.topo_pumi
+
+  # equivalent to topo.face_verts[:, facenum]
+  v1_idx = topo.face_verts[1, facenum]
+  v2_idx = topo.face_verts[2, facenum]
+
+  mesh.vert_coords_bar[1, v1_idx, elnum] += coords_bar[1, 1]
+  mesh.vert_coords_bar[2, v1_idx, elnum] += coords_bar[2, 1]
+
+  mesh.vert_coords_bar[1, v2_idx, elnum] += coords_bar[1, 2]
+  mesh.vert_coords_bar[2, v2_idx, elnum] += coords_bar[2, 2]
 
   if hasNodesIn(mesh.coordshape_ptr, 1)
-    offset = 3
-    # edge nodes
-    v1_edges = storage.v1_edges
-    v2_edges = storage.v2_edges
+    edge_idx = facenum + 3  # for simplex elements
+    mesh.vert_coords_bar[1, edge_idx, elnum] += coords_bar[1, 3]
+    mesh.vert_coords_bar[2, edge_idx, elnum] += coords_bar[2, 3]
+  end
 
-    for i=1:3  # 3 edges per face
-      i2 = mod(i, 3) + 1
-      v1 = face_verts[i]
-      v2 = face_verts[i2]
-      fill!(v1_edges, C_NULL)
-      fill!(v2_edges, C_NULL)
-      n1 = countAdjacent(mesh.m_ptr, v1, 1)
-      getAdjacent(v1_edges)
-      n2 = countAdjacent(mesh.m_ptr, v2, 1)
-      getAdjacent(v2_edges)
 
-      # simple linear search for common edge
-      # in the average case this is fine because there are only 20 or so
-      # edges upward ajacent to a vertex, but in the worst case there could
-      # be 400
-      common_edge = first_common(sview(v1_edges, 1:n1), sview(v2_edges, 1:n2))
-      coords_i = sview(coords, :, i + offset)
-      getPoint(mesh.m_ptr, common_edge, 0, coords_i)
+  return nothing
+end
+
+
+function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum::Integer,
+                                facenum::Integer, coords::AbstractMatrix)
+
+  topo = mesh.topo
+  # get the face vertices
+  face_vert_idx = sview(topo.face_verts, :, facenum)
+
+  for i=1:3  # 3 vertices per face
+    for j=1:3  # 3 coordinates at each vertex
+      coords[j, i] = mesh.vert_coords[j, face_vert_idx[i], elnum]
     end
   end
 
+  if hasNodesIn(mesh.coordshape_ptr, 1)
+#    println("getting 2nd order node")
+
+    for i=1:3  # 3 edges per face
+      edge_idx = topo.face_edges[i, facenum] + 4 # 4 = numVerts
+      for j=1:3  # 3 coordinates per face
+        coords[j, 3 + i] = mesh.vert_coords[j, edge_idx]
+      end
+    end
+
+  end
+
   return nothing
 end
 
+"""
+  Similar to the 2d method.
 
-    
+  coords_bar should be ordered vertices, edge nodes, then face nodes
+"""
+function getMeshFaceCoordinates_rev(mesh::PumiMesh3DG, elnum::Integer,
+                                facenum::Integer, 
+                                coords_bar::AbstractMatrix)
+
+#  vertmap = mesh.topo.face_verts
+  topo = mesh.topo
+  
+  # get the face vertices
+  face_vert_idx = sview(topo.face_verts, :, facenum)
+
+  for i=1:3  # 3 vertices per face
+    for j=1:3  # 3 coordinates at each vertex
+      mesh.vert_coords_bar[j, face_vert_idx[i], elnum] += coords_bar[j, i]
+    end
+  end
+
+   if hasNodesIn(mesh.coordshape_ptr, 1)
+    offset = 3 + (facenum - 1)*3  # 3 vertices + 1 edge node per face
+
+    for i=1:3  # 3 edges per face
+      edge_idx = topo.face_edges[i, facenum] + 4  # 4 = numVerts
+      for j=1:3  # 3 coordinates per face
+        mesh.vert_coords_bar[j, edge_idx, elnum] += coords_bar[j, 3 + i]  # 3 verts
+      end
+    end
+
+  end
 
 
-
-
-
-
-
-
+  return nothing
+end

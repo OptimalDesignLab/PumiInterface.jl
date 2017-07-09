@@ -1,226 +1,4 @@
-
-function test_interp_rev(mesh)
-  facts("\n ----- Testing interp rev -----") do
-
-    dim = mesh.dim
-
-    interp_data = PdePumiInterface.Interpolation(mesh)
-    interp_datac = PdePumiInterface.Interpolation(mesh, Complex128)
-    interp_data.bndry_arr[1] = Boundary(2, 1)
-    interp_datac.bndry_arr[1] = Boundary(2, 1)
-
-    if mesh.dim == 2
-      dxidx_in = zeros(dim, dim, mesh.numNodesPerElement)
-      jac_in = zeros(mesh.numNodesPerElement)
-
-      for i=1:length(dxidx_in)
-        dxidx_in[i] = i
-      end
-      for i=1:length(jac_in)
-        jac_in[i] = i
-      end
-    else
-      dxidx_in = mesh.dxidx[ :, :, :, 1]
-      jac_in = mesh.jac[ :, 1]
-    end
-
-
-    dxidx_out = zeros(dim, dim, mesh.numNodesPerFace)
-    jac_out = zeros(mesh.numNodesPerFace)
-
-    PdePumiInterface.interpolateFace(interp_data, mesh.sbpface, dxidx_in, jac_in, dxidx_out, jac_out)
-
-    # compute forward jacobian
-    jac_size = dim*dim*mesh.numNodesPerFace
-    jac_forward = zeros(jac_size, jac_size)
-    
-    dxidx_in2 = zeros(Complex128, size(dxidx_in)...)
-    copy!(dxidx_in2, dxidx_in)
-    jac_in2 = zeros(Complex128, size(jac_in)...)
-    copy!(jac_in2, jac_in)
-
-    dxidx_out2 = zeros(Complex128, dim, dim, mesh.numNodesPerFace)
-    jac_out2 = zeros(Complex128, mesh.numNodesPerFace)
-
-
-    h =1e-20
-    pert = Complex128(0, h)
-
-    for i=1:jac_size
-      dxidx_in2[i] += pert
-      PdePumiInterface.interpolateFace(interp_datac, mesh.sbpface, dxidx_in2, jac_in2, dxidx_out2, jac_out2)
-      
-      for j=1:jac_size
-        jac_forward[j, i] = imag(dxidx_out2[j])/h
-      end
-
-      dxidx_in2[i] -= pert
-    end
-
-    # compute reverse mode
-    jac_rev = zeros(jac_size, jac_size)
-    dxidx_in_bar = zeros(dxidx_in)
-    jac_in_bar = zeros(jac_in)
-    dxidx_out_bar = zeros(dxidx_out)
-    jac_out_bar = zeros(jac_out)
-
-    for i=1:jac_size
-      dxidx_out_bar[i] = 1
-      fill!(dxidx_in_bar, 0.0)
-      fill!(jac_in_bar, 0.0)
-      fill!(jac_out_bar, 0.0)
-
-      PdePumiInterface.interpolateFace_rev(interp_data, mesh.sbpface, dxidx_in, 
-                                       dxidx_in_bar, jac_in, jac_in_bar, 
-                                       dxidx_out, dxidx_out_bar, jac_out, 
-                                       jac_out_bar)
-
-      for j=1:jac_size
-        jac_rev[i, j] = dxidx_in_bar[j]
-      end
-
-      dxidx_out_bar[i] -= 1
-    end
-
-
-    @fact norm(jac_forward - jac_rev) --> roughly(0.0, atol=1e-11)
-
-    # now test the full routine
-    fill!(mesh.dxidx_bar, 0.0)
-#    mesh.dxidx_face_bar[1] = 1
-    fill!(mesh.dxidx_face_bar, 1.0)
-
-    # check regular interfaces
-    PdePumiInterface.interpolateMapping_rev(mesh)
-    for i=1:mesh.numInterfaces
-      el = mesh.interfaces[i].elementL
-      for j=1:mesh.numNodesPerFace
-        @fact norm(mesh.dxidx_bar[:, :, j, el]) --> greater_than(0.0)
-      end
-    end
-    
-    # check boundary faces
-    fill!(mesh.dxidx_bar, 0.0)
-    fill!(mesh.dxidx_bndry_bar, 1.0)
-    PdePumiInterface.interpolateMapping_rev(mesh)
-    for i=1:mesh.numBoundaryFaces
-      el = mesh.bndryfaces[i].element
-      for j=1:mesh.numNodesPerFace
-        @fact norm(mesh.dxidx_bar[:, :, j, el]) --> greater_than(0.0)
-      end
-    end
- 
-    fill!(mesh.dxidx_bndry_bar, 1.0)
-    
-    # check sharedfaces
-    for peer = 1:mesh.npeers
-      fill!(mesh.dxidx_bar, 0.0)
-      fill!(mesh.dxidx_sharedface[peer], 1.0)
-      PdePumiInterface.interpolateMapping_rev(mesh)
-      for i=1:mesh.numBoundaryFaces
-        el = mesh.shared_interfacesfaces[p][i].elementL
-        for j=1:mesh.numNodesPerFace
-          @fact norm(mesh.dxidx_bar[:, :, j, el]) --> greater_than(0.0)
-        end
-      end
-
-      fill!(mesh.dxidx_bar, 0.0)
-      fill!(mesh.dxidx_sharedface[peer]. 0.0)
-    end
-   
-  end
-
-end  # end function
-
-
-function test_coords_rev(mesh, sbp)
-
-#  sbp_complex = TriSBP{Complex128}(degree=sbp.degree, reorder=sbp.reorder, internal=sbp.internal, vertices=sbp.vertices)
-
-#  function coords_forward(vert_coords)
-#    coords_it = vert_coords.'
-#    coords_volume = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
-#    return coords_volume
-#  end
-  numVertsPerElement = mesh.numTypePerElement[1]
-  # define indexing for input and output dimensions
-  idx1(dim, vert, el) = dim + mesh.dim*(vert-1) + (el-1)*numVertsPerElement*mesh.dim
-  idx2(dim, node, el) = dim + mesh.dim*(node-1) + (el-1)*mesh.numNodesPerElement*mesh.dim
-
-  facts("----- Testing coordiate reverse mode -----") do
-  # compute the jacobian with forward mode
-  nin = mesh.dim*numVertsPerElement*mesh.numEl
-  nout = mesh.dim*mesh.numNodesPerElement*mesh.numEl
-  jac = zeros(nin, nout)
-
-  vertcoords_in = zeros(Complex128, size(mesh.vert_coords)...)
-#  coords_out = zeros(Complex128, size(mesh.coords)...)
-
-  copy!(vertcoords_in, mesh.vert_coords)
-  h = 1e-20
-  pert = Complex128(0, h)
-  for el=1:mesh.numEl
-    for vert=1:numVertsPerElement
-      for d=1:mesh.dim
-        idx_in = idx1(d, vert, el)
-
-        vertcoords_in[d, vert, el] += pert
-
-        vertcoords_el = sview(vertcoords_in, :, :, el)
-        coords_el = PdePumiInterface.vertToVolumeCoords(mesh, sbp, vertcoords_el)
-
-        vertcoords_in[d, vert, el] -= pert
-
-        # take advantage of the fact that the operation is element local
-        for node_out=1:mesh.numNodesPerElement
-          for d2=1:mesh.dim
-            idx_out = idx1(d2, node_out, el)
-            jac[idx_out, idx_in] = imag(coords_el[d2, node_out])/h
-          end
-        end
-
-      end
-    end
-  end
-
-  jac2 = zeros(jac)
-  coords_bar = zeros(mesh.dim, mesh.numNodesPerElement, mesh.numEl)
-  vertcoords_bar = zeros(size(mesh.vert_coords))
-  # construct reverse mode jacobian
-  for el=1:mesh.numEl
-    for node=1:mesh.numNodesPerElement
-      for d=1:mesh.dim
-        coords_bar[d, node, el] = 1
-        PdePumiInterface.volumeToVertCoords_rev(mesh, sbp, vertcoords_bar, coords_bar)
-
-        coords_bar[d, node, el] = 0
-        idx_out = idx1(d, node, el)
-        for vert_in = 1:numVertsPerElement
-          for d2=1:mesh.dim
-            idx_in = idx1(d2, vert_in, el)
-            jac2[idx_out, idx_in] = vertcoords_bar[d2, vert_in, el]
-          end
-        end
-
-        fill!(vertcoords_bar, 0.0)
-
-      end
-    end
-  end
-
-  for i=1:nout
-    for j=1:nin
-      @fact jac[j, i] --> roughly(jac2[j, i], atol=1e-13)
-    end
-  end
-
-
-  end
-
-  return nothing
-end
-
-
+# test 2D PdePumiInterface
 
 facts("--- Testing PdePumiInterface --- ") do
 
@@ -243,6 +21,7 @@ facts("--- Testing PdePumiInterface --- ") do
     "write_interfaces" => false,
     "write_boundaries" => false,
     "write_sharedboundaries" => false,
+    "use_linear_metrics" => true,
     )
 
     # names of output files
@@ -499,6 +278,7 @@ facts("--- Testing PdePumiInterface --- ") do
     "write_interfaces" => false,
     "write_boundaries" => false,
     "write_sharedboundaries" => false,
+    "use_linear_metrics" => true,
     )
 
 
@@ -559,6 +339,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     "write_boundaries" => false,
     "write_sharedboundaries" => false,
     "exact_visualization" => true,
+    "use_linear_metrics" => true,
     )
     order = 1
     smb_name = "tri2l.smb"
@@ -571,6 +352,12 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
     sbpface = TriFace{Float64}(order, sbp.cub, vtx)
     println("sbpface.numnodes = ", sbpface.numnodes)
+
+    # make a complex mesh because it is needed later
+    # create it first so the underlying Pumi mesh gets destroyed and
+    # replaced by the Float64 version
+    mesh_c = PumiMeshDG2{Complex128}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+
     mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
    @fact mesh.m_ptr --> not(C_NULL)
@@ -688,11 +475,26 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   # SBP testing the correctness, these tests only verify values get to the right place
 
   fill!(mesh.dxidx_bar, 1.0)
-  getVertCoords_rev(mesh, sbp)
+  PdePumiInterface.getVertCoords_rev(mesh, sbp)
+
 
   for i=1:mesh.numEl
     @fact norm(mesh.vert_coords_bar[:, :, i]) --> greater_than(0.0)
   end
+
+  # make sure the data fields are the same
+  fill!(mesh_c.vert_coords, -1)
+  PdePumiInterface.copy_data!(mesh_c, mesh)
+  compare_meshes(mesh, mesh_c)
+
+  # test zero_bar_arrays
+  fill!(mesh.vert_coords_bar, 1.0)
+  zeroBarArrays(mesh)
+  @fact vecnorm(mesh.vert_coords_bar) --> 0.0
+
+
+  # test metrics reverse
+  test_metric_rev(mesh, mesh_c, sbp)
 
    function test_interp{Tmsh}(mesh::AbstractMesh{Tmsh})
      sbpface = mesh.sbpface
@@ -896,7 +698,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     update_coords(mesh, i, coords_i)
   end
 
-  commit_coords(mesh, sbp)
+  commit_coords(mesh, sbp, opts)
 
 #  PdePumiInterface.getCoordinatesAndMetrics(mesh, sbp)
   for i = 1:length(mesh.vert_coords)
@@ -975,6 +777,11 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     end
   end
 
+  # just for good measure, create a new mesh
+  mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+  mesh_c =  PumiMeshDG2{Complex128}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+
+  compare_meshes(mesh, mesh_c)
 
   # test periodic
   println("testing periodic")
@@ -988,6 +795,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   @fact length(mesh.interfaces) --> 24
   @fact mesh.numInterfaces --> 24
   @fact mesh.numBoundaryFaces --> 6
+  @fact opts["numBC"] --> 1  # the default BC should not be created for periodic
 
   for i=1:mesh.numInterfaces
     iface_i = mesh.interfaces[i]
@@ -995,18 +803,37 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact iface_i.elementL --> less_than(mesh.numEl + 1)
     @fact iface_i.elementR --> greater_than(0)
     @fact iface_i.elementR --> less_than(mesh.numEl + 1)
-    @fact iface_i.faceL --> greater_than(0)
     @fact iface_i.faceL --> less_than(4)
     @fact iface_i.faceR --> greater_than(0)
     @fact iface_i.faceR --> less_than(4)
   end
 
+  
   # test curvilinear
   println("testing curvilinear")
+  # check curvilinear routines reproduce linear results
+  coords_face_orig = copy(mesh.coords_interface)
+  nrm_face_orig = copy(mesh.nrm_face)
+
+  PdePumiInterface.getCoordinates(mesh, sbp)
+  PdePumiInterface.getFaceCoordinatesAndNormals(mesh, sbp)
+  PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+
+  for i=1:mesh.numInterfaces
+    for j=1:mesh.numNodesPerFace
+      @fact mesh.coords_interface[:, j, i] --> roughly(coords_face_orig[:, j, i], atol=1e-12)
+      @fact mesh.nrm_face[:, j, i] --> roughly(nrm_face_orig[:, j, i], atol=1e-12)
+    end
+  end
+
+
   # a 0 - 5 square that used a sin wave to remap the nondimensionalized
   # coordinates
   smb_name = "square_05_curve.smb"
+  opts["use_linear_metrics"] = false
   mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+
+  #TODO: check sizes of arrays
 
   function test_volume_curvilinear(mesh, sbp)
 
@@ -1041,7 +868,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     update_coords(mesh, i, coords_i)
   end
 
-  commit_coords(mesh, sbp)
+  commit_coords(mesh, sbp, opts)
 
   for i=1:mesh.numEl
     for j=1:mesh.numNodesPerElement
@@ -1072,6 +899,10 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   end
       
 
+  mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+  mesh_c =  PumiMeshDG2{Complex128}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+
+  compare_meshes(mesh, mesh_c)
   println("finished")
 
 end

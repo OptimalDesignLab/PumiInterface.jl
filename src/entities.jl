@@ -281,6 +281,8 @@ function getBoundaryFaceLocalNum(mesh::PumiMesh, edge_num::Integer)
 # of the mesh
 # edge_num is an edge num from the output of getBoundaryEdgeNums() (ie. the global edge number)
 # the local edge number is the edge number within the element (1st,s 2nd, 3rd...)
+#TODO: usage of this function might be a problem because it returns the local face number
+#      of the *Pumi* reference topology, not the SBP topology.
   face_i = mesh.faces[edge_num]
 
   # get mesh face associated with edge

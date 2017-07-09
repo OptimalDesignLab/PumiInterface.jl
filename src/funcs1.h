@@ -200,6 +200,7 @@ void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components
 
 
 void zeroField(apf::Field* f);
+apf::Field* getCoordinateField(apf::Mesh* m_ptr);
 
 apf::FieldShape* getSBPShapes(int type, int order);
 
@@ -228,6 +229,12 @@ void getCopies(int part_nums[], apf::MeshEntity* entities[]);
 
 std::size_t countMatches(apf::Mesh* m, apf::MeshEntity* e);
 void getMatches(int part_nums[], apf::MeshEntity* entities[]);
-}
+
+
+void getTopologyMaps(int* tri_edge_verts_in, int* tet_edge_verts_in, int* tet_tri_verts_in);
+}  // extern c
+
+
+int getindex_c(const int i, const int j, const int si, const int sj);
 
 #endif

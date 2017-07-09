@@ -5,7 +5,8 @@ using ODLCommonTools
 using SummationByParts
 using PdePumiInterface
 include("defs.jl")
-
+include("common_functions.jl")
+include("test_funcs.jl")
 
   dmg_name = "parallel2.dmg"
   smb_name = "./parallel2.smb"
@@ -104,6 +105,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     "write_interfaces" => false,
     "write_boundaries" => false,
     "write_sharedboundaries" => false,
+    "use_linear_metrics" => true,
     )
 
   sbp = TriSBP{Float64}(degree=order, internal=true)
@@ -112,6 +114,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 #  interp_op = SummationByParts.buildinterpolation(sbp, vtx)
   sbpface = TriFace{Float64}(order, sbp.cub, vtx.')
 
+  mesh_c = PumiMeshDG2{Complex128}(dmg_name, smb_name, order, sbp, opts, sbpface)
   mesh = PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface)
 
   @fact mesh.numVert --> 6
@@ -310,6 +313,9 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact val.second[1] --> less_than(4)  # number of shared vertices + 1
   end
 
+  compare_meshes(mesh, mesh_c)
+  test_metric_rev(mesh, mesh_c, sbp)
+
   MPI.Barrier(mesh.comm)
 
 end
@@ -331,10 +337,12 @@ facts("----- Testing PdePumiInterface3DG -----") do
   smb_name = "pcube2.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["use_linear_metrics"] = true
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
 #  interp_op = eye(4)
+  mesh_c = PumiMeshDG3{Complex128}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
   mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numEl --> 12
@@ -423,10 +431,17 @@ facts("----- Testing PdePumiInterface3DG -----") do
     end   # end loop over peer faces
   end  # end loop over peers
 
+  # test curvilinear metrics reverse mode
+  compare_meshes(mesh, mesh_c)
+  test_metric_rev(mesh, mesh_c, sbp)
+
+
+
   # test periodic things
   smb_name = "tet2_pxz_p2_.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["use_linear_metrics"] = true
   opts["numBC"] = 1
   opts["BC1"] = [0,2,4,5]
 
@@ -465,6 +480,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
     @fact val.second[1] --> greater_than(0)
     @fact val.second[1] --> less_than(19)  # number of shared vertices + 1
   end
+
 
   MPI.Barrier(mesh.comm)
 

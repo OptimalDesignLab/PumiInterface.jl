@@ -63,9 +63,11 @@ include("metrics_curvilinear.jl")
 
 
 """
-function getAllCoordinatesAndMetrics(mesh, sbp)
+function getAllCoordinatesAndMetrics(mesh, sbp, opts)
 
-  if mesh.coord_order == 1  # DEBUGGING: disable linear calculation
+#  if opts["use_linear_metrics"]
+   if mesh.coord_order == 1
+    @assert mesh.coord_order == 1
     getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
     getMetrics(mesh, sbp)
 
@@ -76,7 +78,7 @@ function getAllCoordinatesAndMetrics(mesh, sbp)
     getFaceNormals(mesh, sbp)
   else  # curvilinear
     # 3rd order and above are not supported yet
-    @assert mesh.coord_order == 2
+    @assert mesh.coord_order <= 2
 
     getMeshCoordinates(mesh, sbp)
     getFaceCoordinatesAndNormals(mesh, sbp)
@@ -87,6 +89,34 @@ function getAllCoordinatesAndMetrics(mesh, sbp)
   # calculate things that depend on the above
   mesh.min_el_size = getMinElementSize(mesh)
   mesh.volume = calcVolumeIntegral(mesh, sbp)
+
+  return nothing
+end
+
+"""
+  Reverse mode of getAllCoordinateAndMetrics.  Back propigates
+  mesh.nrm_*_bar, mesh.dxidx_bar, mesh.jac_bar to mesh.vert_coords_bar.
+
+  Users should generally call zeroBarArrays() before calling this function
+  a second time, to zero out all intermediate arrays.
+
+  This function also recalculates the face normal vectors and coordinates,
+  overwriting the relevent arrays in the mesh object.
+"""
+function getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
+
+  #TODO: undo this
+#  if opts["use_linear_metrics"]
+   if mesh.coord_order == 1
+    @assert mesh.coord_order == 1
+    interpolateMapping_rev(mesh)
+    getVertCoords_rev(mesh, sbp)
+  else
+    @assert mesh.coord_order <= 2
+
+    getCurvilinearCoordinatesAndMetrics_rev(mesh, sbp)
+    getFaceCoordinateAndNormals_rev(mesh, sbp)  
+  end
 
   return nothing
 end

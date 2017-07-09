@@ -74,7 +74,7 @@ function getNodeMaps(order::Integer, shape_type::Integer, numNodesPerElement, di
         pumiToSbp = UInt8[1:numNodesPerElement]
       end
 
-    elseif shape_type == 2 || shape_type == 3 || shape_type == 4 || shape_type == 5
+    elseif shape_type == 2 || shape_type == 3 || shape_type == 4 || shape_type == 5 #TODO: make this the else case
       if order <= 4
         sbpToPumi = collect(UInt8, 1:numNodesPerElement)
         pumiToSbp = collect(UInt8, 1:numNodesPerElement)
@@ -125,7 +125,7 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
       throw(ErrorException("Congratulations: you have reached and unreachable case"))
     end
 =#
-  elseif mesh.shape_type == 3 || mesh.shape_type == 2  || mesh.shape_type == 4 || mesh.shape_type == 5# DG SBP Omega or Gamma
+  elseif mesh.shape_type == 3 || mesh.shape_type == 2  || mesh.shape_type == 4 || mesh.shape_type == 5# DG SBP Omega or Gamma  #TODO: make this the else case
     # I don't think subtriangulation will work in this case, so create a 
     # field with the same degree as a coordinate field on the existing mesh, 
     # and interpolate the solution onto it
@@ -182,7 +182,7 @@ function createDGSubMesh(mesh::PumiMeshDG)
   dofpernode = mesh.numDofPerNode
 
   mesh.triangulation = getTriangulation(order, shape_type)
-  mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, mesh.coords)
+  mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, real(mesh.coords))
 
   fnew_ptr = createPackedField(mnew_ptr, "solution_field", dofpernode)
   fnewshape_ptr = getMeshShapePtr(mnew_ptr)

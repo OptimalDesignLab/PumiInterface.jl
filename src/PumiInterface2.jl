@@ -18,6 +18,11 @@ global const apfPYRAMID=7
 
 global const simplexTypes = [apfVERTEX, apfEDGE, apfTRIANGLE, apfTET]
 
+_tmp1, _tmp2, _tmp3 = getTopologyMaps()
+global const tri_edge_verts = _tmp1 + 1
+global const tet_edge_verts = _tmp2 + 1
+global const tet_tri_verts = _tmp3 + 1
+
 function getAdjacentFull(m_ptr, entity, dimension::Integer)
 # returns an array with the adjacencies of meshentity entity of specified dimension, and the number of entries in the array
 # this encasuplates the calls to countAdjacent and getAdjacent

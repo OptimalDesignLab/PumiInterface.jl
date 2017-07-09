@@ -1,5 +1,19 @@
 # run time verification of mesh topology
 
+"""
+  This function performs some checks on the final mesh object to make sure
+  it is sane
+"""
+function checkFinalMesh(mesh::PumiMesh)
+
+  checkFaceCount(mesh)
+
+  # add more checks here
+
+  return nothing
+end
+
+
 function checkConnectivity(mesh::PumiMesh)
 
   checkVertConnectivity(mesh)
@@ -102,6 +116,72 @@ function checkFaceConnectivity(mesh::PumiMesh)
       throw(ErrorException("element $i is dangling by a face"))
     end
 
+  end
+
+  return nothing
+end
+
+
+"""
+  This function verifies than all the faces of each element appear
+  in mesh.interfaces, mesh.bndryfaces, or mesh.bndries_local exactly once
+"""
+function checkFaceCount(mesh::PumiMesh)
+
+
+  seen_faces = falses(mesh.numFacesPerElement, mesh.numEl)
+
+  for i=1:mesh.numInterfaces
+    iface_i = mesh.interfaces[i]
+    j = iface_i.faceL
+    k = iface_i.elementL
+    if !seen_faces[j, k]
+      seen_faces[j, k] = true
+    else
+      throw(ErrorException("face $j of element $k appears twice"))
+    end
+
+    j = iface_i.faceR
+    k = iface_i.elementR
+    if !seen_faces[j, k]
+      seen_faces[j, k] = true
+    else
+      throw(ErrorException("face $j of element $k appears twice"))
+    end
+  end
+
+  for i=1:mesh.numBoundaryFaces
+    bndry_i = mesh.bndryfaces[i]
+    j = bndry_i.face
+    k = bndry_i.element
+
+    if !seen_faces[j, k]
+      seen_faces[j, k] = true
+    else
+      throw(ErrorException("face $j of element $k appears twice"))
+    end
+  end
+
+  for peer=1:mesh.npeers
+    bndries_peer = mesh.bndries_local[peer]
+    for i=1:length(bndries_peer)
+      bndry_i = bndries_peer[i]
+      j = bndry_i.face
+      k = bndry_i.element
+      if !seen_faces[j, k]
+        seen_faces[j, k] = true
+      else
+        throw(ErrorException("face $j of element $k appears twice"))
+      end
+    end
+  end
+
+  for i=1:mesh.numEl
+    for j=1:mesh.numFacesPerElement
+      if !seen_faces[j, i]
+        throw(ErrorException("face $j of element $i is missing"))
+      end
+    end
   end
 
   return nothing

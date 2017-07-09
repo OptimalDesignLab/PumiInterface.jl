@@ -16,9 +16,7 @@ function allocateCoordinateArrays{Tmsh}(mesh::PumiMeshDG{Tmsh},
   if !isFieldDefined(mesh, :coords, :vert_coords)
     mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
     mesh.vert_coords = Array(Float64, mesh.dim, num_coord_nodes, mesh.numEl)
-    if mesh.dim == 2
-      mesh.vert_coords_bar = zeros(mesh.vert_coords)
-    end
+    mesh.vert_coords_bar = zeros(mesh.vert_coords)
 
   else
     fill!(mesh.coords, 0.0)

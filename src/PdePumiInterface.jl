@@ -17,7 +17,7 @@ include("options.jl")
 
 export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryFaceLocalNum, getFaceLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles, update_coords, commit_coords
 
-export getVertCoords_rev, interpolateMapping_rev
+export zeroBarArrays, getAllCoordinatesAndMetrics_rev
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 
@@ -149,6 +149,87 @@ type VertSharing
 end
 
 
+"""
+  This function copies the data fields of one mesh object to another
+  mesh object.  Pumi fields are not modified.  The two meshes should
+  generally represent the same Pumi mesh.  Any fields not present on both
+  meshes are skipped.
+
+  Data fields means: vert_coords, coords*, dxidx*, jac*, nrm*
+"""
+function copy_data!(dest::PumiMesh, src::PumiMesh)
+
+  # make sure these mesh objects have compatable numbers of things
+  @assert src.shape_type == dest.shape_type
+  @assert src.order == dest.order
+  @assert src.numEl == dest.numEl
+  @assert src.numDofPerNode == dest.numDofPerNode
+
+  src_fields = fieldnames(src)
+  dest_fields = fieldnames(dest)
+
+  fieldnames_serial = [:vert_coords, :coords_bndry, :coords_interface, :dxidx, 
+                :jac, :nrm_face, :nrm_bndry]
+  fieldnames_shared = [:coords_sharedface, :dxidx_sharedface, :jac_sharedface,
+                       :nrm_sharedface]
+
+  if src.coord_order == 1
+    push!(fieldnames_serial, :dxidx_face, :dxidx_bndry, :jac_face, :jac_bndry)
+    push!(fieldnames_shared, :dxidx_sharedface, :jac_sharedface)
+  end
+
+  for i in fieldnames_serial
+    if i in src_fields && i in dest_fields
+      f_src = getfield(src, i)
+      f_dest = getfield(dest, i)
+      copy!(f_dest, f_src)
+    end
+  end
+
+   for i in fieldnames_shared
+     if i in src_fields && i in dest_fields
+       f_src = getfield(src, i)
+       f_dest = getfield(dest, i)
+
+       for peer=1:src.npeers
+        copy!(f_dest[peer], f_src[peer])
+      end
+    end
+  end
+
+
+  return nothing
+end
+
+"""
+  Zero out all fields than end with _bar.  Useful for resetting everything
+  (including intermediate arrays) after doing a reverse mode evaluation.
+"""
+function zeroBarArrays(mesh::PumiMesh)
+
+  fnames = fieldnames(mesh)
+
+  for fname in fnames
+    fname_str = string(fname)
+    if endswith(fname_str, "_bar")
+      field = getfield(mesh, fname)
+
+      # treat parallel (Arrays-of-Arrays) separately
+      if contains(fname_str, "sharedface")
+        for i=1:mesh.npeers
+          fill!(field[i], 0.0)
+        end
+      else
+        fill!(field, 0.0)
+      end
+    end
+  end
+
+  return nothing
+end
+          
+
+
 
 include("elements.jl")
 include("./PdePumiInterface3.jl")
@@ -161,6 +242,9 @@ include("PdePumiInterface3DG.jl")
   This is an implementation of AbstractMesh for a 2 dimensional equation.  
   The constructor for this type extracts all the needed information from Pumi,
   so the solver never needs access to Pumi.
+
+  CG meshes do not support periodic boundary conditions or reverse mode, despite
+  the presece of some fields that indicate otherwise.
 
   Fields:
     m_ptr: a Ptr{Void} to the Pumi mesh
@@ -184,6 +268,7 @@ include("PdePumiInterface3DG.jl")
     numDofPerNode: number of degrees of freedom on each node
     numBoundaryFaces: number of edges on the boundary of the domain
     numInterfaces: number of internal edges (edges not on boundary)
+    numPeriodicInterfaces: number of matched interfaces
     numNodesPerElements: number of nodes on an element
     numNodesPerType: array of length 3 that tells how many nodes are on a mesh
                      vertex, edge, and element
@@ -286,6 +371,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 #  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
 
   bndry_funcs::Array{BCType, 1}  # array of boundary functors (Abstract type)
+  bndry_funcs_revm::Array{BCType_revm, 1}  # reverse mode functors
   bndry_normals::Array{T1, 3}  # array of normals to each face on the boundary
 #  bndry_facenums::Array{Array{Int, 1}, 1}  # hold array of faces corresponding to each boundary condition
   bndry_offsets::Array{Int, 1}  # location in bndryfaces where new type of BC starts
@@ -482,57 +568,13 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   # get entity pointers
   mesh.element_vertnums = getElementVertMap(mesh)
 
-  mesh.numBC = opts["numBC"]
+  # get face data
+  boundary_nums = getAllFaceData(mesh, opts)
 
-  # create array of all model edges that have a boundary condition
-  bndry_edges_all = Array(Int, 0)
-  for i=1:mesh.numBC
-    key_i = string("BC", i)
-    bndry_edges_all = [ bndry_edges_all; opts[key_i]]  # ugly but easy
-  end
-
- mesh.numBoundaryFaces, num_ext_edges =  countBoundaryEdges(mesh, bndry_edges_all)
-
-  # populate mesh.bndry_faces from options dictionary
-#  mesh.bndry_faces = Array(Array{Int, 1}, mesh.numBC)
-  mesh.bndry_offsets = Array(Int, mesh.numBC + 1)
-  mesh.bndry_funcs = Array(BCType, mesh.numBC)
-  mesh.bndry_geo_nums = Array(Array{Int, 1}, mesh.numBC)
-  boundary_nums = Array(Int, mesh.numBoundaryFaces, 2)
-
-  offset = 1
-  for i=1:mesh.numBC
-    key_i = string("BC", i)
-    model_edges = opts[key_i]
-
-    # record geometric edges
-    ngeo = length(model_edges)
-    mesh.bndry_geo_nums[i] = Array(Int, ngeo)
-    mesh.bndry_geo_nums[i][:] = model_edges[:]
-
-#    println("typeof(opts[key_i]) = ", typeof(opts[key_i]))
-    mesh.bndry_offsets[i] = offset
-    offset, print_warning = getMeshEdgesFromModel(mesh, model_edges, offset, boundary_nums)  # get the mesh edges on the model edge
-    # offset is incremented by getMeshEdgesFromModel
-    if print_warning
-      throw(ErrorException("Cannot apply boundary conditions to periodic boundary, model entity $model_edges"))
-    end
-
-  end
-
-
-  mesh.bndry_offsets[mesh.numBC + 1] = offset # = num boundary edges
-
-  # get array of all boundary mesh edges in the same order as in mesh.bndry_faces
-#  boundary_nums = flattenArray(mesh.bndry_faces[i])
-#  boundary_edge_faces = getBoundaryElements(mesh, mesh.bndry_faces)
   # use partially constructed mesh object to populate arrays
-
   mesh.elementNodeOffsets, mesh.typeNodeFlags = getEntityOrientations(mesh)
 
   getDofNumbers(mesh)  # store dof numbers
-
-
 
   if coloring_distance == 2
     numc = colorMesh2(mesh)
@@ -578,15 +620,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     mesh.pertNeighborEls_edge = getPertEdgeNeighbors(mesh)
   end
 
-  # get boundary information for entire mesh
-  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
-  getBoundaryArray(mesh, boundary_nums)
-
-  # need to count the number of internal interfaces - do this during boundary edge counting
-  mesh.numInterfaces = mesh.numEdge - num_ext_edges
-  mesh.interfaces = Array(Interface, mesh.numInterfaces)
-  getInterfaceArray(mesh)
-
   getCoordinatesAndMetrics(mesh, sbp)  # store coordinates of all nodes into array
 
   mesh.min_el_size = getMinElementSize(mesh)
@@ -601,6 +634,8 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   # create subtriangulated mesh
   createSubtriangulatedMesh(mesh, opts)
+
+  checkFinalMesh(mesh)
 
   println("printin main mesh statistics")
 
@@ -642,12 +677,14 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     close(f)
   end
 
+
   if opts["write_boundarynums"]
     rmfile("boundary_nums.dat")
     f = open("boundary_nums.dat", "a+")
     println(f, boundary_nums)
     close(f)
   end
+
 
   if opts["write_dxidx"]
     rmfile("dxidx.dat")
@@ -777,10 +814,9 @@ end
 
 
 function getMinElementSize(mesh::AbstractMesh)
-  local_min = ((1./maximum(mesh.jac) )^(1/mesh.dim) )*mesh.min_node_dist
+  # TODO; write a for loop, don't do real(mesh.jac)
+  local_min = real(((1./maximum(real(mesh.jac)) )^(1/mesh.dim) )*mesh.min_node_dist)
   global_min = MPI.Allreduce(real(local_min), MPI.MIN, mesh.comm)  #TODO: is the complex part needed in general
-  println("max jac = ", maximum(mesh.jac))
-  println("min_node_dist = ", mesh.min_node_dist)
   return global_min
 end
 

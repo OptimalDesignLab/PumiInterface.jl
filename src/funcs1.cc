@@ -1505,6 +1505,11 @@ void zeroField(apf::Field* f)
   apf::zeroField(f);
 }
 
+apf::Field* getCoordinateField(apf::Mesh* m_ptr)
+{
+  return m_ptr->getCoordinateField();
+}
+
 //-----------------------------------------------------------------------------
 // Parallelization function
 //-----------------------------------------------------------------------------
@@ -1640,3 +1645,42 @@ void getMatches(int part_nums[], apf::MeshEntity* entities[])
   }
 }
 
+//-----------------------------------------------------------------------------
+// Topology functions
+//-----------------------------------------------------------------------------
+
+// compute linear index for column major array
+// i and j and output are zero based
+int getindex_c(const int i, const int j, const int si, const int sj)
+{
+  return i + j*si;
+}
+
+void getTopologyMaps(int* tri_edge_verts_in, int* tet_edge_verts_in, int* tet_tri_verts_in)
+{
+  int si = 3;
+  int sj = 2;
+
+  for (int i=0; i < si; i++)
+    for (int j=0; j < sj; j++)
+    {
+      tri_edge_verts_in[getindex_c(i, j, si, sj)] = apf::tri_edge_verts[i][j];
+    }
+
+  si = 6;
+  sj = 2;
+  for (int i=0; i < si; i++)
+    for (int j=0; j < sj; j++)
+    {
+      int idx = getindex_c(i, j, si, sj);
+      tet_edge_verts_in[idx] = apf::tet_edge_verts[i][j];
+    }
+
+  si = 4;
+  sj = 3;
+  for (int i=0; i < si; i++)
+    for (int j=0; j < sj; j++)
+    {
+      tet_tri_verts_in[getindex_c(i, j, si, sj)] = apf::tet_tri_verts[i][j];
+    }
+}

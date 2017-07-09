@@ -24,6 +24,11 @@ function set_defaults(opts)
   get!(opts, "write_element_vertnums", false)
   get!(opts, "exact_visualization", false)
 
+  # force the use of the metric calculation method for linear elements
+  # typically the curvilinear method is used even for linear (straight-sided)
+  # elements.
+  get!(opts, "use_linear_metrics", false)
+
   return nothing
 end
 
