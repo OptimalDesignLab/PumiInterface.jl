@@ -101,7 +101,7 @@ end  # end function
     geo_edge_nums: numbers of the geometric edges that have non-periodic
                    mesh edges on them.
 """
-function countBoundaryEdges(mesh::PumiMeshDG)
+function countBoundaryEdges(mesh::PumiMesh)
   # count boundary edges by checking if their model edge has a BC
   # count number of external edges by checking the number of upward adjacencies
   # store array of [element number, global edge number]a
@@ -131,11 +131,21 @@ function countBoundaryEdges(mesh::PumiMeshDG)
     me_tag = getModelTag(mesh.m_ptr, me_i)
 
     # get mesh face info
-    numEl = countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward
+    numEl = countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward 
+    getAdjacent(elements)
+    elnum = getNumberJ(mesh.el_Nptr, elements[1], 0, 0) + 1
+
+
     nremotes = countRemotes(mesh.m_ptr, edge_i)
     nmatches = countMatches(mesh.m_ptr, edge_i)
     getMatches(part_nums, matched_entities)
     has_local_match = (nmatches > 0) && part_nums[1] == mesh.myrank
+
+    println("edge ", i, " numEl = ", numEl)
+    println("nmatches = ", nmatches)
+    println("nremotes = ", nremotes)
+    println("has_local_match = ", has_local_match)
+    println("first element = ", elnum)
 
     if numEl == 2 || (has_local_match)  # internal interfaces (not including shared parallel edges)
       internal_edge_cnt += 1
@@ -148,15 +158,16 @@ function countBoundaryEdges(mesh::PumiMeshDG)
 
     if me_dim == (mesh.dim-1) && nmatches == 0  # if classified on model edge
 #      index = findfirst(bndry_edges_all, me_tag)
-
       # accumulate all geometric edges with non-matched mesh edges
       if !(me_tag in geo_edge_nums)
+        println("adding edge ", me_tag, " to geo_edge_nums")
+        println("nmatches = ", nmatches)
+        println("nremotes = ", nremotes)
+        println("elnum = ", elnum)
         push!(geo_edge_nums, me_tag)
       end
 
 #      if index != 0  # if model edge has a BC on i
-	getAdjacent(elements)
-        elnum = getNumberJ(mesh.el_Nptr, elements[1], 0, 0) + 1
 #	facenum = getFaceNumber2(faces[1]) + 1
 
 	bnd_edges_cnt += 1
@@ -178,8 +189,8 @@ return bnd_edges_cnt, internal_edge_cnt, periodic_edge_cnt, geo_edge_nums
 
 end  # end function
 
-
-function countBoundaryEdges(mesh::PumiMesh2, bndry_edges_all)
+#=
+function countBoundaryEdges(mesh::PumiMesh3, bndry_edges_all)
   # count boundary edges by checking if their model edge has a BC
   # count number of external edges by checking the number of upward adjacencies
   # store array of [element number, global edge number]
@@ -230,4 +241,4 @@ function countBoundaryEdges(mesh::PumiMesh2, bndry_edges_all)
 return bnd_edges_cnt, external_edges_cnt
 
 end  # end function
-
+=#

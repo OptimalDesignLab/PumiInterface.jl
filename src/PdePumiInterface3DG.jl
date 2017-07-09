@@ -627,7 +627,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   getInterfaceArray(mesh)
 #  sort!(mesh.interfaces)
 =#
-  getAllFaceData(mesh, opts)
+  boundary_nums = getAllFaceData(mesh, opts)
 
   # get array of all boundary mesh edges in the same order as in mesh.bndry_faces
 #  boundary_nums = flattenArray(mesh.bndry_faces[i])

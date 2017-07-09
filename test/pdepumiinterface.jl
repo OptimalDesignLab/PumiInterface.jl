@@ -795,6 +795,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   @fact length(mesh.interfaces) --> 24
   @fact mesh.numInterfaces --> 24
   @fact mesh.numBoundaryFaces --> 6
+  @fact opts["numBC"] --> 1  # the default BC should not be created for periodic
 
   for i=1:mesh.numInterfaces
     iface_i = mesh.interfaces[i]

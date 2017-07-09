@@ -29,21 +29,31 @@
     opts: the options dictionary, which contains BC info and is updated with the
            new BC info if needed
 
+  Outputs:
+    bndry_nums: array of [element number, global face number] for each
+                face on a geometric face.  This is returned to make testing
+                easier.
 """
 function getAllFaceData(mesh::PumiMesh, opts)
 
   # TODO: change countBoundaryEdges to only take 1 argument
   nbndryfaces, ninterfaces, npinterfaces, geo_edge_nums = countBoundaryEdges(mesh)
+  println("geo_edge_nums = ", geo_edge_nums)
   mesh.numBoundaryFaces = nbndryfaces
   mesh.numInterfaces = ninterfaces
   mesh.numPeriodicInterfaces = npinterfaces
 
-  unused_geo_edge_nums = popBCEdges(geo_edge_nums, opts)
+  if typeof(mesh) <: PumiMeshCG
+    @assert mesh.numPeriodicInterfaces == 0
+  end
 
+  unused_geo_edge_nums = popBCEdges(geo_edge_nums, opts)
+  println("unused_geo_edge_nums = ", unused_geo_edge_nums)
   # create an additional BC if needed to make sure the face integral gets
   # done for the unused edges
   add_bc = length(unused_geo_edge_nums) != 0
   if add_bc
+    println("adding BC")
     numBC = opts["numBC"] + 1
 
     opts["numBC"] = numBC
@@ -84,7 +94,7 @@ function getAllFaceData(mesh::PumiMesh, opts)
   getInterfaceArray(mesh)
   sort!(mesh.interfaces)  #TODO: see if this is actually a good idea
 
-  return nothing
+  return boundary_nums
 end
 
 """

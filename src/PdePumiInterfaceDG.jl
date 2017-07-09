@@ -639,7 +639,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   getInterfaceArray(mesh)
   sort!(mesh.interfaces)
 =#
-  getAllFaceData(mesh, opts)
+  boundary_nums = getAllFaceData(mesh, opts)
 
 #  println("finished getting boundary offsets")
 
@@ -760,14 +760,14 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
     printFaceVertNumbers(mesh.el_Nptr, mesh.vert_Nptr, fstream=f)
     close(f)
   end
-#=
+
   if opts["write_boundarynums"]
     rmfile("boundary_nums_$myrank.dat")
     f = open("boundary_nums_$myrank.dat", "a+")
     println(f, boundary_nums)
     close(f)
   end
-=#
+
   if opts["write_dxidx"]
     rmfile("dxidx_$myrank.dat")
     writedlm("dxidx_$myrank.dat", mesh.dxidx)

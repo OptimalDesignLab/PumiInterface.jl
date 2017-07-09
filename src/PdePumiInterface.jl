@@ -243,6 +243,9 @@ include("PdePumiInterface3DG.jl")
   The constructor for this type extracts all the needed information from Pumi,
   so the solver never needs access to Pumi.
 
+  CG meshes do not support periodic boundary conditions or reverse mode, despite
+  the presece of some fields that indicate otherwise.
+
   Fields:
     m_ptr: a Ptr{Void} to the Pumi mesh
     mnew_ptr: a Ptr{Void} to the subtriangulated mesh used for high
@@ -265,6 +268,7 @@ include("PdePumiInterface3DG.jl")
     numDofPerNode: number of degrees of freedom on each node
     numBoundaryFaces: number of edges on the boundary of the domain
     numInterfaces: number of internal edges (edges not on boundary)
+    numPeriodicInterfaces: number of matched interfaces
     numNodesPerElements: number of nodes on an element
     numNodesPerType: array of length 3 that tells how many nodes are on a mesh
                      vertex, edge, and element
@@ -367,6 +371,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 #  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
 
   bndry_funcs::Array{BCType, 1}  # array of boundary functors (Abstract type)
+  bndry_funcs_revm::Array{BCType_revm, 1}  # reverse mode functors
   bndry_normals::Array{T1, 3}  # array of normals to each face on the boundary
 #  bndry_facenums::Array{Array{Int, 1}, 1}  # hold array of faces corresponding to each boundary condition
   bndry_offsets::Array{Int, 1}  # location in bndryfaces where new type of BC starts
@@ -563,6 +568,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   # get entity pointers
   mesh.element_vertnums = getElementVertMap(mesh)
 
+  #=
   mesh.numBC = opts["numBC"]
 
   # create array of all model edges that have a boundary condition
@@ -612,7 +618,9 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   mesh.numInterfaces = mesh.numEdge - num_ext_edges
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
   getInterfaceArray(mesh)
+  =#
 
+  boundary_nums = getAllFaceData(mesh, opts)
 
   # get array of all boundary mesh edges in the same order as in mesh.bndry_faces
 #  boundary_nums = flattenArray(mesh.bndry_faces[i])
@@ -726,12 +734,14 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     close(f)
   end
 
+
   if opts["write_boundarynums"]
     rmfile("boundary_nums.dat")
     f = open("boundary_nums.dat", "a+")
     println(f, boundary_nums)
     close(f)
   end
+
 
   if opts["write_dxidx"]
     rmfile("dxidx.dat")
