@@ -581,73 +581,11 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
  
 
   mesh.element_vertnums = getElementVertMap(mesh)
-
-  #=
-#  println("about to get boundary edge list")
-  mesh.numBC = opts["numBC"]
-
-  # create array of all model edges that have a boundary condition
-  bndry_edges_all = Array(Int, 0)
-  for i=1:mesh.numBC
-    key_i = string("BC", i)
-    bndry_edges_all = [ bndry_edges_all; opts[key_i]]  # ugly but easy
-  end
-
-#  println("finished getting boundary edge list")
-
-#  println("about to count boundary edges")
- mesh.numBoundaryFaces, mesh.numInterfaces, mesh.numPeriodicInterfaces =  countBoundaryEdges(mesh, bndry_edges_all)
-#  println("finished counting boundary edges")
-
-  # populate mesh.bndry_faces from options dictionary
-#  mesh.bndry_faces = Array(Array{Int, 1}, mesh.numBC)
-#  println("about to get boudnary offets")
-  mesh.bndry_offsets = Array(Int, mesh.numBC + 1)
-  mesh.bndry_funcs = Array(BCType, mesh.numBC)
-  mesh.bndry_funcs_revm = Array(BCType_revm, mesh.numBC)
-  mesh.bndry_geo_nums = Array(Array{Int, 1}, mesh.numBC)
-  boundary_nums = Array(Int, mesh.numBoundaryFaces, 2)
-
-  offset = 1
-  for i=1:mesh.numBC
-    key_i = string("BC", i)
-    model_edges = opts[key_i]
-    # record geometric edges
-    ngeo = length(model_edges)
-    mesh.bndry_geo_nums[i] = Array(Int, ngeo)
-    mesh.bndry_geo_nums[i][:] = model_edges[:]
-#    println("typeof(opts[key_i]) = ", typeof(opts[key_i]))
-    mesh.bndry_offsets[i] = offset
-    offset, print_warning = getMeshEdgesFromModel(mesh, model_edges, offset, boundary_nums)  # get the mesh edges on the model edge
-    if print_warning
-      throw(ErrorException("Cannot apply boundary conditions to periodic boundary, model entity $model_edges"))
-    end
-    # offset is incremented by getMeshEdgesFromModel
-  end
-
-
-  mesh.bndry_offsets[mesh.numBC + 1] = offset # = num boundary edges
-
-  # get boundary information for entire mesh
-#  println("getting boundary info")
-  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
-  getBoundaryArray(mesh, boundary_nums)
-
-  # need to count the number of internal interfaces - do this during boundary edge counting
-#  println("getting interface info")
-  mesh.interfaces = Array(Interface, mesh.numInterfaces)
-  getInterfaceArray(mesh)
-  sort!(mesh.interfaces)
-=#
   boundary_nums = getAllFaceData(mesh, opts)
 
-#  println("finished getting boundary offsets")
 
   # get array of all boundary mesh edges in the same order as in mesh.bndry_faces
-#  boundary_nums = flattenArray(mesh.bndry_faces[i])
-#  boundary_edge_faces = getBoundaryElements(mesh, mesh.bndry_faces)
   # use partially constructed mesh object to populate arrays
-
 #  println("about to get entity orientations")
   mesh.elementNodeOffsets, mesh.typeNodeFlags = getEntityOrientations(mesh)
 #  println("finished getting entity orientations")
