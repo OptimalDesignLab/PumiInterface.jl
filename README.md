@@ -253,7 +253,7 @@ v0.3: curvilinear elements (compatable with SBP versions broken_ticon and fixed_
 
 v0.4: 2D linear mesh reverse mode of metrics
 
-v0.5: (WIP): 3D curvilinear metrics and their reverse mode
+v0.5: 3D curvilinear metrics and their reverse mode
 
              Breaking changes:
 
