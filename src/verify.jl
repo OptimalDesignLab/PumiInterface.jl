@@ -179,16 +179,6 @@ function checkFaceCount(mesh::PumiMesh)
   for i=1:mesh.numEl
     for j=1:mesh.numFacesPerElement
       if !seen_faces[j, i]
-        println("element $i vert coords = \n", mesh.vert_coords[:, :, i])
-        println("face_verts = \n", mesh.topo.face_verts)
-        println("mesh.interfaces = \n")
-        for k=1:mesh.numInterfaces
-          println("interface ", k, " = ", mesh.interfaces[k])
-        end
-        println("mesh.bndryfaces = \n")
-        for k=1:mesh.numBoundaryFaces
-          println("boundary ", k, " = ", mesh.bndryfaces[k])
-        end
         throw(ErrorException("face $j of element $i is missing"))
       end
     end

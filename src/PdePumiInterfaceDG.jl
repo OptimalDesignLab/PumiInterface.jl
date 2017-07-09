@@ -785,7 +785,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   writeVisFiles(mesh, "mesh_complete")
 
-#  checkFinalMesh(mesh)
+  checkFinalMesh(mesh)
 
   myrank = mesh.myrank
   f = open("load_balance_$myrank.dat", "a+")

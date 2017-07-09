@@ -644,7 +644,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 #    println("finished creating sub mesh\n")
 #  end
 
-#  checkFinalMesh(mesh)
+  checkFinalMesh(mesh)
 
   println("printin main mesh statistics")
 
