@@ -12,7 +12,7 @@
             function is called
 
   Inputs/Outputs:
-    boundary_nums: a two dimensional array, 2 x mesh.numBoundaryFaces will be
+    boundary_nums: a two dimensional array, mesh.numBoundaryFaces x 2 will be
                    updated with [element number, global face number] for each
                    mesh edge classified on medges
 
@@ -163,57 +163,3 @@ function countBoundaryEdges(mesh::PumiMesh)
   return bnd_edges_cnt, internal_edge_cnt, periodic_edge_cnt, geo_edge_nums
 
 end  # end function
-
-#=
-function countBoundaryEdges(mesh::PumiMesh3, bndry_edges_all)
-  # count boundary edges by checking if their model edge has a BC
-  # count number of external edges by checking the number of upward adjacencies
-  # store array of [element number, global edge number]
-  resetEdgeIt()
-  bnd_edges_cnt = 0
-  external_edges_cnt = 0
-  bnd_edges = Array(Int, mesh.numEdge, 2)
-  faces = Array(Ptr{Void}, 2)  # edge has maximum 2 faces
-  for i=1:mesh.numEdge
-    edge_i = getEdge()
-
-    # get  model edge info
-    me_i = toModel(mesh.m_ptr, edge_i)
-    me_dim = getModelType(mesh.m_ptr, me_i)
-    me_tag = getModelTag(mesh.m_ptr, me_i)
-
-    # get mesh face info
-    numFace = countAdjacent(mesh.m_ptr, edge_i, 2)  # should be count upward
-    if numFace == 1  # external edges
-      external_edges_cnt += 1
-    end
-
-    if me_dim == 1  # if not classified on model edge
-      index = findfirst(bndry_edges_all, me_tag)
-
-
-
-      if index != 0  # if model edge has a BC on i
-
-	getAdjacent(faces)
-	facenum = getFaceNumber2(faces[1]) + 1
-
-
-
-	bnd_edges_cnt += 1
-	bnd_edges[bnd_edges_cnt, 1] = facenum
-	bnd_edges[bnd_edges_cnt, 2] = i
-      end
-    end  # end if me_dim == 1
-    incrementEdgeIt()
-
-  end  # end for loop
-
-
-#  mesh.boundary_nums = bnd_edges[1:bnd_edges_cnt, :] # copy, bad but unavoidable
-#  mesh.numBoundaryFaces = bnd_edges_cnt
-
-return bnd_edges_cnt, external_edges_cnt
-
-end  # end function
-=#
