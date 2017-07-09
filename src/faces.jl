@@ -38,7 +38,6 @@ function getAllFaceData(mesh::PumiMesh, opts)
 
   # TODO: change countBoundaryEdges to only take 1 argument
   nbndryfaces, ninterfaces, npinterfaces, geo_edge_nums = countBoundaryEdges(mesh)
-  println("geo_edge_nums = ", geo_edge_nums)
   mesh.numBoundaryFaces = nbndryfaces
   mesh.numInterfaces = ninterfaces
   mesh.numPeriodicInterfaces = npinterfaces
@@ -48,12 +47,10 @@ function getAllFaceData(mesh::PumiMesh, opts)
   end
 
   unused_geo_edge_nums = popBCEdges(geo_edge_nums, opts)
-  println("unused_geo_edge_nums = ", unused_geo_edge_nums)
   # create an additional BC if needed to make sure the face integral gets
   # done for the unused edges
   add_bc = length(unused_geo_edge_nums) != 0
   if add_bc
-    println("adding BC")
     numBC = opts["numBC"] + 1
 
     opts["numBC"] = numBC
@@ -290,9 +287,6 @@ function getInternalFaceNormals{Tmsh}(mesh::PumiMesh2D, sbp::AbstractSBP, intern
 
     # call SBP function
     smallmatvec!(alpha, sview(sbp.facenormal, :, face_iR), sview(face_normals, :, 2, j, i))
-
-
-
 
     end  # end loop over face nodes
   end  # end loop over faces

@@ -937,25 +937,21 @@ function calcEone_rev{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
   end  # end loop over boundary faces
 
   # check shared faces
-#  println("checking shared faces")
   for peer=1:mesh.npeers
     bndryfaces_peer = mesh.bndries_local[peer]
     nrm_peer_bar = mesh.nrm_sharedface_bar[peer]
     for i=1:mesh.peer_face_counts[peer]
-#      println("i = ", i)
       bface_i = bndryfaces_peer[i]
 
       if bface_i.element >= first_el && bface_i.element <= last_el
         elnum = bface_i.element
         facenum_local = bface_i.face
         nrm_bar = sview(nrm_peer_bar, :, :, i)
-#        println("before, nrm_bar = \n", nrm_bar)
 
         fill!(Eone_el_bar, 0.0)
         assembleEone_rev(sbpface, elnum - offset, facenum_local, Eone_el_bar,
                          Eone_bar)
         calcEoneElement_rev(sbpface, nrm_bar, Rone, tmp, Eone_el_bar)
-#        println("after, nrm_bar = \n", nrm_bar)
       end
     end
   end
@@ -1147,8 +1143,6 @@ function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum::Integer,
   # equivalent to topo.face_verts[:, facenum]
   v1_idx = topo.face_verts[1, facenum]
   v2_idx = topo.face_verts[2, facenum]
-#  v1_idx = facenum
-#  v2_idx = mod(facenum, 3) + 1
 
   coords[1, 1] = mesh.vert_coords[1, v1_idx, elnum]
   coords[2, 1] = mesh.vert_coords[2, v1_idx, elnum]
@@ -1157,7 +1151,6 @@ function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum::Integer,
   coords[2, 2] = mesh.vert_coords[2, v2_idx, elnum]
 
   if hasNodesIn(mesh.coordshape_ptr, 1)
-#    edge_idx = facenum + 3  # for simplex elements
     edge_idx = 3 + topo.face_edges[1, facenum]
     coords[1, 3] = mesh.vert_coords[1, edge_idx, elnum]
     coords[2, 3] = mesh.vert_coords[2, edge_idx, elnum]
@@ -1193,10 +1186,6 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh2DG, elnum::Integer,
   v1_idx = topo.face_verts[1, facenum]
   v2_idx = topo.face_verts[2, facenum]
 
-  # equivalent to topo.face_verts[:, facenum]
-#  v1_idx = facenum
-#  v2_idx = mod(facenum, 3) + 1
-
   mesh.vert_coords_bar[1, v1_idx, elnum] += coords_bar[1, 1]
   mesh.vert_coords_bar[2, v1_idx, elnum] += coords_bar[2, 1]
 
@@ -1217,64 +1206,16 @@ end
 function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum::Integer,
                                 facenum::Integer, coords::AbstractMatrix)
 
-#  println("\ngetting coordinate for element ", elnum, " face ", facenum)
-#  vertmap = mesh.topo.face_verts
   topo = mesh.topo
-#  println("topo_pumi.face_verts = \n", topo.face_verts)
   # get the face vertices
   face_vert_idx = sview(topo.face_verts, :, facenum)
-#  println("face ", facenum, " has verts \n", face_vert_idx)
 
   for i=1:3  # 3 vertices per face
-    vert_i = face_vert_idx[i]
-#    println("vertex ", vert_i)
     for j=1:3  # 3 coordinates at each vertex
       coords[j, i] = mesh.vert_coords[j, face_vert_idx[i], elnum]
     end
   end
 
-#  println("coords = \n", coords)
-#=
-  # check against pumi
-  el_i = mesh.elements[elnum]
-  down_verts = Array(Ptr{Void}, 12)
-  getDownward(mesh.m_ptr, el_i, 0, down_verts)
-
-  # get all vertex coordinates
-  coords_pumi = zeros(3, 4)
-  for i=1:4
-    getPoint(mesh.m_ptr, down_verts[i], 0, sview(coords_pumi, :, i))
-  end
-
-
-  println("all vertex coords (array) = \n", mesh.vert_coords[:, :, elnum])
-  println("all vertex coords (pumi) = \n", coords_pumi)
-
-  coords_tmp = zeros(3, 3)
-  failflag = false
-  vertmap = mesh.topo.face_verts
-  println("topo_sbp.face_verts = \n", vertmap)
-  for i=1:3  # 3 vertices per face
-    v_i = down_verts[ vertmap[i, facenum] ]
-    getPoint(mesh.m_ptr, v_i, 0, sview(coords_tmp, :, i))
-#    println("vertex ", vertmap[i, facenum], " has coords = \n", sview(coords_tmp, :, i))
-    for j=1:3
-      if abs(coords_tmp[j, i] - coords[j, i]) > 1e-13
-        #=
-        println("setting failflag")
-        println("i = ", i)
-        println("coords_tmp[:, i] = \n", coords_tmp[:, i])
-        println("coords[:, i] = \n", coords[:, i])
-        =#
-        failflag = failflag || true
-      end
-    end
-  end
-
-  println("array vertices ", face_vert_idx, " have coordinates = \n", coords)
-  println("pumi vertices ", vertmap[:, facenum], " have coordinates = \n", coords_tmp)
-#  @assert !failflag
-  =#
   if hasNodesIn(mesh.coordshape_ptr, 1)
 #    println("getting 2nd order node")
 
