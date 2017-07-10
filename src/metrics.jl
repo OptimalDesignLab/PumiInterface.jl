@@ -65,8 +65,8 @@ include("metrics_curvilinear.jl")
 """
 function getAllCoordinatesAndMetrics(mesh, sbp, opts)
 
-#  if opts["use_linear_metrics"]
-   if mesh.coord_order == 1
+  if opts["use_linear_metrics"]
+#   if mesh.coord_order == 1
     @assert mesh.coord_order == 1
     getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
     getMetrics(mesh, sbp)
@@ -105,9 +105,8 @@ end
 """
 function getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
 
-  #TODO: undo this
-#  if opts["use_linear_metrics"]
-   if mesh.coord_order == 1
+  if opts["use_linear_metrics"]
+#   if mesh.coord_order == 1
     @assert mesh.coord_order == 1
     interpolateMapping_rev(mesh)
     getVertCoords_rev(mesh, sbp)
@@ -157,12 +156,13 @@ function allocateNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
     for i=1:mesh.npeers
       fill!(mesh.nrm_sharedface[i], 0.0)
     end
-
+#=
     fill!(mesh.nrm_bndry_bar, 0.0)
     fill!(mesh.nrm_face_bar, 0.0)
     for i=1:mesh.npeers
       fill!(mesh.nrm_sharedface[i], 0.0)
     end
+=#
   end
 
   return nothing

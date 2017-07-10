@@ -45,20 +45,31 @@ function allocateCurvilinearCoordinateAndMetricArrays{Tmsh}(mesh::PumiMeshDG{Tms
     mesh.dxidx = zeros(Tmsh, mesh.dim, mesh.dim, mesh.numNodesPerElement, mesh.numEl)
     mesh.jac = zeros(Tmsh, mesh.numNodesPerElement, mesh.numEl)
 
+    mesh.dxidx_bar = zeros(mesh.dxidx)
+    mesh.jac_bar = zeros(mesh.jac)
+
     # these arrays are not used for curvilinear meshes
 
     # interior faces
     mesh.dxidx_face = zeros(Tmsh, 0, 0, 0, 0)
     mesh.jac_face = zeros(Tmsh, 0, 0)
 
+    mesh.dxidx_face_bar = zeros(mesh.dxidx_face)
+    mesh.jac_face_bar = zeros(mesh.jac_face)
+
     # boundary faces
     mesh.dxidx_bndry = zeros(Tmsh, 0, 0, 0, 0)
     mesh.jac_bndry = zeros(Tmsh, 0, 0)
+
+    mesh.dxidx_bndry_bar = zeros(mesh.dxidx_bndry)
+    mesh.jac_bndry_bar = zeros(mesh.jac_bndry)
 
     # parallel shared faces
     mesh.dxidx_sharedface = Array(Array{Tmsh, 4}, 0)
     mesh.jac_sharedface = Array(Array{Tmsh, 2}, 0)
 
+    mesh.dxidx_sharedface_bar = Array(Array{Tmsh, 4}, 0)
+    mesh.jac_sharedface_bar = Array(Array{Tmsh, 2}, 0)
   else
     fill!(mesh.coords, 0.0)
     fill!(mesh.dxidx, 0.0)
