@@ -13,7 +13,9 @@ function checkFinalMesh(mesh::PumiMesh)
   return nothing
 end
 
-
+"""
+  This function runs all the test of mesh connectivity
+"""
 function checkConnectivity(mesh::PumiMesh)
 
   checkVertConnectivity(mesh)
@@ -22,12 +24,14 @@ function checkConnectivity(mesh::PumiMesh)
     checkFaceConnectivity(mesh)
   end
 
+  checkContiguity(mesh)
+
   return nothing
 end
 
 """
   This function verifies that at least one vertex of every element is shared
-  with a different element (ie. no elements dangling by a vertex)m, otherwise
+  with a different element (ie. no elements dangling by a vertex), otherwise
   an exception is thrown
 
   If this doesn't hold, there is a chance Pumi will call abort(), but 
@@ -187,3 +191,69 @@ function checkFaceCount(mesh::PumiMesh)
   return nothing
 end
 
+"""
+  This function checks that every mesh element is reachable via face
+  adjacencies.  Throws an exception otherwise
+
+  The main case this guards against is having two disjoint sets of elements.
+
+  This algorithm walks the mesh using face adjacencies and records if
+  each element was seen.  If after finishing the walk some elements are not
+  seen yet, throw an exception
+"""
+function checkContiguity(mesh::PumiMesh)
+
+  curr_el = mesh.elements[1]
+  el_Nptr = mesh.el_Nptr
+  curr_elnum = getNumberJ(el_Nptr, curr_el, 0, 0) + 1
+
+  # temporary array for getBridgeAdjacent
+  adjacent_els = Array(Ptr{Void}, mesh.numFacesPerElement)
+
+  seen_els = falses(mesh.numEl)  # record whether or not an element either is
+                                 # or has previously been in the queue
+
+  # the queue of elements to process
+  queue = FIFOQueue{Ptr{Void}}(size_hint = div(mesh.numEl, 4))
+
+  # put first element in the queue
+  push!(queue, curr_el)
+  seen_els[curr_elnum] = true
+
+
+  while length(queue) > 0
+    curr_el = pop!(queue)
+
+    # get face adjacent elements
+    n = countBridgeAdjacent(mesh.m_ptr, curr_el, mesh.dim - 1, mesh.dim)
+    @assert n <= mesh.numFacesPerElement
+    getBridgeAdjacent(adjacent_els)
+
+    # if not already seen, add to queue
+    for i=1:n
+      el_i = adjacent_els[i]
+      new_elnum = getNumberJ(el_Nptr, el_i, 0, 0) + 1
+
+      # use seen_els to avoid growing the size of the queue unnecessarily
+      if !seen_els[new_elnum]
+        seen_els[new_elnum] = true
+        push!(queue, el_i)
+      end
+    end
+
+  end  # end while loop
+        
+  # make sure all elements were seen
+  unseen_count = 0
+  for i=1:mesh.numEl
+    if !seen_els[i] 
+      unseen_count += 1
+    end
+  end
+
+  if unseen_count > 0
+    throw(ErrorException("Error: Mesh is not contiguous: $(unseen_count) elements were not seen while walking the mesh"))
+  end
+
+  return nothing
+end
