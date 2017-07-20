@@ -51,13 +51,6 @@ function getTriangulation(order::Integer, shape_type::Integer)
     else
       throw(ErrorException("unsupported triangulation requested"))
     end
-#  elseif shape_type == 3  # TODO: remove this case
-#    if order  == 1
-#      triangulation = Int32 [ 3 1 2;].'
-#    else
-#       triangulation = zeros(Int32, 0, 0)
-#      throw(ErrorException("unsupported triangulation requested"))
-#    end
   else
       throw(ErrorException("unsupported triangulation requested"))
   end  # end if shape_type
@@ -128,17 +121,7 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
       mesh.mnew_ptr = C_NULL
       mesh.fnew_ptr = C_NULL
     end
-#=
-  elseif mesh.shape_type == 2
-    if order >= 1
-      mesh.mnew_ptr, mesh,fnew_ptr, mesh.fnewshape_ptr = createDGSubMesh(mesh)
-
-    else
-      throw(ErrorException("Congratulations: you have reached and unreachable case"))
-    end
-=#
-  # stop manually listing shape types, 
-  else#  #mesh.shape_type == 3 || mesh.shape_type == 2  || mesh.shape_type == 4 || mesh.shape_type == 5# DG SBP Omega or Gamma  #TODO: make this the else case
+  else
     # I don't think subtriangulation will work in this case, so create a 
     # field with the same degree as a coordinate field on the existing mesh, 
     # and interpolate the solution onto it
@@ -161,13 +144,7 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
     if mesh.shape_type != 2 && opts["exact_visualization"]
       throw(ErrorException("exact visualization only supported for SBP Omega"))
     end
-
-
-#  else
-#    throw(ErrorException("Unsupported shape_type"))
-  end  # end if mesh.shape_type 
-
-
+  end  # end if mesh.isDG
 
   return nothing
 end
