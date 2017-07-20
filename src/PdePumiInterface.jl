@@ -435,7 +435,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
   println("\nConstructing PumiMesh2 Object")
-  println("  sbp_name = ", smb_name)
+  println("  smb_name = ", smb_name)
   println("  dmg_name = ", dmg_name)
   if !MPI.Initialized()
     MPI.Init()
@@ -508,7 +508,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   mesh.numDof = numnodes*dofpernode
 
   # get nodemaps
-  mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(order, shape_type, mesh.numNodesPerElement)
+  mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(order, shape_type, mesh.numNodesPerElement, mesh.dim, mesh.isDG)
 
  
   # get pointers to mesh entity numberings
