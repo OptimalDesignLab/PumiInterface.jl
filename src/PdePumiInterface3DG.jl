@@ -353,6 +353,10 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 
   vert_sharing::VertSharing
 
+  # temporarily allow nested meshes for the staggered grid work
+  mesh2::AbstractMesh
+  sbp2::AbstractSBP
+
  function PumiMeshDG3(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface, topo::ElementTopology{3}; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
