@@ -1,9 +1,28 @@
-function getTriangulation(order::Integer, shape_type::Integer)
-# get the sub-triangulation for an element of the specified order element
-# the first 3 values indicate the verticies, later values refer to the nodes
-# triangulation must be a 3 x n array of Int32s, so when it gets transposed
-# by passing it to C, it becomes a n x 3 array of ints
+"""
+  Get the sub-triangulation for an element of the specified order element
+  the first 3 values indicate the verticies, later values refer to the nodes
+  triangulation must be a 3 x n array of Int32s, so when it gets transposed
+  by passing it to C, it becomes a n x 3 array of ints
 
+  This function should only be called for shape types that support
+  subtriangulation, otherwise an error is thrown
+  
+  Inputs:
+  
+    order: the degree of the operator
+    shape_type: the integer shape type
+
+  Outputs:
+
+    triangulation: an Int32 array, 2 x numNodesPerElement for CG meshes
+                   that have nodes on the vertices, or
+                   2 x numNodesPerElement + 3 for DG meshes that do not have
+                   nodes on vertices are supported.
+
+  Currently only shape_type == 1 (CG) and shape_type == 2 (DG SBP Omega) are
+  supported.
+"""
+function getTriangulation(order::Integer, shape_type::Integer)
   if shape_type == 1
     if order == 1  # no need to subtriangulate this case
       triangulation = zeros(Int32, 0, 0)
@@ -32,13 +51,6 @@ function getTriangulation(order::Integer, shape_type::Integer)
     else
       throw(ErrorException("unsupported triangulation requested"))
     end
-  elseif shape_type == 3
-#    if order  == 1
-#      triangulation = Int32 [ 3 1 2;].'
-#    else
-       triangulation = zeros(Int32, 0, 0)
-#      throw(ErrorException("unsupported triangulation requested"))
-#    end
   else
       throw(ErrorException("unsupported triangulation requested"))
   end  # end if shape_type
@@ -46,48 +58,41 @@ function getTriangulation(order::Integer, shape_type::Integer)
   return triangulation
 end
 
-function getNodeMaps(order::Integer, shape_type::Integer, numNodesPerElement, dim=2)
+function getNodeMaps(order::Integer, shape_type::Integer, numNodesPerElement, dim, isDG::Bool)
 # get the mappings between the SBP and Pumi node orderings
 # having to do the mapping at all is inelegent to say the least
 # store mappings in both directions in case they are needed
 # use UInt8s to save cache space during loops
 
-  if dim == 2
-    if shape_type == 1
-      if order == 1
-        sbpToPumi = UInt8[1,2,3]
-        pumiToSbp = UInt8[1,2,3]
-      elseif order == 2
-        sbpToPumi = UInt8[1,2,3,4,5,6,7]
-        pumiToSbp = UInt8[1,2,3,4,5,6,7]
-      elseif order == 3
-        sbpToPumi = UInt8[1,2,3,4,5,6,7,9,8,12,10,11]
-        pumiToSbp= UInt8[1,2,3,4,5,6,7,9,8,11,12,10]
-      elseif order == 4 
-        sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,17,13,15,14,16,18]
-        pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,14,16,15,17,13,18]
+  if !isDG  # CG
+    if dim == 2
+      if shape_type == 1
+        if order == 1
+          sbpToPumi = UInt8[1,2,3]
+          pumiToSbp = UInt8[1,2,3]
+        elseif order == 2
+          sbpToPumi = UInt8[1,2,3,4,5,6,7]
+          pumiToSbp = UInt8[1,2,3,4,5,6,7]
+        elseif order == 3
+          # TODO: is it possible to change the apf::FieldShape object to 
+          # make the sbp and Pumi node orderings the same?
+          sbpToPumi = UInt8[1,2,3,4,5,6,7,9,8,12,10,11]
+          pumiToSbp= UInt8[1,2,3,4,5,6,7,9,8,11,12,10]
+        elseif order == 4 
+          sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,17,13,15,14,16,18]
+          pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,14,16,15,17,13,18]
+        else
+          throw(ErrorException("Unsupported element order $order requestion in getNodeMaps"))
+        end  # end if order
       else
-        println(STDERR, "Warning: Unsupported element order requestion in getNodeMaps")
+        throw(ErrorException("CG only supports shape type 1, requested $(shape_type)"))
+      end  # end if shape_type 
+    else  # 3D
+      throw(ErrorException("3 dimensional continuous Galerkin not supported"))
+    end  # end if dim
 
-        # default to 1:1 mapping
-        sbpToPumi = UInt8[1:numNodesPerElement]
-        pumiToSbp = UInt8[1:numNodesPerElement]
-      end
-
-    elseif shape_type == 2 || shape_type == 3 || shape_type == 4 || shape_type == 5 #TODO: make this the else case
-      if order <= 4
-        sbpToPumi = collect(UInt8, 1:numNodesPerElement)
-        pumiToSbp = collect(UInt8, 1:numNodesPerElement)
-      else
-
-        println(STDERR, "Warning: Unsupported element order requestion in getFaceOffsets")
-        # default to 1:1 mapping
-        sbpToPumi = UInt8[1:numNodesPerElement;]
-        pumiToSbp = UInt8[1:numNodesPerElement;]
-      end
-
-    end  # end if shape_type
-  else  # dim == 3
+  else # DG
+    # the sbp and Pumi nodemaps are the same in this case
     sbpToPumi = collect(UInt8, 1:numNodesPerElement)
     pumiToSbp = collect(UInt8, 1:numNodesPerElement)
   end
@@ -106,7 +111,7 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
   shape_type = mesh.shape_type
   dofpernode = mesh.numDofPerNode
 
-  if mesh.shape_type == 1
+  if !mesh.isDG  #mesh.shape_type == 1
     if order >= 3
       mesh.mnew_ptr, mesh.fnew_ptr, mesh.fnewshape_ptr = createCGSubMesh(mesh)
 
@@ -116,16 +121,7 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
       mesh.mnew_ptr = C_NULL
       mesh.fnew_ptr = C_NULL
     end
-#=
-  elseif mesh.shape_type == 2
-    if order >= 1
-      mesh.mnew_ptr, mesh,fnew_ptr, mesh.fnewshape_ptr = createDGSubMesh(mesh)
-
-    else
-      throw(ErrorException("Congratulations: you have reached and unreachable case"))
-    end
-=#
-  elseif mesh.shape_type == 3 || mesh.shape_type == 2  || mesh.shape_type == 4 || mesh.shape_type == 5# DG SBP Omega or Gamma  #TODO: make this the else case
+  else
     # I don't think subtriangulation will work in this case, so create a 
     # field with the same degree as a coordinate field on the existing mesh, 
     # and interpolate the solution onto it
@@ -148,13 +144,7 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
     if mesh.shape_type != 2 && opts["exact_visualization"]
       throw(ErrorException("exact visualization only supported for SBP Omega"))
     end
-
-
-  else
-    throw(ErrorException("Unsupported shape_type"))
-  end  # end if mesh.shape_type 
-
-
+  end  # end if mesh.isDG
 
   return nothing
 end

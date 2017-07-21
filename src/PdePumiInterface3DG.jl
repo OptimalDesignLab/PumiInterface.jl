@@ -365,7 +365,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
   println("\nConstructing PumiMeshDG3 Object")
-  println("  sbp_name = ", smb_name)
+  println("  smb_name = ", smb_name)
   println("  dmg_name = ", dmg_name)
   set_defaults(opts)
   mesh = new()
@@ -403,35 +403,17 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 #  end
 
   # figure out coordinate FieldShape, node FieldShape
-  coord_shape_type = 0 # integer to indicate the FieldShape of the coordinates
-  field_shape_type = 0 # integer to indicate the FieldShape of the nodes
-  mesh_order = order  # order of the coordinate field
-
-  # if shape_type == 2 || shape_type == 3
-    # coord_shape_type = -1  # keep coordinate field already present
-    # field_shape_type = shape_type
-    # mesh_order = 1  # TODO: change this to an input-output parameter
-  # else  # same coordinate, field shape
-    # coord_shape_type = shape_type
-    # field_shape_type = shape_type
-    # mesh_order = order
-  # end
-
-  #
-  # DEBUG :  couldn't pass assertion in pumi. Try if it's here
-  #
-  if shape_type == 2 || shape_type == 3 || shape_type == 4 || shape_type == 5
+#  if shape_type == 2 || shape_type == 3 || shape_type == 4 || shape_type == 5
+   # we now use the existing coordinate field for all DG meshes and create
+   # a separate solution field
     coord_shape_type = -1  # keep coordinate field already present
     field_shape_type = shape_type
     mesh_order = 1  # TODO: change this to an input-output parameter
-  else  # same coordinate, field shape
-    coord_shape_type = shape_type
-    field_shape_type = shape_type
-    mesh_order = order
-  end
-  #
-  # END DEBUG
-  #
+#  else  # same coordinate, field shape
+#    coord_shape_type = shape_type
+#    field_shape_type = shape_type
+#    mesh_order = order
+#  end
 
   num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
 
@@ -501,7 +483,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 
 
   # get nodemaps
-  mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(order, shape_type, mesh.numNodesPerElement, mesh.dim)
+  mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(order, shape_type, mesh.numNodesPerElement, mesh.dim, mesh.isDG)
 
  
   # get pointers to mesh entity numberings
