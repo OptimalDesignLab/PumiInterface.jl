@@ -357,6 +357,16 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   mesh2::AbstractMesh
   sbp2::AbstractSBP
 
+  # interpolation operators
+  # these are usually stored in the solution mesh but not in the flux mesh
+  I_S2F::Matrix{Float64}  # interpolation operator from solution to flux grid,
+                          # numNodesPerElement_f x numNodesPerElement_s
+  I_S2FT::Matrix{Float64}  # transpose of above
+  I_F2S::Matrix{Float64}  # interpolation operator from flux grid to solution
+                          # grid, numNodesPerElement_s x numNodesPerElement_f
+  I_F2ST::Matrix{Float64} # transpose of above
+
+
  function PumiMeshDG3(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface, topo::ElementTopology{3}; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
