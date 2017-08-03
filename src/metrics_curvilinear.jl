@@ -728,6 +728,7 @@ function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp,
     end
   end
   =#
+
   calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
                        coords_block, dxidx_block, jac_block, Eone)
 

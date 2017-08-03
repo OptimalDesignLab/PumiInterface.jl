@@ -503,7 +503,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
   mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
-  mesh. numNodesPerElement = mesh.typeOffsetsPerElement[end] - 1
+  mesh.numNodesPerElement = mesh.typeOffsetsPerElement[end] - 1
   numnodes = mesh.numNodesPerElement*mesh.numEl
   mesh.numNodes = numnodes      # we assume there are no non-free nodes/dofs
   mesh.numDof = numnodes*dofpernode
