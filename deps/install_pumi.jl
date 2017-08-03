@@ -2,8 +2,8 @@ function installPumi()
   #pumi_version = "e4eabf5"
   #pumi_version = "d1837c5936c28d6ef09abd02c82ea2a4ea9b6f55"
 #  pumi_version = "7efdf2319d13ce86994930e867d226ea421c1717"
-#  pumi_version = "63fa247358e46352c0d500b1f1735c82447dfddd"
-   pumi_version = "develop"
+  pumi_version = "63fa247358e46352c0d500b1f1735c82447dfddd"
+#   pumi_version = "develop"
 #  pumi_version = "HEAD"
 
   start_dir = pwd()  # record where we started

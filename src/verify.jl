@@ -257,3 +257,26 @@ function checkContiguity(mesh::PumiMesh)
 
   return nothing
 end
+
+"""
+  This function verifies that the element topologies are sufficiently consistent
+  to support second order coordinate fields.  In particular, it means that the
+  element faces are defined by the same vertices (but not necessarily in the
+  same order
+
+  Inputs
+    topo1: one topology
+    topo2: the other topology
+
+  Outputs:
+    none
+"""
+function checkTopologyConsistency(topo1::ElementTopology, topo2::ElementTopology)
+
+  nfaces = size(topo1.face_verts, 2)
+  for i=1:nfaces
+    @assert sort!(topo1.face_verts[:, i]) == sort!(topo2.face_verts[:, i])
+  end
+
+  return nothing
+end

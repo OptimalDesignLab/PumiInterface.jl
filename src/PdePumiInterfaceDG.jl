@@ -416,6 +416,8 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
                                   # important for 2D
   mesh.topo_pumi = ElementTopology{2}(PumiInterface.tri_edge_verts.')
 
+  checkTopologyConsistency(mesh.topo, mesh.topo_pumi)
+
   if !MPI.Initialized()
     MPI.Init()
   end
