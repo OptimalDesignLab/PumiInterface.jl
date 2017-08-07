@@ -2,6 +2,7 @@
 // high order mesh into a low order one
 
 #include "triangulation.h"
+#include "funcs1.h"
 
 namespace tri {
 // given nodenum, the index of a node within an element (zero based), return the MeshEntity
@@ -107,7 +108,7 @@ apf::MeshEntity* getVert(apf::Mesh* m, apf::MeshEntity* verts[], apf::MeshEntity
 // copy all of the Numbering values at a particular node from an old Numbering to a new one.
 int copyNumberingNode(apf::Numbering* n_old, apf::Numbering* n_new, apf::MeshEntity* e_old, apf::MeshEntity* e_new, const int node_old, const int node_new, int ncomp)
 {
-  apf::Mesh* m = getMesh(n_old);
+  apf::Mesh* m = apf::getMesh(n_old);
   apf::FieldShape* nshape = apf::getShape(n_old);
   int type = m->getType(e_old);
   int dim = m->typeDimension[type];
@@ -730,6 +731,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
   gmi_register_null();
   gmi_model* g = gmi_load(".null");
   apf::Mesh2* m_new = apf::makeEmptyMdsMesh(g, 2, false);
+  pushMeshRef(m_new);
 
   // step 1: create all vertices of sub-triangles
    

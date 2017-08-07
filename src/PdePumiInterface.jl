@@ -227,8 +227,64 @@ function zeroBarArrays(mesh::PumiMesh)
 
   return nothing
 end
-          
 
+"""
+  Registers a finalizer that cleans up the pumi mesh underlying the julia
+  mesh object, including all the other meshes (subtriangulated etc.).
+  This uses reference counting, so the mesh is only freed if there are no 
+  more references to it.
+"""
+function registerFinalizer(mesh::PumiMesh)
+
+  finalizer(mesh, finalizeMesh)
+
+end
+
+"""
+  The finalizer function itself used by registerFinalizer().  If users
+  want to free the Pumi datastructure early, they can call this function.
+"""
+function finalizeMesh(mesh::PumiMesh)
+
+  fnames = fieldnames(mesh)
+
+  # only do the main mesh for now
+  if mesh.m_ptr != C_NULL
+    popMeshRef(mesh.m_ptr)
+
+    # figure out which other mesh pointers need to be zeroed
+    zero_mnew = ( :mnew_ptr in fnames) && mesh.mnew_ptr == mesh.m_ptr
+    zero_mexact = ( :mexact_ptr in fnames) && mesh.mexact_ptr == mesh.m_ptr
+
+    mesh.m_ptr = C_NULL
+    if zero_mnew
+      mesh.mnew_ptr = C_NULL
+    end
+    if zero_mexact
+      mesh.mexact_ptr = C_NULL
+    end
+  end
+
+  if ( :mnew_ptr in fnames) && mesh.mnew_ptr != C_NULL
+    popMeshRef(mesh.mnew_ptr)
+
+    zero_mexact = ( :mexact_ptr in fnames) && mesh.mexact_ptr == mesh.mnew_ptr
+
+    mesh.mnew_ptr = C_NULL
+    if zero_mexact
+      mesh.mexact_ptr == C_NULL
+    end
+  end
+
+  if ( :mexect_ptr in fnames) && mesh.mexact_ptr != C_NULL
+    popMeshRef(mesh.mexact_ptr)
+    mesh.mexact_ptr = C_NULL
+  end
+
+
+
+  return nothing
+end
 
 
 include("elements.jl")
@@ -993,6 +1049,8 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   println("numEl = ", numEl)
   println("numDof = ", numdof)
   println("numNodes = ", numnodes)
+
+  registerFinalizer(mesh)
 
   writeVtkFiles("mesh_complete", m_ptr)
 end

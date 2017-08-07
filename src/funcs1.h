@@ -49,6 +49,10 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3],
 // these functions are not user accessible
 void cleanup(apf::Mesh* m_local);
 void destroyNumberings(int dim); 
+
+void pushMeshRef(apf::Mesh* m);
+void popMeshRef(apf::Mesh* m);
+
 apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_shape);
 
 // these functions do pass pointers

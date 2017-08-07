@@ -12,6 +12,7 @@
 
 
 #include "funcs1.h"
+#include <cassert>
 //#include "a2.h"
 
 //=============================================================================
@@ -43,6 +44,8 @@ const char *names[] = { "vertex", "edge", "face", "element"};  // array of strin
 IsotropicFunctionJ isofunc;  // declare isotropic function at global scope
 AnisotropicFunctionJ anisofunc; // declare anisotropic function at global scope
 
+
+std::map<apf::Mesh*, int> meshref; // store reference count for mesh
 
 // init for 3d mesh
 // order = order of shape functions to use
@@ -190,11 +193,14 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
   int dim;
   if (load_mesh)  // if the user said to load a new mesh
   {
+    /*
     if ( meshloaded)  // if a mesh has been loaded before
     {
-      std::cout << "Performing cleanup before loading new mesh" << std::endl;
-      cleanup(m);
+//      std::cout << "Performing cleanup before loading new mesh" << std::endl;
+      popMeshRef(m);
+//      cleanup(m);
     }
+    */
 
     if (strcmp(dmg_name, ".null") == 0)
     {
@@ -203,6 +209,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
       gmi_model* g = gmi_load(".null");
 //      std::cout << "finished loading geometric model" << std::endl;
       m = apf::loadMdsMesh(g, smb_name);
+      pushMeshRef(m);
 //    apf::changeMeshShape(m, apf::getLagrange(2), true);
 //    apf::changeMeshShape(m, apf::getLagrange(1), false); // for linear meshes
 //    apf::changeMeshShape(m, apf::getSerendipity(), true);
@@ -212,6 +219,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
       gmi_register_mesh();
 //      std::cout << "loading geometric model from file" << std::endl;
       m = apf::loadMdsMesh(dmg_name, smb_name);
+      pushMeshRef(m);
     }
 
     dim = m->getDimension();
@@ -352,6 +360,45 @@ void destroyNumberings(int dim)
    apf::destroyNumbering(numberings[2]);
   }
  
+}
+
+
+// increment the reference count for the given mesh by 1
+// creates a new key if needed
+void pushMeshRef(apf::Mesh* m)
+{
+  std::map<apf::Mesh*, int>::size_type nfound = meshref.count(m);
+  
+  if (nfound == 0)
+  {
+    meshref[m] = 1;
+  } else
+  {
+    meshref[m] = meshref[m] + 1;
+  }
+
+}
+
+void popMeshRef(apf::Mesh* m)
+{
+  std::map<apf::Mesh*, int>::size_type nfound = meshref.count(m);
+
+  // when the reference counter equals zero, the key gets removed
+  assert( nfound != 0);
+
+  int nrefs = meshref[m];
+
+  // we have been asked to pop the last reference
+  if (nrefs == 1)
+  {
+    cleanup(m);
+    meshref.erase(m);
+  } else
+  {
+    meshref[m] = nrefs - 1;
+  }
+
+
 }
 
 // this function defines the mapping from the shape_type integer to the

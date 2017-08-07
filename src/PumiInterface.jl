@@ -19,6 +19,9 @@ function declareNames()
 global const pumi_libname = "libfuncs1"
 global const init_name = "initABC"
 global const init2_name = "initABC2"
+global const pushMeshRef_name = "pushMeshRef"
+global const popMeshRef_name = "popMeshRef"
+
 global const getMeshPtr_name = "getMeshPtr"
 global const getConstantShapePtr_name = "getConstantShapePtr"
 global const getMeshShapePtr_name = "getMeshShapePtr"
@@ -165,7 +168,7 @@ end
 
 
 # export low level interface functions
-export declareNames, init, init2, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, getAllEntityCoords, createNumberingJ, getNumberingShape, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, zeroField, getCoordinateField, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
+export declareNames, init, init2, pushMeshRef, popMeshRef, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, getAllEntityCoords, createNumberingJ, getNumberingShape, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, zeroField, getCoordinateField, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
 export createSubMeshDG, transferFieldDG, getFieldShape
 
@@ -255,7 +258,14 @@ return num_Entities, m_ptr_array[1], mshape_ptr_array[1], dim[]
 end
 
 
+function pushMeshRef(m_ptr::Ptr{Void})
 
+  ccall ( (pushMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+end
+
+function popMeshRef(m_ptr::Ptr{Void})
+  ccall ( (popMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+end
 
 
 # no longer needed

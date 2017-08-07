@@ -792,16 +792,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   println(f, sum(mesh.peer_face_counts))
   close(f)
 
-  #TODO: remove this
-  f = open("nrm_face.dat", "w")
-  for i=1:mesh.numInterfaces
-    coords = mesh.coords_interface
-    nrm_face = mesh.nrm_face
-    for j=1:mesh.numNodesPerFace
-       println(f, i, " ", j, " ", coords[1, j, i], " ", coords[2, j, i], " ", nrm_face[1, j, i], " ", nrm_face[2, j, i])
-     end
-   end
-   close(f)
+  registerFinalizer(mesh)
 
 #  close(mesh.f)
   return mesh
