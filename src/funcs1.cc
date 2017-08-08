@@ -160,7 +160,7 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
   its[2] = m->begin(2);
   its[3] = m->begin(3);
 
-  resetFaceIt();
+//  resetFaceIt();
 
 //  apf::writeASCIIVtkFiles("output_init", m);
   return 0;
@@ -336,7 +336,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
     its[i] = m->begin(i);  // reset iterator
   }
    
-  resetFaceIt();
+//  resetFaceIt();
 
   apf::writeASCIIVtkFiles("output_init", m);
 /*

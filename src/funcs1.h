@@ -65,9 +65,9 @@ extern apf::FieldShape* getConstantShapePtr(int dimension);
 //extern apf::Numbering* getElNumbering();
 
 // these functions do not pass pointers
-extern void resetVertIt();
-extern void resetEdgeIt();
-extern void resetFaceIt();
+//extern void resetVertIt();
+//extern void resetEdgeIt();
+//extern void resetFaceIt();
 extern void incrementVertIt();
 extern void incrementVertItn(int n);
 
@@ -80,7 +80,7 @@ extern void incrementFaceItn(int n);
 extern void incrementElIt();
 extern void incrementElItn(int n);
 
-extern void incrementIt(int dim);
+//extern void incrementIt(int dim);
 
 extern void resetElIt();
 
@@ -105,11 +105,11 @@ extern int getFaceNumber();
 extern int getElNumber();
 
 // these functions pass pointers to/from julia
-extern apf::MeshEntity* getVert();
-extern apf::MeshEntity* getEdge();
-extern apf::MeshEntity* getFace();
-extern apf::MeshEntity* getEl();
-extern apf::MeshEntity* getEntity(int dim);
+//extern apf::MeshEntity* getVert();
+//extern apf::MeshEntity* getEdge();
+//extern apf::MeshEntity* getFace();
+//extern apf::MeshEntity* getEl();
+//extern apf::MeshEntity* getEntity(int dim);
 
 // these functions are deprecated, use getNumberJ insteady
 extern int getVertNumber2(apf::MeshEntity* e);

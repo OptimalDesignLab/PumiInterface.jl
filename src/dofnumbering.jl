@@ -444,7 +444,7 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
 
     numberJ(el_Nptr, el_i, 0, 0, curr_elnum)
     curr_elnum += 1
-    incrementIt(dim)
+#    incrementIt(dim)
   end
   free(mesh.m_ptr, it)
   @assert (curr_elnum - 1) == 2*mesh.numEl

@@ -957,8 +957,9 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
   # count boundary edges
   bnd_edges_cnt = 0
   bnd_edges = Array(Int, numEdge, 2)
+  it = MeshIterator(mesh.m_ptr, 1)
   for i=1:numEdge
-    edge_i = getEdge()
+    edge_i = iterate(mesh.m_ptr, it)
     numFace = countAdjacent(m_ptr, edge_i, 2)  # should be count upward
 
     if numFace == 1  # if an exterior edge
@@ -969,8 +970,8 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
       bnd_edges[bnd_edges_cnt, 1] = facenum
       bnd_edges[bnd_edges_cnt, 2] = i
     end
-    incrementEdgeIt()
   end
+  free(mesh.m_ptr, it)
 
   bnd_edges_small = bnd_edges[1:bnd_edges_cnt, :]
 

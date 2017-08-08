@@ -300,9 +300,11 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
   for dim=1:(mesh.dim + 1)
     if numNodesPerType[dim] > 0
 #      @assert dim == 1
-      resetIt(dim - 1) 
+      it = MeshIterator(mesh.m_ptr, dim - 1)
+#      resetIt(dim - 1) 
       for i=1:numEntitiesPerType[dim]
-        entity_i = getEntity(dim - 1)
+#        entity_i = getEntity(dim - 1)
+        entity_i = iterate(mesh.m_ptr, it)
         entity_num = getNumberJ(mesh.entity_Nptrs[dim], entity_i, 0, 0) + 1
 #        getPoint(mesh.m_ptr, entity_i, 0, coords)
         nel = countAdjacent(mesh.mnew_ptr, entity_i, mesh.dim)
@@ -364,8 +366,10 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 #        println(mesh.f, "average solution value = ", u_node, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
 
         setComponents(mesh.fnew_ptr, entity_i, 0, u_node)
-        incrementIt(dim - 1)
+#        incrementIt(dim - 1)
       end  # end loop i
+
+      free(mesh.m_ptr, it)
     end  # end if
   end  # end loop dim
 

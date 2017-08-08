@@ -32,22 +32,23 @@ facts("Testing PUMIInterface.jl") do
   edges = Array(Ptr{Void}, num_Entities[2])
   faces = Array(Ptr{Void}, num_Entities[3])
 
+  it = MeshIterator(m_ptr, 0)
   for i=1:length(verts)
-    verts[i] = getVert()
-    incrementVertIt()
+    verts[i] = iterate(m_ptr, it)
   end
+  free(m_ptr, it)
 
+  it = MeshIterator(m_ptr, 1)
   for i=1:length(edges)
-    edges[i] = getEdge()
-    incrementEdgeIt()
+    edges[i] = iterator(m_ptr, it)
   end
+  free(m_ptr, it)
 
+  it = MeshIterator(m_ptr, 2)
   for i=1:length(faces)
-    faces[i] = getFace()
-    incrementFaceIt()
+    faces[i] = iterate(m_ptr, it)
   end
-
-  resetAllIts2(m_ptr)
+  free(m_ptr, it)
 
   # check the countRemotes function
   # the only thing that can really be tested is the number of total remotes

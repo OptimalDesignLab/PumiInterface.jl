@@ -223,11 +223,12 @@ end
 function countBoundaryFaces(mesh::PumiMesh3)
   # count boundary face
   # store array of [element number, global edge number]
-  resetFaceIt()
+#  resetFaceIt()
   bnd_faces_cnt = 0
   bnd_faces = Array(Int, mesh.numFace, 2)
+  it = MeshIterator(mesh.m_ptr, 2)
   for i=1:mesh.numFace
-    face_i = getFace()
+    face_i = iterate(mesh.m_ptr, it)
     numRegion = countAdjacent(mesh.m_ptr, face_i, 3)  # should be count upward
 
     if numRegion == 1  # if an exterior edge
@@ -240,8 +241,8 @@ function countBoundaryFaces(mesh::PumiMesh3)
       bnd_faces[bnd_faces_cnt, 1] = elnum
       bnd_faces[bnd_faces_cnt, 2] = i
     end
-    incrementFaceIt()
   end
+  free(mesh.m_ptr, it)
 
 
   mesh.boundary_nums = bnd_faces[1:bnd_faces_cnt, :] # copy, bad but unavoidable
