@@ -233,7 +233,7 @@ function countBoundaryFaces(mesh::PumiMesh3)
 
     if numRegion == 1  # if an exterior edge
       elements = getAdjacent(numRegion)
-      elnum = getElNumber2(elements[1]) + 1
+      elnum = getNumberJ(mesh.el_Nptr, elements[1], 0, 0) + 1
 
 #      println("face number ", i, " is part of only one element")
 

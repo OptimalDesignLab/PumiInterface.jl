@@ -964,7 +964,7 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
 
     if numFace == 1  # if an exterior edge
       faces = getAdjacent(numFace)
-      facenum = getFaceNumber2(faces[1]) + 1
+      facenum = getNumberJ(mesh.el_Nptr, faces[1], 0, 0) + 1
 
       bnd_edges_cnt += 1
       bnd_edges[bnd_edges_cnt, 1] = facenum

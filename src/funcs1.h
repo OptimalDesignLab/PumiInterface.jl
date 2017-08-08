@@ -68,23 +68,23 @@ extern apf::FieldShape* getConstantShapePtr(int dimension);
 //extern void resetVertIt();
 //extern void resetEdgeIt();
 //extern void resetFaceIt();
-extern void incrementVertIt();
-extern void incrementVertItn(int n);
+//extern void incrementVertIt();
+//extern void incrementVertItn(int n);
 
-extern void incrementEdgeIt();
-extern void incrementEdgeItn(int n);
+//extern void incrementEdgeIt();
+//extern void incrementEdgeItn(int n);
 
-extern void incrementFaceIt();
-extern void incrementFaceItn(int n);
+//extern void incrementFaceIt();
+//extern void incrementFaceItn(int n);
 
-extern void incrementElIt();
-extern void incrementElItn(int n);
+//extern void incrementElIt();
+//extern void incrementElItn(int n);
 
 //extern void incrementIt(int dim);
 
-extern void resetElIt();
+//extern void resetElIt();
 
-extern void resetIt(int dim);
+//extern void resetIt(int dim);
 
 
 extern int count(apf::Mesh2* m_local, int dimension);
@@ -97,12 +97,12 @@ apf::MeshEntity* deref(apf::Mesh2* m, apf::MeshIterator* it);
 
 extern void writeVtkFiles(char* name, apf::Mesh2* m_local);
 
-extern void setGlobalVertNumber(int val); // do not use
-extern int getGlobalVertNumber(); // do not use
-extern int getVertNumber();
-extern int getEdgeNumber();
-extern int getFaceNumber();
-extern int getElNumber();
+//extern void setGlobalVertNumber(int val); // do not use
+//extern int getGlobalVertNumber(); // do not use
+//extern int getVertNumber();
+//extern int getEdgeNumber();
+//extern int getFaceNumber();
+//extern int getElNumber();
 
 // these functions pass pointers to/from julia
 //extern apf::MeshEntity* getVert();
@@ -112,10 +112,10 @@ extern int getElNumber();
 //extern apf::MeshEntity* getEntity(int dim);
 
 // these functions are deprecated, use getNumberJ insteady
-extern int getVertNumber2(apf::MeshEntity* e);
-extern int getEdgeNumber2(apf::MeshEntity* e);
-extern int getFaceNumber2(apf::MeshEntity* e);
-extern int getElNumber2(apf::MeshEntity* e);
+//extern int getVertNumber2(apf::MeshEntity* e);
+//extern int getEdgeNumber2(apf::MeshEntity* e);
+//extern int getFaceNumber2(apf::MeshEntity* e);
+//extern int getElNumber2(apf::MeshEntity* e);
 
 
 // geometric model functions
