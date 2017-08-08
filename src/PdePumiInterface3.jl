@@ -517,7 +517,7 @@ for i=1:mesh.numEl  # loop over elements
   
   el_i = mesh.elements[i]
   (sizex, sizey) = size(coords_i)
-  getElCoords(el_i, coords_i, sizex, sizey)  # populate coords
+  getElCoords(mesh.m_ptr, el_i, coords_i, sizex, sizey)  # populate coords
 
 #  println("coords_i = ", coords_i)
 
@@ -580,8 +580,8 @@ function getInterfaceArray(mesh::PumiMesh3)
 
       coords_1 = zeros(3,4)
       coords_2 = zeros(3,4)
-      getElCoords(mesh.elements[element1], coords_1, 3, 4)
-      getElCoords(mesh.elements[element2], coords_2, 3, 4)
+      getElCoords(mesh.m_ptr, mesh.elements[element1], coords_1, 3, 4)
+      getElCoords(mesh.m_ptr, mesh.elements[element2], coords_2, 3, 4)
 
       # calculate centroid
       centroid1 = sum(coords_1, 2)

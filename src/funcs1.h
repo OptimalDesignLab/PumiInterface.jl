@@ -157,19 +157,18 @@ extern void getLocalGradients(apf::EntityShape* eshape_local, double xi[3], doub
 void alignSharedNodes(apf::EntityShape* eshape_local, apf::Mesh* m_local, apf::MeshEntity* elem, apf::MeshEntity* shared, int order[]);
 
 // these function do not pass pointers (they use the iterators internally)
-extern void checkVars();
-extern void checkNums();
-extern void getVertCoords(double coords[][3], int sx, int sy);
-extern int getEdgeCoords(double coords[2][3], int sx, int sy);
-extern int getFaceCoords(double coords[][3], int sx, int sy);
-extern int getElCoords(double coords[][3], int sx, int sy);
-extern int getElCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);
+//extern void checkVars();
+//extern void checkNums();
+//extern void getVertCoords(double coords[][3], int sx, int sy);
+//extern int getEdgeCoords(double coords[2][3], int sx, int sy);
+//extern int getFaceCoords(double coords[][3], int sx, int sy);
+//extern int getElCoords(double coords[][3], int sx, int sy);
 
 // these functinos pass pointers
-extern void getVertCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);
-extern int getEdgeCoords2(apf::MeshEntity* e, double coords[2][3], int sx, int sy);
-int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);
-
+extern void getVertCoords2(apf::Mesh* m, apf::MeshEntity* e, double coords[][3], int sx, int sy);
+extern int getEdgeCoords2(apf::Mesh* m, apf::MeshEntity* e, double coords[2][3], int sx, int sy);
+int getFaceCoords2(apf::Mesh* m, apf::MeshEntity* e, double coords[][3], int sx, int sy);
+extern int getElCoords2(apf::Mesh* m, apf::MeshEntity* e, double coords[][3], int sx, int sy);
 
 void getAllEntityCoords(apf::Mesh* m, apf::MeshEntity* e, double* coords);
 

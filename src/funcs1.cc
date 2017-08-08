@@ -19,12 +19,12 @@
 //declare global variables (persistent state of library)
 
 apf::Mesh2* m;
-apf::FieldShape* mshape;
+//apf::FieldShape* mshape;
 apf::MeshEntity* entity_global;  // token mesh entity used for EntityShape
-apf::Numbering* elNums; // element numbering
-apf::Numbering* faceNums; // face numbering
-apf::Numbering* edgeNums; // edge numbering
-apf::Numbering* vertNums; // vertex numbers
+//apf::Numbering* elNums; // element numbering
+//apf::Numbering* faceNums; // face numbering
+//apf::Numbering* edgeNums; // edge numbering
+//apf::Numbering* vertNums; // vertex numbers
 
 bool meshloaded = false;  // record whether or not a mesh has been loaded
 
@@ -32,14 +32,14 @@ apf::MeshEntity* e_tmp;
 
 // arrays to hold variables for each entity type
 // array[0] = vertex, array[1] = edge, array[2] = face, array[3] = element
-apf::MeshIterator* its[4];  // mesh iterators
+//apf::MeshIterator* its[4];  // mesh iterators
 int numEntity[4];  // number of each type of entity
 int numDown[4][4];  // number of downward adjacencies entity i has of type j
                  // define vertices to have zero
                  // this assumes only one type of element per mesh
-apf::Numbering* numberings[4];  // numberings of each type of entity
+//apf::Numbering* numberings[4];  // numberings of each type of entity
                                 // numberings are 1 index (not zero)
-apf::MeshTag* globalVertNums;    // tag each vertex with global vertex number
+//apf::MeshTag* globalVertNums;    // tag each vertex with global vertex number
 const char *names[] = { "vertex", "edge", "face", "element"};  // array of strings, used for printing output inside loops
 IsotropicFunctionJ isofunc;  // declare isotropic function at global scope
 AnisotropicFunctionJ anisofunc; // declare anisotropic function at global scope
@@ -121,9 +121,6 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 
 //    std::cout << "finished loading mesh, changing shape" << std::endl;
 
-  } else {  // if not loading a mesh
-    destroyNumberings(3);  // destroy the numberings before creating new ones
-//    std::cout << "finished destroying numberings of existing mesh" << std::endl;
   }
 
   // this should have a new filename everytime
@@ -132,8 +129,8 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 
   m_ptr_array[0] = m;
   mshape_ptr_array[0] = m->getShape();
-  its[0] = m->begin(0);
-  entity_global = m->iterate(its[0]);  // get token mesh entity
+  apf::MeshIterator* it = m->begin(0);
+  entity_global = m->iterate(it);  // get token mesh entity
   
   // initilize  number of each type of entity
   for (int i = 0; i < 4; ++i)
@@ -143,22 +140,10 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
   }
 
   // initilize numberings
-  numberings[0] = numberOwnedDimension(m, "vertNums", 0);
-  numberings[1] = numberOwnedDimension(m, "edgeNums", 1);
-  numberings[2] = numberOwnedDimension(m, "faceNums", 2);
-  numberings[3] = numberOwnedDimension(m, "elNums", 3);
-
-  n_array[0] = numberings[0];
-  n_array[1] = numberings[1];
-  n_array[2] = numberings[2];
-  n_array[3] = numberings[3];
-
-
-  // initilize iterators
-  its[0] = m->begin(0);
-  its[1] = m->begin(1);
-  its[2] = m->begin(2);
-  its[3] = m->begin(3);
+  n_array[0] = numberOwnedDimension(m, "vertNums", 0);
+  n_array[1] = numberOwnedDimension(m, "edgeNums", 1);
+  n_array[2] = numberOwnedDimension(m, "faceNums", 2);
+  n_array[3] = numberOwnedDimension(m, "elNums", 3);
 
 //  resetFaceIt();
 
@@ -274,7 +259,6 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
 
   } else {  // if not loading a mesh
     dim = m->getDimension();
-    destroyNumberings(2);  // destroy the numberings before creating new ones
   }
 
   dim_ret[0] = dim; // return to julia
@@ -285,8 +269,8 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
 
   m_ptr_array[0] = m;
   mshape_ptr_array[0] = m->getShape();
-  its[0] = m->begin(0);
-  entity_global = m->iterate(its[0]);  // get token mesh entity
+  apf::MeshIterator* it = m->begin(0);
+  entity_global = m->iterate(it);  // get token mesh entity
   
   // initilize  number of each type of entity
   for (int i = 0; i < (dim+1); ++i)
@@ -297,43 +281,25 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
   }
 
   // create numberings
-  numberings[0] = apf::createNumbering(m, "vertNums", apf::getConstant(0), 1);
-  numberings[1] = apf::createNumbering(m, "edgeNums", apf::getConstant(1), 1);
-  numberings[2] = apf::createNumbering(m, "faceNums", apf::getConstant(2), 1);
+  n_array[0] = apf::createNumbering(m, "vertNums", apf::getConstant(0), 1);
+  n_array[1] = apf::createNumbering(m, "edgeNums", apf::getConstant(1), 1);
+  n_array[2] = apf::createNumbering(m, "faceNums", apf::getConstant(2), 1);
   if (dim == 3)
-    numberings[3] = apf::createNumbering(m, "regionNums", apf::getConstant(3), 1);
-
-  // copy to in/out variable
-  n_array[0] = numberings[0];
-  n_array[1] = numberings[1];
-  n_array[2] = numberings[2];
-  if (dim == 3)
-    n_array[3] = numberings[3];
-
-
-
-
-
-
-  // initilize iterators
-  its[0] = m->begin(0);
-  its[1] = m->begin(1);
-  its[2] = m->begin(2);
-  if (dim == 3)
-    its[3] = m->begin(3);
+    n_array[3] = apf::createNumbering(m, "regionNums", apf::getConstant(3), 1);
 
 
   for (int i = 0; i < (dim+1); ++i)  // loop over dimensions
   {
     int curr_num = 0;
     apf::MeshEntity* e_local;
-    while ( (e_local = m->iterate(its[i])) )
+    it = m->begin(i);
+    while ( (e_local = m->iterate(it)) )
     {
 //      std::cout << "curr_num = " << curr_num << std::endl;
-      apf::number(numberings[i], e_local, 0, 0, curr_num);
+      apf::number(n_array[i], e_local, 0, 0, curr_num);
       ++curr_num;
     }
-    its[i] = m->begin(i);  // reset iterator
+    m->end(it);
   }
    
 //  resetFaceIt();
@@ -359,22 +325,6 @@ void cleanup(apf::Mesh* m_local)
 //  PCU_Comm_Free();
 //  MPI_Finalize();
 }
-
-// destroy numberings after mesh adaptation
-// dim specifies dimension of existing mesh (2 or 3d)
-void destroyNumberings(int dim)
-{
-  apf::destroyNumbering(numberings[0]);
-  apf::destroyNumbering(numberings[1]);
-  apf::destroyNumbering(numberings[2]);
-
-  if (dim > 2)
-  {
-   apf::destroyNumbering(numberings[2]);
-  }
- 
-}
-
 
 // increment the reference count for the given mesh by 1
 // creates a new key if needed
@@ -498,13 +448,6 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
   return fshape;
 }
 
-/*
-apf::Mesh2* getMeshPtr()
-{
-  return m;
-}
-*/
-
 apf::FieldShape* getMeshShapePtr(apf::Mesh* m)
 {
   return m->getShape();
@@ -515,111 +458,6 @@ apf::FieldShape* getMeshShapePtr(apf::Mesh* m)
 apf::FieldShape* getConstantShapePtr(int dimension)
 {
   return apf::getConstant(dimension);
-}
-
-
-/*
-apf::Numbering* getVertNumbering()
-{
-  return numberings[0];
-}
-
-
-apf::Numbering* getEdgeNumbering()
-{
-  return numberings[1];
-}
-
-apf::Numbering* getFaceNumbering()
-{
-  return numberings[2];
-}
-
-apf::Numbering* getElNumbering()
-{
-  return numberings[3];
-}
-*/
-
-void resetVertIt()
-{
-  its[0] = m->begin(0);
-}
-
-void resetEdgeIt()
-{
-  its[1] = m->begin(1);
-}
-
-void resetFaceIt()
-{
-  its[2] = m->begin(2);
-}
-
-void resetElIt()
-{
-  its[3] = m->begin(3);
-}
-
-void resetIt(int dim)
-{
-  its[dim] = m->begin(dim);
-}
-
-void incrementVertIt()
-{
-  m->iterate(its[0]);
-}
-
-void incrementIt(int dim)
-{
-  m->iterate(its[dim]);
-}
-
-// increment vertex iterator n times
-void incrementVertItn(int n)
-{
-  for (int i=0; i < n; ++i)
-    m->iterate(its[0]);
-}
-
-void incrementEdgeIt()
-{
-  m->iterate(its[1]);
-}
-
-// increment edge iterator n times
-void incrementEdgeItn(int n)
-{
-  for (int i=0; i < n; ++i)
-    m->iterate(its[1]);
-}
-
-
-void incrementFaceIt()
-{
-  m->iterate(its[2]);
-}
-
-
-// increment face iterator n times
-void incrementFaceItn(int n)
-{
-  for (int i=0; i < n; ++i)
-    m->iterate(its[2]);
-}
-
-void incrementElIt()
-{
-  m->iterate(its[3]);
-}
-
-
-// increment element iterator n times
-void incrementElItn(int n)
-{
-  for (int i=0; i < n; ++i)
-    m->iterate(its[3]);
 }
 
 
@@ -676,121 +514,6 @@ void writeVtkFiles(char* name, apf::Mesh2* m_local)
   */
 }
 
-
-// tag current vertex with val, part of MeshTag globalNodeNumbers
-//
-// these functions no longer work
-void setGlobalVertNumber(int val)
-{
-  apf::MeshEntity* e = m->deref(its[0]);  // get current vertex
-  // tag the vertex with a value
-  // setIntTag expects an array, so pass it a pointer to a single integer
-  m->setIntTag(e, globalVertNums, &val);  // tag the vertex with the a value
-}
- 
-// get the global vertex number of the current vertex
-int getGlobalVertNumber()
-{
-  apf::MeshEntity* e = m->deref(its[0]);
-  int val;
-  m->getIntTag(e, globalVertNums, &val);
-  return val;
-}
-
-
-int getVertNumber()
-{
-  apf::MeshEntity*e = m->deref(its[0]);
-  int num = apf::getNumber(numberings[0], e, 0, 0);
-  return num;
-}
-
-int getEdgeNumber()
-{
-  apf::MeshEntity*e = m->deref(its[1]);
-  int num = apf::getNumber(numberings[1], e, 0, 0);
-  return num;
-}
-
-int getFaceNumber()
-{
-  apf::MeshEntity*e = m->deref(its[2]);
-  int num = apf::getNumber(numberings[2], e, 0, 0);
-  return num;
-}
-
-
-int getElNumber()
-{
-  apf::MeshEntity*e = m->deref(its[3]);
-  int num = apf::getNumber(numberings[3], e, 0, 0);
-  return num;
-}
-
-// return MeshEntity pointer to current vertex
-apf::MeshEntity* getVert() 
-{
-  apf::MeshEntity* e = m->deref(its[0]);
-  return e;
-}
-
-// return MeshEntity pointer to current edge
-apf::MeshEntity* getEdge() 
-{
-  apf::MeshEntity* e = m->deref(its[1]);
-  return e;
-}
-
-
-// return MeshEntity pointer to current face
-apf::MeshEntity* getFace() 
-{
-  apf::MeshEntity* e = m->deref(its[2]);
-  return e;
-}
-
-
-// return MeshEntity pointer to current element
-apf::MeshEntity* getEl() 
-{
-  apf::MeshEntity* e = m->deref(its[3]);
-  return e;
-}
-
-apf::MeshEntity* getEntity(int dim)
-{
-  apf::MeshEntity* e = m->deref(its[dim]);
-  return e;
-}
-
-// get number of the vertex MeshEntity* e
-int getVertNumber2(apf::MeshEntity* e)
-{
-  int i = apf::getNumber(numberings[0], e, 0 , 0);
-  return i;
-}
-
-// get number of the edge MeshEntity* e
-int getEdgeNumber2(apf::MeshEntity* e)
-{
-  int i = apf::getNumber(numberings[1], e, 0 , 0);
-  return i;
-}
-
-
-// get number of the face MeshEntity* e
-int getFaceNumber2(apf::MeshEntity* e)
-{
-  int i = apf::getNumber(numberings[2], e, 0 , 0);
-  return i;
-}
-
-// get number of the element MeshEntity* e
-int getElNumber2(apf::MeshEntity* e)
-{
-  int i = apf::getNumber(numberings[3], e, 0 , 0);
-  return i;
-}
 
 
 // get model info of a mesh element
@@ -1046,31 +769,7 @@ void alignSharedNodes(apf::EntityShape* eshape_local, apf::Mesh* m_local, apf::M
   eshape_local->alignSharedNodes(m_local, elem, shared, order);
 }
 
-// check that global variable are persisent
-// doesn't work in 2d
-void checkVars()
-{
-  std::cout << "Entered checkVars()" << std::endl;
-  for (int i = 0; i < 4; ++i)
-  {
-    int type = m->getType(m->deref(its[i]));
-    std::cout << "type of its[" << i << "] = " << type;
-    int index = apf::getMdsIndex(m, m->deref(its[i]));
-    std::cout << "index its[" << i << "] = " << index << std::endl;
-    m->iterate(its[i]);
-  }
-
-  std::cout << "iterated all iterators stored in array" << std::endl;
-  for (int i = 0; i < 4; ++i)
-  {
-    int index = apf::getMdsIndex(m, m->deref(its[i]));
-    std::cout << "index its[" << i << "] = " << index << std::endl;
-
-  }
-
-}
-
-
+/*
 // print numberings of all mesh entitites
 // doesn't work in 2d
 void checkNums()
@@ -1080,7 +779,7 @@ void checkNums()
   int i = 0;  // counter
   int id = 0; // store numbering output
   std::cout << "about to start loop" << std::endl;
-  apf::MeshIterator* it = m->begin(0);
+  apf::MeshIterator* it;
   for (int j = 0; j < 4; ++j)  // loop over mesh entity types
   {
     it = m->begin(j);
@@ -1095,19 +794,16 @@ void checkNums()
   //    std::cout << "i = " << i << std::endl;
        ++i;
     }
+    m->end(it);
     // reset for next outer loop
     std::cout << std::endl;
     i = 0;
   }
 
-  // reset iterators
-  resetVertIt();
-  resetEdgeIt();
-  resetFaceIt();
-  resetElIt();
-
 }
+*/
 
+/*
 // get the coordinates of a vertex
 // coords is 2d array to populate, sx and sy are dimension of the array
 void getVertCoords(double coords[][3], int sx, int sy)
@@ -1123,10 +819,11 @@ void getVertCoords(double coords[][3], int sx, int sy)
   coords[0][2] = vec[2];
 
 }
+*/
 
 // get the coordinates of a vertex
 // coords is 2d array to populate, sx and sy are dimension of the array
-void getVertCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
+void getVertCoords2(apf::Mesh* m, apf::MeshEntity* e, double coords[][3], int sx, int sy)
 {
 //  std::cout << "in getVertCoords" << std::endl;
 //  std::cout << "sx = " << sx << " ,sy = " << sy << std::endl;
@@ -1139,6 +836,7 @@ void getVertCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
 
 }
 
+/*
 // get the coordinates of the two points that define, iterate edge iterator
 // an edge
 int getEdgeCoords(double coords[2][3], int sx, int sy)
@@ -1174,9 +872,10 @@ int getEdgeCoords(double coords[2][3], int sx, int sy)
 
   return 0;
 }
+*/
 
 // get the coordinates of the two points that define and edge
-int getEdgeCoords2(apf::MeshEntity* e, double coords[2][3], int sx, int sy)
+int getEdgeCoords2(apf::Mesh* m, apf::MeshEntity* e, double coords[2][3], int sx, int sy)
 {
 //  std::cout <<"in getEdgeCoords" << std::endl;
   if (sx < 2 || sy != 3)
@@ -1208,7 +907,7 @@ int getEdgeCoords2(apf::MeshEntity* e, double coords[2][3], int sx, int sy)
   return 0;
 }
 
-
+/*
 // get populate coords with coordinates of vertices that define the current face
 //  and iterates of face iterator
 // sx = x dimension of array, sy = y dimension of array
@@ -1240,10 +939,11 @@ int getFaceCoords(double coords[][3], int sx, int sy)
 
   return 0;
 }
+*/
 
 // get populate coords with coordinates of vertices that define the current face
 // sx = x dimension of array, sy = y dimension of array
-int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
+int getFaceCoords2(apf::Mesh* m, apf::MeshEntity* e, double coords[][3], int sx, int sy)
 {
 //  std::cout << "Entered getFaceCoords22" << std::endl;
 //  std::cout << " element = " << e << std::endl;
@@ -1276,7 +976,7 @@ int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
 
 
 
-
+/*
 int getElCoords(double coords[][3], int sx, int sy)
 {
 //  std::cout << "Entered getElCoords" << std::endl;
@@ -1305,10 +1005,10 @@ int getElCoords(double coords[][3], int sx, int sy)
 
   return 0;
 }
+*/
 
 
-
-int getElCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy)
+int getElCoords2(apf::Mesh* m, apf::MeshEntity* e, double coords[][3], int sx, int sy)
 {
   apf::Downward verts; // hold vertices
   int numDownward = m->getDownward(e, 0, verts); // populate verts

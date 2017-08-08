@@ -343,187 +343,6 @@ function deref(m_ptr::Ptr{Void}, it::MeshIterator)
 end
 
 
-
-
-
-
-
-
-#=
-function getVertNumbering()
-
-  numbering_ptr = ccall( (getVertNumbering_name, pumi_libname), Ptr{Void}, () )
-  return numbering_ptr
-end
-
-function getEdgeNumbering()
-
-  numbering_ptr = ccall( (getEdgeNumbering_name, pumi_libname), Ptr{Void}, () )
-  return numbering_ptr
-end
-
-function getFaceNumbering()
-
-  numbering_ptr = ccall( (getFaceNumbering_name, pumi_libname), Ptr{Void}, () )
-  return numbering_ptr
-end
-
-function getElNumbering()
-
-  numbering_ptr = ccall( (getElNumbering_name, pumi_libname), Ptr{Void}, () )
-  return numbering_ptr
-end
-=#
-
-function resetVertIt()
-# reset the vertex iterator to the beginning
-
-ccall( (resetVertIt_name, pumi_libname), Void, () );
-return nothing
-
-end
-
-
-function resetEdgeIt()
-# reset the edge iterator to the beginning
-
-ccall( (resetEdgeIt_name, pumi_libname), Void, () );
-return nothing
-
-end
-
-
-function resetFaceIt()
-# reset the face iterator to the beginning
-
-ccall( (resetFaceIt_name, pumi_libname), Void, () );
-return nothing
-
-end
-
-
-function resetElIt()
-# reset the element iterator to the beginning
-
-ccall( (resetElIt_name, pumi_libname), Void, () );
-return nothing
-
-end
-
-function resetIt(dim::Integer)
-
-  ccall( (resetIt_name, pumi_libname), Void, (Cint,), dim );
-end
-
-
-type VertIterator
-end
-
-function call(obj::VertIterator)
-  incrementVertIt()
-end
-
-function incrementVertIt()
-# increment it vertex iterator
-
-ccall( (incrementVertIt_name, pumi_libname), Void, () );
-return nothing
-
-end
-
-
-function incrementVertItn(n::Integer)
-# increment it vertex iterator
-
-ccall( (incrementVertItn_name, pumi_libname), Void, (Int32,), n );
-return nothing
-
-end
-
-
-type EdgeIterator
-end
-
-function call(obj::EdgeIterator)
-  incrementEdgeIt()
-end
-
-
-
-function incrementEdgeIt()
-# increment it edge iterator
-
-ccall( (incrementEdgeIt_name, pumi_libname), Void, () );
-return nothing
-
-end
-
-function incrementEdgeItn(n::Integer)
-# increment it vertex iterator
-
-ccall( (incrementEdgeItn_name, pumi_libname), Void, (Int32,), n );
-return nothing
-
-end
-
-
-type FaceIterator
-end
-
-function call(obj::FaceIterator)
-  incrementFaceIt()
-end
-
-
-
-function incrementFaceIt()
-# increment it Face iterator
-
-ccall( (incrementFaceIt_name, pumi_libname), Void, () );
-return nothing
-
-end
-
-function incrementFaceItn(n::Integer)
-# increment it face iterator n times
-
-ccall( (incrementFaceItn_name, pumi_libname), Void, (Int32,), n );
-return nothing
-
-end
-
-
-type ElIterator
-end
-
-function call(obj::ElIterator)
-  incrementElIt()
-end
-
-
-
-function incrementElIt()
-# increment it element iterator
-
-ccall( (incrementElIt_name, pumi_libname), Void, () );
-return nothing
-
-end
-
-function incrementElItn(n::Integer)
-# increment it element iterator
-
-ccall( (incrementElItn_name, pumi_libname), Void, (Int32,), n );
-return nothing
-
-end
-
-function incrementIt(dim::Integer)
-
-  ccall( (incrementIt_name, pumi_libname), Void, (Cint,), dim)
-end
-
-
 function countJ(m_ptr, dimension::Integer)
 # returns the number of entities of a particular dimension
 
@@ -536,150 +355,6 @@ function writeVtkFiles(name::AbstractString, m_ptr)
 
   ccall( (writeVtkFiles_name, pumi_libname), Void, (Ptr{UInt8}, Ptr{Void}), name, m_ptr)
   return nothing
-end
-
-function setGlobalVertNumber(val::Integer)
-# set global Vertex number of the current node
-
-ccall( (setGlobalVertNumber_name, pumi_libname), Void, (Int32,), val)
-return nothing
-
-end
-
-function getGlobalVertNumber()
-# get global vertex number of the current
-
-i = ccall( (getGlobalVertNumber_name, pumi_libname), Int32, () )
-return i
-
-end
-
-
-function getVertNumber()
-# get the number of the current vertex
-  i = ccall( (getVertNumber_name, pumi_libname), Int32, () )
-  return i
-end
-
-
-function getEdgeNumber()
-# get the number of the current edge
-  i = ccall( (getEdgeNumber_name, pumi_libname), Int32, () )
-  return i
-end
-
-
-function getFaceNumber()
-# get the number of the current face
-  i = ccall( (getFaceNumber_name, pumi_libname), Int32, () )
-  return i
-end
-
-function getElNumber()
-# get the number of the current element
-  i = ccall( (getElNumber_name, pumi_libname), Int32, () )
-  return i
-end
-
-
-
-type VertGetter
-end
-
-function call(obj::VertGetter)
-  getVert()
-end
-
-
-
-function getVert()
-# get pointer to current vertex
-  entity = ccall( (getVert_name, pumi_libname), Ptr{Void}, () )
-
-  return entity
-end
-
-
-type EdgeGetter
-end
-
-function call(obj::EdgeGetter)
-  getEdge()
-end
-
-
-function getEdge()
-# get pointer to current Edge
-  entity = ccall( (getEdge_name, pumi_libname), Ptr{Void}, () )
-
-  return entity
-end
-
-
-type FaceGetter
-end
-
-function call(obj::FaceGetter)
-  getFace()
-end
-
-
-
-function getFace()
-# get pointer to current face
-  entity = ccall( (getFace_name, pumi_libname), Ptr{Void}, () )
-
-  return entity
-end
-
-type ElGetter
-end
-
-function call(obj::ElGetter)
-  getEl()
-end
-
-
-
-function getEl()
-# get pointer to current element
-  entity = ccall( (getEl_name, pumi_libname), Ptr{Void}, () )
-
-  return entity
-end
-
-function getEntity(dim::Integer)
-
-  ccall( (getEntity_name, pumi_libname), Ptr{Void}, (Cint,), dim)
-end
-
-
-
-function getVertNumber2(entity)
-
-  i = ccall( (getVertNumber2_name, pumi_libname), Int32, (Ptr{Void},), entity)
-  return i
-end
-
-
-function getEdgeNumber2(entity)
-
-  i = ccall( (getEdgeNumber2_name, pumi_libname), Int32, (Ptr{Void},), entity)
-  return i
-end
-
-
-function getFaceNumber2(entity)
-
-  i = ccall( (getFaceNumber2_name, pumi_libname), Int32, (Ptr{Void},), entity)
-  return i
-end
-
-
-function getElNumber2(entity)
-
-  i = ccall( (getElNumber2_name, pumi_libname), Int32, (Ptr{Void},), entity)
-  return i
 end
 
 
@@ -991,14 +666,14 @@ return coords
 end
 
 
-function getVertCoords(entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
+function getVertCoords(m_ptr::Ptr{Void}, entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
 # coords is array to put coordsinates in, must be 3 by 1,
 # m, n are number of rows, columns in coords, respectively
 
 #coords = Array(Float64, 3, 2)   # pass an array 3 by n (3 coordinates each for n points)
 #(m,n) = size(coords)
 # pass reversed m,n because C arrays are row-major
-ccall( (getVertCoords2_name, pumi_libname), Void, (Ptr{Void}, Ptr{Float64}, Int32, Int32), entity, coords, n, m) 
+ccall( (getVertCoords2_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Int32, Int32), m_ptr, entity, coords, n, m) 
 
 #println("\n from julia, coords = ", coords)
 
@@ -1021,11 +696,11 @@ end
 
 end
 
-function getEdgeCoords(entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
+function getEdgeCoords(m_ptr::Ptr{Void}, entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
 # coords is array to put coordinates in, must be 3 by 2
 # m,n = number of rows, columns in coords, respectively
 
-i = ccall( (getEdgeCoords2_name, pumi_libname), Int, (Ptr{Void}, Ptr{Float64}, Int32, Int32), entity, coords, n, m);
+i = ccall( (getEdgeCoords2_name, pumi_libname), Int, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Int32, Int32), m_ptr, entity, coords, n, m);
 
 if ( i != 0)
   throw(ErrorException("Error in getEdgeCoords"))
@@ -1058,14 +733,14 @@ end
 end
 
 
-function getFaceCoords(entity, coords::AbstractMatrix, m::Integer, n::Integer)
+function getFaceCoords(m_ptr::Ptr{Void}, entity::Ptr{Void}, coords::AbstractMatrix, m::Integer, n::Integer)
 # get coordinates of points on a face, in order
 # coords is array to populate with coordinates, must by 3 by number of points
 # on a face
 # m,n = number of rows, columns in coords, respectively
 
 # reverse m and n because C is row major
-i = ccall( (getFaceCoords2_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Float64}, Int32, Int32), entity, coords, n, m);
+i = ccall( (getFaceCoords2_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Int32, Int32), m_ptr, entity, coords, n, m);
 
 if ( i != 0)
   throw(ErrorException("Error in getFaceCoords"))
@@ -1093,14 +768,14 @@ end
 
 end
 
-function getElCoords(entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
+function getElCoords(m_ptr::Ptr{Void}, entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
 # get coordinates of points in an element, in order
 # coords is array to populate with coordinates, must by 3 by number of points
 # on a element
 # m,n = number of rows, columns in coords, respectively
 
 # reverse m and n because C is row major
-i = ccall( (getElCoords2_name, pumi_libname), Int, (Ptr{Void}, Ptr{Float64}, Int32, Int32),entity, coords, n, m);
+i = ccall( (getElCoords2_name, pumi_libname), Int, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Int32, Int32), m_ptr, entity, coords, n, m);
 
 if ( i != 0)
   throw(ErrorException("Error in getElCoords"))
