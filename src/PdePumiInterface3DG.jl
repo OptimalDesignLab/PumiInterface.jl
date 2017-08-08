@@ -431,7 +431,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 #    mesh_order = order
 #  end
 
-  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
+  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
 
   if dim != mesh.dim
     throw(ErrorException("loaded mesh is not 3 dimensional"))
@@ -503,10 +503,10 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
 
  
   # get pointers to mesh entity numberings
-  mesh.vert_Nptr = getVertNumbering()
-  mesh.edge_Nptr = getEdgeNumbering()
-  mesh.face_Nptr = getFaceNumbering()
-  mesh.el_Nptr = getElNumbering()
+  mesh.vert_Nptr = n_arr[1] #getVertNumbering()
+  mesh.edge_Nptr = n_arr[2] #getEdgeNumbering()
+  mesh.face_Nptr = n_arr[3] #getFaceNumbering()
+  mesh.el_Nptr = n_arr[4] #getElNumbering()
   mesh.entity_Nptrs = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.face_Nptr, mesh.el_Nptr]
 
   # create the coloring_Nptr
@@ -862,141 +862,3 @@ function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
   return mesh
 
 end
-
-
-# for reinitilizeing after mesh adaptation
-function reinitPumiMeshDG2(mesh::PumiMeshDG2)
-  # construct pumi mesh by loading the files named
-  # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
-  # smb_name = name of .smb (mesh) file to load
-  # order = order of shape functions
-  # dofpernode = number of dof per node, default = 1
-
-  println("Reinitilizng PumiMeshDG2")
-
-  # create random filenames because they are not used
-  smb_name = "a"
-  dmg_name = "b"
-  order = mesh.order
-  dofpernode = mesh.numDofPerNode
-  tmp, num_Entities, m_ptr, coordshape_ptr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
-  f_ptr = mesh.f_ptr  # use existing solution field
-
-  numVert = convert(Int, num_Entities[1])
-  numEdge =convert(Int,  num_Entities[2])
-  numEl = convert(Int, num_Entities[3])
-
-  mesh.vert_Nptr = getVertNumbering()
-  mesh.edge_Nptr = getEdgeNumbering()
-  mesh.el_Nptr = getFaceNumbering()
-
-
-
-
-  verts = Array(Ptr{Void}, numVert)
-  edges = Array(Ptr{Void}, numEdge)
-  elements = Array(Ptr{Void}, numEl)
-  dofnums_Nptr = mesh.dofnums_Nptr  # use existing dof pointers
-
-  # get pointers to all MeshEntities
-  # also initilize the field to zero
-  resetAllIts2()
-#  comps = zeros(dofpernode)
-  comps = [1.0, 2, 3, 4]
-  for i=1:numVert
-    verts[i] = getVert()
-    incrementVertIt()
-  end
-
-  for i=1:numEdge
-    edges[i] = getEdge()
-    incrementEdgeIt()
-  end
-
-  for i=1:numEl
-    elements[i] = getFace()
-    incrementFaceIt()
-  end
-
-  resetAllIts2()
-  # calculate number of nodes, dofs (works for first and second order)
-  numnodes = order*numVert 
-  numdof = numnodes*dofpernode
-  # number dofs
-  ctr= 1
-  for i=1:numVert
-    for j=1:dofpernode
-      numberJ(dofnums_Nptr, verts[i], 0, j-1, ctr)
-#      println("vertex ", i,  " numbered ", ctr)
-      ctr += 1
-    end
-  end
-
-  if order >= 2
-    for i=1:numEdges
-      for j=1:dofpernode
-        numberJ(dofnums_Nptr, edges[i], 0, j-1, ctr)
-        ctr += 1
-      end
-    end
-  end
-
- 
-
-  # count boundary edges
-  bnd_edges_cnt = 0
-  bnd_edges = Array(Int, numEdge, 2)
-  for i=1:numEdge
-    edge_i = getEdge()
-    numFace = countAdjacent(m_ptr, edge_i, 2)  # should be count upward
-
-    if numFace == 1  # if an exterior edge
-      faces = getAdjacent(numFace)
-      facenum = getFaceNumber2(faces[1]) + 1
-
-      bnd_edges_cnt += 1
-      bnd_edges[bnd_edges_cnt, 1] = facenum
-      bnd_edges[bnd_edges_cnt, 2] = i
-    end
-    incrementEdgeIt()
-  end
-
-  bnd_edges_small = bnd_edges[1:bnd_edges_cnt, :]
-
-  # replace exising fields with new values
-  mesh.numVert = numVert
-  mesh.numEdge = numEdge
-  mesh.numEl = numEl
-  mesh.numDof = numdof
-  mesh.numNodes= numnodes
-  mesh.numBoundaryFaces = bnd_edges_cnt
-  mesh.verts = verts  # does this need to be a deep copy?
-  mesh.edges = edges
-  mesh.elements = elements
-#  mesh.boundary_nums = bnd_edges_small
-
-#=
-  println("typeof m_ptr = ", typeof(m_ptr))
-  println("typeof mshape_ptr = ", typeof(mshape_ptr))
-  println("typeof numVerg = ", typeof(numVert))
-  println("typeof numEdge = ", typeof(numEdge))
-  println("typeof numEl = ", typeof(numEl))
-  println("typeof order = ", typeof(order))
-  println("typeof numdof = ", typeof(numdof))
-  println("typeof bnd_edges_cnt = ", typeof(bnd_edges_cnt))
-  println("typeof verts = ", typeof(verts))
-  println("typeof edges = ", typeof(edges))
-  println("typeof element = ", typeof(elements))
-  println("typeof dofnums_Nptr = ", typeof(dofnums_Nptr))
-  println("typeof bnd_edges_small = ", typeof(bnd_edges_small))
-=#
-  println("numVert = ", numVert)
-  println("numEdge = ", numEdge)
-  println("numEl = ", numEl)
-  println("numDof = ", numdof)
-  println("numNodes = ", numnodes)
-
-  writeVtkFiles("mesh_complete", m_ptr)
-end
-
-

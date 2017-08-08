@@ -6,18 +6,20 @@ function populateDofNumbers(mesh::PumiMesh)
 # populate the dofnums_Nptr with values calculated from
 # nodenums_Nptr
 
-  resetAllIts2()
+#  resetAllIts2(mesh.m_ptr)
   # mesh iterator increment, retreval functions
   # TODO: checks if using mutable arrays is causing dynamic dispatch
-  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
-  iterators_get = [getVert, getEdge, getFace, getEl]
+#  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
+#  iterators_get = [getVert, getEdge, getFace, getEl]
   num_entities = mesh.numEntitiesPerType
   num_nodes_entity = mesh.numNodesPerType
 
   for etype = 1:(mesh.dim+1) # loop over entity types
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
+      it = MeshIterator(mesh.m_ptr, etype - 1)
       for entity = 1:num_entities[etype]  # loop over all entities of this type
-	entity_ptr = iterators_get[etype]()  # get entity
+#	entity_ptr = iterators_get[etype]()  # get entity
+        entity_ptr = iterate(mesh.m_ptr, it)
 
 	for node = 1:num_nodes_entity[etype]
           nodenum = getNumberJ(mesh.nodenums_Nptr, entity_ptr, node-1, 0)
@@ -29,12 +31,13 @@ function populateDofNumbers(mesh::PumiMesh)
 	  end   # end if nodenum != 0
 	end  # end loop over node
 
-      iterators_inc[etype]()
+#      iterators_inc[etype]()
       end  # end loop over entitiesa
+      free(mesh.m_ptr, it)
     end  # end if 
   end  # end loop over entity types
 
-  resetAllIts2()
+#  resetAllIts2(mesh.m_ptr)
 
 #  writeVtkFiles("dofs_numbered", mesh.m_ptr)
   return nothing
@@ -46,11 +49,11 @@ function populateNodeStatus(mesh::PumiMesh)
 # populate the nodestatus_Nptr with values
 # currently we set all nodes to status 3 (free)
 
-  resetAllIts2()
+#  resetAllIts2(mesh.m_ptr)
   # mesh iterator increment, retreval functions
   # TODO: checks if using mutable arrays is causing dynamic dispatch
-  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
-  iterators_get = [getVert, getEdge, getFace, getEl]
+#  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
+#  iterators_get = [getVert, getEdge, getFace, getEl]
   num_entities = mesh.numEntitiesPerType
   num_nodes_entity = mesh.numNodesPerType
 
@@ -58,19 +61,22 @@ function populateNodeStatus(mesh::PumiMesh)
 
   for etype = 1:(mesh.dim + 1) # loop over entity types
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
+      it = MeshIterator(mesh.m_ptr, etype - 1)
       for entity = 1:num_entities[etype]  # loop over all entities of this type
-	entity_ptr = iterators_get[etype]()  # get entity
+#	entity_ptr = iterators_get[etype]()  # get entity
+        entity_ptr = iterate(mesh.m_ptr, it)
 
 	for node = 1:num_nodes_entity[etype]
 	  numberJ(mesh.nodestatus_Nptr, entity_ptr, node-1, 0, 3)
 	end  # end loop over node
 
-      iterators_inc[etype]()
+#      iterators_inc[etype]()
       end  # end loop over entitiesa
+      free(mesh.m_ptr, it)
     end  # end if 
   end  # end loop over entity types
 
-  resetAllIts2()
+#  resetAllIts2(mesh.m_ptr)
   return nothing
 end
 
@@ -208,10 +214,10 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
   # initally number all dofs as numDof+1 to 2*numDof
   # this allows quick check to see if somthing is labelled or not
 
-  resetAllIts2()
+#  resetAllIts2(mesh.m_ptr)
   # mesh iterator increment, retreval functions
-  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
-  iterators_get = [getVert, getEdge, getFace, getEl]
+#  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
+#  iterators_get = [getVert, getEdge, getFace, getEl]
   num_entities = mesh.numEntitiesPerType
   num_nodes_entity = mesh.numNodesPerType
 
@@ -232,13 +238,15 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
 
   verts_i = Array(Ptr{Void}, 12)
   edges_i = Array(Ptr{Void}, 12)
-  resetAllIts2()
+#  resetAllIts2(mesh.m_ptr)
   el_i_ptr = Ptr{Void}(0)  # hold current element
 # TODO: move all if statements out one for loop (check only first dof on each node)
   curr_dof = 1
+  it = MeshIterator(mesh.m_ptr, mesh.dim)
   for i=1:mesh.numEl
-    el_i_ptr = getFace()
-    incrementFaceIt()
+    el_i_ptr = iterate(mesh.m_ptr, it)
+#    el_i_ptr = getFace()
+#    incrementFaceIt()
     # get vertices, edges for this element
     numVert = getDownward(mesh.m_ptr, el_i_ptr, 0, verts_i)
 #    println("verts_i = ", verts_i)
@@ -287,7 +295,8 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
     end  # end loop over face nodes
   end  # end loop over elements
 
-  resetAllIts2()
+  free(mesh.m_ptr, it)
+#  resetAllIts2(mesh.m_ptr)
 
 
   if (curr_dof -1) != numDof 
@@ -309,10 +318,10 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
   # initally number all dofs as numDof+1 to 2*numDof
   # this allows quick check to see if somthing is labelled or not
 
-  resetAllIts2()
+#  resetAllIts2(mesh.m_ptr)
   # mesh iterator increment, retreval functions
-  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
-  iterators_get = [getVert, getEdge, getFace, getEl]
+#  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
+#  iterators_get = [getVert, getEdge, getFace, getEl]
   num_entities = mesh.numEntitiesPerType
   num_nodes_entity = mesh.numNodesPerType
 
@@ -352,8 +361,10 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
 
   for etype = 1:(mesh.dim + 1) # loop over entity types
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
+      it = MeshIterator(mesh.m_ptr, etype - 1)
       for entity = 1:num_entities[etype]  # loop over all entities of this type
-	entity_ptr = iterators_get[etype]()  # get entity
+#	entity_ptr = iterators_get[etype]()  # get entity
+        entity_ptr = iterate(mesh.m_ptr, it)
 
 	for node = 1:num_nodes_entity[etype]
           pumi_node = nodemap[node]
@@ -363,8 +374,10 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
 	  end  # end loop over dof
 	end  # end loop over node
 
-      iterators_inc[etype]()
+#      iterators_inc[etype]()
       end  # end loop over entitiesa
+
+      free(mesh.m_ptr, it)
     end  # end if 
   end  # end loop over entity types
 
@@ -423,14 +436,17 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   
   # initially number all components in range (numEl+1):(2*numEl)
   curr_elnum = mesh.numEl+1
-  resetIt(dim)
+#  resetIt(dim)
+  it = MeshIterator(mesh.m_ptr, dim)
   for i=1:mesh.numEl
-    el_i = getEntity(dim)
+    el_i = iterate(mesh.m_ptr, it)
+#    el_i = getEntity(dim)
 
     numberJ(el_Nptr, el_i, 0, 0, curr_elnum)
     curr_elnum += 1
     incrementIt(dim)
   end
+  free(mesh.m_ptr, it)
   @assert (curr_elnum - 1) == 2*mesh.numEl
 
   # do the final numbering
@@ -513,13 +529,15 @@ function getStartEl(mesh::PumiMeshDG, start_coords)
   centroid = zeros(3)
   dim = mesh.dim  # hoist the lookup
 
-  resetIt(dim)
+#  resetIt(dim)
 
   min_norm = typemin(Float64)
   min_el = Ptr{Void}(0)
 
+  it = MeshIterator(mesh.m_ptr, dim)
   for i=1:mesh.numEl
-    el_i = getEntity(dim)
+    el_i = iterate(mesh.m_ptr, it)
+#    el_i = getEntity(dim)
     getElementCoords(mesh, el_i, coords)
 
     # compute centroid
@@ -543,7 +561,7 @@ function getStartEl(mesh::PumiMeshDG, start_coords)
     end
 
     fill!(centroid, 0.0)
-    incrementIt(dim)
+#    incrementIt(dim)
   end
 
   return min_el

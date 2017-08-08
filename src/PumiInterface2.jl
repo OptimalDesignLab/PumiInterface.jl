@@ -34,10 +34,11 @@ return adj, n
 
 end
 
-function resetAllIts2()
+#=
+function resetAllIts2(m_ptr::Ptr{Void})
  # reset all the iterationr that exist for a 2d mesh
 
- m_ptr = getMeshPtr()
+# m_ptr = getMeshPtr()
  dim = getMeshDimension(m_ptr) 
  reset_funcs = [resetVertIt, resetEdgeIt, resetFaceIt, resetElIt]
 
@@ -49,7 +50,7 @@ function resetAllIts2()
  return nothing
 end
 
-
+=#
 function countDownwards(m_ptr, entity)
 # gets an array containing the number of downward adjacencies of each type for
 # the given entity, in ascending order

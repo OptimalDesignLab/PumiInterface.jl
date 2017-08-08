@@ -33,7 +33,9 @@ facts("Testing PUMIInterface.jl") do
 
 
   order = 1  # linear elements
-  num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
+  num_Entities, m_ptr, mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order)
+  println("length(n_arr) = ", length(n_arr))
+
   @fact num_Entities[1] --> 9
   @fact num_Entities[2] --> 16
   @fact num_Entities[3] --> 8
@@ -48,22 +50,29 @@ facts("Testing PUMIInterface.jl") do
   @fact countJ(m_ptr, 3) --> 0
 
   # check numberings
-  vertN_ptr = getVertNumbering()
-  edgeN_ptr = getEdgeNumbering()
-  faceN_ptr = getFaceNumbering()
+  vertN_ptr = n_arr[1] #getVertNumbering()
+  edgeN_ptr = n_arr[2] #getEdgeNumbering()
+  faceN_ptr = n_arr[3] #getFaceNumbering()
 
   numberings = [vertN_ptr, edgeN_ptr, faceN_ptr]
 
 
 #  printEdgeVertNumbers(edgeN_ptr, vertN_ptr)
 
-  resetVertIt()
-  resetEdgeIt()
-  resetFaceIt()
+#  resetVertIt()
+#  resetEdgeIt()
+#  resetFaceIt()
 
-  vert = getVert()
-  edge = getEdge()
-  face = getFace()
+  vertit = MeshIterator(m_ptr, 0)
+  edgeit = MeshIterator(m_ptr, 1)
+  faceit = MeshIterator(m_ptr, 2)
+
+  vert = deref(m_ptr, vertit)
+  edge = deref(m_ptr, edgeit)
+  face = deref(m_ptr, faceit)
+#  vert = getVert()
+#  edge = getEdge()
+#  face = getFace()
 
   vertnum = getNumberJ(vertN_ptr, vert, 0, 0) 
 
@@ -77,32 +86,29 @@ facts("Testing PUMIInterface.jl") do
 
 
   for i=1:num_Entities[1]  # loop over verts
-    entity = getVert()
+    entity = iterate(m_ptr, vertit)
     @fact getNumberJ(vertN_ptr, entity, 0, 0) --> i-1
-    @fact getVertNumber() --> i-1
-    @fact getVertNumber2(entity) --> i-1
-    incrementVertIt()
+#    incrementVertIt()
   end
-  resetVertIt()
+  free(m_ptr, vertit)
+#  resetVertIt()
 
   for i=1:num_Entities[2]  # loop over edges
-    entity = getEdge()
+    entity = iterate(m_ptr, edgeit)
     @fact getNumberJ(edgeN_ptr, entity, 0, 0) --> i-1
-    @fact getEdgeNumber() --> i-1
-    @fact getEdgeNumber2(entity) --> i-1
-    incrementEdgeIt()
+#    incrementEdgeIt()
   end
-  resetEdgeIt()
+  free(m_ptr, edgeit)
+#  resetEdgeIt()
 
 
   for i=1:num_Entities[3]  # loop over faces
-    entity = getFace()
+    entity = iterate(m_ptr, faceit)
     @fact getNumberJ(faceN_ptr, entity, 0, 0) --> i-1
-    @fact getFaceNumber() --> i-1
-    @fact getFaceNumber2(entity) --> i-1
-    incrementFaceIt()
+#    incrementFaceIt()
   end
-  resetFaceIt()
+  free(m_ptr, faceit)
+#  resetFaceIt()
 
 
 
@@ -358,18 +364,19 @@ facts("Testing PUMIInterface.jl") do
  # test mesh warping functions
 
  # find vertex at -1, -1
- resetVertIt()
+# resetVertIt()
+ it = MeshIterator(m_ptr, 0)
  coords = zeros(3)
  entity = C_NULL
  for i=1:num_Entities[1]
-   vert_i = getVert()
+   vert_i = iterate(m_ptr, it)
    getPoint(m_ptr, vert_i, 0, coords)
    if coords[1] < -0.5 && coords[2] < -0.5
      entity = vert_i
      break
    end
  end
-
+  free(m_ptr, it)
  @fact entity --> not(C_NULL)
 
  coords[1] *= 2
@@ -397,29 +404,33 @@ facts("Testing PUMIInterface.jl") do
   numEdge = num_Entities[2]
   numFace = num_Entities[3]
   # verify all meshentities are owned
-  resetAllIts2()
+#  resetAllIts2(m_ptr)
   nowned = 0
 
   @fact hasMatching(m_ptr) --> true
 
+  it = MeshIterator(m_ptr, 0)
   for i =1:numVert
-    entity = getVert()
+    entity = iterate(m_ptr, it)
     if isOwned(shr_ptr, entity)
       nowned += 1
     end
 
-    incrementVertIt()
+#    incrementVertIt()
   end
+  free(m_ptr, it)
   @fact nowned --> numVert - 4
 
   nowned = 0
+  it = MeshIterator(m_ptr, 1)
   for i=1:numEdge
-    entity = getEdge()
+    entity = iterate(m_ptr, it)
     if isOwned(shr_ptr, entity)
       nowned += 1
     end
-    incrementEdgeIt()
+#    incrementEdgeIt()
   end
+  free(m_ptr, it)
   @fact nowned --> numEdge - 3
 
   ncopies = zeros(Int, 2)
@@ -427,9 +438,10 @@ facts("Testing PUMIInterface.jl") do
   part_nums = Array(Cint, 1)
   copies = Array(Ptr{Void}, 1)
   matches = Array(Ptr{Void}, 1)
-  resetAllIts2()
+#  resetAllIts2(m_ptr)
+  it = MeshIterator(m_ptr, 1)
   for i=1:numEdge
-    entity = getEdge()
+    entity = iterate(m_ptr, it)
     n = countCopies(shr_ptr, entity)
     n2 = countMatches(m_ptr, entity)
     ncopies[n+1] += 1  # either 0 or 1 copy
@@ -446,8 +458,9 @@ facts("Testing PUMIInterface.jl") do
       e_type = getType(m_ptr, copies[1])
       @fact e_type --> apfEDGE
     end
-    incrementEdgeIt()
+#    incrementEdgeIt()
   end
+  free(m_ptr, it)
 
   @fact ncopies[2] --> 6  # 3 x 3 element mesh has 6 shared edges
   @fact nmatches[2] --> 6

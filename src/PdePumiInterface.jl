@@ -511,7 +511,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   mesh.numPeriodicInterfaces = 0
   mesh.topo = ElementTopology2()  # get default topology because it isn't
                                   # important for 2d
-  num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim = init2(dmg_name, smb_name, order, shape_type=shape_type)
+  num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, shape_type=shape_type)
   mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
                                          # field shape for CG
   if dim != mesh.dim
@@ -568,10 +568,10 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
  
   # get pointers to mesh entity numberings
-  mesh.vert_Nptr = getVertNumbering()
-  mesh.edge_Nptr = getEdgeNumbering()
-  mesh.face_Nptr = mesh.edge_Nptr
-  mesh.el_Nptr = getFaceNumbering()
+  mesh.vert_Nptr = n_arr[1] #getVertNumbering()
+  mesh.edge_Nptr = n_arr[2] #getEdgeNumbering()
+  mesh.face_Nptr = n_arr[2] #mesh.edge_Nptr
+  mesh.el_Nptr = n_arr[3] #getFaceNumbering()
   mesh.entity_Nptrs = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
 
   # create the coloring_Nptr
@@ -877,47 +877,6 @@ function getMinElementSize(mesh::AbstractMesh)
 end
 
 
-#=
-function numberDofs(mesh::PumiMesh2)
-# number the degrees of freedom of the mesh, using the apf::Numbering* stroed
-# in the mesh
-
-  # move this into a function
-  resetAllIts2()
-  println("performing initial numbering of dofs")
-  # calculate number of nodes, dofs (works for first and second order)
-  numnodes = mesh.order*mesh.numVert 
-  numdof = numnodes*mesh.numDofPerNode
-  # number dofs
-  ctr= 1
-  for i=1:mesh.numVert
-    for j=1:mesh.numDofPerNode
-      numberJ(mesh.dofnums_Nptr, mesh.verts[i], 0, j-1, ctr)
-      println("vertex ", i,  " numbered ", ctr)
-      ctr += 1
-    end
-  end
-
-  if mesh.order >= 2
-    for i=1:mesh.numEdges
-      for j=1:mesh.numDofPerNode
-        numberJ(mesh.dofnums_Nptr, mesh.edges[i], 0, j-1, ctr)
-        ctr += 1
-      end
-    end
-  end
-
-  mesh.numNodes = numnodes
-  mesh.numDof = numdof
-
-return nothing
-
-end  # end function
-=#
-
-
-
-
 # for reinitilizeing after mesh adaptation
 function reinitPumiMesh2(mesh::PumiMesh2)
   # construct pumi mesh by loading the files named
@@ -933,16 +892,16 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   dmg_name = "b"
   order = mesh.order
   dofpernode = mesh.numDofPerNode
-  tmp, num_Entities, m_ptr, mshape_ptr, dim = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
+  tmp, num_Entities, m_ptr, mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
   f_ptr = mesh.f_ptr  # use existing solution field
 
   numVert = convert(Int, num_Entities[1])
   numEdge =convert(Int,  num_Entities[2])
   numEl = convert(Int, num_Entities[3])
 
-  mesh.vert_Nptr = getVertNumbering()
-  mesh.edge_Nptr = getEdgeNumbering()
-  mesh.el_Nptr = getFaceNumbering()
+  mesh.vert_Nptr = n_arr[1] #getVertNumbering()
+  mesh.edge_Nptr = n_arr[2] #getEdgeNumbering()
+  mesh.el_Nptr = n_arr[3] #getFaceNumbering()
 
 
 
@@ -954,25 +913,26 @@ function reinitPumiMesh2(mesh::PumiMesh2)
 
   # get pointers to all MeshEntities
   # also initilize the field to zero
-  resetAllIts2()
 #  comps = zeros(dofpernode)
   comps = [1.0, 2, 3, 4]
+  it = MeshIterator(mesh.m_ptr, 0)
   for i=1:numVert
-    verts[i] = getVert()
-    incrementVertIt()
+    verts[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
+  it = MeshIterator(mesh.m_ptr, 1)
   for i=1:numEdge
-    edges[i] = getEdge()
-    incrementEdgeIt()
+    edges[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
+  it = MeshIterator(mesh.m_ptr, it)
   for i=1:numEl
-    elements[i] = getFace()
-    incrementFaceIt()
+    elements[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
-  resetAllIts2()
   # calculate number of nodes, dofs (works for first and second order)
   numnodes = order*numVert 
   numdof = numnodes*dofpernode

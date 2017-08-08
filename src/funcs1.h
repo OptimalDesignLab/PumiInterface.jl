@@ -41,10 +41,10 @@ extern "C" {
 //extern int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numberEntities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1]);
 
 
-int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type );
+int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], apf::Numbering* n_arr[], int order, int load_mesh, int shape_type );
 
 
-int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], int order, int load_mesh, int shape_type );
+int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], apf::Numbering* n_arr[], int order, int load_mesh, int shape_type );
 
 // these functions are not user accessible
 void cleanup(apf::Mesh* m_local);
@@ -56,13 +56,13 @@ void popMeshRef(apf::Mesh* m);
 apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_shape);
 
 // these functions do pass pointers
-extern apf::Mesh2* getMeshPtr();
+//extern apf::Mesh2* getMeshPtr();
 extern apf::FieldShape* getMeshShapePtr(apf::Mesh* m);
 extern apf::FieldShape* getConstantShapePtr(int dimension);
-extern apf::Numbering* getVertNumbering();
-extern apf::Numbering* getEdgeNumbering();
-extern apf::Numbering* getFaceNumbering();
-extern apf::Numbering* getElNumbering();
+//extern apf::Numbering* getVertNumbering();
+//extern apf::Numbering* getEdgeNumbering();
+//extern apf::Numbering* getFaceNumbering();
+//extern apf::Numbering* getElNumbering();
 
 // these functions do not pass pointers
 extern void resetVertIt();
@@ -88,6 +88,13 @@ extern void resetIt(int dim);
 
 
 extern int count(apf::Mesh2* m_local, int dimension);
+
+apf::MeshIterator* begin(apf::Mesh* m, int dim);
+void end(apf::Mesh* m, apf::MeshIterator* it);
+apf::MeshEntity* iterate(apf::Mesh* m, apf::MeshIterator* it);
+void iteraten(apf::Mesh* m, apf::MeshIterator* it, int n);
+apf::MeshEntity* deref(apf::Mesh2* m, apf::MeshIterator* it);
+
 extern void writeVtkFiles(char* name, apf::Mesh2* m_local);
 
 extern void setGlobalVertNumber(int val); // do not use

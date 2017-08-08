@@ -51,7 +51,7 @@ std::map<apf::Mesh*, int> meshref; // store reference count for mesh
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
 // shape_type: type of shape functions, 0 =  lagrange, 1 = SBP
-int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type )
+int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], apf::Numbering* n_array[], int order, int load_mesh, int shape_type )
 {
 //  std::cout << "Entered init\n" << std::endl;
 
@@ -148,6 +148,10 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
   numberings[2] = numberOwnedDimension(m, "faceNums", 2);
   numberings[3] = numberOwnedDimension(m, "elNums", 3);
 
+  n_array[0] = numberings[0];
+  n_array[1] = numberings[1];
+  n_array[2] = numberings[2];
+  n_array[3] = numberings[3];
 
 
   // initilize iterators
@@ -171,7 +175,7 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
 // PCU appears to not want a Communicator object?
-int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], int order, int load_mesh, int shape_type )
+int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], apf::Numbering* n_array[], int order, int load_mesh, int shape_type )
 {
 //  std::cout << "Entered init2\n" << std::endl;
 
@@ -298,6 +302,15 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
   numberings[2] = apf::createNumbering(m, "faceNums", apf::getConstant(2), 1);
   if (dim == 3)
     numberings[3] = apf::createNumbering(m, "regionNums", apf::getConstant(3), 1);
+
+  // copy to in/out variable
+  n_array[0] = numberings[0];
+  n_array[1] = numberings[1];
+  n_array[2] = numberings[2];
+  if (dim == 3)
+    n_array[3] = numberings[3];
+
+
 
 
 
@@ -485,15 +498,18 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
   return fshape;
 }
 
+/*
 apf::Mesh2* getMeshPtr()
 {
   return m;
 }
+*/
 
 apf::FieldShape* getMeshShapePtr(apf::Mesh* m)
 {
   return m->getShape();
 }
+
 
 // get constant field shape of given dimension
 apf::FieldShape* getConstantShapePtr(int dimension)
@@ -502,11 +518,12 @@ apf::FieldShape* getConstantShapePtr(int dimension)
 }
 
 
-
+/*
 apf::Numbering* getVertNumbering()
 {
   return numberings[0];
 }
+
 
 apf::Numbering* getEdgeNumbering()
 {
@@ -522,6 +539,7 @@ apf::Numbering* getElNumbering()
 {
   return numberings[3];
 }
+*/
 
 void resetVertIt()
 {
@@ -609,6 +627,38 @@ int count(apf::Mesh2* m_local, int dimension)
 {
   return m_local->count(dimension);
 }
+
+
+apf::MeshIterator* begin(apf::Mesh* m, int dim)
+{
+  return m->begin(dim);
+}
+
+void end(apf::Mesh* m, apf::MeshIterator* it)
+{
+  return m->end(it);
+}
+
+apf::MeshEntity* iterate(apf::Mesh* m, apf::MeshIterator* it)
+{
+  return m->iterate(it);
+}
+
+void iteraten(apf::Mesh* m, apf::MeshIterator* it, int n)
+{
+  for (int i = 0; i < n; ++i)
+    m->iterate(it);
+
+}
+
+// this is a little bit dangerous because we dont know for sure if the mesh
+// is a mesh or mesh2 object (when calling from julia)
+apf::MeshEntity* deref(apf::Mesh2* m, apf::MeshIterator* it)
+{
+  return m->deref(it);
+}
+
+
 
 void writeVtkFiles(char* name, apf::Mesh2* m_local)
 {

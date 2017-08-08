@@ -27,7 +27,7 @@ facts("Testing PUMIInterface.jl") do
   @fact peers[1] --> 1-myrank
   resetVertIt()
 
-  resetAllIts2()
+  resetAllIts2(m_ptr)
   verts = Array(Ptr{Void}, num_Entities[1])
   edges = Array(Ptr{Void}, num_Entities[2])
   faces = Array(Ptr{Void}, num_Entities[3])
@@ -47,7 +47,7 @@ facts("Testing PUMIInterface.jl") do
     incrementFaceIt()
   end
 
-  resetAllIts2()
+  resetAllIts2(m_ptr)
 
   # check the countRemotes function
   # the only thing that can really be tested is the number of total remotes

@@ -170,6 +170,8 @@ end
 # export low level interface functions
 export declareNames, init, init2, pushMeshRef, popMeshRef, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, getAllEntityCoords, createNumberingJ, getNumberingShape, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, zeroField, getCoordinateField, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
+export MeshIterator, iterate, iteraten, free, deref
+
 export createSubMeshDG, transferFieldDG, getFieldShape
 
 export toModel, getModelType, getModelTag
@@ -211,9 +213,9 @@ num_Entities = zeros(Int32, 4)
 
 m_ptr_array = Array(Ptr{Void}, 1)
 mshape_ptr_array = Array(Ptr{Void}, 1)
+n_arr = Array(Ptr{Void}, 4)
 
-
-i = ccall( (init_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, order, load_mesh, shape_type )  # call init in interface library
+i = ccall( (init_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Ptr{Ptr{Void}}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, n_arr, order, load_mesh, shape_type )  # call init in interface library
 
 
 
@@ -225,7 +227,7 @@ if ( i != 0)
 end
 
 
-return num_Entities, m_ptr_array[1], mshape_ptr_array[1]
+return num_Entities, m_ptr_array[1], mshape_ptr_array[1], n_arr
 end
 
 
@@ -247,14 +249,18 @@ num_Entities = zeros(Int32, 4, 1)
 m_ptr_array = Array(Ptr{Void}, 1)
 mshape_ptr_array = Array(Ptr{Void}, 1)
 dim = Ref{Cint}()
-i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Ptr{Cint}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, dim, order, load_mesh, shape_type )  # call init in interface library
+n_arr = Array(Ptr{Void}, 4)
+
+println("before init call, length(n_arr) = ", length(n_arr))
+i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Ptr{Cint}, Ptr{Ptr{Void}}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, dim, n_arr, order, load_mesh, shape_type )  # call init in interface library
 
 if ( i != 0)
   throw(ErrorException("Init failed"))
 end
 
 
-return num_Entities, m_ptr_array[1], mshape_ptr_array[1], dim[]
+println("after n_arr, length(n_arr) = ", length(n_arr))
+return num_Entities, m_ptr_array[1], mshape_ptr_array[1], dim[], n_arr
 end
 
 
@@ -268,12 +274,14 @@ function popMeshRef(m_ptr::Ptr{Void})
 end
 
 
+#=
 # no longer needed
 function getMeshPtr()
 
   m_ptr = ccall( (getMeshPtr_name, pumi_libname), Ptr{Void}, () )
   return m_ptr
 end
+=#
 
 # no longer needed
 function getMeshShapePtr(m_ptr::Ptr{Void})
@@ -282,6 +290,7 @@ function getMeshShapePtr(m_ptr::Ptr{Void})
   return mshape_ptr
 end
 
+
 function getConstantShapePtr(dimension::Integer)
   mshape_ptr = ccall( ( getConstantShapePtr_name, pumi_libname), Ptr{Void}, (Int32,), dimension)
 
@@ -289,7 +298,58 @@ function getConstantShapePtr(dimension::Integer)
 
 end
 
+"""
+  Immutable wrapper for a MeshIterator of any dimension entity.
 
+  This grants some type safety to the interface
+"""
+immutable MeshIterator
+  p::Ptr{Void}
+end
+
+function MeshIterator(m_ptr::Ptr{Void}, dim::Integer)
+
+  it = ccall( (:begin, pumi_libname), Ptr{Void}, (Ptr{Void}, Cint,), m_ptr, dim)
+
+  return MeshIterator(it)
+end
+
+function free(m_ptr::Ptr{Void}, it::MeshIterator)
+
+  ccall ((:end, pumi_libname), Void, (Ptr{Void}, MeshIterator), m_ptr, it)
+
+end
+
+function iterate(m_ptr::Ptr{Void}, it::MeshIterator)
+
+  me = ccall ((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
+
+  return me
+end
+
+function iteraten(m_ptr::Ptr{Void}, it::MeshIterator, n::Integer)
+
+  me = ccall ((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator, Cint), m_ptr, it, n)
+
+  return me
+end
+
+
+function deref(m_ptr::Ptr{Void}, it::MeshIterator)
+
+  me = ccall ((:deref, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
+
+  return me
+end
+
+
+
+
+
+
+
+
+#=
 function getVertNumbering()
 
   numbering_ptr = ccall( (getVertNumbering_name, pumi_libname), Ptr{Void}, () )
@@ -313,6 +373,7 @@ function getElNumbering()
   numbering_ptr = ccall( (getElNumbering_name, pumi_libname), Ptr{Void}, () )
   return numbering_ptr
 end
+=#
 
 function resetVertIt()
 # reset the vertex iterator to the beginning

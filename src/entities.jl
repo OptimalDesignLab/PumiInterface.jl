@@ -80,51 +80,67 @@ function getEntityPointers(mesh::PumiMesh)
   idx = 0
   # get pointers to all MeshEntities
   # also initilize the field to zero
-  resetAllIts2()
+#  resetAllIts2(mesh.m_ptr)
 #  comps = zeros(dofpernode)
+  it = MeshIterator(mesh.m_ptr, 0)
   for i=1:mesh.numVert
-    entity = getVert()
+#    entity = getVert()
+    entity = iterate(mesh.m_ptr, it)
     idx = getNumberJ(mesh.vert_Nptr, entity, 0, 0) + 1
     verts[idx] = entity
-    incrementVertIt()
+#    incrementVertIt()
   end
+  free(mesh.m_ptr, it)
 
+  it = MeshIterator(mesh.m_ptr, 1)
   for i=1:mesh.numEdge
-    entity = getEdge()
+    entity = iterate(mesh.m_ptr, it)
+#    entity = getEdge()
     idx = getNumberJ(mesh.edge_Nptr, entity, 0, 0) + 1
     edges[idx] = entity
-    incrementEdgeIt()
+#    incrementEdgeIt()
   end
+  free(mesh.m_ptr, it)
 
   if mesh.dim == 3
     faces = Array(Ptr{Void}, mesh.numFace)
+    it = MeshIterator(mesh.m_ptr, 2)
     for i=1:mesh.numFace
-      entity = getFace()
+      entity = iterate(mesh.m_ptr, it)
+#      entity = getFace()
       idx = getNumberJ(mesh.face_Nptr, entity, 0, 0) + 1
       faces[idx] = entity
-      incrementFaceIt()
+#      incrementFaceIt()
     end
+    free(mesh.m_ptr, it)
+
+    it = MeshIterator(mesh.m_ptr, 3)
     for i=1:mesh.numEl
-      entity = getEl()
+      entity = iterate(mesh.m_ptr, it)
+#      entity = getEl()
       idx = getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
       elements[idx] = entity
-      incrementElIt()
+#      incrementElIt()
     end
+    free(mesh.m_ptr, it)
 
 
   else
     faces = edges
+    it = MeshIterator(mesh.m_ptr, 2)
     for i=1:mesh.numEl
-      entity = getFace()
+      entity = iterate(mesh.m_ptr, it)
+#      entity = getFace()
       idx = getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
       elements[idx] = entity
-      incrementFaceIt()
+#      incrementFaceIt()
     end
+    free(mesh.m_ptr, it)
 
 
   end
 
-  resetAllIts2()
+#  resetAllIts2(mesh.m_ptr)
 
   return verts, edges, faces, elements
 
