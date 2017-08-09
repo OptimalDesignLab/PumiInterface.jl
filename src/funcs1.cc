@@ -18,7 +18,7 @@
 //=============================================================================
 //declare global variables (persistent state of library)
 
-apf::Mesh2* m;
+//apf::Mesh2* m;
 //apf::FieldShape* mshape;
 apf::MeshEntity* entity_global;  // token mesh entity used for EntityShape
 //apf::Numbering* elNums; // element numbering
@@ -26,7 +26,7 @@ apf::MeshEntity* entity_global;  // token mesh entity used for EntityShape
 //apf::Numbering* edgeNums; // edge numbering
 //apf::Numbering* vertNums; // vertex numbers
 
-bool meshloaded = false;  // record whether or not a mesh has been loaded
+//bool meshloaded = false;  // record whether or not a mesh has been loaded
 
 apf::MeshEntity* e_tmp;
 
@@ -51,12 +51,15 @@ std::map<apf::Mesh*, int> meshref; // store reference count for mesh
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
 // shape_type: type of shape functions, 0 =  lagrange, 1 = SBP
+// if not loading a mesh, m_ptr_array must contain the apf::Mesh* of the old
+// mesh
 int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], apf::Numbering* n_array[], int order, int load_mesh, int shape_type )
 {
 //  std::cout << "Entered init\n" << std::endl;
 
   // various startup options
 
+  apf::Mesh2* m;
   // initilize communications if needed
   if (!PCU_Comm_Initialized())
   {
@@ -67,12 +70,6 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 
   if (load_mesh)  // if the user said to load a new mesh
   {
-    if ( meshloaded)  // if a mesh has been loaded before
-    {
-      std::cout << "Performing cleanup before loading new mesh" << std::endl;
-      cleanup(m);
-    }
-
     if (strcmp(dmg_name, ".null") == 0)
     {
       gmi_register_null();
@@ -91,7 +88,8 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
       m = apf::loadMdsMesh(dmg_name, smb_name);
     }
 
-    meshloaded = true;  // record the fact that a mesh is now loaded
+    m = m_ptr_array[0];
+//    meshloaded = true;  // record the fact that a mesh is now loaded
     apf::reorderMdsMesh(m);
     // apply shape functions to newly loaded mesh
     
@@ -160,6 +158,8 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
 // PCU appears to not want a Communicator object?
+// if not loading a mesh, m_ptr_array must contain apf::Mesh* of the mesh
+// to re-initialize
 int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], apf::Numbering* n_array[], int order, int load_mesh, int shape_type )
 {
 //  std::cout << "Entered init2\n" << std::endl;
@@ -180,6 +180,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
   }
  
   int dim;
+  apf::Mesh2* m;
   if (load_mesh)  // if the user said to load a new mesh
   {
     /*
@@ -210,9 +211,9 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
       m = apf::loadMdsMesh(dmg_name, smb_name);
       pushMeshRef(m);
     }
-
+    m = m_ptr_array[0];
     dim = m->getDimension();
-    meshloaded = true;  // record the fact that a mesh is now loaded
+//    meshloaded = true;  // record the fact that a mesh is now loaded
     apf::reorderMdsMesh(m);
 
     int order_orig = m->getShape()->getOrder();
@@ -321,7 +322,7 @@ void cleanup(apf::Mesh* m_local)
 {
   m_local->destroyNative();
   apf::destroyMesh(m_local);
-  meshloaded = false;
+//  meshloaded = false;
 //  PCU_Comm_Free();
 //  MPI_Finalize();
 }
@@ -558,7 +559,7 @@ int getType(apf::Mesh2* m_local, apf::MeshEntity* e)
 int getDownward(apf::Mesh2* m_local, apf::MeshEntity* e, int dimension, apf::MeshEntity* downwards[12])
 {
 //  std::cout << "in C++ getDownwards, dimension = " << dimension << std::endl;
-  int numDown = m->getDownward(e, dimension, downwards);
+  int numDown = m_local->getDownward(e, dimension, downwards);
   return numDown;
 }
 
