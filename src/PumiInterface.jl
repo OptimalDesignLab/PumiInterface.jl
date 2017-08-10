@@ -579,27 +579,27 @@ function countNodes(eshape_ptr)
   return i
 end
 
-function getValues( eshape_ptr, coords::Array{Float64,1}, numN::Integer)
+function getValues(m_ptr::Ptr{Void},  eshape_ptr, coords::Array{Float64,1}, numN::Integer)
 #  gets an array of shape function values at the specified coordinates
 # numN is the number of points affecting the entity that was used to get eshape_ptr
 # coords must be a vector of length 3
 # the output is a vector of length numN
 
   vals = zeros(numN)
-  ccall ( (getValues_name, pumi_libname), Void, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}), eshape_ptr, coords, vals)
+  ccall ( (getValues_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Ptr{Float64}), m_ptr, eshape_ptr, coords, vals)
 
   return vals
 end
 
 
-function getLocalGradients( eshape_ptr, coords::Array{Float64,1}, numN::Integer)
+function getLocalGradients(m_ptr::Ptr{Void}, eshape_ptr, coords::Array{Float64,1}, numN::Integer)
 #  gets an array of shape function derivatives at the specified coordinates
 # numN is the number of points affecting the entity that was used to get eshape_ptr
 # coords must be a vector of length 3
 # the output is a matrix of dimension 3 x numN
 
   vals = zeros(3, numN)
-  ccall ( (getLocalGradients_name, pumi_libname), Void, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}), eshape_ptr, coords, vals)
+  ccall ( (getLocalGradients_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Ptr{Float64}), m_ptr, eshape_ptr, coords, vals)
 
   return vals
 end

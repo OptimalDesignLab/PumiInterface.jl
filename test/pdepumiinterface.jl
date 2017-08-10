@@ -221,7 +221,7 @@ facts("--- Testing PdePumiInterface --- ") do
     nodexi = PdePumiInterface.getXiCoords(order, 2)
     numnodes = size(nodexi, 2)
     for i=1:numnodes
-      vals = getValues(eshape, nodexi[:, i], numnodes)
+      vals = getValues(mesh.m_ptr, eshape, nodexi[:, i], numnodes)
       for j=1:numnodes
         if i == j
           @fact abs(vals[j] - 1) --> less_than(1e-12)

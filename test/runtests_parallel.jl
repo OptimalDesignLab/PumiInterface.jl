@@ -25,9 +25,7 @@ facts("Testing PUMIInterface.jl") do
 
 
   @fact peers[1] --> 1-myrank
-  resetVertIt()
 
-  resetAllIts2(m_ptr)
   verts = Array(Ptr{Void}, num_Entities[1])
   edges = Array(Ptr{Void}, num_Entities[2])
   faces = Array(Ptr{Void}, num_Entities[3])
@@ -40,7 +38,7 @@ facts("Testing PUMIInterface.jl") do
 
   it = MeshIterator(m_ptr, 1)
   for i=1:length(edges)
-    edges[i] = iterator(m_ptr, it)
+    edges[i] = iterate(m_ptr, it)
   end
   free(m_ptr, it)
 

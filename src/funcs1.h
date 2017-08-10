@@ -152,8 +152,8 @@ extern void getJacobian(apf::MeshElement* e, double coords[3], double jac[3][3])
 
 // Entityshape functions
 extern int countNodes(apf::EntityShape* eshape_local);
-extern void getValues(apf::EntityShape* eshape_local, double xi[3], double vals[]);
-extern void getLocalGradients(apf::EntityShape* eshape_local, double xi[3], double vals[][3]);
+extern void getValues(apf::Mesh* m, apf::EntityShape* eshape_local, double xi[3], double vals[]);
+extern void getLocalGradients(apf::Mesh* m, apf::EntityShape* eshape_local, double xi[3], double vals[][3]);
 void alignSharedNodes(apf::EntityShape* eshape_local, apf::Mesh* m_local, apf::MeshEntity* elem, apf::MeshEntity* shared, int order[]);
 
 // these function do not pass pointers (they use the iterators internally)

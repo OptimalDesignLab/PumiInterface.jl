@@ -67,7 +67,8 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
     PCU_Comm_Init();   // initilize PUMI's communication
   }
  
-
+  // if we load a mesh, this value will get replaced
+  m = m_ptr_array[0];
   if (load_mesh)  // if the user said to load a new mesh
   {
     if (strcmp(dmg_name, ".null") == 0)
@@ -88,7 +89,6 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
       m = apf::loadMdsMesh(dmg_name, smb_name);
     }
 
-    m = m_ptr_array[0];
 //    meshloaded = true;  // record the fact that a mesh is now loaded
     apf::reorderMdsMesh(m);
     // apply shape functions to newly loaded mesh
@@ -180,7 +180,8 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
   }
  
   int dim;
-  apf::Mesh2* m;
+  // if we load a mesh, this value will get replaced
+  apf::Mesh2* m = m_ptr_array[0];
   if (load_mesh)  // if the user said to load a new mesh
   {
     /*
@@ -211,7 +212,6 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
       m = apf::loadMdsMesh(dmg_name, smb_name);
       pushMeshRef(m);
     }
-    m = m_ptr_array[0];
     dim = m->getDimension();
 //    meshloaded = true;  // record the fact that a mesh is now loaded
     apf::reorderMdsMesh(m);
@@ -726,7 +726,7 @@ int countNodes(apf::EntityShape* eshape_local)
 
 // get shape function values
 // vals had better be the right size
-void getValues(apf::EntityShape* eshape_local, double xi[3], double vals[])
+void getValues(apf::Mesh* m, apf::EntityShape* eshape_local, double xi[3], double vals[])
 {
   apf::Vector3 xi_vec (xi[0], xi[1], xi[2]); // create vector of coordinates
   apf::NewArray<double> vals_array;  // array to store retrieved values in
@@ -743,7 +743,7 @@ void getValues(apf::EntityShape* eshape_local, double xi[3], double vals[])
 
 // get shape function gradient values
 // vals had better be the right size
-void getLocalGradients(apf::EntityShape* eshape_local, double xi[3], double vals[][3])
+void getLocalGradients(apf::Mesh* m, apf::EntityShape* eshape_local, double xi[3], double vals[][3])
 {
   apf::Vector3 xi_vec (xi[0], xi[1], xi[2]); // create vector of coordinates
   apf::NewArray<apf::Vector3> vals_array;  // array to store retrieved values in

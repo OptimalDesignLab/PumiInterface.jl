@@ -255,14 +255,15 @@ function getNodeEntities(m_ptr, mshape_ptr, entity,
     
 	
   if has_edge_nodes # edges
-    numEdges = getDownward(mshape_ptr, entity, 1, retrieved_entities)
+    retrieved_entities[1] = Ptr{Void}(42)
+    numEdges = getDownward(m_ptr, entity, 1, retrieved_entities)
         for i=1:numEdges
           insertN(downward_entities, retrieved_entities[i], vert_offset+num_edge_nodes*(i-1) + 1, num_edge_nodes)
         end
   end
 
   if has_face_nodes
-     numFaces = getDownward(mshape_ptr, entity, 2, retrieved_entities)
+     numFaces = getDownward(m_ptr, entity, 2, retrieved_entities)
     for i=1:numFaces
       insertN(downward_entities, retrieved_entities[i], vert_offset + num_edge_nodes*numEdges +num_edge_nodes*(i-1) + 1, num_face_nodes)
     end
