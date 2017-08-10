@@ -22,51 +22,11 @@ global const init2_name = "initABC2"
 global const pushMeshRef_name = "pushMeshRef"
 global const popMeshRef_name = "popMeshRef"
 
-global const getMeshPtr_name = "getMeshPtr"
 global const getConstantShapePtr_name = "getConstantShapePtr"
 global const getMeshShapePtr_name = "getMeshShapePtr"
-global const getVertNumbering_name = "getVertNumbering"
-global const getEdgeNumbering_name = "getEdgeNumbering"
-global const getFaceNumbering_name = "getFaceNumbering"
-global const getElNumbering_name = "getElNumbering"
-
-global const resetVertIt_name = "resetVertIt"
-global const resetEdgeIt_name = "resetEdgeIt"
-global const resetFaceIt_name = "resetFaceIt"
-global const resetElIt_name  = "resetElIt"
-global const resetIt_name = "resetIt"
-global const incrementVertIt_name = "incrementVertIt"
-global const incrementVertItn_name = "incrementVertItn"
-
-global const incrementEdgeIt_name = "incrementEdgeIt"
-global const incrementEdgeItn_name = "incrementEdgeItn"
-
-global const incrementFaceIt_name = "incrementFaceIt"
-global const incrementFaceItn_name = "incrementFaceItn"
-
-global const incrementElIt_name = "incrementElIt"
-global const incrementElItn_name = "incrementElItn"
-
-global const incrementIt_name = "incrementIt"
 
 global const count_name = "count"
 global const writeVtkFiles_name = "writeVtkFiles"
-
-global const setGlobalVertNumber_name = "setGlobalVertNumber"
-global const getGlobalVertNumber_name = "getGlobalVertNumber"
-global const getVertNumber_name = "getVertNumber"
-global const getEdgeNumber_name = "getEdgeNumber"
-global const getFaceNumber_name = "getFaceNumber"
-global const getElNumber_name = "getElNumber"
-global const getVert_name = "getVert"
-global const getEdge_name = "getEdge"
-global const getFace_name = "getFace"
-global const getEl_name = "getEl"
-global const getEntity_name = "getEntity"
-global const getVertNumber2_name = "getVertNumber2"
-global const getEdgeNumber2_name = "getEdgeNumber2"
-global const getFaceNumber2_name = "getFaceNumber2"
-global const getElNumber2_name = "getElNumber2"
 
 global const toModel_name = "toModel"
 global const getModelType_name = "getModelType"
@@ -97,7 +57,6 @@ global const getValues_name = "getValues"
 global const getLocalGradients_name = "getLocalGradients"
 global const alignSharedNodes_name = "alignSharedNodes"
 
-global const checkVars_name = "checkVars"
 global const checkNums_name = "checkNums"
 global const getVertCoords_name = "getVertCoords"
 global const getVertCoords2_name = "getVertCoords2"
@@ -168,17 +127,15 @@ end
 
 
 # export low level interface functions
-export declareNames, init, init2, pushMeshRef, popMeshRef, getMeshPtr, getConstantShapePtr, getMeshShapePtr, getVertNumbering, getEdgeNumbering, getFaceNumbering, getElNumbering, resetVertIt, resetEdgeIt, resetFaceIt, resetElIt, incrementVertIt, incrementVertItn, incrementEdgeIt, incrementEdgeItn, incrementFaceIt, incrementFaceItn, incrementElIt, incrementElItn, countJ, writeVtkFiles, getVertNumber, getEdgeNumber, getFaceNumber, getElNumber, getVert, getEdge, getFace, getEl, getVertNumber2, getEdgeNumber2, getFaceNumber2, getElNumber2, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, checkVars, checkNums, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, getAllEntityCoords, createNumberingJ, getNumberingShape, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, zeroField, getCoordinateField, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
+export declareNames, init, init2, pushMeshRef, popMeshRef, getConstantShapePtr, getMeshShapePtr, countJ, writeVtkFiles, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, getAllEntityCoords, createNumberingJ, getNumberingShape, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, zeroField, getCoordinateField, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
+# iterator functors
 export MeshIterator, iterate, iteraten, free, deref
 
 export createSubMeshDG, transferFieldDG, getFieldShape
 
 export toModel, getModelType, getModelTag
 export countPeers, getPeers
-# iterator functors
-export VertIterator, EdgeIterator, FaceIterator, ElIterator
-export VertGetter, EdgeGetter, FaceGetter, ElGetter
 export countPeers, getPeers, countRemotes, getRemotes, isShared
 export getEntity, incrementIt, resetIt
 
@@ -273,15 +230,6 @@ function popMeshRef(m_ptr::Ptr{Void})
   ccall ( (popMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
 end
 
-
-#=
-# no longer needed
-function getMeshPtr()
-
-  m_ptr = ccall( (getMeshPtr_name, pumi_libname), Ptr{Void}, () )
-  return m_ptr
-end
-=#
 
 # no longer needed
 function getMeshShapePtr(m_ptr::Ptr{Void})
@@ -628,44 +576,6 @@ function alignSharedNodes(eshape_ptr, m_ptr, elem, shared, order::Array{Int32, 1
 end
 
 
-function checkVars()
-ccall ( (checkVars_name, pumi_libname), Void, () );
-
-return nothing
-end
-
-
-
-
-
-
-function checkVars()
-ccall ( (checkVars_name, pumi_libname), Void, () );
-
-return nothing
-end
-
-
-function checkNums()
-ccall( (checkNums_name, pumi_libname), Void, () )
-
-end
-
-function getVertCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
-# coords is array to put coordsinates in, must be 3 by 1,
-# m, n are number of rows, columns in coords, respectively
-
-#coords = Array(Float64, 3, 2)   # pass an array 3 by n (3 coordinates each for n points)
-#(m,n) = size(coords)
-# pass reversed m,n because C arrays are row-major
-ccall( (getVertCoords_name, pumi_libname), Void, (Ptr{Float64}, Int32, Int32), coords, n, m) 
-
-#println("\n from julia, coords = ", coords)
-
-return coords
-end
-
-
 function getVertCoords(m_ptr::Ptr{Void}, entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
 # coords is array to put coordsinates in, must be 3 by 1,
 # m, n are number of rows, columns in coords, respectively
@@ -682,20 +592,6 @@ end
 
 
 
-function getEdgeCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
-# coords is array to put coordinates in, must be 3 by 2
-# m,n = number of rows, columns in coords, respectively
-
-i = ccall( (getEdgeCoords_name, pumi_libname), Int, (Ptr{Float64}, Int32, Int32), coords, n, m);
-
-if ( i != 0)
-  throw(ErrorException("Error in getEdgeCoords"))
-end
-
-#println("in julia, coords = ", coords)
-
-end
-
 function getEdgeCoords(m_ptr::Ptr{Void}, entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
 # coords is array to put coordinates in, must be 3 by 2
 # m,n = number of rows, columns in coords, respectively
@@ -710,27 +606,6 @@ end
 
 end
 
-
-
-
-
-function getFaceCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
-# get coordinates of points on a face, in order
-# coords is array to populate with coordinates, must by 3 by number of points
-# on a face
-# m,n = number of rows, columns in coords, respectively
-
-# reverse m and n because C is row major
-i = ccall( (getFaceCoords_name, pumi_libname), Int32, (Ptr{Float64}, Int32, Int32), coords, n, m);
-
-if ( i != 0)
-  throw(ErrorException("Error in getFaceCoords"))
-  exit()
-end
-
-#println("in julia, coords = ", coords)
-
-end
 
 
 function getFaceCoords(m_ptr::Ptr{Void}, entity::Ptr{Void}, coords::AbstractMatrix, m::Integer, n::Integer)
@@ -750,23 +625,6 @@ end
 
 end
 
-
-function getElCoords(coords::Array{Float64, 2}, m::Integer, n::Integer)
-# get coordinates of points in an element, in order
-# coords is array to populate with coordinates, must by 3 by number of points
-# on a element
-# m,n = number of rows, columns in coords, respectively
-
-# reverse m and n because C is row major
-i = ccall( (getElCoords_name, pumi_libname), Int, (Ptr{Float64}, Int32, Int32), coords, n, m);
-
-if ( i != 0)
-  throw(ErrorException("Error in getElCoords"))
-end
-
-#println("in julia, coords = ", coords)
-
-end
 
 function getElCoords(m_ptr::Ptr{Void}, entity, coords::Array{Float64, 2}, m::Integer, n::Integer)
 # get coordinates of points in an element, in order
