@@ -24,7 +24,7 @@ function checkConnectivity(mesh::PumiMesh)
     checkFaceConnectivity(mesh)
   end
 
-  checkContiguity(mesh)
+#  checkContiguity(mesh)
 
   return nothing
 end
