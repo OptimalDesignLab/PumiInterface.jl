@@ -1234,7 +1234,7 @@ function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum::Integer,
     for i=1:3  # 3 edges per face
       edge_idx = topo.face_edges[i, facenum] + 4 # 4 = numVerts
       for j=1:3  # 3 coordinates per face
-        coords[j, 3 + i] = mesh.vert_coords[j, edge_idx]
+        coords[j, 3 + i] = mesh.vert_coords[j, edge_idx, elnum]
       end
     end
 

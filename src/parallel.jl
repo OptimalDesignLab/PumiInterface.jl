@@ -72,7 +72,7 @@ function getParallelInfo(mesh::PumiMeshDG)
   # Copies on a given remote process, so we send them all and sort it 
   # out on the other side
   if hasMatching(mesh.m_ptr)
-    num_orientation_verts = Max_Vert_Matches[mesh.dim] + Max_Vert_Remotes
+    num_orientation_verts = 3*(Max_Vert_Matches[mesh.dim] + Max_Vert_Remotes)
   else
     num_orientation_verts = mesh.dim
   end
@@ -324,6 +324,9 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
       verts_j = sview(orientations, verts_startidx:size(orientations, 1), i)
       verts_startidx += getVertCopies(partnums_extract, ptrs_extract, peer_num, verts_j)
 
+      # if the values are not unique, there will be no way for the receiver
+      # to unpack them and match them to the local vertices
+      assertUnique(sview(orientations, 1:(verts_startidx-1), i))
     end
   end
 
@@ -359,6 +362,29 @@ function extractVertCopies(recv_verts::AbstractArray, local_verts::AbstractArray
         facevertsR[pos] = recv_vert
         pos += 1
       end
+    end
+  end
+
+  @assert pos == 4  # check that we found all vertices
+
+  return nothing
+end
+
+"""
+  Assert that all entries of the array are unique
+
+  Inputs:
+    arr: array of values
+
+"""
+function assertUnique(arr::AbstractArray)
+
+  n = length(arr)
+
+  for i=1:n
+    val_i = arr[i]
+    for j=1:(i-1)
+      @assert val_i != arr[j]
     end
   end
 

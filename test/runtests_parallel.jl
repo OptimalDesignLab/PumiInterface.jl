@@ -484,7 +484,16 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   MPI.Barrier(mesh.comm)
 
+  # check assertion for ambiguous parallel things
+  dmg_name = ".null"
+  smb_name = "tet111_.smb"
 
+  opts = PdePumiInterface.get_defaults()
+  opts["numBC"] = 0
+
+  @fact_throws PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+
+ 
 
 end
 

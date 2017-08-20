@@ -1,0 +1,5 @@
+This file contains notes on the various mesh files used for testing.
+This file was created some time after the repository was started, to not
+all mesh files are present.
+
+
