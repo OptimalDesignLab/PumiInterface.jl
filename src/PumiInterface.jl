@@ -208,7 +208,6 @@ mshape_ptr_array = Array(Ptr{Void}, 1)
 dim = Ref{Cint}()
 n_arr = Array(Ptr{Void}, 4)
 
-println("before init call, length(n_arr) = ", length(n_arr))
 i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Ptr{Cint}, Ptr{Ptr{Void}}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, dim, n_arr, order, load_mesh, shape_type )  # call init in interface library
 
 if ( i != 0)
@@ -216,7 +215,6 @@ if ( i != 0)
 end
 
 
-println("after n_arr, length(n_arr) = ", length(n_arr))
 return num_Entities, m_ptr_array[1], mshape_ptr_array[1], dim[], n_arr
 end
 
