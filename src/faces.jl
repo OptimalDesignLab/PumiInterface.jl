@@ -444,12 +444,12 @@ function getInterfaceArray(mesh::PumiMesh3D)
   # corners of the domain, so in the worst case a parallel partition could
   # generate 400 + 8 matches
   part_nums = Array(Cint, 400 + 8)
-  matched_entities = Array(Ptr{Void}, 400 + 8)  # there can be up to 400 
+  matched_entities = Array(Ptr{Void}, 400 + 8)  # there can be up to 400
                                            
   pos = 1 # position in mesh.interfaces
   seen_entities = Set{Ptr{Void}}()
   sizehint!(seen_entities, mesh.numPeriodicInterfaces)
- 
+
   for i=1:mesh.numFace
     face_i = mesh.faces[i]
     if face_i in seen_entities  # avoid counting matched entities twice
@@ -522,11 +522,13 @@ function getInterfaceArray(mesh::PumiMesh3D)
         elR = el2
       end
 
+      # Note: this must be consistent with the topo definition of face numbering
+      #       (I think)
       localfacenumL = getFaceLocalNum(mesh, edgenumL, elnumL)
       localfacenumR = getFaceLocalNum(mesh, edgenumR, elnumR)
       fdata = FaceData(elnumL, elL, elnumR, elR, localfacenumL, localfacenumR,
                        vertsL, vertsR, facevertsL, facevertsR, part_nums, 
-                       matched_entities, has_local_match )
+                       matched_entities, has_local_match)
 
       rel_rotate = getRelativeOrientation(fdata, mesh)
       mesh.interfaces[pos] = Interface(elnumL, elnumR, localfacenumL, localfacenumR, UInt8(rel_rotate))

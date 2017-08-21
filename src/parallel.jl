@@ -298,7 +298,8 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
 
   nfaces = length(bndries)
   myrank = mesh.myrank
-  downward = Array(Ptr{Void}, 4)
+  downward_verts = Array(Ptr{Void}, 4)
+  downward_faces = Array(Ptr{Void}, 12)
   remote_partnums = Array(Cint, 400)  # equivalent of apf::up
   remote_ptrs = Array(Ptr{Void}, 400)  
   vertmap = mesh.topo.face_verts
@@ -307,14 +308,37 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
     bndry_i = bndries[i]
     el_i = mesh.elements[bndry_i.element]
     facelocal_i = bndry_i.face
-    getDownward(mesh.m_ptr, el_i, 0, downward)
+    getDownward(mesh.m_ptr, el_i, 0, downward_verts)
     verts_startidx = 1
+
+    # figure out if this face has a remote or a match (it can't have both)
+    getDownward(mesh.m_ptr, el_i, mesh.dim - 1, downward_faces)
+    face_i = downward_faces[facelocal_i]
+
+    # because we are dealing with faces, we don't need to check the part
+    # number of the pair
+    nremotes = countRemotes(mesh.m_ptr, face_i)
+    nmatches = countMatches(mesh.m_ptr, face_i)
+
+    is_remote = nremotes > 0
+    @assert is_remote || nmatches > 0
+
     for j=1:(mesh.dim)  # dim = number of verts on a face
 
-      vert_j = downward[vertmap[j, facelocal_i]]
+      vert_j = downward_verts[vertmap[j, facelocal_i]]
       # get the remote pointer for this vert
-      nremotes = countCopies(mesh.shr_ptr, vert_j)
-      getCopies(remote_partnums, remote_ptrs)
+      # depending on whether the face has a remote or a match, send only
+      # the remote or matched vertices
+      # this helps resolve ambiguities on the receiving end when determining
+      # orientation in some corner cases
+      if is_remote
+        nremotes = countRemotes(mesh.m_ptr, vert_j)
+        getRemotes(remote_partnums, remote_ptrs)
+      else
+        nremotes = countMatches(mesh.m_ptr, vert_j)
+        getMatches(remote_partnums, remote_ptrs)
+      end
+
       @assert nremotes <= 400
       @assert nremotes >= 1
       
@@ -322,18 +346,15 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
       partnums_extract = sview(remote_partnums, 1:Int(nremotes))
       ptrs_extract = sview(remote_ptrs, 1:Int(nremotes))
       verts_j = sview(orientations, verts_startidx:size(orientations, 1), i)
-      verts_startidx += getVertCopies(partnums_extract, ptrs_extract, peer_num, verts_j)
+      verts_startidx += getVertCopies(partnums_extract, ptrs_extract, peer_num, verts_j, mesh.f)
 
-      # if the values are not unique, there will be no way for the receiver
-      # to unpack them and match them to the local vertices
-      assertUnique(sview(orientations, 1:(verts_startidx-1), i))
     end
   end
 
   return nothing
 end
 
-function getVertCopies(remote_partnums::AbstractArray, remote_ptrs::AbstractArray, peer_num::Integer, vert_copies::AbstractArray)
+function getVertCopies(remote_partnums::AbstractArray, remote_ptrs::AbstractArray, peer_num::Integer, vert_copies::AbstractArray, f=STDOUT)
 # get all the vertices on peer peer_num and put them in the array
 # returns the number of vertices inserted
 
@@ -391,6 +412,29 @@ function assertUnique(arr::AbstractArray)
   return nothing
 end
 
+"""
+  This function ensures that if an entry in matched_entities is present in
+  other entities, then it occurs exactly once in matched_entities.  This ensures
+  that vertices can be matched up to face orientation can be determined
+
+  **Inputs**
+
+   * matched_entities: array of entities
+   * other_entities: array of other entities
+"""
+function assertUnique(matched_entities::AbstractArray,
+                      other_entities::AbstractArray)
+
+
+  for i=1:length(matched_entities)
+    if (matched_entities[i] in other_entities)
+      @assert countin(matched_entities[i], matched_entities) == 1
+    end
+  end
+
+  return nothing
+end
+
 # this can be generalized once edge orientation is generalized
 function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary}, 
                            bndries_remote::Array{Boundary}, 
@@ -433,6 +477,7 @@ function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary},
         face_verts[j] = el_verts[face_vertmap[j, face_local]]
       end
       faceverts_recv = sview(orientations_recv, :, i)
+      assertUnique(faceverts_recv, face_verts)
       extractVertCopies(faceverts_recv, face_verts, facevertsR)
       orient = calcRelativeOrientation(face_verts, facevertsR)
     end

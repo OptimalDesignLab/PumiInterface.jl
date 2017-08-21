@@ -56,7 +56,27 @@ return min_entry, max_entry
 
 end
 
+"""
+  Count the number of instances of val in arr
 
+  Inputs:
+    val: the value to find
+    arr: the array to search in
+
+  Outputs:
+    cnt: the number of instances of val in arr
+"""
+function countin(val, arr::AbstractArray)
+
+  cnt = 0
+  for i=1:length(arr)
+    if arr[i] == val
+      cnt += 1
+    end
+  end
+
+  return cnt
+end
 
 function common(A::AbstractArray, B::AbstractArray)
 # find common element in the two sets

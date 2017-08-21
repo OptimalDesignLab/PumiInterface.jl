@@ -493,7 +493,19 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   @fact_throws PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
- 
+  # check 2 x 2 x 2 mesh works
+  dmg_name = ".null"
+  smb_name = "tet222_.smb"
+
+  PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+
+  # this doesn't work because each partition is a 1 x 1 x 1 cube with periodic faces
+  dmg_name = ".null"
+  smb_name = "tet211_.smb"
+
+  @fact_throws PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+
+
 
 end
 

@@ -2,4 +2,8 @@ This file contains notes on the various mesh files used for testing.
 This file was created some time after the repository was started, to not
 all mesh files are present.
 
+tet111_.smb: a unit cube consisting of 6 tets, fully periodic (used to test that the parallel code asserts when it should)
 
+tet222_.smb: same as tet111, but 2 cubes in each direction, each cube subdivided into 6 tets
+
+tet211_.smb: same as tet222, but 2 x 1 x 1 cubes
