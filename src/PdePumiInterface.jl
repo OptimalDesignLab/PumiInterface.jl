@@ -227,8 +227,64 @@ function zeroBarArrays(mesh::PumiMesh)
 
   return nothing
 end
-          
 
+"""
+  Registers a finalizer that cleans up the pumi mesh underlying the julia
+  mesh object, including all the other meshes (subtriangulated etc.).
+  This uses reference counting, so the mesh is only freed if there are no 
+  more references to it.
+"""
+function registerFinalizer(mesh::PumiMesh)
+
+  finalizer(mesh, finalizeMesh)
+
+end
+
+"""
+  The finalizer function itself used by registerFinalizer().  If users
+  want to free the Pumi datastructure early, they can call this function.
+"""
+function finalizeMesh(mesh::PumiMesh)
+
+  fnames = fieldnames(mesh)
+
+  # only do the main mesh for now
+  if mesh.m_ptr != C_NULL
+    popMeshRef(mesh.m_ptr)
+
+    # figure out which other mesh pointers need to be zeroed
+    zero_mnew = ( :mnew_ptr in fnames) && mesh.mnew_ptr == mesh.m_ptr
+    zero_mexact = ( :mexact_ptr in fnames) && mesh.mexact_ptr == mesh.m_ptr
+
+    mesh.m_ptr = C_NULL
+    if zero_mnew
+      mesh.mnew_ptr = C_NULL
+    end
+    if zero_mexact
+      mesh.mexact_ptr = C_NULL
+    end
+  end
+
+  if ( :mnew_ptr in fnames) && mesh.mnew_ptr != C_NULL
+    popMeshRef(mesh.mnew_ptr)
+
+    zero_mexact = ( :mexact_ptr in fnames) && mesh.mexact_ptr == mesh.mnew_ptr
+
+    mesh.mnew_ptr = C_NULL
+    if zero_mexact
+      mesh.mexact_ptr == C_NULL
+    end
+  end
+
+  if ( :mexect_ptr in fnames) && mesh.mexact_ptr != C_NULL
+    popMeshRef(mesh.mexact_ptr)
+    mesh.mexact_ptr = C_NULL
+  end
+
+
+
+  return nothing
+end
 
 
 include("elements.jl")
@@ -455,7 +511,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   mesh.numPeriodicInterfaces = 0
   mesh.topo = ElementTopology2()  # get default topology because it isn't
                                   # important for 2d
-  num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim = init2(dmg_name, smb_name, order, shape_type=shape_type)
+  num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, shape_type=shape_type)
   mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
                                          # field shape for CG
   if dim != mesh.dim
@@ -512,10 +568,10 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
  
   # get pointers to mesh entity numberings
-  mesh.vert_Nptr = getVertNumbering()
-  mesh.edge_Nptr = getEdgeNumbering()
-  mesh.face_Nptr = mesh.edge_Nptr
-  mesh.el_Nptr = getFaceNumbering()
+  mesh.vert_Nptr = n_arr[1] #getVertNumbering()
+  mesh.edge_Nptr = n_arr[2] #getEdgeNumbering()
+  mesh.face_Nptr = n_arr[2] #mesh.edge_Nptr
+  mesh.el_Nptr = n_arr[3] #getFaceNumbering()
   mesh.entity_Nptrs = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
 
   # create the coloring_Nptr
@@ -821,47 +877,6 @@ function getMinElementSize(mesh::AbstractMesh)
 end
 
 
-#=
-function numberDofs(mesh::PumiMesh2)
-# number the degrees of freedom of the mesh, using the apf::Numbering* stroed
-# in the mesh
-
-  # move this into a function
-  resetAllIts2()
-  println("performing initial numbering of dofs")
-  # calculate number of nodes, dofs (works for first and second order)
-  numnodes = mesh.order*mesh.numVert 
-  numdof = numnodes*mesh.numDofPerNode
-  # number dofs
-  ctr= 1
-  for i=1:mesh.numVert
-    for j=1:mesh.numDofPerNode
-      numberJ(mesh.dofnums_Nptr, mesh.verts[i], 0, j-1, ctr)
-      println("vertex ", i,  " numbered ", ctr)
-      ctr += 1
-    end
-  end
-
-  if mesh.order >= 2
-    for i=1:mesh.numEdges
-      for j=1:mesh.numDofPerNode
-        numberJ(mesh.dofnums_Nptr, mesh.edges[i], 0, j-1, ctr)
-        ctr += 1
-      end
-    end
-  end
-
-  mesh.numNodes = numnodes
-  mesh.numDof = numdof
-
-return nothing
-
-end  # end function
-=#
-
-
-
-
 # for reinitilizeing after mesh adaptation
 function reinitPumiMesh2(mesh::PumiMesh2)
   # construct pumi mesh by loading the files named
@@ -877,16 +892,16 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   dmg_name = "b"
   order = mesh.order
   dofpernode = mesh.numDofPerNode
-  tmp, num_Entities, m_ptr, mshape_ptr, dim = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
+  tmp, num_Entities, m_ptr, mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
   f_ptr = mesh.f_ptr  # use existing solution field
 
   numVert = convert(Int, num_Entities[1])
   numEdge =convert(Int,  num_Entities[2])
   numEl = convert(Int, num_Entities[3])
 
-  mesh.vert_Nptr = getVertNumbering()
-  mesh.edge_Nptr = getEdgeNumbering()
-  mesh.el_Nptr = getFaceNumbering()
+  mesh.vert_Nptr = n_arr[1] #getVertNumbering()
+  mesh.edge_Nptr = n_arr[2] #getEdgeNumbering()
+  mesh.el_Nptr = n_arr[3] #getFaceNumbering()
 
 
 
@@ -898,25 +913,26 @@ function reinitPumiMesh2(mesh::PumiMesh2)
 
   # get pointers to all MeshEntities
   # also initilize the field to zero
-  resetAllIts2()
 #  comps = zeros(dofpernode)
   comps = [1.0, 2, 3, 4]
+  it = MeshIterator(mesh.m_ptr, 0)
   for i=1:numVert
-    verts[i] = getVert()
-    incrementVertIt()
+    verts[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
+  it = MeshIterator(mesh.m_ptr, 1)
   for i=1:numEdge
-    edges[i] = getEdge()
-    incrementEdgeIt()
+    edges[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
+  it = MeshIterator(mesh.m_ptr, it)
   for i=1:numEl
-    elements[i] = getFace()
-    incrementFaceIt()
+    elements[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
-  resetAllIts2()
   # calculate number of nodes, dofs (works for first and second order)
   numnodes = order*numVert 
   numdof = numnodes*dofpernode
@@ -944,20 +960,21 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   # count boundary edges
   bnd_edges_cnt = 0
   bnd_edges = Array(Int, numEdge, 2)
+  it = MeshIterator(mesh.m_ptr, it)
   for i=1:numEdge
-    edge_i = getEdge()
+    edge_i = iterate(mesh.m_ptr, it)
     numFace = countAdjacent(m_ptr, edge_i, 2)  # should be count upward
 
     if numFace == 1  # if an exterior edge
       faces = getAdjacent(numFace)
-      facenum = getFaceNumber2(faces[1]) + 1
+      facenum = getNumberJ(mesh.el_Nptr, faces[1], 0, 0) + 1
 
       bnd_edges_cnt += 1
       bnd_edges[bnd_edges_cnt, 1] = facenum
       bnd_edges[bnd_edges_cnt, 2] = i
     end
-    incrementEdgeIt()
   end
+  free(mesh.m_ptr, it)
 
   bnd_edges_small = bnd_edges[1:bnd_edges_cnt, :]
 
@@ -993,6 +1010,8 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   println("numEl = ", numEl)
   println("numDof = ", numdof)
   println("numNodes = ", numnodes)
+
+  registerFinalizer(mesh)
 
   writeVtkFiles("mesh_complete", m_ptr)
 end

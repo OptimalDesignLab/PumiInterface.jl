@@ -351,8 +351,8 @@ function getInterfaceArray(mesh::PumiMesh2D)
 
       coords_1 = zeros(3,3)
       coords_2 = zeros(3,3)
-      getFaceCoords(mesh.elements[element1], coords_1, 3, 3)
-      getFaceCoords(mesh.elements[element2], coords_2, 3, 3)
+      getFaceCoords(mesh.m_ptr, mesh.elements[element1], coords_1, 3, 3)
+      getFaceCoords(mesh.m_ptr, mesh.elements[element2], coords_2, 3, 3)
 
       # calculate centroid
       centroid1 = sum(coords_1, 2)

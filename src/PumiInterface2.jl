@@ -34,22 +34,6 @@ return adj, n
 
 end
 
-function resetAllIts2()
- # reset all the iterationr that exist for a 2d mesh
-
- m_ptr = getMeshPtr()
- dim = getMeshDimension(m_ptr) 
- reset_funcs = [resetVertIt, resetEdgeIt, resetFaceIt, resetElIt]
-
- for i=1:(dim+1)
-   reset_funcs[i]()
- end
-
-
- return nothing
-end
-
-
 function countDownwards(m_ptr, entity)
 # gets an array containing the number of downward adjacencies of each type for
 # the given entity, in ascending order
@@ -98,21 +82,22 @@ function printEdgeVertNumbers(edgeN_ptr, vertN_ptr; fstream=STDOUT)
 # fstream is the stream the data is written to, default STDOUT
 # this function uses iterators
 
-  resetEdgeIt();
   m_ptr = getMesh(edgeN_ptr)  # get pointer to mesh
+  it = MeshIterator(m_ptr, 1)
   m = countJ(m_ptr, 1)  # count number of edges on the mesh
   println("m = ", m)
 
   for i=1:m  # loop over edges
-    edge_i = getEdge()
+    edge_i = iterate(m_ptr, it)
     edge_num = getNumberJ(edgeN_ptr, edge_i, 0, 0)
 
     (verts, nverts) = getDownward(m_ptr, edge_i, 0)
     n1 = getNumberJ(vertN_ptr, verts[1], 0, 0)
     n2 = getNumberJ(vertN_ptr, verts[2], 0, 0)
     println(fstream, "edge ", edge_num, " has vertices ", n1, " , ", n2 )
-    incrementEdgeIt()
   end
+
+  free(m_ptr, it)
 
 end
 
@@ -137,13 +122,13 @@ end
  
 function printFaceVertNumbers(faceN_ptr, vertN_ptr; fstream=STDOUT)
 #print the numbers of the vertices that compose a face
-resetFaceIt();
-m_ptr = getMesh(faceN_ptr)
-m = countJ(m_ptr, 2)  # count number of faces on the mesh
-println("numFaces = ", m)
+  m_ptr = getMesh(faceN_ptr)
+  it = MeshIterator(m_ptr, 2)
+  m = countJ(m_ptr, 2)  # count number of faces on the mesh
+  println("numFaces = ", m)
 
  for i=1:m  # loop over faces
-   face_i = getFace()
+   face_i = iterate(m_ptr, it)
    face_num = getNumberJ(faceN_ptr, face_i, 0, 0)
    (verts, nverts) = getDownward(m_ptr, face_i, 0)
    vertnums = zeros(Int, nverts)
@@ -152,19 +137,20 @@ println("numFaces = ", m)
    end
 
    println(fstream, "face ", face_num, " has vertices $vertnums")
-   incrementFaceIt()
  end
+
+ free(m_ptr, it)
 
  return nothing
 end
 
 function printElementVertNumbers(el_Nptr, vert_Nptr; fstream=STDOUT)
-  resetElIt()
   m_ptr = getMesh(el_Nptr)
+  it = MeshIterator(m_ptr, 3)
   m = countJ(m_ptr, 3)  # count number of element
 
   for i=1:m
-    el_i = getEl()
+    el_i = iterate(m_ptr, it)
     elnum = getNumberJ(el_NPtr, el_i, 0, 0)
     (verts, nverts) = getDownward(m_ptr, el_i, 0)
     vertnums = zeros(Int, nverts)
@@ -172,8 +158,9 @@ function printElementVertNumbers(el_Nptr, vert_Nptr; fstream=STDOUT)
       vertnums[j] = getNumberJ(vert_Nptr, verts[j], 0, 0)
     end
     println(fstream, "element ", elnum, " has vertices $vertnums")
-    incrementElIt()
   end
+
+  free(m_ptr, it)
 
   return nothing
 end
@@ -268,14 +255,15 @@ function getNodeEntities(m_ptr, mshape_ptr, entity,
     
 	
   if has_edge_nodes # edges
-    numEdges = getDownward(mshape_ptr, entity, 1, retrieved_entities)
+    retrieved_entities[1] = Ptr{Void}(42)
+    numEdges = getDownward(m_ptr, entity, 1, retrieved_entities)
         for i=1:numEdges
           insertN(downward_entities, retrieved_entities[i], vert_offset+num_edge_nodes*(i-1) + 1, num_edge_nodes)
         end
   end
 
   if has_face_nodes
-     numFaces = getDownward(mshape_ptr, entity, 2, retrieved_entities)
+     numFaces = getDownward(m_ptr, entity, 2, retrieved_entities)
     for i=1:numFaces
       insertN(downward_entities, retrieved_entities[i], vert_offset + num_edge_nodes*numEdges +num_edge_nodes*(i-1) + 1, num_face_nodes)
     end

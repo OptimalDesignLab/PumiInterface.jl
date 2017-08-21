@@ -41,71 +41,33 @@ extern "C" {
 //extern int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numberEntities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1]);
 
 
-int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int order, int load_mesh, int shape_type );
+int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], apf::Numbering* n_arr[], int order, int load_mesh, int shape_type );
 
 
-int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], int order, int load_mesh, int shape_type );
+int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], apf::Numbering* n_arr[], int order, int load_mesh, int shape_type );
 
 // these functions are not user accessible
 void cleanup(apf::Mesh* m_local);
 void destroyNumberings(int dim); 
+
+void pushMeshRef(apf::Mesh* m);
+void popMeshRef(apf::Mesh* m);
+
 apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_shape);
 
 // these functions do pass pointers
-extern apf::Mesh2* getMeshPtr();
 extern apf::FieldShape* getMeshShapePtr(apf::Mesh* m);
 extern apf::FieldShape* getConstantShapePtr(int dimension);
-extern apf::Numbering* getVertNumbering();
-extern apf::Numbering* getEdgeNumbering();
-extern apf::Numbering* getFaceNumbering();
-extern apf::Numbering* getElNumbering();
-
-// these functions do not pass pointers
-extern void resetVertIt();
-extern void resetEdgeIt();
-extern void resetFaceIt();
-extern void incrementVertIt();
-extern void incrementVertItn(int n);
-
-extern void incrementEdgeIt();
-extern void incrementEdgeItn(int n);
-
-extern void incrementFaceIt();
-extern void incrementFaceItn(int n);
-
-extern void incrementElIt();
-extern void incrementElItn(int n);
-
-extern void incrementIt(int dim);
-
-extern void resetElIt();
-
-extern void resetIt(int dim);
-
 
 extern int count(apf::Mesh2* m_local, int dimension);
+
+apf::MeshIterator* begin(apf::Mesh* m, int dim);
+void end(apf::Mesh* m, apf::MeshIterator* it);
+apf::MeshEntity* iterate(apf::Mesh* m, apf::MeshIterator* it);
+void iteraten(apf::Mesh* m, apf::MeshIterator* it, int n);
+apf::MeshEntity* deref(apf::Mesh2* m, apf::MeshIterator* it);
+
 extern void writeVtkFiles(char* name, apf::Mesh2* m_local);
-
-extern void setGlobalVertNumber(int val); // do not use
-extern int getGlobalVertNumber(); // do not use
-extern int getVertNumber();
-extern int getEdgeNumber();
-extern int getFaceNumber();
-extern int getElNumber();
-
-// these functions pass pointers to/from julia
-extern apf::MeshEntity* getVert();
-extern apf::MeshEntity* getEdge();
-extern apf::MeshEntity* getFace();
-extern apf::MeshEntity* getEl();
-extern apf::MeshEntity* getEntity(int dim);
-
-// these functions are deprecated, use getNumberJ insteady
-extern int getVertNumber2(apf::MeshEntity* e);
-extern int getEdgeNumber2(apf::MeshEntity* e);
-extern int getFaceNumber2(apf::MeshEntity* e);
-extern int getElNumber2(apf::MeshEntity* e);
-
 
 // geometric model functions
 
@@ -141,24 +103,16 @@ extern void getJacobian(apf::MeshElement* e, double coords[3], double jac[3][3])
 
 // Entityshape functions
 extern int countNodes(apf::EntityShape* eshape_local);
-extern void getValues(apf::EntityShape* eshape_local, double xi[3], double vals[]);
-extern void getLocalGradients(apf::EntityShape* eshape_local, double xi[3], double vals[][3]);
+extern void getValues(apf::Mesh* m, apf::EntityShape* eshape_local, double xi[3], double vals[]);
+extern void getLocalGradients(apf::Mesh* m, apf::EntityShape* eshape_local, double xi[3], double vals[][3]);
 void alignSharedNodes(apf::EntityShape* eshape_local, apf::Mesh* m_local, apf::MeshEntity* elem, apf::MeshEntity* shared, int order[]);
 
-// these function do not pass pointers (they use the iterators internally)
-extern void checkVars();
-extern void checkNums();
-extern void getVertCoords(double coords[][3], int sx, int sy);
-extern int getEdgeCoords(double coords[2][3], int sx, int sy);
-extern int getFaceCoords(double coords[][3], int sx, int sy);
-extern int getElCoords(double coords[][3], int sx, int sy);
-extern int getElCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);
 
 // these functinos pass pointers
-extern void getVertCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);
-extern int getEdgeCoords2(apf::MeshEntity* e, double coords[2][3], int sx, int sy);
-int getFaceCoords2(apf::MeshEntity* e, double coords[][3], int sx, int sy);
-
+extern void getVertCoords2(apf::Mesh* m, apf::MeshEntity* e, double coords[][3], int sx, int sy);
+extern int getEdgeCoords2(apf::Mesh* m, apf::MeshEntity* e, double coords[2][3], int sx, int sy);
+int getFaceCoords2(apf::Mesh* m, apf::MeshEntity* e, double coords[][3], int sx, int sy);
+extern int getElCoords2(apf::Mesh* m, apf::MeshEntity* e, double coords[][3], int sx, int sy);
 
 void getAllEntityCoords(apf::Mesh* m, apf::MeshEntity* e, double* coords);
 

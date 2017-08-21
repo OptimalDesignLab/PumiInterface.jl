@@ -226,14 +226,14 @@ end
 function getElementCoords(mesh::PumiMesh2D, entity::Ptr{Void}, coords::AbstractMatrix)
   # coords must be 3 x numVertsPerElement
   sx, sy = size(coords)
-  getFaceCoords(entity, coords, sx, sy)
+  getFaceCoords(mesh.m_ptr, entity, coords, sx, sy)
 end
 
 
 function getElementCoords(mesh::PumiMesh3D, entity::Ptr{Void}, coords::AbstractMatrix)
 
   sx, sy = size(coords)
-  getElCoords(entity, coords, sx, sy)
+  getElCoords(mesh.m_ptr, entity, coords, sx, sy)
 end
 
 
@@ -304,7 +304,7 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh},
     face = bndry_i.face
 
     sizex, sizey = size(coords_i)
-    getFaceCoords(el_ptr, coords_i, sizex, sizey)
+    getFaceCoords(mesh.m_ptr, el_ptr, coords_i, sizex, sizey)
 
     coords_it[:, :] = coords_i[1:2, :].'
 
@@ -381,7 +381,7 @@ function getInterfaceCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh},
     face = bndry_i.faceL
 
     sizex, sizey = size(coords_i)
-    getFaceCoords(el_ptr, coords_i, sizex, sizey)
+    getFaceCoords(mesh.m_ptr, el_ptr, coords_i, sizex, sizey)
 
     coords_it[:, :] = coords_i[1:2, :].'
 

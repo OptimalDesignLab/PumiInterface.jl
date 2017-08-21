@@ -448,7 +448,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 #    mesh_order = order
 #  end
   
-  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
+  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
 
   if dim != mesh.dim
     throw(ErrorException("loaded mesh is not 2 dimensions"))
@@ -515,10 +515,10 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
 
  
   # get pointers to mesh entity numberings
-  mesh.vert_Nptr = getVertNumbering()
-  mesh.edge_Nptr = getEdgeNumbering()
-  mesh.face_Nptr = mesh.edge_Nptr
-  mesh.el_Nptr = getFaceNumbering()
+  mesh.vert_Nptr = n_arr[1] #getVertNumbering()
+  mesh.edge_Nptr = n_arr[2] #getEdgeNumbering()
+  mesh.face_Nptr = n_arr[2] #mesh.edge_Nptr
+  mesh.el_Nptr = n_arr[3] #getFaceNumbering()
   mesh.entity_Nptrs = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
 
   # create the coloring_Nptr
@@ -792,16 +792,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   println(f, sum(mesh.peer_face_counts))
   close(f)
 
-  #TODO: remove this
-  f = open("nrm_face.dat", "w")
-  for i=1:mesh.numInterfaces
-    coords = mesh.coords_interface
-    nrm_face = mesh.nrm_face
-    for j=1:mesh.numNodesPerFace
-       println(f, i, " ", j, " ", coords[1, j, i], " ", coords[2, j, i], " ", nrm_face[1, j, i], " ", nrm_face[2, j, i])
-     end
-   end
-   close(f)
+  registerFinalizer(mesh)
 
 #  close(mesh.f)
   return mesh
@@ -893,7 +884,7 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
   dmg_name = "b"
   order = mesh.order
   dofpernode = mesh.numDofPerNode
-  tmp, num_Entities, m_ptr, coordshape_ptr, dim = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
+  tmp, num_Entities, m_ptr, coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
   f_ptr = mesh.f_ptr  # use existing solution field
 
   if dim != mesh.dim
@@ -905,9 +896,9 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
   numEdge =convert(Int,  num_Entities[2])
   numEl = convert(Int, num_Entities[3])
 
-  mesh.vert_Nptr = getVertNumbering()
-  mesh.edge_Nptr = getEdgeNumbering()
-  mesh.el_Nptr = getFaceNumbering()
+  mesh.vert_Nptr = n_arr[1] #getVertNumbering()
+  mesh.edge_Nptr = n_arr[2] #getEdgeNumbering()
+  mesh.el_Nptr = n_arr[3] #getFaceNumbering()
 
 
 
@@ -919,25 +910,26 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
 
   # get pointers to all MeshEntities
   # also initilize the field to zero
-  resetAllIts2()
 #  comps = zeros(dofpernode)
   comps = [1.0, 2, 3, 4]
+  it = MeshIterator(mesh.m_ptr, 0)
   for i=1:numVert
-    verts[i] = getVert()
-    incrementVertIt()
+    verts[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
+  it = MeshIterator(mesh.m_ptr, 1)
   for i=1:numEdge
-    edges[i] = getEdge()
-    incrementEdgeIt()
+    edges[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
+  it = MeshIterator(mesh.m_ptr, it)
   for i=1:numEl
-    elements[i] = getFace()
-    incrementFaceIt()
+    elements[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
-  resetAllIts2()
   # calculate number of nodes, dofs (works for first and second order)
   numnodes = order*numVert 
   numdof = numnodes*dofpernode
@@ -965,20 +957,21 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
   # count boundary edges
   bnd_edges_cnt = 0
   bnd_edges = Array(Int, numEdge, 2)
+  it = MeshIterator(mesh.m_ptr, 1)
   for i=1:numEdge
-    edge_i = getEdge()
+    edge_i = iterate(mesh.m_ptr, it)
     numFace = countAdjacent(m_ptr, edge_i, 2)  # should be count upward
 
     if numFace == 1  # if an exterior edge
       faces = getAdjacent(numFace)
-      facenum = getFaceNumber2(faces[1]) + 1
+      facenum = getNumberJ(mesh.el_Nptr, faces[1], 0, 0) + 1
 
       bnd_edges_cnt += 1
       bnd_edges[bnd_edges_cnt, 1] = facenum
       bnd_edges[bnd_edges_cnt, 2] = i
     end
-    incrementEdgeIt()
   end
+  free(mesh.m_ptr, it)
 
   bnd_edges_small = bnd_edges[1:bnd_edges_cnt, :]
 
