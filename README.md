@@ -207,6 +207,12 @@ and treated accordingly.  It is an error to assign a boundary condition to a
 geometric entity that has a periodic MeshEntity on it, and an exception will
 be thrown.
 
+When creating structured the way MeshCreate does (creating cubes and then
+decomposing each cube into 6 tets), there can be a minimum of 2 cubes in
+each direction if that direction is periodic.  In this case, for example,
+the y direction is periodic if the xz planes are matched.
+If this condition is not satisfied, an error is thrown.
+
 ### Implementation Details
 First some terminology: Matched entities are two entities at different
 locations that are periodic with each other.  Remote entities are two
@@ -269,5 +275,10 @@ v0.5: 3D curvilinear metrics and their reverse mode
                the options dictionary does not specify a boundary condition for
                any geometric edges, an additional BC is created for them with
                name `defaultBC`.  See `getAllFaceData()`.
+
+v0.6: fix bug in in 3D metric calculation, also introduce asserts to make sure
+      face orientation can be determined when using periodic boundary conditions.
+      Also, removes all global state from libfuncs1, so it is now possible to
+      load multiple meshes simultaneously.
 
 [![Build Status](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl.svg?branch=build_system)](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl)
