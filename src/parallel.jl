@@ -33,6 +33,7 @@ function getParallelInfo(mesh::PumiMeshDG)
   npeers = countPeers(mesh.m_ptr, mesh.dim-1)  # get edge peers
   peer_nums = zeros(Cint, npeers)
   getPeers(mesh.m_ptr, peer_nums)
+
   # count the number of edges shared with each peer
   partnums = zeros(Cint, 1)
   remotes = Array(Ptr{Void}, 1)

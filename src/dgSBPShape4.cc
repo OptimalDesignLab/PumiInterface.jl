@@ -6,7 +6,7 @@
 
 namespace apf {
 
-// sbp-gamma for DG
+// sbp-Diagonal E for DG
 class DG4SBPLinear : public FieldShape
 {
 public:

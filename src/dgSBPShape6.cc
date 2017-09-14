@@ -2,16 +2,16 @@
 #include "apfMesh.h"
 #include "apfVector.h"
 #include "apfMatrix.h"
-#include "dgSBPShape5.h"
+#include "dgSBPShape6.h"
 
 namespace apf {
 
-// sbp-diagonalE no vertex for DG
-class DG5SBPLinear : public FieldShape
+// sbp-Omega 2p for DG
+class DG6SBPLinear : public FieldShape
 {
 public:
-  DG5SBPLinear() { registerSelf(apf::DG5SBPLinear::getName()); }
-  const char* getName() const  {return "DG5SBPLinear"; }
+  DG6SBPLinear() { registerSelf(apf::DG6SBPLinear::getName()); }
+  const char* getName() const  {return "DG6SBPLinear"; }
 
 
   class Vertex : public EntityShape
@@ -25,12 +25,12 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const&, NewArray<double>& values) const
     {
-      fail("unimplimented getValues called in DG5SBPLinear Vertex");    
+      fail("unimplimented getValues called in DG6SBPLinear Vertex");    
     }
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>&) const
     {
-      fail("unimplimented getValues called DG5SBPLinear Vertex");
+      fail("unimplimented getValues called DG6SBPLinear Vertex");
     }
 
     int countNodes() const {return 0;}
@@ -44,13 +44,13 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const& xi, NewArray<double>& values) const
     {
-      fail("unimplimented getValues() called in DG5SBPLinear Edge");
+      fail("unimplimented getValues() called in DG6SBPLinear Edge");
     }
 
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>& grads) const
     {
-      fail("unimplimented getLocaGradients() called in DG5SBPLinear Edge");
+      fail("unimplimented getLocaGradients() called in DG6SBPLinear Edge");
     }
 
     int countNodes() const {return 0;}
@@ -66,15 +66,15 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const& xi, NewArray<double>& values) const
     {
-      fail("unimplimented getValues() called in DG5SBPLinear Triangle");
+      fail("unimplimented getValues() called in DG6SBPLinear Triangle");
     }
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>& grads) const
     {
-      fail("unimplimented getLocalGradients() called in DG5SBPLinear Triangle");
+      fail("unimplimented getLocalGradients() called in DG6SBPLinear Triangle");
     }
 
-    int countNodes() const {return 7;}
+    int countNodes() const {return 3;}
 
     void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
       // elem is the triangle 
@@ -94,12 +94,12 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const& xi, NewArray<double>& values) const
     {
-      fail("unimplimented getValues() called in DG5SBPLinear Tetrahedron");
+      fail("unimplimented getValues() called in DG6SBPLinear Tetrahedron");
     }
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>& grads) const
     {
-      fail("unimplimented getLocalGradients() called in DG5SBPLinear Tetrahedron");
+      fail("unimplimented getLocalGradients() called in DG6SBPLinear Tetrahedron");
     }
 
     int countNodes() const {return 0;}
@@ -148,7 +148,7 @@ public:
   int countNodesOn(int type)
   {
     if (type == Mesh::TRIANGLE)
-      return 7;
+      return 3;
     else
       return 0;
   }
@@ -161,33 +161,25 @@ public:
     switch (node)
     {
       case 0:
-        {xi = Vector3(0.21132486540518713, 0.0, 0.0); break; }
+        {xi = Vector3(0.16666666666666666, 0.6666666666666667, 0.0); break; }
       case 1:
-        {xi = Vector3(0.7886751345948129, 0.0, 0.0); break; }
+        {xi = Vector3(0.16666666666666666, 0.16666666666666666, 0.0); break; }
       case 2:
-        {xi = Vector3(0.7886751345948129, 0.21132486540518713, 0.0); break; }
-      case 3:
-        {xi = Vector3(0.21132486540518713, 0.7886751345948129, 0.0); break; }
-      case 4:
-        {xi = Vector3(0.0, 0.7886751345948129, 0.0); break; }
-      case 5:
-        {xi = Vector3(0.0, 0.21132486540518713, 0.0); break; }
-      case 6:
-        {xi = Vector3(0.3333333333333333, 0.3333333333333333, 0.0); break; }
+        {xi = Vector3(0.6666666666666667, 0.16666666666666666, 0.0); break; }
       default:
         {xi = Vector3(0, 0, 0); break; }
     }
 
   }
-};  // class DG5SBPLinear
+};  // class DG6SBPLinear
 
 
 
-class DG5SBPQuadratic : public FieldShape
+class DG6SBPQuadratic : public FieldShape
 {
 public:
-  DG5SBPQuadratic() { registerSelf(apf::DG5SBPQuadratic::getName()); }
-  const char* getName() const { return "DG5SBPQuadratic"; }
+  DG6SBPQuadratic() { registerSelf(apf::DG6SBPQuadratic::getName()); }
+  const char* getName() const { return "DG6SBPQuadratic"; }
 
   class Vertex : public EntityShape
   {
@@ -201,12 +193,12 @@ public:
     {
       //          values.allocate(1);
       //          values[0] = 1.0;
-      fail("unimplimented getValues called in DG5SBPQuadratic Vertex");    
+      fail("unimplimented getValues called in DG6SBPQuadratic Vertex");    
     }
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>&) const
     {
-      fail("unimplimented getLocalGradients called in DG5SBPQuadratic Vertex");
+      fail("unimplimented getLocalGradients called in DG6SBPQuadratic Vertex");
     }
 
     int countNodes() const {return 0;}
@@ -219,7 +211,7 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const& xi, NewArray<double>& values) const
     {
-      fail("unimplimented getValues() called in DG5SBPQuadratic Edge");
+      fail("unimplimented getValues() called in DG6SBPQuadratic Edge");
     }
 
     void getLocalGradients(Mesh*, MeshEntity*,
@@ -239,15 +231,15 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const& xi, NewArray<double>& values) const
     {
-      fail("unimplimented getValues() called in DG5SBPQuadratic Triangle");
+      fail("unimplimented getValues() called in DG6SBPQuadratic Triangle");
     }
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>& grads) const
     {
-      fail("unimplimented getLocalGradients() called in DG5SBPQuadratic Triangle");
+      fail("unimplimented getLocalGradients() called in DG6SBPQuadratic Triangle");
     }
 
-    int countNodes() const {return 12;}
+    int countNodes() const {return 6;}
 
     void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
       // elem is the triangle 
@@ -266,12 +258,12 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const& xi, NewArray<double>& values) const
     {
-      fail("unimplimented getValues() called in DG5SBPQuadratic Tetrahdron");
+      fail("unimplimented getValues() called in DG6SBPQuadratic Tetrahdron");
     }
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>& grads) const
     {
-      fail("unimplimented getLocalGradients() called in DG5SBPQuadratic Tetrahedron");
+      fail("unimplimented getLocalGradients() called in DG6SBPQuadratic Tetrahedron");
     }
 
     int countNodes() const {return 0;}
@@ -321,7 +313,7 @@ public:
   {
     if (type == Mesh::TRIANGLE)
     {
-      return 12;
+      return 6;
     } else
     {
       return 0;
@@ -343,40 +335,28 @@ public:
     switch (node)
     {
       case 0:
-        {xi = Vector3(0.5, 0.0, 0.0); break; }
+        {xi = Vector3(0.4459484909159649, 0.10810301816807022, 0.0); break; }
       case 1:
-        {xi = Vector3(0.5, 0.5, 0.0); break; }
+        {xi = Vector3(0.4459484909159649, 0.4459484909159649, 0.0); break; }
       case 2:
-        {xi = Vector3(0.0, 0.5, 0.0); break; }
+        {xi = Vector3(0.10810301816807022, 0.4459484909159649, 0.0); break; }
       case 3:
-        {xi = Vector3(0.20468064157076207, 0.5906387168584759, 0.0); break; }
+        {xi = Vector3(0.09157621350977074, 0.8168475729804585, 0.0); break; }
       case 4:
-        {xi = Vector3(0.20468064157076207, 0.20468064157076207, 0.0); break; }
+        {xi = Vector3(0.09157621350977074, 0.09157621350977074, 0.0); break; }
       case 5:
-        {xi = Vector3(0.5906387168584759, 0.20468064157076207, 0.0); break; }
-      case 6:
-        {xi = Vector3(0.1127016653792583, 0.0, 0.0); break; }
-      case 7:
-        {xi = Vector3(0.8872983346207417, 0.0, 0.0); break; }
-      case 8:
-        {xi = Vector3(0.8872983346207417, 0.1127016653792583, 0.0); break; }
-      case 9:
-        {xi = Vector3(0.1127016653792583, 0.8872983346207417, 0.0); break; }
-      case 10:
-        {xi = Vector3(0.0, 0.8872983346207417, 0.0); break; }
-      case 11:
-        {xi = Vector3(0.0, 0.1127016653792583, 0.0); break; }
+        {xi = Vector3(0.8168475729804585, 0.09157621350977074, 0.0); break; }
       default:
         {xi = Vector3(0, 0, 0); break; }
     } 
   }  // end function getNodeXi
-};  // class DG5SBPQuadratic
+};  // class DG6SBPQuadratic
 
-class DG5SBPCubic : public FieldShape
+class DG6SBPCubic : public FieldShape
 {
 public:
-  DG5SBPCubic() { registerSelf(apf::DG5SBPCubic::getName()); }
-  const char* getName() const { return "DG5SBPCubic"; }
+  DG6SBPCubic() { registerSelf(apf::DG6SBPCubic::getName()); }
+  const char* getName() const { return "DG6SBPCubic"; }
   class Vertex : public EntityShape
     // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
 
@@ -390,12 +370,12 @@ public:
     {
       values.allocate(1);
       values[0] = 1.0;
-      //            fail("unimplimented getValues called in DG5SBPCubic Vertex");    
+      //            fail("unimplimented getValues called in DG6SBPCubic Vertex");    
     }
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>&) const
     {
-      fail("unimplimented getValues called in DG5SBPCubic Vertex");
+      fail("unimplimented getValues called in DG6SBPCubic Vertex");
     }
 
     int countNodes() const {return 0;}
@@ -407,13 +387,13 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const& xi, NewArray<double>& values) const
     {
-      fail("unimplimented getValues() called in DG5SBPCubic Edge");
+      fail("unimplimented getValues() called in DG6SBPCubic Edge");
     }
 
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>& grads) const
     {
-      fail("unimplimented getLocaGradients() called in DG5SBPCubic Edge");
+      fail("unimplimented getLocaGradients() called in DG6SBPCubic Edge");
     }
 
     int countNodes() const {return 0;}
@@ -427,15 +407,15 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const& xi, NewArray<double>& values) const
     {
-      fail("unimplimented getValues() called in DG5SBPCubic Triangle");
+      fail("unimplimented getValues() called in DG6SBPCubic Triangle");
     }
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>& grads) const
     {
-      fail("unimplimented getLocalGradients() called in DG5SBPCubic Triangle");
+      fail("unimplimented getLocalGradients() called in DG6SBPCubic Triangle");
     }
 
-    int countNodes() const {return 21;}
+    int countNodes() const {return 12;}
 
     void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
     {
@@ -458,12 +438,12 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const& xi, NewArray<double>& values) const
     {
-      fail("unimplimented getValues() called in DG5SBPCubic Tetrahdron");
+      fail("unimplimented getValues() called in DG6SBPCubic Tetrahdron");
     }
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>& grads) const
     {
-      fail("unimplimented getLocalGradients() called in DG5SBPCubic Tetrahdron");
+      fail("unimplimented getLocalGradients() called in DG6SBPCubic Tetrahdron");
     }
 
     int countNodes() const {return 0;}
@@ -511,7 +491,7 @@ public:
   {
     if (type == Mesh::TRIANGLE)
     {
-      return 21;
+      return 12;
     } else
     {
       return 0;
@@ -534,61 +514,43 @@ public:
     switch (node)
     {
       case 0:
-        {xi = Vector3(0.4239374074448131, 0.15212518511037376, 0.0); break; }
+        {xi = Vector3(0.06308901449150225, 0.8738219710169954, 0.0); break; }
       case 1:
-        {xi = Vector3(0.4239374074448131, 0.4239374074448131, 0.0); break; }
+        {xi = Vector3(0.06308901449150225, 0.06308901449150225, 0.0); break; }
       case 2:
-        {xi = Vector3(0.15212518511037376, 0.4239374074448131, 0.0); break; }
+        {xi = Vector3(0.8738219710169954, 0.06308901449150225, 0.0); break; }
       case 3:
-        {xi = Vector3(0.33000947820757187, 0.0, 0.0); break; }
+        {xi = Vector3(0.24928674517091048, 0.501426509658179, 0.0); break; }
       case 4:
-        {xi = Vector3(0.6699905217924281, 0.0, 0.0); break; }
+        {xi = Vector3(0.24928674517091048, 0.24928674517091048, 0.0); break; }
       case 5:
-        {xi = Vector3(0.6699905217924281, 0.33000947820757187, 0.0); break; }
+        {xi = Vector3(0.501426509658179, 0.24928674517091048, 0.0); break; }
       case 6:
-        {xi = Vector3(0.33000947820757187, 0.6699905217924281, 0.0); break; }
+        {xi = Vector3(0.31035245103378434, 0.6365024991213988, 0.0); break; }
       case 7:
-        {xi = Vector3(0.0, 0.6699905217924281, 0.0); break; }
+        {xi = Vector3(0.053145049844816994, 0.6365024991213988, 0.0); break; }
       case 8:
-        {xi = Vector3(0.0, 0.33000947820757187, 0.0); break; }
+        {xi = Vector3(0.053145049844816994, 0.31035245103378434, 0.0); break; }
       case 9:
-        {xi = Vector3(0.06943184420297377, 0.0, 0.0); break; }
+        {xi = Vector3(0.31035245103378434, 0.053145049844816994, 0.0); break; }
       case 10:
-        {xi = Vector3(0.9305681557970262, 0.0, 0.0); break; }
+        {xi = Vector3(0.6365024991213988, 0.053145049844816994, 0.0); break; }
       case 11:
-        {xi = Vector3(0.9305681557970262, 0.06943184420297377, 0.0); break; }
-      case 12:
-        {xi = Vector3(0.06943184420297377, 0.9305681557970262, 0.0); break; }
-      case 13:
-        {xi = Vector3(0.0, 0.9305681557970262, 0.0); break; }
-      case 14:
-        {xi = Vector3(0.0, 0.06943184420297377, 0.0); break; }
-      case 15:
-        {xi = Vector3(0.10948299428608156, 0.7328086641350939, 0.0); break; }
-      case 16:
-        {xi = Vector3(0.15770834157882446, 0.7328086641350939, 0.0); break; }
-      case 17:
-        {xi = Vector3(0.15770834157882446, 0.10948299428608156, 0.0); break; }
-      case 18:
-        {xi = Vector3(0.10948299428608156, 0.15770834157882446, 0.0); break; }
-      case 19:
-        {xi = Vector3(0.7328086641350939, 0.15770834157882446, 0.0); break; }
-      case 20:
-        {xi = Vector3(0.7328086641350939, 0.10948299428608156, 0.0); break; }
+        {xi = Vector3(0.6365024991213988, 0.31035245103378434, 0.0); break; }
       default:
         {xi = Vector3(0, 0, 0); break; }
     } 
   }
-};  // class DG5SBPCubic
+};  // class DG6SBPCubic
 
 
 
-class DG5SBPQuartic : public FieldShape
+class DG6SBPQuartic : public FieldShape
 {
 public:
-  DG5SBPQuartic() { registerSelf(apf::DG5SBPQuartic::getName()); }
+  DG6SBPQuartic() { registerSelf(apf::DG6SBPQuartic::getName()); }
 
-  const char* getName() const { return "DG5SBPQuartic"; }
+  const char* getName() const { return "DG6SBPQuartic"; }
 
 
   class Vertex : public EntityShape
@@ -599,12 +561,12 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const&, NewArray<double>& values) const
     {
-      fail("unimplimented getValues called in DG5SBPQuartic Vertex");    
+      fail("unimplimented getValues called in DG6SBPQuartic Vertex");    
     }
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>&) const
     {
-      fail("unimplimented getValues called in DG5SBPQuartic Vertex");
+      fail("unimplimented getValues called in DG6SBPQuartic Vertex");
     }
 
     int countNodes() const {return 0;}
@@ -617,13 +579,13 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const& xi, NewArray<double>& values) const
     {
-      fail("unimplimented getValues() called in DG5SBPQuartic Edge");
+      fail("unimplimented getValues() called in DG6SBPQuartic Edge");
     }
 
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>& grads) const
     {
-      fail("unimplimented getLocaGradients() called in DG5SBPQuartic Edge");
+      fail("unimplimented getLocaGradients() called in DG6SBPQuartic Edge");
     }
 
     int countNodes() const {return 0;}
@@ -637,15 +599,15 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const& xi, NewArray<double>& values) const
     {
-      fail("unimplimented getValues() called in DG5SBPQuartic Triangle");
+      fail("unimplimented getValues() called in DG6SBPQuartic Triangle");
     }
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>& grads) const
     {
-      fail("unimplimented getLocalGradients() called in DG5SBPQuartic Triangle");
+      fail("unimplimented getLocalGradients() called in DG6SBPQuartic Triangle");
     }
 
-    int countNodes() const {return 28;}
+    int countNodes() const {return 18;}
 
     void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
     {
@@ -668,12 +630,12 @@ public:
     void getValues(Mesh*, MeshEntity*,
                    Vector3 const& xi, NewArray<double>& values) const
     {
-      fail("unimplimented getValues() called in DG5SBPQuartic Tetrahdron");
+      fail("unimplimented getValues() called in DG6SBPQuartic Tetrahdron");
     }
     void getLocalGradients(Mesh*, MeshEntity*,
                            Vector3 const&, NewArray<Vector3>& grads) const
     {
-      fail("unimplimented getLocalGradients() called in DG5SBPQuartic Tetrahdron");
+      fail("unimplimented getLocalGradients() called in DG6SBPQuartic Tetrahdron");
     }
 
     int countNodes() const {return 0;}
@@ -724,7 +686,7 @@ public:
   {
     if (type == Mesh::TRIANGLE)
     {
-      return 28;
+      return 18;
     } else
     {
       return 0;
@@ -746,73 +708,53 @@ public:
     switch (node)
     {
       case 0:
-        {xi = Vector3(0.5, 0.0, 0.0); break; }
+        {xi = Vector3(0.04599732020598892, 0.9080053595880222, 0.0); break; }
       case 1:
-        {xi = Vector3(0.5, 0.5, 0.0); break; }
+        {xi = Vector3(0.04599732020598892, 0.04599732020598892, 0.0); break; }
       case 2:
-        {xi = Vector3(0.0, 0.5, 0.0); break; }
+        {xi = Vector3(0.9080053595880222, 0.04599732020598892, 0.0); break; }
       case 3:
-        {xi = Vector3(0.2307653449471585, 0.0, 0.0); break; }
+        {xi = Vector3(0.47737011568388227, 0.045259768632235464, 0.0); break; }
       case 4:
-        {xi = Vector3(0.7692346550528415, 0.0, 0.0); break; }
+        {xi = Vector3(0.47737011568388227, 0.47737011568388227, 0.0); break; }
       case 5:
-        {xi = Vector3(0.7692346550528415, 0.2307653449471585, 0.0); break; }
+        {xi = Vector3(0.045259768632235464, 0.47737011568388227, 0.0); break; }
       case 6:
-        {xi = Vector3(0.2307653449471585, 0.7692346550528415, 0.0); break; }
+        {xi = Vector3(0.1768381152202795, 0.646323769559441, 0.0); break; }
       case 7:
-        {xi = Vector3(0.0, 0.7692346550528415, 0.0); break; }
+        {xi = Vector3(0.1768381152202795, 0.1768381152202795, 0.0); break; }
       case 8:
-        {xi = Vector3(0.0, 0.2307653449471585, 0.0); break; }
+        {xi = Vector3(0.646323769559441, 0.1768381152202795, 0.0); break; }
       case 9:
-        {xi = Vector3(0.046910077030668074, 0.0, 0.0); break; }
+        {xi = Vector3(0.40187325969515103, 0.19625348060969794, 0.0); break; }
       case 10:
-        {xi = Vector3(0.9530899229693319, 0.0, 0.0); break; }
+        {xi = Vector3(0.40187325969515103, 0.40187325969515103, 0.0); break; }
       case 11:
-        {xi = Vector3(0.9530899229693319, 0.046910077030668074, 0.0); break; }
+        {xi = Vector3(0.19625348060969794, 0.40187325969515103, 0.0); break; }
       case 12:
-        {xi = Vector3(0.046910077030668074, 0.9530899229693319, 0.0); break; }
+        {xi = Vector3(0.030525835755582265, 0.7388316469821417, 0.0); break; }
       case 13:
-        {xi = Vector3(0.0, 0.9530899229693319, 0.0); break; }
+        {xi = Vector3(0.23064251726227614, 0.7388316469821417, 0.0); break; }
       case 14:
-        {xi = Vector3(0.0, 0.046910077030668074, 0.0); break; }
+        {xi = Vector3(0.23064251726227614, 0.030525835755582265, 0.0); break; }
       case 15:
-        {xi = Vector3(0.5815956036636433, 0.307905177124701, 0.0); break; }
+        {xi = Vector3(0.030525835755582265, 0.23064251726227614, 0.0); break; }
       case 16:
-        {xi = Vector3(0.11049921921165569, 0.307905177124701, 0.0); break; }
+        {xi = Vector3(0.7388316469821417, 0.23064251726227614, 0.0); break; }
       case 17:
-        {xi = Vector3(0.11049921921165569, 0.5815956036636433, 0.0); break; }
-      case 18:
-        {xi = Vector3(0.5815956036636433, 0.11049921921165569, 0.0); break; }
-      case 19:
-        {xi = Vector3(0.307905177124701, 0.11049921921165569, 0.0); break; }
-      case 20:
-        {xi = Vector3(0.307905177124701, 0.5815956036636433, 0.0); break; }
-      case 21:
-        {xi = Vector3(0.06242060369267859, 0.8146202065854535, 0.0); break; }
-      case 22:
-        {xi = Vector3(0.1229591897218679, 0.8146202065854535, 0.0); break; }
-      case 23:
-        {xi = Vector3(0.1229591897218679, 0.06242060369267859, 0.0); break; }
-      case 24:
-        {xi = Vector3(0.06242060369267859, 0.1229591897218679, 0.0); break; }
-      case 25:
-        {xi = Vector3(0.8146202065854535, 0.1229591897218679, 0.0); break; }
-      case 26:
-        {xi = Vector3(0.8146202065854535, 0.06242060369267859, 0.0); break; }
-      case 27:
-        {xi = Vector3(0.3333333333333333, 0.3333333333333333, 0.0); break; }
+        {xi = Vector3(0.7388316469821417, 0.030525835755582265, 0.0); break; }
       default:
         {xi = Vector3(0, 0, 0); break; }
     }
   } 
-};  // class DG5SBPQuartic
+};  // class DG6SBPQuartic
 
-FieldShape* getDG5SBPShape(int order)
+FieldShape* getDG6SBPShape(int order)
 {
-  static DG5SBPLinear linear1;
-  static DG5SBPQuadratic quadratic1;
-  static DG5SBPCubic cubic1;
-  static DG5SBPQuartic quartic1;
+  static DG6SBPLinear linear1;
+  static DG6SBPQuadratic quadratic1;
+  static DG6SBPCubic cubic1;
+  static DG6SBPQuartic quartic1;
   // add an if statement here or something to support other orders
   switch (order) {
   case 1:

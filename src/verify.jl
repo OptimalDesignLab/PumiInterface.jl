@@ -168,6 +168,7 @@ function checkFaceCount(mesh::PumiMesh)
 
   for peer=1:mesh.npeers
     bndries_peer = mesh.bndries_local[peer]
+
     for i=1:length(bndries_peer)
       bndry_i = bndries_peer[i]
       j = bndry_i.face

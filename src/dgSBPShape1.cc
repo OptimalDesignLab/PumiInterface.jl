@@ -4,6 +4,7 @@
 #include "apfMatrix.h"
 #include "apfSBPShape.h"
 
+// SBP Omega 
 namespace apf {
 
 class DG1SBPLinear : public FieldShape

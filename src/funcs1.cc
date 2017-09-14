@@ -367,25 +367,29 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     {
       fshape = apf::getLagrange(order);
       change_shape = true;
-    } else if ( shape_type == 1)  // use SBP shape functions
+    } else if ( shape_type == 1)  // use SBP shape functions (SBP-Gamma CG)
     {
         fshape = apf::getSBPShape(order);
         change_shape = true;
-    } else if ( shape_type == 2)  // use SBP DG1 shape functions
+    } else if ( shape_type == 2)  // use SBP DG1 shape functions (SBP-Omega DG)
     {
       fshape = apf::getDG1SBPShape(order);
       change_shape = true;
-    } else if ( shape_type == 3) // use SBP DG2 shape functions
+    } else if ( shape_type == 3) // use SBP DG2 shape functions (SBP-Gamma DG)
     {
       fshape = apf::getDG2SBPShape(order);
       change_shape = true;
-    } else if (shape_type == 4) // diagonal E with vertex nodes
+    } else if (shape_type == 4) // diagonal E with vertex nodes (DG)
     {
       fshape = apf::getDG4SBPShape(order);
       change_shape = true;
-    } else if (shape_type == 5)  // diagonal E without vertex nodes
+    } else if (shape_type == 5)  // diagonal E without vertex nodes (DG)
     {
       fshape = apf::getDG5SBPShape(order);
+      change_shape = true;
+    } else if (shape_type == 6)
+    {
+      fshape = apf::getDG6SBPShape(order);
       change_shape = true;
     } else  // default to lagrange shape functions
     {

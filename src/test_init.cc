@@ -12,6 +12,65 @@
 //#include "dgSBPShape1.h"
 //#include "apfSBPShape.h"
 
+void printRemoteInfo(apf::Mesh* m)
+{
+
+  int myrank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+
+  // iostream
+  std::fstream fs;
+  char fname[50];
+  sprintf(fname, "output_%d.dat", myrank);
+  fs.open(fname, std::fstream::out);
+
+  // mesh data
+  apf::Sharing* shr = apf::getSharing(m);
+  apf::Copies copies;  // used with getRemotes
+  apf::CopyArray shares; // used with Sharing
+  int dim = m->getDimension();
+  apf::MeshIterator* it = m->begin(dim-1);
+  apf::MeshEntity* e;
+
+  apf::Parts parts;
+  apf::getPeers(m, dim-1, parts);
+
+  for (apf::Parts::iterator it = parts.begin(); it != parts.end(); ++it)
+  {
+    fs << "peer " << *it << std::endl;
+  }
+
+
+
+  int facenum = 0;
+  while ( (e = m->iterate(it)) )
+  {
+    fs << "\nfacenum = " << facenum << std::endl;
+
+    copies.clear();
+    m->getRemotes(e, copies);
+
+    fs << "printing remotes:" << std::endl;
+    for (apf::Copies::iterator it = copies.begin(); it != copies.end(); ++it)
+    {
+      fs << "part num = " << it->first << ", entity = " << it->second << std::endl;
+    }
+
+    fs << "printing shares:" << std::endl;
+    shares.setSize(0);
+    shr->getCopies(e, shares);
+
+    for (int i=0; i < int(shares.getSize()); ++i)
+    {
+      fs << "part num = " << shares[i].peer << ", entity = " << shares[i].entity << std::endl;
+    }
+
+  }
+
+  m->end(it);
+  fs.close();
+
+} // function printRemoteInfo
 /*
 void printModelClassification(apf::Mesh * m)
 {
@@ -67,9 +126,14 @@ void printCoordinates(apf::Mesh* m)
 
 } // function printCoordinates
 
-int main ()
+int main (int argc, char** argv)
 {
 
+  if (argc != 2)
+  {
+    std::cerr << "Usage: test_init mesh_name.smb" << std::endl;
+    return 1;
+  }
 
   std::cout << "Entered init\n" << std::endl;
   
@@ -83,7 +147,7 @@ int main ()
   gmi_model* g = gmi_load(".null");
   std::cout << "finished loading geometric model" << std::endl;
   // using the mesh vortex3_1.smb works fine
-  apf::Mesh2* m = apf::loadMdsMesh(g,"/tmp/abc2.smb" );
+  apf::Mesh2* m = apf::loadMdsMesh(g, argv[1] );
 
   std::cout << "finished loading mesh" << std::endl;
   apf::reorderMdsMesh(m);
@@ -104,7 +168,8 @@ int main ()
     std::cout << "tag " << i << " name = " << m->getTagName(tags[i]) << std::endl;
   }
 
-  printCoordinates(m);
+//  printCoordinates(m);
+  printRemoteInfo(m);
 /*
   if (coords_tag != 0)
   {
