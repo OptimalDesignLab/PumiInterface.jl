@@ -111,7 +111,7 @@ end
 
 #sbp = getTriSBPWithDiagE(degree=4, vertices=false)
 #sbp = getTetSBPWithDiagE(degree=2)a
-sbp = getTriSBPOmega2(degree=3)
+sbp = getTriSBPOmega2(degree=4)
 #sbp = TriSBP{Float64}(degree=1, reorder=false, internal=false)
 #sbp = TetSBP{Float64}(degree=3, reorder=false, internal=true)
 xi, coords = nodecalc(sbp, true)

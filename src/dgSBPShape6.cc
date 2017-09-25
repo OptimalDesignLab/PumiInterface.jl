@@ -607,7 +607,7 @@ public:
       fail("unimplimented getLocalGradients() called in DG6SBPQuartic Triangle");
     }
 
-    int countNodes() const {return 18;}
+    int countNodes() const {return 16;}
 
     void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
     {
@@ -686,7 +686,7 @@ public:
   {
     if (type == Mesh::TRIANGLE)
     {
-      return 18;
+      return 16;
     } else
     {
       return 0;
@@ -707,6 +707,41 @@ public:
     }
     switch (node)
     {
+      case 0:
+        {xi = Vector3(0.1705693077517602, 0.6588613844964796, 0.0); break; }
+      case 1:
+        {xi = Vector3(0.1705693077517602, 0.1705693077517602, 0.0); break; }
+      case 2:
+        {xi = Vector3(0.6588613844964796, 0.1705693077517602, 0.0); break; }
+      case 3:
+        {xi = Vector3(0.4592925882927231, 0.08141482341455375, 0.0); break; }
+      case 4:
+        {xi = Vector3(0.4592925882927231, 0.4592925882927231, 0.0); break; }
+      case 5:
+        {xi = Vector3(0.08141482341455375, 0.4592925882927231, 0.0); break; }
+      case 6:
+        {xi = Vector3(0.05054722831703096, 0.8989055433659381, 0.0); break; }
+      case 7:
+        {xi = Vector3(0.05054722831703096, 0.05054722831703096, 0.0); break; }
+      case 8:
+        {xi = Vector3(0.8989055433659381, 0.05054722831703096, 0.0); break; }
+      case 9:
+        {xi = Vector3(0.0083947774099576, 0.7284923929554042, 0.0); break; }
+      case 10:
+        {xi = Vector3(0.2631128296346381, 0.7284923929554042, 0.0); break; }
+      case 11:
+        {xi = Vector3(0.2631128296346381, 0.0083947774099576, 0.0); break; }
+      case 12:
+        {xi = Vector3(0.0083947774099576, 0.2631128296346381, 0.0); break; }
+      case 13:
+        {xi = Vector3(0.7284923929554042, 0.2631128296346381, 0.0); break; }
+      case 14:
+        {xi = Vector3(0.7284923929554042, 0.0083947774099576, 0.0); break; }
+      case 15:
+        {xi = Vector3(0.3333333333333333, 0.3333333333333333, 0.0); break; }
+      default:
+        {xi = Vector3(0, 0, 0); break; }
+            /*
       case 0:
         {xi = Vector3(0.04599732020598892, 0.9080053595880222, 0.0); break; }
       case 1:
@@ -745,6 +780,7 @@ public:
         {xi = Vector3(0.7388316469821417, 0.030525835755582265, 0.0); break; }
       default:
         {xi = Vector3(0, 0, 0); break; }
+      */
     }
   } 
 };  // class DG6SBPQuartic

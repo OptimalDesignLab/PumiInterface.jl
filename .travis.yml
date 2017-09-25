@@ -20,8 +20,8 @@ script:
   - julia --check-bounds=yes -e 'versioninfo(); Pkg.clone(pwd())'
   - cd ~/.julia/v0.4/PumiInterface/deps
 #  - ./install_gcc_4.8.sh
-  - ./install_cmake3.sh
-  - source ./use_cmake.sh 
+#  - ./install_cmake3.sh
+#  - source ./use_cmake.sh 
   - julia --check-bounds=yes -e 'Pkg.build("PumiInterface")'
   - cd ~/.julia/v0.4/PumiInterface/src
   - source ./use_julialib.sh
