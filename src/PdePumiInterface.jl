@@ -344,7 +344,7 @@ include("PdePumiInterface3DG.jl")
                       color the elements (graph vertices are elements and graph
                       edges exist where elements share an edge)
 """->
-type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
+type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
@@ -472,7 +472,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   color_cnt::Array{Int32, 1}  # number of elements in each color
 
   dof_offset::Int  # local to global dof offset
-  sbpface::TriFace{Float64}
+  sbpface::Tface
   topo::ElementTopology{2}
 
   facenodes::Array{Int, 2}  # array of numNodesPerFace x numFacesPerElement 

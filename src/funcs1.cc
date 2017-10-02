@@ -387,15 +387,16 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     {
       fshape = apf::getDG5SBPShape(order);
       change_shape = true;
-    } else if (shape_type == 6)
+    } else if (shape_type == 6)  // 2p SBP Omega
     {
       fshape = apf::getDG6SBPShape(order);
       change_shape = true;
     } else  // default to lagrange shape functions
     {
-      std::cout << "Warning: unrecognized shape_type, not changing mesh shape" << std::endl;
-      fshape = apf::getLagrange(1); // unused, but avoids compiler warning
-      change_shape = false;
+      std::cout << "Error: unrecognized shape_type: " << shape_type << std::endl;
+      std::abort();
+//      fshape = apf::getLagrange(1); // unused, but avoids compiler warning
+//      change_shape = false;
     }
   } else if (dim == 3)
   {
@@ -408,29 +409,40 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     {
       fshape = apf::getLagrange(order);
       change_shape = true;
-    } else if (shape_type == 2)  // use SBP DG1 shape functions
+    } else if (shape_type == 2)  // use SBP DG1 shape functions (3d Omega?)
     {
       fshape = apf::getDG1SBP3Shape(order);
       change_shape = true;
-    } else if (shape_type == 3)
+    } else if (shape_type == 3)  // 3d Gamma?
     {
       fshape = apf::getDG2SBP3Shape(order);
       change_shape = true;
+    } else if (shape_type == 4)  // 3D diagonal E
+    {
+      fshape = apf::getDG4SBP3Shape(order);
+      change_shape = true;
     } else if (shape_type == 5)
     {
-      fshape = apf::getDG5SBP3Shape(order);
+      fshape = apf::getDG5SBP3Shape(order);  // ???
       change_shape = true;
     } else  // default to lagrange shape functions
     {
-      std::cout << "Warning: unrecognizes shape_type, not changing mesh shape" << std::endl;
-      fshape = apf::getLagrange(1);
-      change_shape = false;
+
+      std::cout << "Error: unrecognized shape_type: " << shape_type << std::endl;
+      std::abort();
+
+//      std::cout << "Warning: unrecognizes shape_type, not changing mesh shape" << std::endl;
+//      fshape = apf::getLagrange(1);
+//      change_shape = false;
     }
   } else
   {
-    std::cout << "Warning: unrecognized dimension, not changing mesh shape" << std::endl;
-    fshape = apf::getLagrange(1);
-    change_shape = false;
+    std::cout << "Error: unrecognized dimension" << std::endl;
+    std::abort();
+
+//    std::cout << "Warning: unrecognized dimension, not changing mesh shape" << std::endl;
+//    fshape = apf::getLagrange(1);
+//    change_shape = false;
   }
 
 //  std::cout << "returning FieldShape " << fshape->getName() << std::endl;

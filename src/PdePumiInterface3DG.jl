@@ -106,7 +106,7 @@ export PumiMeshDG3
           The global dof number is the number stored in this array + 
           dof_offset  (even for the non-local elements)
 """->
-type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
+type PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mshape_ptr::Ptr{Void} # pointer to the FieldShape of the node field
   coordshape_ptr::Ptr{Void}  # pointer to FieldShape of the coordinate 
@@ -347,7 +347,7 @@ type PumiMeshDG3{T1} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   # on the current peer boundary
   shared_element_colormasks::Array{Array{BitArray{1}, 1}, 1}                               
   #TODO: remove this once SBP interface is clarified
-  sbpface::SummationByParts.AbstractFace{Float64}  # SBP object needed to do interpolation
+  sbpface::Tface  # SBP object needed to do interpolation
   topo::ElementTopology{3}  # SBP topology
   topo_pumi::ElementTopology{3}  # Pumi topology
 

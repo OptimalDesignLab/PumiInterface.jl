@@ -122,7 +122,7 @@ export PumiMeshDG2
           The global dof number is the number stored in this array + 
           dof_offset  (even for the non-local elements)
 """->
-type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
+type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to mesh used for visualization, which might be
                        # m_ptr or a subtriangulated mesh (high order only)
@@ -366,7 +366,7 @@ type PumiMeshDG2{T1} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   # BitArrays, where each BitArray has length = the number of ghost elements
   # on the current peer boundary
   shared_element_colormasks::Array{Array{BitArray{1}, 1}, 1}                               
-  sbpface::TriFace{Float64}  # SBP object needed to do interpolation
+  sbpface::Tface  # SBP object needed to do interpolation
   topo::ElementTopology{2}  # topology of the SBP element
   topo_pumi::ElementTopology{2}  # topology of the pumi element
   # add field that maps back and forth?

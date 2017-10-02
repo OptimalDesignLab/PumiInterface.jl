@@ -163,7 +163,8 @@ function test_metric_rev(mesh, mesh_c, sbp)
     tmp = zeros(Complex128, mesh.numNodesPerFace)
 
     # test calcEoneElement
-    Eone_el_c = zeros(Complex128, sbpface.stencilsize, mesh.dim)
+    
+    Eone_el_c = zeros(Complex128, size(sbpface.perm, 1), mesh.dim)
     
     nin = length(nrm)
     nout = length(Eone_el_c)

@@ -2,6 +2,7 @@
 #define FUNCS1_H
 
 #include <stdint.h>
+#include <cstdlib>
 // header file for funcs1
 #include <iostream>
 #include <apf.h>
@@ -28,6 +29,7 @@
 #include "dgSBPShape6.h"
 #include "dgSBP3Shape1.h"
 #include "dgSBP3Shape2.h"
+#include "dgSBP3Shape4.h"
 #include "dgSBP3Shape5.h"
 #include "triangulation.h"
 #include "triangulationDG.h"

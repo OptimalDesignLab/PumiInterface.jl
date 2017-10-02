@@ -11,7 +11,8 @@ include("test_funcs.jl")
 facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   degree = 1
   Tsbp = Float64
-  sbp = TetSBP{Tsbp}(degree=degree, internal=true)
+  sbp = getTetSBPOmega(degree=degree)
+#  sbp = TetSBP{Tsbp}(degree=degree, internal=true)
   ref_verts = sbp.vtx
   interp_op = SummationByParts.buildinterpolation(sbp, ref_verts.')
   face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)
@@ -27,7 +28,7 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   opts["BC1"] = [0,1,2,3,4,5]
 
 #  interp_op = eye(4)
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   # check coloring
   @fact mesh.maxColors --> less_than(18)
@@ -65,8 +66,8 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   end  # end loop over peers
 
 
-  mesh_c = PumiMeshDG3{Complex128}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
   compare_meshes(mesh, mesh_c)
 
   # this allocates a ton of memory - don't run
