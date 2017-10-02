@@ -799,11 +799,7 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
   nrmL = zeros(Tmsh, mesh.dim, sbpface.numnodes)
 
   # accumulate E1 for a given element
-  if typeof(mesh.sbpface) <: SparseFace
-    Eone_el = zeros(Tmsh, sbpface.numnodes, mesh.dim)
-  else
-    Eone_el = zeros(Tmsh, sbpface.stencilsize, mesh.dim)
-  end
+  Eone_el = zeros(Tmsh, size(sbpface.perm, 1), mesh.dim)
 
   for i=1:mesh.numInterfaces
     iface_i = mesh.interfaces[i]
