@@ -729,6 +729,13 @@ function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp,
   end
   =#
 
+  #=
+  println("sbp.numnodes = ", sbp.numnodes)
+  println("size(coords) = ", size(coords))
+  println("size(dxidx) = ", size(dxidx))
+  println("size(jac) = ", size(jac))
+  println("size(Eone) = ", size(Eone))
+  =#
   calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
                        coords_block, dxidx_block, jac_block, Eone)
 
@@ -785,13 +792,14 @@ function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
   # the permutation doesn't matter because it is being multiplied by a constant
   # vector.
   # also R1 = 1 by definition
-  Rone = vec(sum(mesh.sbpface.interp.', 2))
+  Rone = ones(Float64, mesh.numNodesPerFace)
+#  Rone = vec(sum(mesh.sbpface.interp.', 2))
   sbpface = mesh.sbpface
   tmp = zeros(Tmsh, length(Rone))
   nrmL = zeros(Tmsh, mesh.dim, sbpface.numnodes)
 
   # accumulate E1 for a given element
-  Eone_el = zeros(Tmsh, sbpface.stencilsize, mesh.dim)
+  Eone_el = zeros(Tmsh, size(sbpface.perm, 1), mesh.dim)
 
   for i=1:mesh.numInterfaces
     iface_i = mesh.interfaces[i]
@@ -886,13 +894,14 @@ function calcEone_rev{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
   # the permutation doesn't matter because it is being multiplied by a constant
   # vector.
   # also R1 = 1 by definition
-  Rone = vec(sum(mesh.sbpface.interp.', 2))
+  Rone = ones(Float64, mesh.numNodesPerFace)
+#  Rone = vec(sum(mesh.sbpface.interp.', 2))
   sbpface = mesh.sbpface
   tmp = zeros(Rone)
   nrmL_bar = zeros(Tmsh, mesh.dim, sbpface.numnodes)
 
   # accumulate E1 for a given element
-  Eone_el_bar = zeros(Tmsh, sbpface.stencilsize, mesh.dim)
+  Eone_el_bar = zeros(Tmsh, size(sbpface.perm, 1), mesh.dim)
 
   for i=1:mesh.numInterfaces
     iface_i = mesh.interfaces[i]
@@ -1011,6 +1020,27 @@ function calcEoneElement(sbpface::AbstractFace, nrm::AbstractMatrix,
   return nothing
 end
 
+"""
+  This methods works for SparseFaces (ex. diagonlE operators).
+  It takes in all the same arguments as the other method for compatability
+  but does not need them
+"""
+function calcEoneElement(sbpface::SparseFace, nrm::AbstractMatrix, 
+                         Rone::AbstractVector, tmp::AbstractVector, 
+                         Eone_el::AbstractMatrix)
+
+  dim = size(Eone_el, 2)
+  numFaceNodes = length(Rone)
+  for d=1:dim
+    for i=1:numFaceNodes
+      Eone_el[i, d] = Rone[i]*nrm[d, i]*sbpface.wface[i]
+    end
+  end
+
+  return nothing
+end
+
+
 # back propigate Eone_el_bar to nrm_bar
 """
   This function uses reverse mode to back-propigate Eone_el_bar to nrm_bar
@@ -1051,6 +1081,26 @@ function calcEoneElement_rev(sbpface::AbstractFace,
   return nothing
 end
 
+"""
+  This method works for SparseFace sbp face objects.
+"""
+function calcEoneElement_rev(sbpface::SparseFace,
+                         nrm_bar::AbstractMatrix,
+                         Rone::AbstractVector, tmp_bar::AbstractVector, 
+                         Eone_el_bar::AbstractMatrix)
+
+  dim = size(Eone_el_bar, 2)
+  numFaceNodes = length(Rone)
+
+  for d=1:dim
+    for i=1:numFaceNodes
+      nrm_bar[d, i] += Eone_el_bar[i, d]*Rone[i]*sbpface.wface[i]
+    end
+  end
+
+  return nothing
+end
+
 
 
 
@@ -1077,7 +1127,7 @@ function assembleEone{Tmsh}(sbpface::AbstractFace, elnum::Integer,
 
   dim = size(Eone, 2)
   for d=1:dim
-    for i=1:sbpface.stencilsize
+    for i=1:size(sbpface.perm, 1)
       p_i = sbpface.perm[i, facenum_local]
       Eone[p_i, d, elnum] += Eone_el[i, d]
     end
@@ -1105,7 +1155,7 @@ function assembleEone_rev{Tmsh}(sbpface::AbstractFace, elnum::Integer,
 
   dim = size(Eone_bar, 2)
   for d=1:dim  # TODO: switch loops: turn an indexed store into a strided store
-    for i=1:sbpface.stencilsize
+    for i=1:size(sbpface.perm, 1)
       p_i = sbpface.perm[i, facenum_local]
       # reverse mode step
       Eone_el_bar[i, d] += Eone_bar[p_i, d, elnum]

@@ -107,14 +107,15 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     "use_linear_metrics" => true,
     )
 
-  sbp = TriSBP{Float64}(degree=order, internal=true)
+  sbp = getTriSBPOmega(degree=order)
+#  sbp = TriSBP{Float64}(degree=order, internal=true)
 
   vtx = [-1. 1 -1; -1 -1 1]
 #  interp_op = SummationByParts.buildinterpolation(sbp, vtx)
   sbpface = TriFace{Float64}(order, sbp.cub, vtx.')
 
-  mesh_c = PumiMeshDG2{Complex128}(dmg_name, smb_name, order, sbp, opts, sbpface)
-  mesh = PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface)
+  mesh_c = PumiMeshDG2{Complex128, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface)
+  mesh = PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface)
 
   @fact mesh.numVert --> 6
   @fact mesh.numEdge --> 9
@@ -324,7 +325,8 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   degree = 1
   Tsbp = Float64
-  sbp = TetSBP{Tsbp}(degree=degree, internal=true)
+  sbp = getTetSBPOmega(degree=degree)
+#  sbp = TetSBP{Tsbp}(degree=degree, internal=true)
   ref_verts = sbp.vtx
   interp_op = SummationByParts.buildinterpolation(sbp, ref_verts.')
   face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)
@@ -341,8 +343,8 @@ facts("----- Testing PdePumiInterface3DG -----") do
   opts["BC1"] = [0,1,2,3,4,5]
 
 #  interp_op = eye(4)
-  mesh_c = PumiMeshDG3{Complex128}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numEl --> 12
   @fact mesh.numGlobalEl --> 16
@@ -444,7 +446,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   opts["numBC"] = 1
   opts["BC1"] = [0,2,4,5]
 
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 4
   @fact mesh.numInterfaces --> (mesh.numFace - 8 - 3*4 - 8)
@@ -453,7 +455,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   smb_name = "tet2_pxy_p2_.smb"
 
   opts["BC1"] = [1,2,3,4]
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 0
   @fact mesh.numInterfaces --> (mesh.numFace - 2*8 - 4*4)
@@ -490,19 +492,19 @@ facts("----- Testing PdePumiInterface3DG -----") do
   opts = PdePumiInterface.get_defaults()
   opts["numBC"] = 0
 
-  @fact_throws PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  @fact_throws PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   # check 2 x 2 x 2 mesh works
   dmg_name = ".null"
   smb_name = "tet222_.smb"
 
-  PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   # this doesn't work because each partition is a 1 x 1 x 1 cube with periodic faces
   dmg_name = ".null"
   smb_name = "tet211_.smb"
 
-  @fact_throws PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  @fact_throws PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
 
 

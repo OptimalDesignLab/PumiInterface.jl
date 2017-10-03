@@ -31,12 +31,13 @@ facts("--- Testing PdePumiInterface --- ") do
     dmg_name = ".null"
     for order = 1:4
       println("testing order ", order, " CG mesh")
-      sbp = TriSBP{Float64}(degree=order)
+      sbp = getTriSBPGamma(degree=order)
+#      sbp = TriSBP{Float64}(degree=order)
       ref_verts = [-1. 1 -1; -1 -1 1]
       sbpface = TriFace{Float64}(order, sbp.cub, ref_verts.')
 
 
-    mesh =  PumiMesh2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+    mesh =  PumiMesh2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
     @fact mesh.numVert --> 4
     @fact mesh.numEdge --> 5
     @fact mesh.numFace --> mesh.numEdge
@@ -285,12 +286,13 @@ facts("--- Testing PdePumiInterface --- ") do
 
   for order = 1:4
     println("testing order ", order, " CG mesh against files")
-    sbp = TriSBP{Float64}(degree=order)
+    sbp = getTriSBPGamma(degree=order)
+#    sbp = TriSBP{Float64}(degree=order)
     ref_verts = [-1. 1 -1; -1 -1 1]
     sbpface = TriFace{Float64}(order, sbp.cub, ref_verts.')
 
 
-    mesh =  PumiMesh2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+    mesh =  PumiMesh2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
     
     for name in fnames
@@ -346,7 +348,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     dmg_name = ".null"
 #    interp_op = [0.5 0 0; 0 0.5 0; 0 0 0.5]
 
-    sbp = TriSBP{Float64}(degree=order, internal=true)
+    sbp = getTriSBPOmega(degree=order)
+#    sbp = TriSBP{Float64}(degree=order, internal=true)
     vtx = sbp.vtx
 #    interp_op = SummationByParts.buildinterpolation(sbp, vtx.')
 
@@ -356,9 +359,9 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     # make a complex mesh because it is needed later
     # create it first so the underlying Pumi mesh gets destroyed and
     # replaced by the Float64 version
-    mesh_c = PumiMeshDG2{Complex128}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+    mesh_c = PumiMeshDG2{Complex128, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
-    mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+    mesh =  PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
    @fact mesh.m_ptr --> not(C_NULL)
    @fact mesh.mnew_ptr --> not(C_NULL)
@@ -655,7 +658,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    PdePumiInterface.numberNodesWindy(mesh, [0.0, 0.0, 0.0])
 
     smb_name = "tri8l.smb"
-    mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+    mesh =  PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
   # check mapping interpolation
   # should be constant within an element for straight-sided elementsa
@@ -778,8 +781,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   end
 
   # just for good measure, create a new mesh
-  mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
-  mesh_c =  PumiMeshDG2{Complex128}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+  mesh =  PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+  mesh_c =  PumiMeshDG2{Complex128, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
   compare_meshes(mesh, mesh_c)
 
@@ -789,7 +792,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
   smb_name = "tri3_px.smb"
   opts["BC1"] = [0, 2]
-  mesh = PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+  mesh = PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
   @fact mesh.numPeriodicInterfaces --> 3
   @fact length(mesh.interfaces) --> 24
@@ -831,7 +834,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   # coordinates
   smb_name = "square_05_curve.smb"
   opts["use_linear_metrics"] = false
-  mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+  mesh =  PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
   #TODO: check sizes of arrays
 
@@ -899,8 +902,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   end
       
 
-  mesh =  PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
-  mesh_c =  PumiMeshDG2{Complex128}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+  mesh =  PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
+  mesh_c =  PumiMeshDG2{Complex128, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
   compare_meshes(mesh, mesh_c)
   println("finished")
