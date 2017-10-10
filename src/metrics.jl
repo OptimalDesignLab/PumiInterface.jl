@@ -86,6 +86,9 @@ function getAllCoordinatesAndMetrics(mesh, sbp, opts)
 
   end
 
+  # make sure the mapping jacobian is > 0
+  checkMapping(mesh)
+
   # calculate things that depend on the above
   mesh.min_el_size = getMinElementSize(mesh)
   mesh.volume = calcVolumeIntegral(mesh, sbp)
