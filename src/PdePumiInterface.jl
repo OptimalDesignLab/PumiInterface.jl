@@ -291,6 +291,7 @@ include("elements.jl")
 include("./PdePumiInterface3.jl")
 include("PdePumiInterfaceDG.jl")
 include("PdePumiInterface3DG.jl")
+
 @doc """
 ### PumiInterface.PumiMesh2
 
@@ -806,7 +807,7 @@ include("utils.jl")
 include("visualization.jl")
 include("warp.jl")
 include("verify.jl")
-
+include("submesh.jl")
 
 function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)

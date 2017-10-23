@@ -2,6 +2,37 @@
 
 facts("--- Testing PdePumiInterface --- ") do
 
+  # test masked copy
+  mask = [1, 3]
+  a = rand(4)
+  a2 = zeros(2)
+  PdePumiInterface.copy_masked(a2, a, mask)
+  @fact a2 --> a[mask]
+
+  a = rand(3, 4)
+  a2 = rand(3, 2)
+  PdePumiInterface.copy_masked(a2, a, mask)
+  @fact a2 --> a[:, mask]
+
+  a = rand(3, 2, 4)
+  a2 = rand(3, 2,  2)
+  PdePumiInterface.copy_masked(a2, a, mask)
+  @fact a2 --> a[:, :, mask]
+  
+  a = rand(3,2, 5, 4)
+  a2 = rand(3, 2, 5, 2)
+  PdePumiInterface.copy_masked(a2, a, mask)
+  @fact a2 --> a[:, :, :, mask]
+
+  a = rand(2, 3)
+  a2 = rand(1, 3)
+  @fact_throws PdePumiInterface.copy_masked(a2, a, mask)
+
+
+
+
+
+
   opts = Dict{Any, Any}(
     "numBC" => 1,
     "BC1" =>  [0],
