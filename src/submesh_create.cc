@@ -14,6 +14,7 @@ SubMeshData::SubMeshData(apf::Mesh* _m_old, apf::Numbering* _numberings[], int* 
     numberings[i] = _numberings[i];
 
   // create new mesh
+  assert(!m_old->hasMatching);
   gmi_register_null();
   gmi_model* g = gmi_load(".null");
   bool ismatched = false; //TODO

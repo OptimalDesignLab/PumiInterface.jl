@@ -84,7 +84,7 @@ apf::MeshEntity* createEntity(SubMeshData* sdata, apf::MeshEntity* entity);
 
 
 extern "C" {
-  apf::Mesh2* createSubMesh(apf::Mesh* m, int* el_list, int numel);
+  apf::Mesh2* createSubMesh(apf::Mesh* m, apf::Numbering* numberings, int* el_list, int numel);
   void writeNewMesh(SubMeshData* sdata, const char* fname);
   apf::Mesh2* getNewMesh(SubMeshData* sdata);
 } // extern C

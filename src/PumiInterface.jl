@@ -1158,6 +1158,70 @@ function getTopologyMaps()
   return tri_edge_verts, tet_edge_verts, tet_tri_verts
 end
 
+
+"""
+  Type to encapsulate a pointer to a SubMeshData class
+"""
+immutable SubMeshData
+  pobj::Ptr{Void}
+end
+
+"""
+  Create a submesh, returning an object that contains information about the
+  relation between the elements of the two meshes
+
+  **Inputs**
+
+   * m_ptr: apf::Mesh* for existing mesh
+   * numberings: array of 0-based apf::Numberings, of length mesh.dim + 1, numbering
+     the entities of dimension 0 to dim
+   * el_list: array of Cint element numbers (in the numberings[end] numbering)
+              that will exist on the new mesh
+
+  **Output**
+  
+   * SubMeshData: type containing information relating the old mesh and the
+                  new mesh
+"""
+function createSubMesh(m_ptr::Ptr{Void}, numberings::AbstractArray{Ptr{Void}},
+                       el_list::AbstractArray{Cint})
+
+  sdata = ccall( (:createSubMesh, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Ptr{Void}}, Ptr{Cint}, Cint), m_ptr, numberings, el_list, length(el_list))
+
+  return SubMeshData(sdata)
+end
+
+"""
+  Writes the new mesh (created by [`createSubMesh`](@ref) to a file
+
+  **Inputs**
+
+   * sdata: SubMeshData
+   * fname: file name, including .smb extension
+
+"""
+function writeNewMesh(sdata::SubMeshData, fname::AbstractString)
+
+  ccall( (:writeNewMesh, pumi_libname), Void, (SubMeshData, Cstring), sdata, fname)
+end
+
+"""
+  Get the apf::Mesh* of the new mesh
+
+  **Inputs**
+
+   * sdata: SubMeshData
+
+  **Outputs**
+
+   * a apf::Mesh*
+"""
+function getNewMesh(sdata::SubMeshData)
+
+  m_ptr = ccall( (:getNewMesh, pumi_libname), Ptr{Void}, (SubMeshData,), sdata)
+  return m_ptr
+end
+
 declareNames()  # will this execute when module is compiled?
 
 include("PumiInterface2.jl")  # higher level functions
