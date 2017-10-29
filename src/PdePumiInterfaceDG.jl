@@ -800,8 +800,151 @@ type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d p
 #  return PumiMeshDG2(m_ptr, mshape_ptr, f_ptr, vert_Nptr, edge_Nptr, el_Nptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
 end
 
- 
+
+"""
+
+  This constructor makes a new mesh object containing the specified elements
+  of the old mesh object.  The subgmesh remains valid as long as the parent
+  mesh is not changed.
+
+  The submesh does not support parallelization yet.
+  Submeshes are not compatable with staggered grid formulations
+  (ie. mesh.mesh2 is the parent mesh, so it can't be the staggered mesh).
+
+  **Inputs**
+
+   * mesh: old PumiMeshDG
+   * el_list: list of elements that should be present in the new mesh
+
+  **Outputs**
+
+   * submesh: the new PumiMeshDG object
+"""
+function PumiMeshDG2(oldmesh::PumiMeshDG, el_list::AbstractArray)
+
+  mesh = new()
+
+  # get counts here
+  count_entities(mesh, oldmesh. el_list)
+
+  #TODO: do proper checks for the NULL values in visualization functions
+  mesh.m_ptr = C_NULL
+  mesh.mnew_ptr = C_NULL
+  mesh.mshape_ptr = oldmesh.mshape_ptr
+  mesh.coordshape_ptr = oldmesh.coordshape_ptr
+  mesh.f_ptr = C_NULL
+  mesh.fnew_ptr = C_NULL
+  mesh.fnewshape_ptr = C_NULL
+  mesh.mexact_ptr = C_NULL
+  mesh.shr_ptr = C_NULL  # TODO: change when parallelizing
+  mesh.shape_type = oldmesh.shape_type
+  mesh.f = oldmesh.f
+  mesh.vert_Nptr = C_NULL
+  mesh.edge_Nptr = C_NULL
+  mesh.face_Nptr = C_NULL
+  mesh.el_Nptr = C_NULL
+  mesh.coloring_Nptr = C_NULL
+  mesh.entity_Nptr = C_NULL
+  mesh.order = oldmesh.order
+  mesh.numDofPerNode = oldmesh.numDofPerNode
+  mesh.numNodesPerElement = oldmesh.numNodesPerElement
+  mesh.numFacesPerElement = oldmesh.numFacesPerElement
+  mesh.numNodesPerType = copy(oldmesh.numNodesPerType)
+  mesh.numNodesPerFace = oldmesh.numNodesPerFace
+  mesh.typeOffsetsPerElement = copy(oldmesh.typeOffsetsPerElement)
+  mesh.typeOffsetsPerElement_ = copy(oldmesh.typeOffsetsPerElement_)
+  mesh.nodemapSnpToPumi = copy(oldmesh.nodemapSbpToPumi)
+  mesh.nodemapPumiToSbp = copy(oldmesh.nodemapPumiToSbp)
+
+  mesh.coord_order = oldmesh.coord_order
+  mesh.coord_numNodesPerElement = oldmesh.coord_numNodesPerElement
+  mesh.coord_numNodesPerType = copy(oldmesh.coord_numNodesPerType)
+  mesh.coord_typeOffsetsPerElement = copy(mesh.coord_typeOffsetsPerElement)
+  mesh.coord_numNodesPerFace = oldmesh.coord_numNodesPerFace
+  mesh.coord_xi = copy(oldmesh.coord_xi)
+  mesh.coord_facexi = copy(mesh.coord_facexi)
+
+  mesh.el_type = oldmesh.coord_eltype
+  mesh.face_type = oldmesh.face_type
+
+  #TODO update this section when parallelizing
+  mesh.comm = MPI.COMM_WORLD
+  mesh.myrank = oldmesh.myrank
+  mesh.commsize = oldmesh.commsize
+  @assert mesh.commisze == 1
+  mesh.peer_parts = Array(Int, 0)
+  mesh.npeers = 0
+  mesh.peer_face_counts = Array(Int, 0)
+  mesh.send_waited = Array(Bool, 0)
+  mesh.send_reqs = Array(MPI.Request, 0)
+  mesh.send_stats = Array(MPI.Status, 0)
+  mesh.recv_waited = Array(Bool, 0)
+  mesh.recv_reqs = Array(MPI.Request, 0)
+  mesh.recv_stats = Array(MPI.Status, 0)
+
+  mesh.ref_verts = copy(oldmesh.ref_verts)
+  mesh.dim = oldmesh.dim
+  mesh.isDG = oldmesh.isDG
+  mesh.isInterpolated = oldmesh.isInterpolated
+  mesh.coloringDistance = oldmesh.coloringDistance
+
+  # do boundary/interface counts here 
+
+  mesh.triangulation = copy(oldmesh.triangulation)
+  mesh.nodestatus_Nptr = C_NULL
+  mesh.nodenums_Nptr = C_NULL
+  mesh.dofnums_Nptr = C_NULL
+
+  copy_data_arrays(mesh, oldmesh, el_list)
+
+  mesh.dof_offset = 0
+
+  mesh.dofs = zeros(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
+  #TODO: ??? this can't be right
+  copy_masked(mesh.dofs, oldmesh.dofs, el_list)
+
+  mesh.interp_op = copy(oldmesh.interp_op)
+
+  #TODO: update this section when parallelizing
+  mesh.bndries_local = Array(Array{Boundary, 1}, 0)
+  mesh.bndries_remote = Array(Array{Boundary, 1}, 0)
+  mesh.shared_interfaces = Array(Array{Interface, 1}, 0)
+  mesh.shared_element_offsets = Array(Int, 0)
+  mesh.local_element_counts = Array(Int, 0)
+  mesh.remote_element_counts = Array(Int, 0)
+  mesh.local_element_list = Array(Array{Int32, 1}, 0)
+  mesh.shared_element_colormasks = Array(Array{BitArray{1}, 1}, 0)
+
+  mesh.sbpface = oldmesh.sbpface
+  mesh.topo = oldmesh.topo
+  mesh.topo_pumi = oldmesh.topo_pumi
+
+  #TODO: mesh.vert_sharing
+
+  mesh.mesh2 = oldmesh
+
+  mesh.I_S2F = zeros(0, 0)
+  mesh.I_S2FT = zeros(0, 0)
+  mesh.I_F2S = zeros(0, 0)
+  mesh.I_F2ST = zeros(0, 0)
+
+  # TODO: mesh.min_node_dist, volume,
+  #       numColors, maxColors etc.
+  #       elementNodeOffsets, typeNodeFlags
+  #       numBC, bndry_funcs, bndry_funcs_revm, bndry_offsets, bndry_geo_nums
+  #       bndryfaces, interfaces
+  #       sparsity info
+  #       coloring info
+
+
+
+
+
   
+
+  return submesh
+end
+
 end
 
 

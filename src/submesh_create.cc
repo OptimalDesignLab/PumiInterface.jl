@@ -1,0 +1,136 @@
+// creates a new mesh from an existing mesh and a list of elements to 
+// retain on the new mesh
+
+
+#include "submesh_create.h"
+
+struct _SubMeshData
+{
+  _SubMeshData() {};  // default constructor
+
+  // create some data structures needed to construct the new mesh
+  // this constructor also creates the new mesh object, but does not create
+  // any mesh entities
+  _SubMeshData(apf::Mesh* _m_old, apf::Numbering* _numberings[], int* _el_list, int numel)  // useful constructor
+  {
+    m_old = _m_old;
+    dim = m_old->getDimension();
+    
+    numberings.resize(dim);
+    for (int i = 0; i <= dim; ++i)
+      numberings[i] = _numberings[i];
+
+    // create new mesh
+    gmi_register_null();
+    gmi_model* g = gmi_load(".null");
+    bool ismatched = false; //TODO
+    m_new = apf::makeEmptyMdsMesh(g, dim, ismatched);
+
+    // convert the el_list to a 0-based std::vector
+    el_list.resize(numel);
+    for (int i = 0; i < numel; ++i)
+      el_list[i] = _el_list[i] - 1;
+
+    // turn el_list into a set of MeshEntity*
+    auto el_N = numberings[dim];
+    el_set.reserve(numel);
+    apf::MeshIterator* it = m_old->begin(dim);
+    apf::MeshEntity* e;
+    while ( (e = m_old->iterate(it)) )
+    {
+      int elnum = apf::getNumber(el_N, e, 0, 0);
+      // if this element is in el_list
+      if ( std::binary_search(el_list.begin(), el_list.end(), elnum) )
+        el_set.insert(e);
+    }
+
+    // fill verts, edges, faces, regions with NULL
+
+    verts = std::vector<apf::MeshEntity*>(m_old->count(0), NULL);
+    edges = std::vector<apf::MeshEntity*>(m_old->count(1), NULL);
+    faces = std::vector<apf::MeshEntity*>(m_old->count(2), NULL);
+    regions = std::vector<apf::MeshEntity*>(m_old->count(3), NULL);
+    entities[0] = verts;
+    entities[1] = edges;
+    entities[2] = faces;
+    entities[3] = regions;
+
+    
+
+  }  // constructor
+
+  // default destructor works here
+
+  // data members
+  // everything here is initialized
+  apf::Mesh* m_old = NULL;
+  std::vector<apf::Numbering*> numberings;
+//  apf::Numbering* numberings[] = {NULL};
+  apf::Mesh2* m_new = NULL;
+  std::vector<int> el_list; // 0-based
+  int dim = 0;  // dimension of mesh
+
+  // map of number on the old mesh to the MeshEntity* on the new mesh
+  std::vector<apf::MeshEntity*> verts;
+  std::vector<apf::MeshEntity*> edges;
+  std::vector<apf::MeshEntity*> faces;
+  std::vector<apf::MeshEntity*> regions;
+
+  // array of the above for easy looping
+  std::vector<apf::MeshEntity*> entities[4];
+
+  std::unordered_set<apf::MeshEntity*> el_set; // el_list with O(1) test for containment
+};
+typedef struct _SubMeshData SubMeshData;
+
+
+void checkInput(SubMeshData sdata);
+
+// el_list is the 1-based list of elements to preserve (must be sorted in
+// ascending order)
+// numberings[dim] is the array of zero-based apf::Numbering objects that n
+// numbers the MeshEntities from dimension 0 to dim
+apf::Mesh2* createSubMesh(apf::Mesh* m, apf::Numbering* numberings[], int* el_list,
+                          int numel)
+{
+  SubMeshData sdata = SubMeshData(m, numberings, el_list, numel);
+
+  return sdata.m_new;
+}
+
+
+// check that this element list can be used with this mesh
+void checkInput(SubMeshData sdata)
+{
+  // if an assert below triggers, this may leak memory, but thats ok
+
+  // check there are fewer elements in the list than in the old mesh
+  int max_el = 0;
+
+  // verify el_list is sorted
+  bool failflag = false;
+  int prev_val = -1;
+  for (std::vector<int>::iterator it = sdata.el_list.begin(); 
+                                  it != sdata.el_list.end(); ++it)
+  {
+    failflag = failflag || (*it <= prev_val);
+    prev_val = *it;
+
+    if (*it > max_el)
+      max_el = *it;
+  }
+
+  assert(max_el < (int)sdata.m_old->count(sdata.dim));
+  assert(!failflag);
+}  // checkInputs
+
+// create entities on the new mesh
+void createEntities(SubMeshData sdata)
+{
+  // Algorithm: loop over dimensions, loop over MeshEntities on m_old, see
+  //            if any parent element is in el_set, if so create the entity
+
+//  for (int dim = 0; dim <= sdata.dim
+}  // createEntities
+
+
