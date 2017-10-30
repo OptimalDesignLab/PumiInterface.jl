@@ -14,7 +14,7 @@ SubMeshData::SubMeshData(apf::Mesh* _m_old, apf::Numbering* _numberings[], int* 
     numberings[i] = _numberings[i];
 
   // create new mesh
-  assert(!m_old->hasMatching);
+  assert(!(m_old->hasMatching()));
   gmi_register_null();
   gmi_model* g = gmi_load(".null");
   bool ismatched = false; //TODO
@@ -69,12 +69,19 @@ SubMeshData::SubMeshData(apf::Mesh* _m_old, apf::Numbering* _numberings[], int* 
 // ascending order)
 // numberings[dim] is the array of zero-based apf::Numbering objects that n
 // numbers the MeshEntities from dimension 0 to dim
-SubMeshData* createSubMesh(apf::Mesh* m, apf::Numbering* numberings[],
+SubMeshData* createSubMesh2(apf::Mesh* m, apf::Numbering* numberings[],
                           int* el_list, int numel)
 {
+  std::cout << "preparing data" << std::endl;
   SubMeshData* sdata = new SubMeshData(m, numberings, el_list, numel);
+  std::cout << "creating vertices" << std::endl;
   createVertices(sdata);
+  std::cout << "creating higher dimension entities" << std::endl;
   createEntities(sdata);
+  std::cout << "finished entity creation" << std::endl;
+
+  sdata->m_new->acceptChanges();
+  sdata->m_new->verify();
 
   //TODO: fix geometry classification
 
@@ -137,6 +144,9 @@ void createVertices(SubMeshData* sdata)
   {
     e = *it;
 
+    int elnum = apf::getNumber(sdata->numberings[sdata->dim], e, 0, 0);
+    std::cout << "creating vertices for element " << elnum << std::endl;
+
     // get downard vertices
     int nverts = m_old->getDownward(e, 0, down_verts);
     
@@ -145,6 +155,8 @@ void createVertices(SubMeshData* sdata)
       int vertnum = apf::getNumber(vert_N, down_verts[i], 0, 0);
       if ( sdata->verts[vertnum] == NULL) // vert not yet created
         sdata->verts[vertnum] = createVert(sdata, down_verts[i]);
+      std::cout << "  vertex " << i << " = " << sdata->verts[vertnum] << std::endl;
+      std::cout << "  entities[d] = " << (sdata->entities[0])[vertnum] << std::endl;
     }
   }  // loop over elements
 
@@ -161,8 +173,13 @@ void createEntities(SubMeshData* sdata)
 
   for (std::vector<apf::MeshEntity*>::iterator it = sdata->el_entities.begin();
        it != sdata->el_entities.end(); it++)
+  {
+    int elnum = apf::getNumber(sdata->numberings[dim], *it, 0, 0);
+    std::cout << "constructing higher order entities for element " << elnum << std::endl;
+  
     for (int d = 1; d <= dim; ++d)
     {
+      std::cout << "  dimension " << d << std::endl;
       int nentities = m_old->getDownward(*it, d, down_entities);
       for (int i = 0; i < nentities; ++i)
       {
@@ -172,7 +189,7 @@ void createEntities(SubMeshData* sdata)
 
       }  // loop i
     } // loop d
-
+  }  // loop it
 }  // createEntities
 
 

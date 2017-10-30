@@ -44,15 +44,15 @@ class SubMeshData
     std::vector<int> el_list; // 0-based
     int dim = 0;  // dimension of mesh
 
+    // array of the below for easy looping
+    std::vector<apf::MeshEntity*> entities[4];
+
     // map of number on the old mesh to the MeshEntity* on the new mesh
     // length = number of entities on old mesh, unused values set to NULL
-    std::vector<apf::MeshEntity*> verts;
-    std::vector<apf::MeshEntity*> edges;
-    std::vector<apf::MeshEntity*> faces;
-    std::vector<apf::MeshEntity*> regions;
-
-    // array of the above for easy looping
-    std::vector<apf::MeshEntity*> entities[4];
+    std::vector<apf::MeshEntity*>& verts = entities[0];
+    std::vector<apf::MeshEntity*>& edges = entities[1];
+    std::vector<apf::MeshEntity*>& faces = entities[2];
+    std::vector<apf::MeshEntity*>& regions = entities[3];
 
     // vector of element MeshEntity* on old mesh
     std::vector<apf::MeshEntity*> el_entities;
@@ -84,7 +84,8 @@ apf::MeshEntity* createEntity(SubMeshData* sdata, apf::MeshEntity* entity);
 
 
 extern "C" {
-  apf::Mesh2* createSubMesh(apf::Mesh* m, apf::Numbering* numberings, int* el_list, int numel);
+  SubMeshData* createSubMesh2(apf::Mesh* m, apf::Numbering* numberings[],
+                          int* el_list, int numel);
   void writeNewMesh(SubMeshData* sdata, const char* fname);
   apf::Mesh2* getNewMesh(SubMeshData* sdata);
 } // extern C

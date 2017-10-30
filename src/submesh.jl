@@ -131,7 +131,7 @@ end
   This is different than [`getEntityPointers`](@ref) which uses a Numbering
   object to assign them indices in the arrays.
 """
-function count_entities(mesh::PumiMesh, oldmesh::PumiMesh, el_list::AbstractVecotor)
+function count_entities(mesh::PumiMesh, oldmesh::PumiMesh, el_list::AbstractVector)
 # get arrays of pointers to elements on the new mesh
 # also count how many there are
 

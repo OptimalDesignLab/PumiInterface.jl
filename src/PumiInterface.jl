@@ -142,6 +142,8 @@ export getEntity, incrementIt, resetIt
 export setPoint, acceptChanges, Verify, getPoint
 export hasMatching, getSharing, isOwned, countCopies, getCopies, countMatches, getMatches
 
+export createSubMesh, getNewMesh, writeNewMesh
+
 @doc """
   initilize the state of the interface library
 
@@ -1186,7 +1188,7 @@ end
 function createSubMesh(m_ptr::Ptr{Void}, numberings::AbstractArray{Ptr{Void}},
                        el_list::AbstractArray{Cint})
 
-  sdata = ccall( (:createSubMesh, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Ptr{Void}}, Ptr{Cint}, Cint), m_ptr, numberings, el_list, length(el_list))
+  sdata = ccall( (:createSubMesh2, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Ptr{Void}}, Ptr{Cint}, Cint), m_ptr, numberings, el_list, length(el_list))
 
   return SubMeshData(sdata)
 end
