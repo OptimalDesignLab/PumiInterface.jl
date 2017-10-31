@@ -81,8 +81,20 @@ class SubMeshData
       return new_geo_tag;
     }
 
+    void setParentNumbering(apf::Numbering* n)
+    {
+      parent_N = n;
+    }
+
+    apf::Numbering* getParentNumbering()
+    {
+      assert(parent_N != NULL);
+      return parent_N;
+    }
+
   private:
-    int new_geo_tag = -1;   
+    int new_geo_tag = -1;
+    apf::Numbering* parent_N = NULL;
 };  // class SubMeshData
 
 // vertify input data is valid
@@ -108,11 +120,14 @@ void reclassifyGeometry(SubMeshData* sdata);
 void reclassifyEntity(SubMeshData* sdata, apf::MeshEntity* e,
                       apf::ModelEntity* g_new);
 
+void writeElNumbering(SubMeshData* sdata);
+
 extern "C" {
   SubMeshData* createSubMesh2(apf::Mesh* m, apf::Numbering* numberings[],
                           int* el_list, int numel);
   void writeNewMesh(SubMeshData* sdata, const char* fname);
   apf::Mesh2* getNewMesh(SubMeshData* sdata);
+  apf::Numbering* getParentNumbering(SubMeshData* sdata);
 } // extern C
 
 #endif

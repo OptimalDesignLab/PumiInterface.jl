@@ -142,7 +142,7 @@ export getEntity, incrementIt, resetIt
 export setPoint, acceptChanges, Verify, getPoint
 export hasMatching, getSharing, isOwned, countCopies, getCopies, countMatches, getMatches
 
-export createSubMesh, getNewMesh, writeNewMesh
+export createSubMesh, getNewMesh, writeNewMesh, getNewMeshData
 
 @doc """
   initilize the state of the interface library
@@ -1223,6 +1223,13 @@ function getNewMesh(sdata::SubMeshData)
   m_ptr = ccall( (:getNewMesh, pumi_libname), Ptr{Void}, (SubMeshData,), sdata)
   return m_ptr
 end
+
+function getParentNumbering(sdata::SubMeshData)
+
+  n_ptr = ccall( (:getParentNumbering, pumi_libname), Ptr{Void}, (SubMeshData,), sdata)
+  return n_ptr
+end
+
 
 declareNames()  # will this execute when module is compiled?
 

@@ -19,7 +19,7 @@ SubMeshData::SubMeshData(apf::Mesh* _m_old, apf::Numbering* _numberings[], int* 
   gmi_model* g = gmi_load(".null");
   bool ismatched = false; //TODO
   m_new = apf::makeEmptyMdsMesh(g, dim, ismatched);
-//  m_new->changeShape(m_old->getShape(), false);
+  m_new->changeShape(m_old->getShape(), false);
 
   // convert the el_list to a 0-based std::vector
   el_list.resize(numel);
@@ -80,6 +80,8 @@ SubMeshData* createSubMesh2(apf::Mesh* m, apf::Numbering* numberings[],
   createEntities(sdata);
   std::cout << "modifying geometry classification" << std::endl;
   reclassifyGeometry(sdata);
+  std::cout << "writing parent element numbering" << std::endl;
+  writeElNumbering(sdata);
 
   apf::changeMeshShape(sdata->m_new, sdata->m_new->getShape(), true);
 
@@ -97,6 +99,11 @@ void writeNewMesh(SubMeshData* sdata, const char* fname)
 apf::Mesh2* getNewMesh(SubMeshData* sdata)
 {
   return sdata->getNewMesh();
+}
+
+apf::Numbering* getParentNumbering(SubMeshData* sdata)
+{
+  return sdata->getParentNumbering();
 }
 
 
@@ -390,4 +397,32 @@ void reclassifyEntity(SubMeshData* sdata, apf::MeshEntity* e,
       reclassifyEntity(sdata, down[i], g_new);
   }
 } // function reclassifyEntity
+
+// write the element number of the element on the old mesh that the element
+// on the new mesh came from
+// saves apf::Numbering to sdata.parent_N
+void writeElNumbering(SubMeshData* sdata)
+{
+  apf::Mesh2* m_new = sdata->m_new;
+
+  apf::FieldShape* fshape = apf::getConstant(sdata->dim);
+  apf::Numbering* parent_N = apf::createNumbering(m_new, "parent_elnum", 
+                                  fshape, 1);
+
+  apf::MeshIterator* it = m_new->begin(sdata->dim);
+  apf::MeshEntity* e;
+  int i = 0;  // element index
+
+  while ( (e = m_new->iterate(it)) )
+  {
+    int elnum = sdata->el_list[i];
+    apf::number(parent_N, e, 0, 0, elnum);
+    ++i;
+  }
+
+  m_new->end(it);
+
+  sdata->setParentNumbering(parent_N);
+  //TODO: save parent_N to sdata
+}
 
