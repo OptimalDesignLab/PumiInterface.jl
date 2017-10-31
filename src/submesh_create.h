@@ -57,7 +57,7 @@ class SubMeshData
     // vector of element MeshEntity* on old mesh
     std::vector<apf::MeshEntity*> el_entities;
     //  std::unordered_set<apf::MeshEntity*> el_set; // el_list with O(1) test for containment
-   
+
     // member functions
     void writeNewMesh(const char* fname)
     {
@@ -68,6 +68,21 @@ class SubMeshData
     {
       return m_new;
     }
+
+    void setGeoTag(int tag)
+    {
+      assert(tag >= 0);
+      new_geo_tag = tag;
+    }
+
+    int getGeoTag()
+    {
+      assert(new_geo_tag >= 0);
+      return new_geo_tag;
+    }
+
+  private:
+    int new_geo_tag = -1;   
 };  // class SubMeshData
 
 // vertify input data is valid
@@ -81,7 +96,17 @@ apf::MeshEntity* createVert(SubMeshData* sdata, apf::MeshEntity* vert);
 // create an entity from its one-level downward adjacencies
 apf::MeshEntity* createEntity(SubMeshData* sdata, apf::MeshEntity* entity);
 
+// get the lowest geometric tag that is not currently in use on the *new* mesh
+// for a given dimension geometric entity
+// This tag might be in use on the old mesh
+int getUnusedGeometry(SubMeshData* sdata, int dim);
 
+// reclassify mesh faces that are now on boundaries but were not previously
+void reclassifyGeometry(SubMeshData* sdata);
+
+// reclassify a MeshEntity and all its downward adjacencies
+void reclassifyEntity(SubMeshData* sdata, apf::MeshEntity* e,
+                      apf::ModelEntity* g_new);
 
 extern "C" {
   SubMeshData* createSubMesh2(apf::Mesh* m, apf::Numbering* numberings[],

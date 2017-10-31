@@ -19,7 +19,7 @@ SubMeshData::SubMeshData(apf::Mesh* _m_old, apf::Numbering* _numberings[], int* 
   gmi_model* g = gmi_load(".null");
   bool ismatched = false; //TODO
   m_new = apf::makeEmptyMdsMesh(g, dim, ismatched);
-  m_new->changeShape(m_old->getShape(), false);
+//  m_new->changeShape(m_old->getShape(), false);
 
   // convert the el_list to a 0-based std::vector
   el_list.resize(numel);
@@ -78,12 +78,13 @@ SubMeshData* createSubMesh2(apf::Mesh* m, apf::Numbering* numberings[],
   createVertices(sdata);
   std::cout << "creating higher dimension entities" << std::endl;
   createEntities(sdata);
-  std::cout << "finished entity creation" << std::endl;
+  std::cout << "modifying geometry classification" << std::endl;
+  reclassifyGeometry(sdata);
+
+  apf::changeMeshShape(sdata->m_new, sdata->m_new->getShape(), true);
 
   sdata->m_new->acceptChanges();
   sdata->m_new->verify();
-
-  //TODO: fix geometry classification
 
   return sdata;
 }
@@ -155,8 +156,10 @@ void createVertices(SubMeshData* sdata)
       int vertnum = apf::getNumber(vert_N, down_verts[i], 0, 0);
       if ( sdata->verts[vertnum] == NULL) // vert not yet created
         sdata->verts[vertnum] = createVert(sdata, down_verts[i]);
-      std::cout << "  vertex " << i << " = " << sdata->verts[vertnum] << std::endl;
-      std::cout << "  entities[d] = " << (sdata->entities[0])[vertnum] << std::endl;
+      std::cout << "  vertex " << i << " = " << sdata->verts[vertnum];
+      apf::Vector3 coords;
+      sdata->m_new->getPoint(sdata->verts[vertnum], 0, coords);
+      std::cout << ", with coordinates " << coords.x() << ", " << coords.y() << ", " << coords.z() << std::endl;
     }
   }  // loop over elements
 
@@ -213,7 +216,7 @@ apf::MeshEntity* createVert(SubMeshData* sdata, apf::MeshEntity* vert)
   // set coordinates
   apf::Vector3 coords;
   sdata->m_old->getPoint(vert, 0, coords);
-  sdata->m_new->setPoint(vert, 0, coords);
+  sdata->m_new->setPoint(vert_new, 0, coords);
 
   return vert_new;
 }  // createVert
@@ -241,6 +244,13 @@ apf::MeshEntity* createEntity(SubMeshData* sdata, apf::MeshEntity* entity)
     int e_num = apf::getNumber(sdata->numberings[dim-1], down_entities[i], 0, 0);
     down_entities[i] = sdata->entities[dim-1][e_num];
     assert(down_entities[i] != NULL); // entity already created
+    if (dim == 1)
+    {
+      apf::Vector3 coords;
+      sdata->m_new->getPoint(down_entities[i], 0, coords);
+      std::cout << "vertex " << i << ", " << down_entities[i] << ", coords = " << coords.x() << ", " << coords.y() << ", " << coords.z() << std::endl;
+    }
+
   }
 
   // create the entity
@@ -262,4 +272,122 @@ apf::MeshEntity* createEntity(SubMeshData* sdata, apf::MeshEntity* entity)
 
   return e_new;
 }  // function createEntity
+
+// get an unused geometry entity of dimension dim
+// Unfortunately, this requires iterating all entities from 0 to dim
+// For non-insane geometries I think a search over only dimension dim entities
+// would be ok, but gmi_null() is not a sane geometry model.
+// It is possible the tag is used on the old mesh
+int getUnusedGeometry(SubMeshData* sdata, int dim)
+{
+  std::unordered_set<int> used_geo; // used geometric tags of dimension dim
+  used_geo.reserve(50);  // maybe this is a good guess?
+
+  apf::Mesh2* m_new = sdata->m_new;
+  apf::ModelEntity* g;
+  apf::MeshEntity* e;
+
+  for (int d = 0; d <= dim; ++d)
+  {
+    apf::MeshIterator* it = m_new->begin(d);
+
+    while ( (e = m_new->iterate(it)) )
+    {
+      g = m_new->toModel(e);
+      if ( m_new->getModelType(g) == dim)
+        used_geo.insert(m_new->getModelTag(g));
+    }
+
+    m_new->end(it);
+  }
+
+
+  // find the first unused number
+  std::vector<int> used_geo_vec(used_geo.begin(), used_geo.end());
+  std::sort(used_geo_vec.begin(), used_geo_vec.end());
+  int unused_tag = -1;
+  if (used_geo_vec[0] != 0)
+    unused_tag = 0;
+  else
+  {
+    // find first place where there is space for new geometry tag
+    for(std::vector<int>::size_type i = 1; i < used_geo_vec.size(); ++i)
+      if (used_geo_vec[i] - used_geo_vec[i-1] > 1)
+        unused_tag = used_geo_vec[i-1] + 1;
+
+    // if the tag is still -1, no space found
+    if (unused_tag == -1)
+      unused_tag = used_geo_vec[used_geo_vec.size()-1] + 1;
+  }
+
+  return unused_tag;
+
+} // getUnusedGeometry
+
+// reclassify any mesh enties of dimension sdata.dim-1 that are on the
+// boundary of the domain to be on a new geometry entity of dimension d-1.
+// apf::verify requires the downward adjacencies be reclassified as well.
+// Also record the geometry entity in sdata.setGeoTag()
+void reclassifyGeometry(SubMeshData* sdata)
+{
+
+  apf::Mesh2* m_new = sdata->m_new;
+  auto dim = sdata->dim;
+  
+  // create the new model entity
+  int unused_tag = getUnusedGeometry(sdata, dim-1);
+  sdata->setGeoTag(unused_tag);
+  apf::ModelEntity* g_new = m_new->findModelEntity(dim-1, unused_tag);
+
+  // reclassify all dim-1 entities with one parent element that are classified
+  // on a dimension dim geometry to the new geometry
+
+  apf::MeshIterator* it = m_new->begin(dim-1);
+  apf::MeshEntity* e;
+
+  // geometry info
+  apf::ModelEntity* g_old;
+  int me_dim, nel;
+
+
+  while ( (e = m_new->iterate(it)) )
+  {
+    g_old = m_new->toModel(e);
+    me_dim = m_new->getModelType(g_old);
+    nel = m_new->countUpward(e); // number of parent elements
+
+    if (nel == 1 && me_dim == dim)
+    {
+      // could check if this face had two elements on the original mesh, but
+      // that would require the reverse face mapping
+      // Alternatively, could loop over the faces of the old mesh and only do
+      // the ones that exist on the new mesh, but that might be slower
+      reclassifyEntity(sdata, e, g_new);
+    }
+  }
+
+  m_new->end(it);
+}
+
+// reclassify a single entity, and all its downward adjacencies
+// e and g_new must reside on the new mesh
+void reclassifyEntity(SubMeshData* sdata, apf::MeshEntity* e,
+                      apf::ModelEntity* g_new)
+{
+
+  apf::Downward down;
+  apf::Mesh2* m_new = sdata->m_new;
+  auto e_type = m_new->getType(e);
+  int dim = apf::Mesh::typeDimension[e_type];
+
+  m_new->setModelEntity(e, g_new);
+
+  if (dim > 0)
+  {
+    // recurse down to next level
+    auto ndown = m_new->getDownward(e, dim-1, down);
+    for (int i=0; i < ndown; ++i)
+      reclassifyEntity(sdata, down[i], g_new);
+  }
+} // function reclassifyEntity
 
