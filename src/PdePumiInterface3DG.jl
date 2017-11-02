@@ -431,11 +431,14 @@ type PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1}   # 2d p
 #    mesh_order = order
 #  end
 
-  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
-
+  mesh.m_ptr, dim = loadMesh(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
   if dim != mesh.dim
     throw(ErrorException("loaded mesh is not 3 dimensional"))
   end
+
+  mesh.coordshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
+
+#  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
 
   # create the solution field
   mesh.mshape_ptr = getFieldShape(field_shape_type, order, mesh.dim)

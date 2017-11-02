@@ -12,7 +12,10 @@ include("test_funcs.jl")
   smb_name = "./parallel2.smb"
   order = 1
 facts("Testing PUMIInterface.jl") do
-  num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
+
+  m_ptr, dim = loadMesh(dmg_name, smb_name, order)
+  mshape_ptr, num_Entities, n_arr = initMesh(m_ptr)
+#  num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
 
   myrank = MPI.Comm_rank(MPI.COMM_WORLD)
   @fact num_Entities[1] --> 6

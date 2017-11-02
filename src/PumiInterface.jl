@@ -127,7 +127,7 @@ end
 
 
 # export low level interface functions
-export declareNames, init, init2, pushMeshRef, popMeshRef, getConstantShapePtr, getMeshShapePtr, countJ, writeVtkFiles, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, getAllEntityCoords, createNumberingJ, getNumberingShape, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, zeroField, getCoordinateField, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
+export declareNames, init, loadMesh, initMesh, pushMeshRef, popMeshRef, getConstantShapePtr, getMeshShapePtr, countJ, writeVtkFiles, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, getAllEntityCoords, createNumberingJ, getNumberingShape, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, zeroField, getCoordinateField, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
 # iterator functors
 export MeshIterator, iterate, iteraten, free, deref
@@ -189,7 +189,7 @@ end
 return num_Entities, m_ptr_array[1], mshape_ptr_array[1], n_arr
 end
 
-
+#=
 # 2d initilization
 function init2(dmg_name::AbstractString, smb_name::AbstractString, order::Integer; load_mesh=true, shape_type=0)
 # initilize mesh interface
@@ -218,6 +218,69 @@ end
 
 
 return num_Entities, m_ptr_array[1], mshape_ptr_array[1], dim[], n_arr
+end
+=#
+"""
+  This function loads a mesh from a file and ensure the coordinate FieldShape
+  is correct.  It does not perform any additional initialization, see
+  [`initMesh`](@ref) for that.
+
+  **Inputs**
+
+   * dmg_name: name of geometry file, can be .null for null geometric model
+   * smb_name: name of mesh file, not including file number (ie. abc.smb not
+               abc0.smb for process 0)
+   * order: order of coordinate field
+   * shape_type: keyword argument, FieldShape identifier,
+                 see getFieldShape in funcs1.cc, default 0
+
+  **Outputs**
+
+   * m_ptr: apf::Mesh2*
+   * dim: dimension of the loaded mesh
+
+  [`popMeshRef`](@ref) should be called on this pointer to free it.
+"""
+function loadMesh(dmg_name::AbstractString, smb_name::AbstractString,
+                  order::Integer; shape_type::Integer=0)
+
+  dim_ret = Array(Cint, 1)
+  m_ptr = ccall( (:loadMesh, pumi_libname), Ptr{Void},
+                 (Cstring, Cstring, Cint, Cint, Ptr{Cint}),
+                 dmg_name, smb_name, shape_type, order, dim_ret)
+
+  return m_ptr, dim_ret[1]
+end
+
+"""
+  This function performs some initial numbering and counting of various
+  mesh entities
+
+  **Inputs**
+
+   * m_ptr: a apf::Mesh* of an already loaded mesh
+ 
+  **Outputs**
+
+   * mshape_ptr: a apf::FieldShape* for the mesh coordinate field
+   * num_entities: array of length 4 containing the number of entities of
+                   each dimension, low to high, on this partition of the mesh.
+                   All entities, including non-owned ones, are counted
+   * n_array: array of length 4 containing a local numbering of the entities
+              of each dimension, low to high.  If the mesh is 2 dimensional,
+              accessing the 4th element of the array is undefined
+"""
+function initMesh(m_ptr::Ptr{Void})
+
+  mshape_ptr_array = Array(Ptr{Void}, 1)
+  num_entities = Array(Cint, 4)
+  n_arr = Array(Ptr{Void}, 4)
+
+  ccall( (:initMesh, pumi_libname), Void,
+    (Ptr{Void}, Ptr{Cint}, Ptr{Ptr{Void}}, Ptr{Ptr{Void}}),
+    m_ptr, num_entities, mshape_ptr_array, n_arr)
+
+  return mshape_ptr_array[1], num_entities, n_arr
 end
 
 

@@ -447,12 +447,15 @@ type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d p
 #    field_shape_type = shape_type
 #    mesh_order = order
 #  end
-  
-  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
-
+ 
+  mesh.m_ptr, dim = loadMesh(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
   if dim != mesh.dim
     throw(ErrorException("loaded mesh is not 2 dimensions"))
   end
+
+
+  mesh.coordshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
+#  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
 
   # create the adjoint part of the coordinate field
   # 3 components always, even in 2D for consistency with Pumi's coordinate field
@@ -1027,13 +1030,10 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
   dmg_name = "b"
   order = mesh.order
   dofpernode = mesh.numDofPerNode
-  tmp, num_Entities, m_ptr, coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
+
+  coordshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
+#  tmp, num_Entities, m_ptr, coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
   f_ptr = mesh.f_ptr  # use existing solution field
-
-  if dim != mesh.dim
-    throw(ErrorException("loaded mesh is not 2 dimensions"))
-  end
-
 
   numVert = convert(Int, num_Entities[1])
   numEdge =convert(Int,  num_Entities[2])

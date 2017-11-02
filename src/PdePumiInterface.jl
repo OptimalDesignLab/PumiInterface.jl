@@ -512,12 +512,17 @@ type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   mesh.numPeriodicInterfaces = 0
   mesh.topo = ElementTopology2()  # get default topology because it isn't
                                   # important for 2d
-  num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, shape_type=shape_type)
-  mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
-                                         # field shape for CG
+
+  mesh.m_ptr, dim = loadMesh(dmg_name, smb_name, order, shape_type=shape_type)
+
   if dim != mesh.dim
     throw(ErrorException("loaded mesh is not 2 dimensions"))
   end
+  mesh.mshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
+
+#  num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, shape_type=shape_type)
+  mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
+                                         # field shape for CG
   mesh.sbpface = sbpface
   if !haskey(ENV, "PDEPUMIINTERFACE_TESTING")
     @assert mesh.order == 1
@@ -893,7 +898,10 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   dmg_name = "b"
   order = mesh.order
   dofpernode = mesh.numDofPerNode
-  tmp, num_Entities, m_ptr, mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
+  dim = mesh.dim
+
+  mshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
+#  tmp, num_Entities, m_ptr, mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
   f_ptr = mesh.f_ptr  # use existing solution field
 
   numVert = convert(Int, num_Entities[1])
