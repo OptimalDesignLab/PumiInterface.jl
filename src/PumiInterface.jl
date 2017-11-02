@@ -1230,6 +1230,13 @@ function getParentNumbering(sdata::SubMeshData)
   return n_ptr
 end
 
+function free(sdata::SubMeshData)
+
+  n_ptr = ccall( (:freeSubMesh2, pumi_libname), Void, (SubMeshData,), sdata)
+  return n_ptr
+end
+
+
 
 declareNames()  # will this execute when module is compiled?
 

@@ -3,10 +3,11 @@
 
 
 #include "submesh_create.h"
+#include "funcs1.h"
 
 SubMeshData::SubMeshData(apf::Mesh* _m_old, apf::Numbering* _numberings[], int* _el_list, int numel)  // useful constructor
 {
-  m_old = _m_old;
+  m_old = _m_old; pushMeshRef(m_old);
   dim = m_old->getDimension();
   
   numberings.resize(dim);
@@ -19,6 +20,7 @@ SubMeshData::SubMeshData(apf::Mesh* _m_old, apf::Numbering* _numberings[], int* 
   gmi_model* g = gmi_load(".null");
   bool ismatched = false; //TODO
   m_new = apf::makeEmptyMdsMesh(g, dim, ismatched);
+  pushMeshRef(m_new);
   m_new->changeShape(m_old->getShape(), false);
 
   // convert the el_list to a 0-based std::vector
@@ -61,6 +63,11 @@ SubMeshData::SubMeshData(apf::Mesh* _m_old, apf::Numbering* _numberings[], int* 
 
 }  // constructor
 
+SubMeshData::~SubMeshData()
+{ 
+  popMeshRef(m_new);
+  popMeshRef(m_old);
+}
 //-----------------------------------------------------------------------------
 // julia iterface
 
@@ -104,6 +111,11 @@ apf::Mesh2* getNewMesh(SubMeshData* sdata)
 apf::Numbering* getParentNumbering(SubMeshData* sdata)
 {
   return sdata->getParentNumbering();
+}
+
+void freeSubMesh2(SubMeshData* sdata)
+{
+  delete sdata;
 }
 
 
@@ -152,9 +164,6 @@ void createVertices(SubMeshData* sdata)
   {
     e = *it;
 
-    int elnum = apf::getNumber(sdata->numberings[sdata->dim], e, 0, 0);
-    std::cout << "creating vertices for element " << elnum << std::endl;
-
     // get downard vertices
     int nverts = m_old->getDownward(e, 0, down_verts);
     
@@ -163,10 +172,6 @@ void createVertices(SubMeshData* sdata)
       int vertnum = apf::getNumber(vert_N, down_verts[i], 0, 0);
       if ( sdata->verts[vertnum] == NULL) // vert not yet created
         sdata->verts[vertnum] = createVert(sdata, down_verts[i]);
-      std::cout << "  vertex " << i << " = " << sdata->verts[vertnum];
-      apf::Vector3 coords;
-      sdata->m_new->getPoint(sdata->verts[vertnum], 0, coords);
-      std::cout << ", with coordinates " << coords.x() << ", " << coords.y() << ", " << coords.z() << std::endl;
     }
   }  // loop over elements
 
@@ -184,12 +189,8 @@ void createEntities(SubMeshData* sdata)
   for (std::vector<apf::MeshEntity*>::iterator it = sdata->el_entities.begin();
        it != sdata->el_entities.end(); it++)
   {
-    int elnum = apf::getNumber(sdata->numberings[dim], *it, 0, 0);
-    std::cout << "constructing higher order entities for element " << elnum << std::endl;
-  
     for (int d = 1; d <= dim; ++d)
     {
-      std::cout << "  dimension " << d << std::endl;
       int nentities = m_old->getDownward(*it, d, down_entities);
       for (int i = 0; i < nentities; ++i)
       {
@@ -255,7 +256,6 @@ apf::MeshEntity* createEntity(SubMeshData* sdata, apf::MeshEntity* entity)
     {
       apf::Vector3 coords;
       sdata->m_new->getPoint(down_entities[i], 0, coords);
-      std::cout << "vertex " << i << ", " << down_entities[i] << ", coords = " << coords.x() << ", " << coords.y() << ", " << coords.z() << std::endl;
     }
 
   }

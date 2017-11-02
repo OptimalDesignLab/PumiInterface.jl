@@ -34,7 +34,7 @@ class SubMeshData
                 int* _el_list, int numel);  // useful constructor
 
 
-    // default destructor works here
+    ~SubMeshData();
     
     // data members
     apf::Mesh* m_old = NULL;
@@ -128,6 +128,7 @@ extern "C" {
   void writeNewMesh(SubMeshData* sdata, const char* fname);
   apf::Mesh2* getNewMesh(SubMeshData* sdata);
   apf::Numbering* getParentNumbering(SubMeshData* sdata);
+  void freeSubMesh2(SubMeshData* sdata);
 } // extern C
 
 #endif
