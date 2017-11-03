@@ -89,6 +89,10 @@ end
 
 facts("----- Testing PdePumiInterfaceDG -----") do
   opts = Dict{Any, Any}(
+    "dmg_name" => dmg_name,
+    "smb_name" => smb_name,
+    "coloring_distance" => 2,
+    "order" => order,
     "numBC" => 1,
     "BC1" =>  [0,1,2,3],
     "run_type" => 1,
@@ -116,9 +120,10 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   vtx = [-1. 1 -1; -1 -1 1]
 #  interp_op = SummationByParts.buildinterpolation(sbp, vtx)
   sbpface = TriFace{Float64}(order, sbp.cub, vtx.')
-
-  mesh_c = PumiMeshDG2{Complex128, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface)
-  mesh = PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface)
+  mesh_c = PumiMeshDG2(Complex128, sbp, opts, sbpface)
+#  mesh_c = PumiMeshDG2{Complex128, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface)
+  mesh = PumiMeshDG2(Float64, sbp, opts, sbpface)
+#  mesh = PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface)
 
   @fact mesh.numVert --> 6
   @fact mesh.numEdge --> 9

@@ -386,7 +386,126 @@ type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d p
                           # grid, numNodesPerElement_s x numNodesPerElement_f
   I_F2ST::Matrix{Float64} # transpose of above
 
- function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
+  """
+    This inner constructor loads a Pumi mesh from files and sets a few
+    fields that must be consistent with how the mesh was loaded
+
+    **Inputs**
+
+     * dmg_name: Pumi geometry file name, including extension
+     * smb_name: Pumi mesh file name, including extension, not including
+                 the file number (ex. abc.smb not abc0.smb on process 0)
+
+  **Keywords**
+   
+   * shape_type: the integer identifying the coordinate field shape,
+                 default=-1, meaning keep existing coordinate field
+   * order: the coordinate field order (only used if the coordinate field
+            is changed from what is stored in the mesh, default 1
+   * comm: MPI communicator the mesh should be defined on, must be the same
+           number of processes as the mesh file is partitioned into.
+
+  **Outputs**
+
+   * mesh
+
+  """
+  function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString;
+                       order::Integer=1, shape_type::Integer=-1,
+                       comm=MPI.COMM_WORLD)
+    # this constructor does all the low-level Pumi initialization
+    # shape_type should be the *coordinate* shape type
+    # order should be the shape function order
+
+    if !MPI.Initialized()
+      MPI.Init()
+    end
+
+
+    mesh = new()
+    mesh.isDG = true
+    mesh.dim = 2
+
+    mesh.comm = comm
+    mesh.topo_pumi = ElementTopology{2}(PumiInterface.tri_edge_verts.')
+    mesh.myrank = MPI.Comm_rank(mesh.comm)
+    mesh.commsize = MPI.Comm_size(mesh.comm)
+    myrank = mesh.myrank
+
+    if myrank == 0
+      println("\nConstructing PumiMeshDG2 Object")
+      println("  smb_name = ", smb_name)
+      println("  dmg_name = ", dmg_name)
+    end
+
+    mesh.m_ptr, dim = loadMesh(dmg_name, smb_name, order, 
+                               shape_type=shape_type)
+    if dim != mesh.dim
+      throw(ErrorException("loaded mesh is not 2 dimensions"))
+    end
+
+
+    return mesh
+  end # end inner constructor
+
+  """
+    Returns uninitialized PumiMeshDG2 object.
+  """
+  function PumiMeshDG2()
+    return new()
+  end
+end  # end PumiMeshDG2 declaration
+
+"""
+   This outer constructor loads a mesh from a file, according to the options
+   specified in the options dictionary
+"""
+function PumiMeshDG2{T, Tface}(::Type{T}, sbp::AbstractSBP, opts, 
+                               sbpface::Tface; dofpernode=1, shape_type=2,
+                               comm=MPI.COMM_WORLD)
+
+  set_defaults(opts)  # get default arguments
+
+  # distinguish between the coordinate field and the solution field
+  coord_shape_type = -1  # keep coordinate field already present
+  coord_order = 1  # this is only used if the shape type is changed
+
+  # unpack options keys
+  # TODO: doc this
+  smb_name = opts["smb_name"]
+  dmg_name = opts["dmg_name"]
+
+  mesh = PumiMeshDG2{T, Tface}(dmg_name, smb_name, shape_type=coord_shape_type,
+                             order=coord_order)
+  mesh.sbpface = sbpface
+  finishMeshInit(mesh, sbp, opts, dofpernode=dofpernode,
+                 shape_type=shape_type, comm=comm)
+
+ 
+end  # end outer constructor
+"""
+  This outer constructor makes a submesh from an existing mesh
+
+"""
+function PumiMeshDG2{T, Tface}(old_mesh::PumiMeshDG2{T, Tface},
+                              el_list::AbstractVector)
+
+    m_ptr = createSubMesh()
+    mesh = PumiMeshDG2{T, Tface}()
+    
+    # set essential fields from old_mesh
+
+    # call finishMeshInit()
+
+    return mesh, shared_data
+end
+  
+  """
+    This function finishes initializing the mesh object.  This does the
+    bulk of the work, and is used by most of the constructors.
+
+  """
+ function finishMeshInit{T1}(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofpernode=1, shape_type=2, comm=MPI.COMM_WORLD)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -397,73 +516,36 @@ type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d p
   #              3 = DG2
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
-  println("\nConstructing PumiMeshDG2 Object")
-  println("  smb_name = ", smb_name)
-  println("  dmg_name = ", dmg_name)
-  set_defaults(opts)  # get default arguments
-  mesh = new()
-  mesh.isDG = true
-  mesh.dim = 2
-  mesh.numDofPerNode = dofpernode
-  mesh.order = order
-  mesh.shape_type = shape_type
+
+  # call inner constructor here
+
+  # unpack options keys
+  # TODO: doc this
+  field_shape_type = shape_type
+  order = opts["order"]  # SBP degree
+  coloring_distance = opts["coloring_distance"]
+  myrank = mesh.myrank
+  sbpface = mesh.sbpface
+
+  # for now, leave shape_type has an argument, but eventually this function
+  # should take in the SBP operator name and return a shape_type
+
+  mesh.coordshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
+  #  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
+
   mesh.coloringDistance = coloring_distance
+  mesh.shape_type = shape_type
 #  mesh.interp_op = interp_op
   mesh.ref_verts = [0.0 1 0; 0 0 1]  # ???
   mesh.numNodesPerFace = sbpface.numnodes
-  mesh.comm = comm
   mesh.topo = ElementTopology2() # create default topology because it isn't
-                                  # important for 2D
-  mesh.topo_pumi = ElementTopology{2}(PumiInterface.tri_edge_verts.')
+                                 # important for 2D
+  mesh.numDofPerNode = dofpernode
+  mesh.order = order
+  
 
-  checkTopologyConsistency(mesh.topo, mesh.topo_pumi)
-
-  if !MPI.Initialized()
-    MPI.Init()
-  end
-
-  mesh.myrank = MPI.Comm_rank(mesh.comm)
-  mesh.commsize = MPI.Comm_size(mesh.comm)
-  myrank = mesh.myrank
-  mesh.f = open("meshlog_$myrank.dat", "w")
-
-  # temporary testing of SBP-Gamma DG
-#  if sbp.numfacenodes == 0
-    mesh.sbpface = sbpface
-    mesh.isInterpolated = true
-#  else
-#    mesh.isInterpolated = false
-#    # leave mesh.sbpface undefined - bad practice
-#  end
-
-  # figure out coordinate FieldShape, node FieldShape
-  # for all DG meshes we now use the existing coordinate field and a different
-  # solution field
-    coord_shape_type = -1  # keep coordinate field already present
-    field_shape_type = shape_type
-    mesh_order = 1  # TODO: change this to an input-output parameter
-#  else  # same coordinate, field shape
-#    coord_shape_type = shape_type
-#    field_shape_type = shape_type
-#    mesh_order = order
-#  end
- 
-  mesh.m_ptr, dim = loadMesh(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
-  if dim != mesh.dim
-    throw(ErrorException("loaded mesh is not 2 dimensions"))
-  end
-
-
-  mesh.coordshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
-#  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
-
-  # create the adjoint part of the coordinate field
-  # 3 components always, even in 2D for consistency with Pumi's coordinate field
-
-  # create the solution field
   mesh.mshape_ptr = getFieldShape(field_shape_type, order, mesh.dim)
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
-  mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
 
   mesh.shr_ptr = getSharing(mesh.m_ptr)
   # count the number of all the different mesh attributes
@@ -482,9 +564,31 @@ type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d p
   num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
   num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
   num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f]
+  mesh.numNodesPerType = num_nodes_entity
+
+
+  checkTopologyConsistency(mesh.topo, mesh.topo_pumi)
+
+  mesh.f = open("meshlog_$myrank.dat", "w")
+
+  # temporary testing of SBP-Gamma DG
+#  if sbp.numfacenodes == 0
+    mesh.sbpface = sbpface
+    mesh.isInterpolated = true
+#  else
+#    mesh.isInterpolated = false
+#    # leave mesh.sbpface undefined - bad practice
+#  end
+
+ 
+  # create the adjoint part of the coordinate field
+  # 3 components always, even in 2D for consistency with Pumi's coordinate field
+
+  # create the solution field
+  mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
+
   # count numbers of different things per other thing
   # use for bookkeeping
-  mesh.numNodesPerType = num_nodes_entity
   mesh.typeOffsetsPerElement = zeros(Int, 4)
   pos = 1
   mesh.typeOffsetsPerElement[1] = pos
@@ -947,9 +1051,6 @@ function PumiMeshDG2(oldmesh::PumiMeshDG, el_list::AbstractArray)
 
   return submesh
 end
-
-end
-
 
 
 function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opts; 
