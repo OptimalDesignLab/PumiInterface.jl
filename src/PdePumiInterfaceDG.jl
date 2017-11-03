@@ -479,7 +479,7 @@ function PumiMeshDG2{T, Tface}(::Type{T}, sbp::AbstractSBP, opts,
                              order=coord_order)
   mesh.sbpface = sbpface
   finishMeshInit(mesh, sbp, opts, dofpernode=dofpernode,
-                 shape_type=shape_type, comm=comm)
+                 shape_type=shape_type)
 
  
 end  # end outer constructor
@@ -499,13 +499,36 @@ function PumiMeshDG2{T, Tface}(old_mesh::PumiMeshDG2{T, Tface},
 
     return mesh, shared_data
 end
-  
-  """
-    This function finishes initializing the mesh object.  This does the
-    bulk of the work, and is used by most of the constructors.
 
-  """
- function finishMeshInit{T1}(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofpernode=1, shape_type=2, comm=MPI.COMM_WORLD)
+
+"""
+  This function finishes initializing the mesh object.  This does the
+  bulk of the work, and is used by most of the constructors.  The following
+  fields must already be populated:
+
+   * isDG
+   * dim
+   * comm
+   * topo_pumi
+   * myrank
+   * commsize
+   * m_ptr
+
+  **Inputs**
+
+   * mesh: mesh with fields initialized.  All fields will be initialized on
+           exit
+   * sbp: the SBP operator to be used with the mesh (must match shape_type)
+   * opts: options dictionary, the keys "order" and "coloring_distance"
+           are used
+  
+  **Keywords**
+
+   * dofpernode: number of dofs on each node, default 1
+   * shape_type: integer describing solution field
+
+"""
+function finishMeshInit{T1}(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofpernode=1, shape_type=2)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
