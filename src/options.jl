@@ -1,6 +1,21 @@
 # set default values for most options
 # these values should never really be used because PDESolver should set them
 
+"""
+  This function supplies default values for the options dictionary.
+  Options already defined are not overwritten.
+
+  The keys it does not supply default values for are:
+
+   * smb_name
+   * dmg_name
+   * order
+   * coloring_distance
+
+  **Inputs**
+
+   * opts: a dictionary
+"""
 function set_defaults(opts)
 
   get!(opts, "run_type", 4)
@@ -32,6 +47,13 @@ function set_defaults(opts)
   return nothing
 end
 
+"""
+  Create an options dictionary with the default options
+
+  **Outputs**
+
+   * opts: the dictionary
+"""
 function get_defaults()
   opts = Dict{Any, Any}()
   set_defaults(opts)

@@ -481,7 +481,7 @@ function PumiMeshDG2{T, Tface}(::Type{T}, sbp::AbstractSBP, opts,
   finishMeshInit(mesh, sbp, opts, dofpernode=dofpernode,
                  shape_type=shape_type)
 
- 
+  return mesh 
 end  # end outer constructor
 """
   This outer constructor makes a submesh from an existing mesh
@@ -566,7 +566,6 @@ function finishMeshInit{T1}(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofp
   mesh.numDofPerNode = dofpernode
   mesh.order = order
   
-
   mesh.mshape_ptr = getFieldShape(field_shape_type, order, mesh.dim)
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
 
@@ -596,8 +595,7 @@ function finishMeshInit{T1}(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofp
 
   # temporary testing of SBP-Gamma DG
 #  if sbp.numfacenodes == 0
-    mesh.sbpface = sbpface
-    mesh.isInterpolated = true
+  mesh.isInterpolated = true
 #  else
 #    mesh.isInterpolated = false
 #    # leave mesh.sbpface undefined - bad practice

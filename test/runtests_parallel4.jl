@@ -23,12 +23,17 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   smb_name = "pcube10.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["dmg_name"] = dmg_name
+  opts["smb_name"] = smb_name
   opts["use_linear_metrics"] = true
+  opts["coloring_distance"] = 2
+  opts["order"] = degree
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
 #  interp_op = eye(4)
-  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   # check coloring
   @fact mesh.maxColors --> less_than(18)
@@ -66,8 +71,10 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   end  # end loop over peers
 
 
-  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
-  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
+#  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
   compare_meshes(mesh, mesh_c)
 
   # this allocates a ton of memory - don't run
