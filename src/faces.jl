@@ -359,36 +359,36 @@ function getInterfaceArray(mesh::PumiMesh2D)
       centroid2 = sum(coords_2, 2)
 
       if abs(centroid1[1] - centroid2[1]) > 1e-10  # if big enough difference
-        if centroid1[1] < centroid2[1]
-    elementL = element1
-    elementR = element2
-    edgeL = edge1
-    edgeR = edge2
-    centroidL = centroid1
-    centroidR = centroid2
+          if centroid1[1] < centroid2[1]
+          elementL = element1
+          elementR = element2
+          edgeL = edge1
+          edgeR = edge2
+          centroidL = centroid1
+          centroidR = centroid2
         else
-    elementL = element2
-    elementR = element1
-    edgeL = edge2
-    edgeR = edge1
-    centroidL = centroid2
-    centroidR = centroid1
+          elementL = element2
+          elementR = element1
+          edgeL = edge2
+          edgeR = edge1
+          centroidL = centroid2
+          centroidR = centroid1
         end
       else  # use y coordinate to decide
         if centroid1[2] < centroid2[2]
-    elementL = element1
-    elementR = element2
-    edgeL = edge1
-    edgeR = edge2
-    centroidL = centroid1
-    centroidR = centroid2
+          elementL = element1
+          elementR = element2
+          edgeL = edge1
+          edgeR = edge2
+          centroidL = centroid1
+          centroidR = centroid2
         else
-    elementL = element2
-    elementR = element1
-    edgeL = edge2
-    edgeR = edge1
-    centroidL = centroid2
-    centroidR = centroid1
+          elementL = element2
+          elementR = element1
+          edgeL = edge2
+          edgeR = edge1
+          centroidL = centroid2
+          centroidR = centroid1
         end
       end
 
