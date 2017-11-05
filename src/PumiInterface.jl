@@ -143,8 +143,8 @@ export setPoint, acceptChanges, Verify, getPoint
 export hasMatching, getSharing, isOwned, countCopies, getCopies, countMatches, getMatches
 
 # SubMesh creation
-export createSubMesh, getNewMesh, writeNewMesh, getNewMeshData, getGeoTag,
-       SubMeshData
+export createSubMesh, getNewMesh, getOldMesh, writeNewMesh, getParentNumbering, 
+       getNewMeshData, getGeoTag, SubMeshData
 
 @doc """
   initilize the state of the interface library
@@ -1289,6 +1289,20 @@ function getNewMesh(sdata::SubMeshData)
   return m_ptr
 end
 
+"""
+  Get the original mesh pointer.
+"""
+function getOldMesh(sdata::SubMeshData)
+
+  m_ptr = ccall( (:getOldMesh, pumi_libname), Ptr{Void}, (SubMeshData,), sdata)
+  return m_ptr
+end
+
+
+"""
+  Returns an apf::Numbering* for a Numbering on the submesh containing the
+  element number on the original mesh that each element came from.
+"""
 function getParentNumbering(sdata::SubMeshData)
 
   n_ptr = ccall( (:getParentNumbering, pumi_libname), Ptr{Void}, (SubMeshData,), sdata)

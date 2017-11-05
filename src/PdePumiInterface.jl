@@ -15,9 +15,11 @@ include("nodecalc.jl")
 include("options.jl")
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
+#TODO: revise this list
 export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryFaceLocalNum, getFaceLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles, update_coords, commit_coords
 
 export zeroBarArrays, getAllCoordinatesAndMetrics_rev
+export injectionOperator, rejectionOperator
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 
@@ -281,6 +283,11 @@ function finalizeMesh(mesh::PumiMesh)
     mesh.mexact_ptr = C_NULL
   end
 
+  if ( :subdata in fnames) && mesh.subdata.pobj != C_NULL
+    free(mesh.subdata)
+    mesh.subdata = SubMeshData(C_NULL)
+  end
+
 
 
   return nothing
@@ -515,6 +522,7 @@ type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   mesh.m_ptr, dim = loadMesh(dmg_name, smb_name, order, shape_type=shape_type)
 
+  pushMeshRef(mesh.m_ptr)
   if dim != mesh.dim
     throw(ErrorException("loaded mesh is not 2 dimensions"))
   end

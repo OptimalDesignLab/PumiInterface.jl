@@ -138,7 +138,7 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 // to re-initialize
 //apf::Mesh*  initABC2(const char* dmg_name, const char* smb_name, int number_entities[], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], apf::Numbering* n_array[], int order, int load_mesh, int shape_type )
 
-
+// this function does not add to the mesh refcount, the caller must do it
 apf::Mesh2* loadMesh(const char* dmg_name, const char* smb_name, int shape_type,
                      int order, int dim_ret[1])
 {
@@ -166,13 +166,11 @@ apf::Mesh2* loadMesh(const char* dmg_name, const char* smb_name, int shape_type,
     gmi_model* g = gmi_load(".null");
 //      std::cout << "finished loading geometric model" << std::endl;
     m = apf::loadMdsMesh(g, smb_name);
-    pushMeshRef(m);
     // m->verify();
   } else {
     gmi_register_mesh();
 //      std::cout << "loading geometric model from file" << std::endl;
     m = apf::loadMdsMesh(dmg_name, smb_name);
-    pushMeshRef(m);
   }
   dim = m->getDimension();
 //    meshloaded = true;  // record the fact that a mesh is now loaded

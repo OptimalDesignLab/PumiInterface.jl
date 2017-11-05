@@ -127,6 +127,7 @@ extern "C" {
                           int* el_list, int numel);
   void writeNewMesh(SubMeshData* sdata, const char* fname);
   apf::Mesh2* getNewMesh(SubMeshData* sdata);
+  apf::Mesh* getOldMesh(SubMeshData* sdata);
   apf::Numbering* getParentNumbering(SubMeshData* sdata);
   int getGeoTag(SubMeshData* sdata);
   void freeSubMesh2(SubMeshData* sdata);

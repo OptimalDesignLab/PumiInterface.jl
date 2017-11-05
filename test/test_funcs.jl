@@ -960,43 +960,90 @@ end
 
 function test_submesh()
 
-  order = 1
-  sbp = getTriSBPOmega(degree=order)
-  vtx = sbp.vtx
-  sbpface = TriFace{Float64}(order, sbp.cub, vtx)
+  facts("----- Testing SubMesh -----") do
+    order = 1
+    sbp = getTriSBPOmega(degree=order)
+    vtx = sbp.vtx
+    sbpface = TriFace{Float64}(order, sbp.cub, vtx)
 
-  opts = PdePumiInterface.get_defaults()
-  opts["order"] = order
-  opts["coloring_distance"] = 2
-  opts["dmg_name"] = ".null"
-  opts["smb_name"] = "tri8l.smb"
-  opts["numBC"] = 1
-  opts["BC1"] = [0, 1, 2, 3]
-  opts["BC1_name"] = "testBC"
+    opts = PdePumiInterface.get_defaults()
+    opts["order"] = order
+    opts["coloring_distance"] = 2
+    opts["dmg_name"] = ".null"
+    opts["smb_name"] = "tri8l.smb"
+    opts["numBC"] = 1
+    opts["BC1"] = [0, 1, 2, 3]
+    opts["BC1_name"] = "testBC"
 
-  mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
 
-  el_list = Cint[1, 2, 3, 4]
+    el_list = Cint[1, 2, 3, 4]
 
-  submesh, subopts = PumiMeshDG2(mesh, sbp, opts, "resolveBC", el_list)
+    submesh, subopts = PumiMeshDG2(mesh, sbp, opts, "resolveBC", el_list)
 
-  @fact submesh.order --> mesh.order
-  @fact submesh.numEl --> length(el_list)
-  @fact subopts["numBC"] --> 2
-  @fact subopts["BC2_name"] --> "resolveBC"
-  @fact (subopts["BC2"][1] in subopts["BC1"]) --> false
+    @fact submesh.order --> mesh.order
+    @fact submesh.numEl --> length(el_list)
+    @fact subopts["numBC"] --> 2
+    @fact subopts["BC2_name"] --> "resolveBC"
+    @fact (subopts["BC2"][1] in subopts["BC1"]) --> false
 
-  # do a a dangling mesh
-  el_list = Cint[1, 2, 5, 6]
+    # do a a dangling mesh
+    el_list = Cint[1, 2, 5, 6]
 
-  submesh, subopts = PumiMeshDG2(mesh, sbp, opts, "resolveBC", el_list)
+    submesh, subopts = PumiMeshDG2(mesh, sbp, opts, "resolveBC", el_list)
 
-  @fact submesh.order --> mesh.order
-  @fact submesh.numEl --> length(el_list)
-  @fact subopts["numBC"] --> 2
-  @fact subopts["BC2_name"] --> "resolveBC"
-  @fact (subopts["BC2"][1] in subopts["BC1"]) --> false
+    @fact submesh.order --> mesh.order
+    @fact submesh.numEl --> length(el_list)
+    @fact subopts["numBC"] --> 2
+    @fact subopts["BC2_name"] --> "resolveBC"
+    @fact (subopts["BC2"][1] in subopts["BC1"]) --> false
 
+
+    # test injection and rejection
+    qold = zeros(Float64, mesh.numDof)
+    qold2 = zeros(Float64, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
+    for i=1:mesh.numEl
+      for j=1:mesh.numNodesPerElement
+        for k=1:mesh.numDofPerNode
+          dof = mesh.dofs[k, j, i]
+          qold[dof] = i + j + k
+          qold2[k, j, i] = i + j + k
+        end
+      end
+    end
+    qnew = zeros(Float64, submesh.numDof)
+    qnew2 = zeros(Float64, submesh.numDofPerNode, submesh.numNodesPerElement, submesh.numEl)
+
+    injectionOperator(mesh, qold, submesh, qnew)
+    injectionOperator(mesh, qold2, submesh, qnew2)
+
+    for i=1:submesh.numDof
+      qnew[i] += 1
+      qnew2[i] += 1
+    end
+
+    qold3 = zeros(qold)
+    qold4 = zeros(qold2)
+    rejectionOperator(submesh, qnew, mesh, qold3)
+    rejectionOperator(submesh, qnew2, mesh, qold4)
+
+    # only the submesh elements got incremented
+    for i=1:mesh.numEl
+      for j=1:mesh.numNodesPerElement
+        for k=1:mesh.numDofPerNode
+          dof = mesh.dofs[k, j, i]
+          if i in el_list
+            @fact qold3[dof] --> i + j + k + 1
+            @fact qold4[k, j, i] --> i + j + k + 1
+          else
+            @fact qold3[dof] --> 0.0
+            @fact qold4[k, j, i] --> 0.0
+          end
+        end
+      end
+    end
+
+  end  # end facts
 
 
 end

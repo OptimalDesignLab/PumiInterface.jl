@@ -412,6 +412,7 @@ type PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1}   # 2d p
 
     mesh.m_ptr, dim = loadMesh(dmg_name, smb_name, order, shape_type=shape_type)
 
+    pushMeshRef(mesh.m_ptr)
     if dim != mesh.dim
       throw(ErrorException("loaded mesh is not 3 dimensional"))
     end

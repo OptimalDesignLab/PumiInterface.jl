@@ -95,6 +95,8 @@ SubMeshData* createSubMesh2(apf::Mesh* m, apf::Numbering* numberings[],
   sdata->m_new->acceptChanges();
   sdata->m_new->verify();
 
+//  sdata->m_new->writeNative("submesh.smb");
+
   return sdata;
 }
 
@@ -106,6 +108,11 @@ void writeNewMesh(SubMeshData* sdata, const char* fname)
 apf::Mesh2* getNewMesh(SubMeshData* sdata)
 {
   return sdata->getNewMesh();
+}
+
+apf::Mesh* getOldMesh(SubMeshData* sdata)
+{
+  return sdata->m_old;
 }
 
 apf::Numbering* getParentNumbering(SubMeshData* sdata)
@@ -122,6 +129,7 @@ void freeSubMesh2(SubMeshData* sdata)
 {
   delete sdata;
 }
+
 
 
 //-----------------------------------------------------------------------------

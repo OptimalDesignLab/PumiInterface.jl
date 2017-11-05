@@ -190,8 +190,126 @@ function count_entities(mesh::PumiMesh, oldmesh::PumiMesh, el_list::AbstractVect
   return nothing
 end
 
+"""
+  original mesh -> submesh  for vectors (indexed using mesh.dofs)
 
+  **Inputs**
 
+   * oldmesh: the original mesh
+   * oldq: the AbstractVector of values to be copied to the new mesh (for
+           the elements that exist on the new mesh), length oldmesh.numdof
+   * newmesh: the submesh
 
+  **Inputs/Outputs**
 
+   * newq: vector of length newmesh.numdof to put values into
+"""
+function injectionOperator(oldmesh::PumiMesh, oldq::AbstractVector,
+                           newmesh::PumiMesh, newq::AbstractVector)
 
+  @assert oldmesh.m_ptr == getOldMesh(newmesh.subdata)
+
+  parent_N = getParentNumbering(newmesh.subdata)
+
+  for i=1:newmesh.numEl
+    el_i = newmesh.elements[i]
+    oldel = getNumberJ(parent_N, el_i, 0, 0) + 1
+
+    for j=1:newmesh.numNodesPerElement
+      for k=1:newmesh.numDofPerNode
+        olddof = oldmesh.dofs[k, j, oldel]
+        newdof = newmesh.dofs[k, j, i]
+        newq[newdof] = oldq[olddof]
+      end
+    end
+  end
+
+  return nothing
+end
+
+"""
+  Injection operator for 3D arrays, see other method for details.
+"""
+function injectionOperator(oldmesh::PumiMesh, oldq::Abstract3DArray,
+                           newmesh::PumiMesh, newq::Abstract3DArray)
+
+  @assert oldmesh.m_ptr == getOldMesh(newmesh.subdata)
+
+  parent_N = getParentNumbering(newmesh.subdata)
+
+  for i=1:newmesh.numEl
+    el_i = newmesh.elements[i]
+    oldel = getNumberJ(parent_N, el_i, 0, 0) + 1
+
+    for k=1:newmesh.numNodesPerElement
+      for j=1:newmesh.numDofPerNode
+        newq[j, k, i] = oldq[j, k, oldel]
+      end
+    end
+  end
+
+  return nothing
+end
+
+"""
+  submesh -> original mesh for vectors, inverse function of
+  [`injectionOperator`](@ref)
+
+  **Inputs**
+
+   * newmesh: the submesh
+   * newq: vector of length newmesh.numdof
+   * oldmesh: the original mesh
+
+  **Inputs/Outputs**
+
+   * oldq: vector of length oldmesh.numdof.  Entries that have corresponding
+           dofs on the submesh are overwritten, other entries are unchanged.
+
+"""
+function rejectionOperator(newmesh::PumiMesh, newq::AbstractVector,
+                           oldmesh::PumiMesh, oldq::AbstractVector)
+
+  @assert oldmesh.m_ptr == getOldMesh(newmesh.subdata)
+
+  parent_N = getParentNumbering(newmesh.subdata)
+
+  for i=1:newmesh.numEl
+    el_i = newmesh.elements[i]
+    oldel = getNumberJ(parent_N, el_i, 0, 0) + 1
+
+    for j=1:newmesh.numNodesPerElement
+      for k=1:newmesh.numDofPerNode
+        olddof = oldmesh.dofs[k, j, oldel]
+        newdof = newmesh.dofs[k, j, i]
+        oldq[olddof] = newq[newdof]
+      end
+    end
+  end
+
+  return nothing
+end                  
+
+"""
+  rejectionOperator() method for 3D arrays, see other method for details
+"""
+function rejectionOperator(newmesh::PumiMesh, newq::Abstract3DArray,
+                           oldmesh::PumiMesh, oldq::Abstract3DArray)
+
+  @assert oldmesh.m_ptr == getOldMesh(newmesh.subdata)
+
+  parent_N = getParentNumbering(newmesh.subdata)
+
+  for i=1:newmesh.numEl
+    el_i = newmesh.elements[i]
+    oldel = getNumberJ(parent_N, el_i, 0, 0) + 1
+
+    for k=1:newmesh.numNodesPerElement
+      for j=1:newmesh.numDofPerNode
+        oldq[j, k, oldel] = newq[j, k, i]
+      end
+    end
+  end
+
+  return nothing
+end

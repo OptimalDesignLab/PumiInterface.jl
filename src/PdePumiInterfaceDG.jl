@@ -443,6 +443,7 @@ type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d p
 
     mesh.m_ptr, dim = loadMesh(dmg_name, smb_name, order, 
                                shape_type=shape_type)
+    pushMeshRef(mesh.m_ptr)
     if dim != mesh.dim
       throw(ErrorException("loaded mesh is not 2 dimensions"))
     end
@@ -543,6 +544,7 @@ function PumiMeshDG2{T, Tface}(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts_old,
 
   mesh.subdata = createSubMesh(old_mesh.m_ptr, old_mesh.entity_Nptrs, _el_list)
   mesh.m_ptr = getNewMesh(mesh.subdata)
+  pushMeshRef(mesh.m_ptr)
   new_geo = getGeoTag(mesh.subdata)
 
   # create new options dictionary, updating BCs
