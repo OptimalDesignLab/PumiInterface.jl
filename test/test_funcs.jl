@@ -1043,6 +1043,16 @@ function test_submesh()
       end
     end
 
+    # test boundary interpolation array
+    interp_arr = getBoundaryInterpArray(mesh, submesh)
+
+    for iface in interp_arr
+      @fact iface.elementL in el_list --> true
+      @fact iface.elementR in el_list --> false
+      @fact iface.elementL == iface.elementR --> false
+    end
+
+
   end  # end facts
 
 

@@ -313,3 +313,69 @@ function rejectionOperator(newmesh::PumiMesh, newq::Abstract3DArray,
 
   return nothing
 end
+
+"""
+  This function returns an Array of Interface objects in the same order as
+  newmesh.bndryfaces where the element that also exists on the submesh is
+  elementL.  This can be useful for interpolating the solution for the new
+  boundary condition needed for the submesh.
+  This boundary condion must always be the last one.
+
+  Note: 2D only (for now)
+
+  **Inputs**
+
+   * oldmesh: the original mesh
+   * newmesh: the submesh
+
+  **Outputs**
+
+   * interface_arr: array of Interface objects
+"""
+function getBoundaryInterpArray(oldmesh::PumiMesh2D, newmesh::PumiMesh2D)
+
+  rng = newmesh.bndry_offsets[end-1]:(newmesh.bndry_offsets[end]-1)
+  interface_arr = Array(Interface, length(rng))
+
+  parent_N = getParentNumbering(newmesh.subdata)
+  edges = Array(Ptr{Void}, 12)  # apf::Downward
+  el_arr = Array(Ptr{Void}, 2)  # number of elements that share an edge
+  pos = 1  # position in interface_arr
+
+  for i in rng
+    el_i = newmesh.bndryfaces[i].element
+    face_i = newmesh.bndryfaces[i].face
+    el_ptr = newmesh.elements[el_i]
+
+    parent_el = getNumberJ(parent_N, el_ptr, 0, 0) + 1
+    parent_elptr = oldmesh.elements[parent_el]
+
+    getDownward(oldmesh.m_ptr, parent_elptr, oldmesh.dim-1, edges)
+    edge_ptr = edges[face_i]
+
+    nup = countAdjacent(oldmesh.m_ptr, edge_ptr, oldmesh.dim)
+    @assert nup == 2
+    getAdjacent(el_arr)
+
+    # figure out which is left and which is right
+    elL_ptr = parent_elptr
+    if el_arr[1] == elL_ptr
+      elR_ptr = el_arr[2]
+    else
+      elR_ptr = el_arr[1]
+    end
+
+   # get local face numbers
+   elnumL = getNumberJ(oldmesh.el_Nptr, elL_ptr, 0, 0) + 1
+   elnumR = getNumberJ(oldmesh.el_Nptr, elR_ptr, 0, 0) + 1
+   edgenum = getNumberJ(oldmesh.face_Nptr, edge_ptr, 0, 0) + 1
+
+   facelocalnumL = getFaceLocalNum(oldmesh, edgenum, elnumL)
+   facelocalnumR = getFaceLocalNum(oldmesh, edgenum, elnumR)
+
+   interface_arr[pos] = Interface(elnumL, elnumR, facelocalnumL, facelocalnumR, UInt8(1))  # orientation is always 1 for 2d
+   pos += 1
+ end
+
+  return interface_arr
+end
