@@ -958,4 +958,48 @@ function test_coords_rev(mesh, sbp)
   return nothing
 end
 
+function test_submesh()
+
+  order = 1
+  sbp = getTriSBPOmega(degree=order)
+  vtx = sbp.vtx
+  sbpface = TriFace{Float64}(order, sbp.cub, vtx)
+
+  opts = PdePumiInterface.get_defaults()
+  opts["order"] = order
+  opts["coloring_distance"] = 2
+  opts["dmg_name"] = ".null"
+  opts["smb_name"] = "tri8l.smb"
+  opts["numBC"] = 1
+  opts["BC1"] = [0, 1, 2, 3]
+  opts["BC1_name"] = "testBC"
+
+  mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+
+  el_list = Cint[1, 2, 3, 4]
+
+  submesh, subopts = PumiMeshDG2(mesh, sbp, opts, "resolveBC", el_list)
+
+  @fact submesh.order --> mesh.order
+  @fact submesh.numEl --> length(el_list)
+  @fact subopts["numBC"] --> 2
+  @fact subopts["BC2_name"] --> "resolveBC"
+  @fact (subopts["BC2"][1] in subopts["BC1"]) --> false
+
+  # do a a dangling mesh
+  el_list = Cint[1, 2, 5, 6]
+
+  submesh, subopts = PumiMeshDG2(mesh, sbp, opts, "resolveBC", el_list)
+
+  @fact submesh.order --> mesh.order
+  @fact submesh.numEl --> length(el_list)
+  @fact subopts["numBC"] --> 2
+  @fact subopts["BC2_name"] --> "resolveBC"
+  @fact (subopts["BC2"][1] in subopts["BC1"]) --> false
+
+
+
+end
+
+
 

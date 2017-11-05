@@ -138,6 +138,8 @@ type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d p
   fexactshape_ptr::Ptr{Void}  # apf::FieldShape of fexact_ptr
   shr_ptr::Ptr{Void}  # pointer to the apf::Sharing object
   shape_type::Int  #  type of shape functions
+  subdata::SubMeshData  # if this is a submesh, the submeshdata object,
+                        # otherwise NULL
   min_node_dist::Float64  # minimum distance between nodes
   min_el_size::Float64 # size of the smallest element (units of length)
   volume::T1  # volume of entire mesh
@@ -431,6 +433,7 @@ type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d p
     mesh.myrank = MPI.Comm_rank(mesh.comm)
     mesh.commsize = MPI.Comm_size(mesh.comm)
     myrank = mesh.myrank
+    mesh.subdata = SubMeshData(C_NULL)
 
     if myrank == 0
       println("\nConstructing PumiMeshDG2 Object")
@@ -483,21 +486,74 @@ function PumiMeshDG2{T, Tface}(::Type{T}, sbp::AbstractSBP, opts,
 
   return mesh 
 end  # end outer constructor
-"""
-  This outer constructor makes a submesh from an existing mesh
+
 
 """
-function PumiMeshDG2{T, Tface}(old_mesh::PumiMeshDG2{T, Tface},
-                              el_list::AbstractVector)
+  This outer constructor makes a submesh from an existing mesh. Mesh edges that
+  were previously on the interior will be classified on a new geometric edge,
+  and a new options dictionary will be created that has a new boundary condition.
+  Serial meshes only (for now)
+  No periodic BCs (for now)
 
-    m_ptr = createSubMesh()
-    mesh = PumiMeshDG2{T, Tface}()
-    
-    # set essential fields from old_mesh
+  **Inputs**
 
-    # call finishMeshInit()
+   * old_mesh: the existing mesh
+   * sbp: the SBP operator used to create old_mesh
+   * opts_old: the options dictionary used to create old_mesh
+   * newbc_name: the name of the new boundary condition that will be created
+   * el_list: vector of elements to include on the new mesh (preferably a
+              vector of Cints)
 
-    return mesh, shared_data
+  **Outputs**
+
+   * mesh: the new mesh object, fully initialized
+   * opts: the new options dictionary
+"""
+function PumiMeshDG2{T, Tface}(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts_old,
+                              newbc_name::AbstractString, el_list::AbstractVector)
+
+  if old_mesh.commsize != 1
+    throw(ErrorException("Submesh not supported in parallel"))
+  end
+
+  if opts_old["reordering_algorithm"] == "adjacency"
+    throw(ErrorException("numberNodesWindy not supported for submesh"))
+  end
+
+  mesh = PumiMeshDG2{T, Tface}()  # get uninitailized object
+
+  # set essential fields from old_mesh
+  mesh.isDG = true
+  mesh.dim = 2
+  mesh.comm = old_mesh.comm
+  mesh.topo_pumi = old_mesh.topo_pumi
+  mesh.sbpface = old_mesh.sbpface
+
+  #TODO: revise this when parallelizing
+  mesh.myrank = old_mesh.myrank
+  mesh.commsize = old_mesh.commsize
+
+  # construct new mesh
+  if eltype(el_list) != Cint
+    _el_list = Array(Cint, length(el_list))
+    copy!(_el_list, el_list)
+  else
+    _el_list = el_list
+  end
+
+  mesh.subdata = createSubMesh(old_mesh.m_ptr, old_mesh.entity_Nptrs, _el_list)
+  mesh.m_ptr = getNewMesh(mesh.subdata)
+  new_geo = getGeoTag(mesh.subdata)
+
+  # create new options dictionary, updating BCs
+  opts = deepcopy(opts_old)
+  updateBCs(opts, new_geo, newbc_name) 
+
+  finishMeshInit(mesh, sbp, opts, dofpernode=old_mesh.numDofPerNode,
+                 shape_type=old_mesh.shape_type)
+
+
+  return mesh, opts
 end
 
 

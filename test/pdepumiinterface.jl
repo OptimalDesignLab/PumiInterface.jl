@@ -951,6 +951,9 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 #  mesh_c =  PumiMeshDG2{Complex128, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
   compare_meshes(mesh, mesh_c)
+
+  test_submesh()
+
   println("finished")
 
 end

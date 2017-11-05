@@ -142,7 +142,9 @@ export getEntity, incrementIt, resetIt
 export setPoint, acceptChanges, Verify, getPoint
 export hasMatching, getSharing, isOwned, countCopies, getCopies, countMatches, getMatches
 
-export createSubMesh, getNewMesh, writeNewMesh, getNewMeshData
+# SubMesh creation
+export createSubMesh, getNewMesh, writeNewMesh, getNewMeshData, getGeoTag,
+       SubMeshData
 
 @doc """
   initilize the state of the interface library
@@ -1292,6 +1294,13 @@ function getParentNumbering(sdata::SubMeshData)
   n_ptr = ccall( (:getParentNumbering, pumi_libname), Ptr{Void}, (SubMeshData,), sdata)
   return n_ptr
 end
+
+function getGeoTag(sdata::SubMeshData)
+
+  new_geo = ccall( (:getGeoTag, pumi_libname), Cint, (SubMeshData,), sdata)
+  return new_geo
+end
+
 
 function free(sdata::SubMeshData)
 

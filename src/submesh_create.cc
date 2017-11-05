@@ -113,6 +113,11 @@ apf::Numbering* getParentNumbering(SubMeshData* sdata)
   return sdata->getParentNumbering();
 }
 
+int getGeoTag(SubMeshData* sdata)
+{
+  return sdata->getGeoTag();
+}
+
 void freeSubMesh2(SubMeshData* sdata)
 {
   delete sdata;
