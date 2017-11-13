@@ -33,7 +33,7 @@
 #include "dgSBP3Shape5.h"
 #include "triangulation.h"
 #include "triangulationDG.h"
-
+#include "submesh_create.h"
 
 /*
  * Params[in]:
@@ -46,8 +46,11 @@ extern "C" {
 
 int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], apf::Numbering* n_arr[], int order, int load_mesh, int shape_type );
 
+apf::Mesh2* loadMesh(const char* dmg_name, const char* smb_name, int shape_type,
+                     int order, int dim_ret[1]);
+void initMesh(apf::Mesh* m, int number_entities[],
+       apf::FieldShape* mshape_ptr_array[1], apf::Numbering* n_array[]);
 
-int initABC2(const char* dmg_name, const char* smb_name, int number_entities[3], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], apf::Numbering* n_arr[], int order, int load_mesh, int shape_type );
 
 // these functions are not user accessible
 void cleanup(apf::Mesh* m_local);

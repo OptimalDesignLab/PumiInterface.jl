@@ -240,3 +240,45 @@ function accumulateAtVerts(mesh::PumiMeshDG, u_volume::Abstract3DArray, u_verts:
 
   return nothing
 end
+
+"""
+  This function adds a new boundary condition for the specified geometric
+  entity, and removes that geometric entity from any other boundary conditions.
+
+  **Inputs**
+
+   * new_geo: geometric entity number for the BC to be added
+   * name: name of new boundary condition
+
+  **Inputs/Outputs**
+
+   * opts: options dictionary
+
+   This function uses the following keys:
+   
+    * numBC
+    * BC*
+"""
+function updateBCs(opts::Dict, new_geo::Integer, name::AbstractString)
+
+  numBC = opts["numBC"]
+  for i=1:numBC
+    bndry_geo = opts["BC$i"]
+    idx = findfirst(bndry_geo, new_geo)
+    if idx != 0
+      new_arr = zeros(eltype(bndry_geo), length(bndry_geo)-1)
+      new_arr[1:(idx-1)] = bndry_geo[1:(idx-1)]
+      new_arr[idx:end] = bndry_geo[(idx+1):end]
+      opts["BC$i"] = new_arr
+    end
+  end
+
+  numBC = numBC + 1
+  opts["numBC"]
+  opts["numBC"] = numBC
+  opts["BC$numBC"] = [new_geo]
+  opts["BC$(numBC)_name"] = name
+
+  return nothing
+end
+

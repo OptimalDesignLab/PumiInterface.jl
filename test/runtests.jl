@@ -33,13 +33,14 @@ facts("Testing PUMIInterface.jl") do
 
 
   order = 1  # linear elements
-  num_Entities, m_ptr, mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order)
+  m_ptr, dim = loadMesh(dmg_name, smb_name, order)
+  mshape_ptr, num_Entities, n_arr = initMesh(m_ptr)
+#  num_Entities, m_ptr, mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order)
   println("length(n_arr) = ", length(n_arr))
 
   @fact num_Entities[1] --> 9
   @fact num_Entities[2] --> 16
   @fact num_Entities[3] --> 8
-  @fact num_Entities[4] --> 0
   @fact m_ptr --> not(C_NULL)
   @fact mshape_ptr --> not(C_NULL) 
 
@@ -398,7 +399,9 @@ facts("Testing PUMIInterface.jl") do
   @fact hasMatching(m_ptr) --> false
 
   smb_name = "tri3_px.smb"
-  num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
+  m_ptr, dim = loadMesh(dmg_name, smb_name, order)
+  mshape_ptr, num_Entities, n_arr = initMesh(m_ptr)
+#  num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
   shr_ptr = getSharing(m_ptr)
   numVert = num_Entities[1]
   numEdge = num_Entities[2]

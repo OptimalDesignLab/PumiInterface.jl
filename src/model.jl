@@ -31,7 +31,7 @@
   TOOD: use sview to remove this machinery
 
 """
-function getMeshEdgesFromModel{T}(mesh::PumiMesh, medges::AbstractArray{Int, 1}, offset::Integer, boundary_nums::AbstractArray{T, 2})
+function getMeshEdgesFromModel{T, I<:Integer}(mesh::PumiMesh, medges::AbstractArray{I, 1}, offset::Integer, boundary_nums::AbstractArray{T, 2})
 # get the global numbers of the mesh edges lying on the model edges in medges
 # medges typically coresponds to all the model edges that have a particular
 # boundary condition applied to them

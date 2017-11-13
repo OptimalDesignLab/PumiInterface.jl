@@ -22,12 +22,17 @@ facts("----- Testing PdePumiInterface3DG -----") do
   smb_name = "unitcube.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["smb_name"] = smb_name
+  opts["dmg_name"] = dmg_name
+  opts["order"] = degree
+  opts["coloring_distance"] = 2
   opts["use_linear_metrics"] = true
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
 #  interp_op = eye(4)
-  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.m_ptr --> not(C_NULL)
   @fact mesh.mshape_ptr --> not(C_NULL)
@@ -225,9 +230,10 @@ facts("----- Testing PdePumiInterface3DG -----") do
   # test periodic 
   @fact mesh.numPeriodicInterfaces --> 0
 
-  smb_name = "tet3_pxz.smb"
+  opts["smb_name"] = "tet3_pxz.smb"
   opts["BC1"] = [0,2,4,5,6]
-  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 18
   for i=1:mesh.numInterfaces
@@ -244,11 +250,13 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   # this mesh test that matched vertices are used for orientation 
   # determiniation
-  smb_name = "tet5_periodic.smb"
+
+  opts["smb_name"] = "tet5_periodic.smb"
   opts["numBC"] = 0
   delete!(opts, "BC1")
 
-  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 3*(5*5*2)
   for i=1:mesh.numInterfaces
@@ -275,8 +283,11 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   end  # end loop order
 
-  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
-  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+
+  mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
+#  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   compare_meshes(mesh, mesh_c)
 
@@ -292,18 +303,23 @@ facts("----- Testing PdePumiInterface3DG -----") do
   topo = ElementTopology{3}(face_verts)
   sbpface = TetFace{Tsbp}(degree, sbp.cub, ref_verts)
 
-  dmg_name = ".null"
-#  smb_name = "tet1.smb"
-  smb_name = "unitcube.smb"
-
   opts = PdePumiInterface.get_defaults()
+  opts["dmg_name"] = ".null"
+#  smb_name = "tet1.smb"
+  opts["smb_name"] = "unitcube.smb"
+  opts["coloring_distance"] = 2
+
+
   opts["use_linear_metrics"] = true
+  opts["order"] = degree
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
 #  interp_op = eye(4)
-  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
-  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
+#  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   
   dxidx_orig = copy(mesh.dxidx)
@@ -399,15 +415,19 @@ facts("----- Testing PdePumiInterface3DG -----") do
   sbpface = getTetFaceForDiagE(degree, sbp.cub, ref_verts)
 #  sbpface = TetFace{Tsbp}(degree, sbp.cub, ref_verts)
 
-  dmg_name = ".null"
+  opts["dmg_name"] = ".null"
 #  smb_name = "tet1.smb"
-  smb_name = "unitcube.smb"
+  opts["smb_name"] = "unitcube.smb"
 
   opts["use_linear_metrics"] = false
 
 #  interp_op = eye(4)
-  mesh2_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo, shape_type=4)
-  mesh2 = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo, shape_type=4)
+
+  mesh2_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo; shape_type=4)
+#  mesh2_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo, shape_type=4)
+  
+  mesh2 = PumiMeshDG3(Float64, sbp, opts, sbpface, topo, shape_type=4)
+#  mesh2 = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo, shape_type=4)
 
   for i=1:mesh.numEl
     for j=1:mesh.numNodesPerElement

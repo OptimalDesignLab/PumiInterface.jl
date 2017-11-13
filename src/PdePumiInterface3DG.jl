@@ -366,8 +366,148 @@ type PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1}   # 2d p
                           # grid, numNodesPerElement_s x numNodesPerElement_f
   I_F2ST::Matrix{Float64} # transpose of above
 
+  """
+    This inner constructor loads a Pumi mesh from files and sets a few fields
+    that must be consistent with how the mesh was loaded.
 
- function PumiMeshDG3(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface, topo::ElementTopology{3}; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
+    **Inputs**
+
+     * dmg_name: name of Pumi geometry file
+     * smb_name: name of Pumi mesh files (without file number)
+
+   **Keywords**
+
+    * shape_type: integer identifying the field shape of the coordinate field,
+                  default -1 (keep existing field)
+    * order: order of coordinate field, unused if coordinate field is not
+             changed, default 1
+    * comm: MPI Communicator the mesh will be defind on, must have the same
+            number of processes as the mesh
+
+  """
+  function PumiMeshDG3(dmg_name::AbstractString, smb_name::AbstractString;
+                       order::Integer=1, shape_type::Integer=-1,
+                       comm=MPI.COMM_WORLD)
+    if !MPI.Initialized()
+      MPI.Init()
+    end
+
+    mesh = new()
+    mesh.isDG = true
+    mesh.dim = 3
+
+    mesh.comm = comm
+    topo2 = ElementTopology{2}(PumiInterface.tri_edge_verts.')
+    mesh.topo_pumi = ElementTopology{3}(PumiInterface.tet_tri_verts.',
+                                      PumiInterface.tet_edge_verts.', topo2=topo2)
+    mesh.myrank = MPI.Comm_rank(mesh.comm)
+    mesh.commsize = MPI.Comm_size(mesh.comm)
+    myrank = mesh.myrank
+
+    if myrank == 0
+      println("\nConstructing PumiMeshDG3 Object")
+      println("  smb_name = ", smb_name)
+      println("  dmg_name = ", dmg_name)
+    end
+
+    mesh.m_ptr, dim = loadMesh(dmg_name, smb_name, order, shape_type=shape_type)
+
+    pushMeshRef(mesh.m_ptr)
+    if dim != mesh.dim
+      throw(ErrorException("loaded mesh is not 3 dimensional"))
+    end
+
+    return mesh
+  end  # end inner constructor
+
+  """
+    This inner constructor returns an uninitailized mesh object.
+  """
+  function PumiMeshDG3()
+    return new()
+  end
+
+end  # end PumiMeshDG3 type declaration
+
+"""
+  This outer constructor loads a mesh from a file, according to the
+  options specified in the options dictionary.  The following keys are used:
+
+  * smb_name
+  * dmg_name
+
+  **Inputs**
+
+   * T: the DataType of the data fields of the mesh
+   * sbp: SBP operator
+   * topo: ElementTopology{3} describing the SBP operator reference element
+           topology
+ 
+  **Keyword**
+
+   * dofpernode: number of degrees of freedom at each node in the mesh,
+                 default 1
+   * shape_type: the integer identifying the solution field shape, must match
+                 the SBP operator
+   * comm: the MPI Communicator the mesh is to be loaded on, must have the 
+           same number of processes as the mesh
+"""
+function PumiMeshDG3{T, Tface}(::Type{T}, sbp::AbstractSBP, opts,
+                               sbpface::Tface,
+                               topo::ElementTopology{3}; 
+                               dofpernode=1, shape_type=2, comm=MPI.COMM_WORLD)
+
+  
+  set_defaults(opts)
+
+  # distinguish between coordinate field and solution field
+  coord_shape_type = -1  # keep coordinate field already present
+  coord_order = 1
+
+  smb_name = opts["smb_name"]
+  dmg_name = opts["dmg_name"]
+
+  mesh = PumiMeshDG3{T, Tface}(dmg_name, smb_name, order=coord_order,
+                               shape_type=coord_shape_type)
+
+  mesh.sbpface = sbpface
+  finishMeshInit(mesh, sbp, opts, topo, dofpernode=dofpernode, shape_type=shape_type)
+
+  return mesh
+end
+
+"""
+  Finish mesh initialization.  Most constructors use this to do the bulk of the
+  initialization.  The options dictionary keys "order" and "coloring_distance"
+  are used.  The following fields of the mesh must already be populated:
+
+   * isDG
+   * dim
+   * comm
+   * topo_pumi
+   * myrank
+   * commsize
+   * m_ptr
+
+  **Inputs**
+
+   * mesh: partially initailized mesh object
+   * sbp: SBP operator
+   * opts: options dictionary
+   * topo: the ElementTopology{3} describing the SBP reference element
+
+  **Keyword**
+
+   * dofpernode: number of degrees of freedom on each node, default 1
+   * shape_type: integer identifying the solution field shape, must match the
+                 SBP operator
+
+
+"""
+function finishMeshInit{T1}(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
+                            topo::ElementTopology{3};
+                            dofpernode=1, shape_type=2)
+#function finishMeshInit(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface, topo::ElementTopology{3}; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -378,13 +518,13 @@ type PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1}   # 2d p
   #              3 = DG2
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
-  println("\nConstructing PumiMeshDG3 Object")
-  println("  smb_name = ", smb_name)
-  println("  dmg_name = ", dmg_name)
-  set_defaults(opts)
-  mesh = new()
-  mesh.isDG = true
-  mesh.dim = 3
+  # unpack options keys
+  field_shape_type = shape_type
+  order = opts["order"]
+  coloring_distance = opts["coloring_distance"]
+  myrank = mesh.myrank
+  sbpface = mesh.sbpface
+
   mesh.numDofPerNode = dofpernode
   mesh.order = order
   mesh.shape_type = shape_type
@@ -392,50 +532,23 @@ type PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1}   # 2d p
 #  mesh.interp_op = interp_op
   mesh.ref_verts = [0.0 1 0; 0 0 1]  # ???
   mesh.numNodesPerFace = sbpface.numnodes
-  mesh.comm = comm
   mesh.topo = topo
-  topo2 = ElementTopology{2}(PumiInterface.tri_edge_verts.')
-  mesh.topo_pumi = ElementTopology{3}(PumiInterface.tet_tri_verts.',
-                                      PumiInterface.tet_edge_verts.', topo2=topo2)
-
   checkTopologyConsistency(mesh.topo, mesh.topo_pumi)
 
-  if !MPI.Initialized()
-    MPI.Init()
-  end
-
-  mesh.myrank = MPI.Comm_rank(mesh.comm)
-  mesh.commsize = MPI.Comm_size(mesh.comm)
   myrank = mesh.myrank
   mesh.f = open("meshlog_$myrank.dat", "w")
 
   # force mesh to be interpolated
 #  if sbp.numfacenodes == 0
-    mesh.sbpface = sbpface
-    mesh.isInterpolated = true
+  mesh.isInterpolated = true
 #  else
 #    mesh.isInterpolated = false
 #    # leave mesh.sbpface undefined - bad practice
 #  end
 
-  # figure out coordinate FieldShape, node FieldShape
-#  if shape_type == 2 || shape_type == 3 || shape_type == 4 || shape_type == 5
-   # we now use the existing coordinate field for all DG meshes and create
-   # a separate solution field
-    coord_shape_type = -1  # keep coordinate field already present
-    field_shape_type = shape_type
-    mesh_order = 1  # TODO: change this to an input-output parameter
-#  else  # same coordinate, field shape
-#    coord_shape_type = shape_type
-#    field_shape_type = shape_type
-#    mesh_order = order
-#  end
+  mesh.coordshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
 
-  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
-
-  if dim != mesh.dim
-    throw(ErrorException("loaded mesh is not 3 dimensional"))
-  end
+#  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
 
   # create the solution field
   mesh.mshape_ptr = getFieldShape(field_shape_type, order, mesh.dim)
@@ -797,10 +910,6 @@ end
 
  
   
-end
-
-
-
 function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)
 # construct pumi mesh for preconditioner residual evaluations

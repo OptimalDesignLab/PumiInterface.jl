@@ -12,7 +12,10 @@ include("test_funcs.jl")
   smb_name = "./parallel2.smb"
   order = 1
 facts("Testing PUMIInterface.jl") do
-  num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
+
+  m_ptr, dim = loadMesh(dmg_name, smb_name, order)
+  mshape_ptr, num_Entities, n_arr = initMesh(m_ptr)
+#  num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
 
   myrank = MPI.Comm_rank(MPI.COMM_WORLD)
   @fact num_Entities[1] --> 6
@@ -86,6 +89,10 @@ end
 
 facts("----- Testing PdePumiInterfaceDG -----") do
   opts = Dict{Any, Any}(
+    "dmg_name" => dmg_name,
+    "smb_name" => smb_name,
+    "coloring_distance" => 2,
+    "order" => order,
     "numBC" => 1,
     "BC1" =>  [0,1,2,3],
     "run_type" => 1,
@@ -113,9 +120,10 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   vtx = [-1. 1 -1; -1 -1 1]
 #  interp_op = SummationByParts.buildinterpolation(sbp, vtx)
   sbpface = TriFace{Float64}(order, sbp.cub, vtx.')
-
-  mesh_c = PumiMeshDG2{Complex128, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface)
-  mesh = PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface)
+  mesh_c = PumiMeshDG2(Complex128, sbp, opts, sbpface)
+#  mesh_c = PumiMeshDG2{Complex128, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface)
+  mesh = PumiMeshDG2(Float64, sbp, opts, sbpface)
+#  mesh = PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface)
 
   @fact mesh.numVert --> 6
   @fact mesh.numEdge --> 9
@@ -338,13 +346,19 @@ facts("----- Testing PdePumiInterface3DG -----") do
   smb_name = "pcube2.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["dmg_name"] = dmg_name
+  opts["smb_name"] = smb_name
   opts["use_linear_metrics"] = true
+  opts["coloring_distance"] = 2
+  opts["order"] = degree
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
 #  interp_op = eye(4)
-  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
-  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
+#  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numEl --> 12
   @fact mesh.numGlobalEl --> 16
@@ -442,20 +456,26 @@ facts("----- Testing PdePumiInterface3DG -----") do
   smb_name = "tet2_pxz_p2_.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["smb_name"] = smb_name
+  opts["dmg_name"] = dmg_name
   opts["use_linear_metrics"] = true
+  opts["coloring_distance"] = 2
+  opts["order"] = degree
   opts["numBC"] = 1
   opts["BC1"] = [0,2,4,5]
 
-  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 4
   @fact mesh.numInterfaces --> (mesh.numFace - 8 - 3*4 - 8)
   @fact mesh.peer_face_counts[1] --> 8
 
   smb_name = "tet2_pxy_p2_.smb"
-
+  opts["smb_name"] = smb_name
   opts["BC1"] = [1,2,3,4]
-  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 0
   @fact mesh.numInterfaces --> (mesh.numFace - 2*8 - 4*4)
@@ -490,21 +510,33 @@ facts("----- Testing PdePumiInterface3DG -----") do
   smb_name = "tet111_.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["dmg_name"] = dmg_name
+  opts["smb_name"] = smb_name
+  opts["order"] = degree
   opts["numBC"] = 0
-
-  @fact_throws PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  opts["coloring_distance"] = 2
+ 
+  @fact_throws PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  @fact_throws PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   # check 2 x 2 x 2 mesh works
   dmg_name = ".null"
   smb_name = "tet222_.smb"
 
-  PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  opts["dmg_name"] = dmg_name
+  opts["smb_name"] = smb_name
+
+  PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   # this doesn't work because each partition is a 1 x 1 x 1 cube with periodic faces
   dmg_name = ".null"
   smb_name = "tet211_.smb"
+  opts["dmg_name"] = dmg_name
+  opts["smb_name"] = smb_name
 
-  @fact_throws PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  @fact_throws PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  @fact_throws PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
 
 

@@ -127,7 +127,7 @@ end
 
 
 # export low level interface functions
-export declareNames, init, init2, pushMeshRef, popMeshRef, getConstantShapePtr, getMeshShapePtr, countJ, writeVtkFiles, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, getAllEntityCoords, createNumberingJ, getNumberingShape, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, zeroField, getCoordinateField, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
+export declareNames, init, loadMesh, initMesh, pushMeshRef, popMeshRef, getConstantShapePtr, getMeshShapePtr, countJ, writeVtkFiles, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, getAllEntityCoords, createNumberingJ, getNumberingShape, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, zeroField, getCoordinateField, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
 # iterator functors
 export MeshIterator, iterate, iteraten, free, deref
@@ -141,6 +141,10 @@ export getEntity, incrementIt, resetIt
 
 export setPoint, acceptChanges, Verify, getPoint
 export hasMatching, getSharing, isOwned, countCopies, getCopies, countMatches, getMatches
+
+# SubMesh creation
+export createSubMesh, getNewMesh, getOldMesh, writeNewMesh, getParentNumbering, 
+       getNewMeshData, getGeoTag, SubMeshData
 
 @doc """
   initilize the state of the interface library
@@ -187,7 +191,7 @@ end
 return num_Entities, m_ptr_array[1], mshape_ptr_array[1], n_arr
 end
 
-
+#=
 # 2d initilization
 function init2(dmg_name::AbstractString, smb_name::AbstractString, order::Integer; load_mesh=true, shape_type=0)
 # initilize mesh interface
@@ -216,6 +220,69 @@ end
 
 
 return num_Entities, m_ptr_array[1], mshape_ptr_array[1], dim[], n_arr
+end
+=#
+"""
+  This function loads a mesh from a file and ensure the coordinate FieldShape
+  is correct.  It does not perform any additional initialization, see
+  [`initMesh`](@ref) for that.
+
+  **Inputs**
+
+   * dmg_name: name of geometry file, can be .null for null geometric model
+   * smb_name: name of mesh file, not including file number (ie. abc.smb not
+               abc0.smb for process 0)
+   * order: order of coordinate field
+   * shape_type: keyword argument, FieldShape identifier,
+                 see getFieldShape in funcs1.cc, default 0
+
+  **Outputs**
+
+   * m_ptr: apf::Mesh2*
+   * dim: dimension of the loaded mesh
+
+  [`popMeshRef`](@ref) should be called on this pointer to free it.
+"""
+function loadMesh(dmg_name::AbstractString, smb_name::AbstractString,
+                  order::Integer; shape_type::Integer=0)
+
+  dim_ret = Array(Cint, 1)
+  m_ptr = ccall( (:loadMesh, pumi_libname), Ptr{Void},
+                 (Cstring, Cstring, Cint, Cint, Ptr{Cint}),
+                 dmg_name, smb_name, shape_type, order, dim_ret)
+
+  return m_ptr, dim_ret[1]
+end
+
+"""
+  This function performs some initial numbering and counting of various
+  mesh entities
+
+  **Inputs**
+
+   * m_ptr: a apf::Mesh* of an already loaded mesh
+ 
+  **Outputs**
+
+   * mshape_ptr: a apf::FieldShape* for the mesh coordinate field
+   * num_entities: array of length 4 containing the number of entities of
+                   each dimension, low to high, on this partition of the mesh.
+                   All entities, including non-owned ones, are counted
+   * n_array: array of length 4 containing a local numbering of the entities
+              of each dimension, low to high.  If the mesh is 2 dimensional,
+              accessing the 4th element of the array is undefined
+"""
+function initMesh(m_ptr::Ptr{Void})
+
+  mshape_ptr_array = Array(Ptr{Void}, 1)
+  num_entities = Array(Cint, 4)
+  n_arr = Array(Ptr{Void}, 4)
+
+  ccall( (:initMesh, pumi_libname), Void,
+    (Ptr{Void}, Ptr{Cint}, Ptr{Ptr{Void}}, Ptr{Ptr{Void}}),
+    m_ptr, num_entities, mshape_ptr_array, n_arr)
+
+  return mshape_ptr_array[1], num_entities, n_arr
 end
 
 
@@ -1157,6 +1224,105 @@ function getTopologyMaps()
 
   return tri_edge_verts, tet_edge_verts, tet_tri_verts
 end
+
+
+"""
+  Type to encapsulate a pointer to a SubMeshData class
+"""
+immutable SubMeshData
+  pobj::Ptr{Void}
+end
+
+"""
+  Create a submesh, returning an object that contains information about the
+  relation between the elements of the two meshes
+
+  **Inputs**
+
+   * m_ptr: apf::Mesh* for existing mesh
+   * numberings: array of 0-based apf::Numberings, of length mesh.dim + 1, numbering
+     the entities of dimension 0 to dim
+   * el_list: array of Cint element numbers (in the numberings[end] numbering)
+              that will exist on the new mesh
+
+  **Output**
+  
+   * SubMeshData: type containing information relating the old mesh and the
+                  new mesh
+"""
+function createSubMesh(m_ptr::Ptr{Void}, numberings::AbstractArray{Ptr{Void}},
+                       el_list::AbstractArray{Cint})
+
+  sdata = ccall( (:createSubMesh2, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Ptr{Void}}, Ptr{Cint}, Cint), m_ptr, numberings, el_list, length(el_list))
+
+  return SubMeshData(sdata)
+end
+
+"""
+  Writes the new mesh (created by [`createSubMesh`](@ref) to a file
+
+  **Inputs**
+
+   * sdata: SubMeshData
+   * fname: file name, including .smb extension
+
+"""
+function writeNewMesh(sdata::SubMeshData, fname::AbstractString)
+
+  ccall( (:writeNewMesh, pumi_libname), Void, (SubMeshData, Cstring), sdata, fname)
+end
+
+"""
+  Get the apf::Mesh* of the new mesh
+
+  **Inputs**
+
+   * sdata: SubMeshData
+
+  **Outputs**
+
+   * a apf::Mesh*
+"""
+function getNewMesh(sdata::SubMeshData)
+
+  m_ptr = ccall( (:getNewMesh, pumi_libname), Ptr{Void}, (SubMeshData,), sdata)
+  return m_ptr
+end
+
+"""
+  Get the original mesh pointer.
+"""
+function getOldMesh(sdata::SubMeshData)
+
+  m_ptr = ccall( (:getOldMesh, pumi_libname), Ptr{Void}, (SubMeshData,), sdata)
+  return m_ptr
+end
+
+
+"""
+  Returns an apf::Numbering* for a Numbering on the submesh containing the
+  element number on the original mesh that each element came from.
+"""
+function getParentNumbering(sdata::SubMeshData)
+
+  n_ptr = ccall( (:getParentNumbering, pumi_libname), Ptr{Void}, (SubMeshData,), sdata)
+  return n_ptr
+end
+
+function getGeoTag(sdata::SubMeshData)
+
+  new_geo = ccall( (:getGeoTag, pumi_libname), Cint, (SubMeshData,), sdata)
+  return new_geo
+end
+
+
+function free(sdata::SubMeshData)
+
+  n_ptr = ccall( (:freeSubMesh2, pumi_libname), Void, (SubMeshData,), sdata)
+  return n_ptr
+end
+
+
 
 declareNames()  # will this execute when module is compiled?
 

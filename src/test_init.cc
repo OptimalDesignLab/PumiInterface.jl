@@ -12,6 +12,7 @@
 //#include "dgSBPShape1.h"
 //#include "apfSBPShape.h"
 
+/*
 void printRemoteInfo(apf::Mesh* m)
 {
 
@@ -71,6 +72,7 @@ void printRemoteInfo(apf::Mesh* m)
   fs.close();
 
 } // function printRemoteInfo
+*/
 /*
 void printModelClassification(apf::Mesh * m)
 {
@@ -119,7 +121,7 @@ void printCoordinates(apf::Mesh* m)
     while ( (e = m->iterate(it)) )
     {
       m->getPoint(e, 0, coords);
-      std::cout << "  dimension " << dim << " entity " << i << " coords = " << coords.x() << ", " << coords.y() << coords.z() << std::endl;
+      std::cout << "  dimension " << dim << " entity " << i << " coords = " << coords.x() << ", " << coords.y() << ", " << coords.z() << std::endl;
       
     }
   }
@@ -146,7 +148,6 @@ int main (int argc, char** argv)
   std::cout << "loading geometric model" << std::endl;
   gmi_model* g = gmi_load(".null");
   std::cout << "finished loading geometric model" << std::endl;
-  // using the mesh vortex3_1.smb works fine
   apf::Mesh2* m = apf::loadMdsMesh(g, argv[1] );
 
   std::cout << "finished loading mesh" << std::endl;
@@ -154,8 +155,6 @@ int main (int argc, char** argv)
 
   apf::FieldShape* fshape_orig = m->getShape();
   std::cout << "fieldshape_orig name = " << fshape_orig->getName() << std::endl;
-//  int order_orig = fshape_orig->getOrder();
-
 
   // see if coordinates were moved into tags
   apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
@@ -168,22 +167,24 @@ int main (int argc, char** argv)
     std::cout << "tag " << i << " name = " << m->getTagName(tags[i]) << std::endl;
   }
 
-//  printCoordinates(m);
-  printRemoteInfo(m);
-/*
+  std::cout << "before changing shape, coords = " << std::endl;
+  printCoordinates(m);
+//  printRemoteInfo(m);
+
+  // force the coordinates into the field
   if (coords_tag != 0)
   {
+    int order_orig = m->getShape()->getOrder();
     std::cout << "performing initial shape change" << std::endl;
     apf::changeMeshShape(m, apf::getLagrange(order_orig), false);
   }
-*/
-//  apf::FieldShape* fshape = apf::getSBPShape(1);
-//  apf::FieldShape* fshape = apf::getLagrange(1);
-//  apf::changeMeshShape(m, fshape, true);
-//  std::cout << "finished changing mesh shape" << std::endl;
 
-//  apf::writeASCIIVtkFiles("output_check", m);
-  apf::writeVtkFiles("output_check", m);
+  // print coordinates again
+  std::cout << "after changing shape, coords = " << std::endl;
+  printCoordinates(m);
+
+  apf::writeASCIIVtkFiles("output_check", m);
+//  apf::writeVtkFiles("output_check", m);
 
   std::cout << "finished writing paraview files" << std::endl;
 

@@ -17,13 +17,13 @@ end
   This function runs all the test of mesh connectivity
 """
 function checkConnectivity(mesh::PumiMesh)
-
+#=
   checkVertConnectivity(mesh)
   checkEdgeConnectivity(mesh)
   if mesh.dim > 2
     checkFaceConnectivity(mesh)
   end
-
+=#
 #  checkContiguity(mesh)
 
   return nothing

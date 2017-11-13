@@ -1,6 +1,6 @@
 module PdePumiInterface
-push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
-push!(LOAD_PATH, "/users/creanj/.julia/v0.4/PDESolver/src/common")
+#push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
+#push!(LOAD_PATH, "/users/creanj/.julia/v0.4/PDESolver/src/common")
 using PumiInterface
 using SummationByParts
 using ODLCommonTools
@@ -15,9 +15,14 @@ include("nodecalc.jl")
 include("options.jl")
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
+#TODO: revise this list
 export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryFaceLocalNum, getFaceLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles, update_coords, commit_coords
 
 export zeroBarArrays, getAllCoordinatesAndMetrics_rev
+
+# submesh functions
+export injectionOperator, rejectionOperator, getBoundaryInterpArray
+
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 
@@ -281,6 +286,11 @@ function finalizeMesh(mesh::PumiMesh)
     mesh.mexact_ptr = C_NULL
   end
 
+  if ( :subdata in fnames) && mesh.subdata.pobj != C_NULL
+    free(mesh.subdata)
+    mesh.subdata = SubMeshData(C_NULL)
+  end
+
 
 
   return nothing
@@ -291,6 +301,7 @@ include("elements.jl")
 include("./PdePumiInterface3.jl")
 include("PdePumiInterfaceDG.jl")
 include("PdePumiInterface3DG.jl")
+
 @doc """
 ### PumiInterface.PumiMesh2
 
@@ -511,12 +522,18 @@ type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   mesh.numPeriodicInterfaces = 0
   mesh.topo = ElementTopology2()  # get default topology because it isn't
                                   # important for 2d
-  num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, shape_type=shape_type)
-  mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
-                                         # field shape for CG
+
+  mesh.m_ptr, dim = loadMesh(dmg_name, smb_name, order, shape_type=shape_type)
+
+  pushMeshRef(mesh.m_ptr)
   if dim != mesh.dim
     throw(ErrorException("loaded mesh is not 2 dimensions"))
   end
+  mesh.mshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
+
+#  num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, shape_type=shape_type)
+  mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
+                                         # field shape for CG
   mesh.sbpface = sbpface
   if !haskey(ENV, "PDEPUMIINTERFACE_TESTING")
     @assert mesh.order == 1
@@ -806,7 +823,7 @@ include("utils.jl")
 include("visualization.jl")
 include("warp.jl")
 include("verify.jl")
-
+include("submesh.jl")
 
 function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)
@@ -892,7 +909,10 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   dmg_name = "b"
   order = mesh.order
   dofpernode = mesh.numDofPerNode
-  tmp, num_Entities, m_ptr, mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
+  dim = mesh.dim
+
+  mshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
+#  tmp, num_Entities, m_ptr, mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
   f_ptr = mesh.f_ptr  # use existing solution field
 
   numVert = convert(Int, num_Entities[1])

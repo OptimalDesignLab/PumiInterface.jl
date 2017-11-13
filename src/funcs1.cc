@@ -21,10 +21,6 @@
 apf::MeshEntity* entity_global;  // token mesh entity used for EntityShape
 apf::MeshEntity* e_tmp;
 
-int numEntity[4];  // number of each type of entity
-int numDown[4][4];  // number of downward adjacencies entity i has of type j
-                 // define vertices to have zero
-                 // this assumes only one type of element per mesh
 const char *names[] = { "vertex", "edge", "face", "element"};  // array of strings, used for printing output inside loops
 IsotropicFunctionJ isofunc;  // declare isotropic function at global scope
 AnisotropicFunctionJ anisofunc; // declare anisotropic function at global scope
@@ -118,8 +114,7 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
   // initilize  number of each type of entity
   for (int i = 0; i < 4; ++i)
   {
-    numEntity[i] = apf::countOwned(m, i);
-    number_entities[i] = numEntity[i];
+    number_entities[i] = apf::countOwned(m, i);
   }
 
   // initilize numberings
@@ -135,20 +130,18 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 }
 
 
-
-
-
-
 // init for 2d mesh or 3d mesh
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
 // PCU appears to not want a Communicator object?
 // if not loading a mesh, m_ptr_array must contain apf::Mesh* of the mesh
 // to re-initialize
-int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], apf::Numbering* n_array[], int order, int load_mesh, int shape_type )
-{
-//  std::cout << "Entered init2\n" << std::endl;
+//apf::Mesh*  initABC2(const char* dmg_name, const char* smb_name, int number_entities[], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1], int dim_ret[1], apf::Numbering* n_array[], int order, int load_mesh, int shape_type )
 
+// this function does not add to the mesh refcount, the caller must do it
+apf::Mesh2* loadMesh(const char* dmg_name, const char* smb_name, int shape_type,
+                     int order, int dim_ret[1])
+{
   // various startup options
   // initilize communications if needed
   int flag;
@@ -165,105 +158,80 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
   }
  
   int dim;
-  // if we load a mesh, this value will get replaced
-  apf::Mesh2* m = m_ptr_array[0];
-  if (load_mesh)  // if the user said to load a new mesh
+  apf::Mesh2* m;
+  if (strcmp(dmg_name, ".null") == 0)
   {
-    /*
-    if ( meshloaded)  // if a mesh has been loaded before
-    {
-//      std::cout << "Performing cleanup before loading new mesh" << std::endl;
-      popMeshRef(m);
-//      cleanup(m);
-    }
-    */
-
-    if (strcmp(dmg_name, ".null") == 0)
-    {
-      gmi_register_null();
+    gmi_register_null();
 //      std::cout << "loading null geometric model" << std::endl;
-      gmi_model* g = gmi_load(".null");
+    gmi_model* g = gmi_load(".null");
 //      std::cout << "finished loading geometric model" << std::endl;
-      m = apf::loadMdsMesh(g, smb_name);
-      pushMeshRef(m);
-//    apf::changeMeshShape(m, apf::getLagrange(2), true);
-//    apf::changeMeshShape(m, apf::getLagrange(1), false); // for linear meshes
-//    apf::changeMeshShape(m, apf::getSerendipity(), true);
-//        apf::changeMeshShape(m, m->getShape(), false);
-      m->verify();
-    } else {
-      gmi_register_mesh();
+    m = apf::loadMdsMesh(g, smb_name);
+    // m->verify();
+  } else {
+    gmi_register_mesh();
 //      std::cout << "loading geometric model from file" << std::endl;
-      m = apf::loadMdsMesh(dmg_name, smb_name);
-      pushMeshRef(m);
-    }
-    dim = m->getDimension();
+    m = apf::loadMdsMesh(dmg_name, smb_name);
+  }
+  dim = m->getDimension();
 //    meshloaded = true;  // record the fact that a mesh is now loaded
-    apf::reorderMdsMesh(m);
+  apf::reorderMdsMesh(m);
 
-    int order_orig = m->getShape()->getOrder();
-    bool change_shape;
-    apf::FieldShape* fshape = getFieldShape(shape_type, order, dim, change_shape);
-    // check if the coordinates have been moved into tags
-    // this is a result of the mesh shape having been changed previously
-    apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
-    
-    // if the tag exists and if original shape is linear
-    // this is a workaround for old meshes where the coordinate field was
-    // not saved correctly.  Presumably they have linear fields only, so
-    // only force the tag data back into the regular field for linear meshes.
-    // For higher order meshes, keep the data.
-    if (coords_tag != 0 && order_orig == 1)
-    {
-      apf::changeMeshShape(m, apf::getLagrange(1), false);
-      std::cout << "finished first mesh shape change" << std::endl;
-    }
-    
-    if ( change_shape && order_orig > order)
-    {
-      std::cerr << "Warning: changing mesh coordinate field from " << order_orig << " to " << order << " will result in loss of resolution" << std::endl;
-    }
+  int order_orig = m->getShape()->getOrder();
+  bool change_shape;
+  apf::FieldShape* fshape = getFieldShape(shape_type, order, dim, change_shape);
+  // check if the coordinates have been moved into tags
+  // this is a result of the mesh shape having been changed previously
+  apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
+  
+  // if the tag exists and if original shape is linear
+  // this is a workaround for old meshes where the coordinate field was
+  // not saved correctly.  Presumably they have linear fields only, so
+  // only force the tag data back into the regular field for linear meshes.
+  // For higher order meshes, keep the data.
+  if (coords_tag != 0 && order_orig == 1)
+  {
+    apf::changeMeshShape(m, apf::getLagrange(1), false);
+    std::cout << "finished first mesh shape change" << std::endl;
+  }
+  
+  if ( change_shape && order_orig > order)
+  {
+    std::cerr << "Warning: changing mesh coordinate field from " << order_orig << " to " << order << " will result in loss of resolution" << std::endl;
+  }
 
-    if (change_shape)
+  if (change_shape)
+  {
+    std::cout << "about to perform final mesh shape change" << std::endl;
+    std::cout << "changing to shape named " << fshape->getName() << std::endl;
+    if ( order == 1 )
     {
-      std::cout << "about to perform final mesh shape change" << std::endl;
-      std::cout << "changing to shape named " << fshape->getName() << std::endl;
-      if ( order == 1 )
-      {
-        apf::changeMeshShape(m, fshape, true);
-      } else
-      {
-        apf::changeMeshShape(m, fshape, true);
-      }
-
-//      std::cout << "finished loading mesh, changing shape" << std::endl;
-//      std::cout << "new shape name is " << m->getShape()->getName() << std::endl;
+      apf::changeMeshShape(m, fshape, true);
     } else
     {
-//      std::cout << "finished loading mesh" << std::endl;
+      apf::changeMeshShape(m, fshape, true);
     }
 
-  } else {  // if not loading a mesh
-    dim = m->getDimension();
+//    std::cout << "finished loading mesh, changing shape" << std::endl;
+//    std::cout << "new shape name is " << m->getShape()->getName() << std::endl;
   }
 
   dim_ret[0] = dim; // return to julia
+  return m;
 
-  // this should have a new filename everytime
-//  apf::writeASCIIVtkFiles("output_check", m);
+}  // function loadMesh()
 
 
-  m_ptr_array[0] = m;
+void initMesh(apf::Mesh* m, int number_entities[],
+       apf::FieldShape* mshape_ptr_array[1], apf::Numbering* n_array[])
+{
   mshape_ptr_array[0] = m->getShape();
-  apf::MeshIterator* it = m->begin(0);
-  entity_global = m->iterate(it);  // get token mesh entity
+  int dim = m->getDimension();
   
   // initilize  number of each type of entity
   for (int i = 0; i < (dim+1); ++i)
   {
-    numEntity[i] = (m->count(i));
+    number_entities[i] = (m->count(i));
 //      apf::countOwned(m, i);
-    number_entities[i] = numEntity[i];
   }
 
   // create numberings
@@ -274,6 +242,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
     n_array[3] = apf::createNumbering(m, "regionNums", apf::getConstant(3), 1);
 
 
+  apf::MeshIterator* it;
   for (int i = 0; i < (dim+1); ++i)  // loop over dimensions
   {
     int curr_num = 0;
@@ -290,7 +259,8 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
    
 //  resetFaceIt();
 
-  apf::writeASCIIVtkFiles("output_init", m);
+  apf::writeVtkFiles("output_init", m);
+//  apf::writeASCIIVtkFiles("output_init", m);
 /*
   // write curved mesh visualization file
   apf::FieldShape* mshape = m->getShape();
@@ -299,8 +269,7 @@ int initABC2(const char* dmg_name, const char* smb_name, int number_entities[], 
   crv::writeCurvedVtuFiles(m, apf::Mesh::TRIANGLE, mshape->countNodesOn(apf::Mesh::TRIANGLE), "houtput");
 //  ma::writePointSet(m, 2, 21, "pointcloud");
 */
-  return 0;
-}
+}  // function initMesh()
 
 // perform cleanup activities, making it safe to load a new mesh
 void cleanup(apf::Mesh* m_local)
