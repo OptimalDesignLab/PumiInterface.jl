@@ -23,6 +23,9 @@ export zeroBarArrays, getAllCoordinatesAndMetrics_rev
 # submesh functions
 export injectionOperator, rejectionOperator, getBoundaryInterpArray
 
+# face identification functions
+export getBoundaries
+
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 

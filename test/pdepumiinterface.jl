@@ -265,7 +265,17 @@ facts("--- Testing PdePumiInterface --- ") do
   end  # end if p < 2
 
 
-
+  # test getBoundary
+  geo_bndries = opts["BC1"]
+  bndries = getBoundaries(mesh, geo_bndries)
+  bndries_range = mesh.bndry_offsets[1]:(mesh.bndry_offsets[2]-1)
+  @fact length(bndries) --> length(bndries_range)
+  for i=1:length(bndries)
+    bndry1 = bndries[i]
+    bndry2 = mesh.bndryfaces[bndries_range[i]]
+    @fact bndry1.face --> bndry2.face
+    @fact bndry1.element --> bndry2.element
+  end
 
   end  # end loop over p=1:4
 

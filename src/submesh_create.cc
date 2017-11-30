@@ -85,6 +85,11 @@ SubMeshData* createSubMesh2(apf::Mesh* m, apf::Numbering* numberings[],
   createVertices(sdata);
   std::cout << "creating higher dimension entities" << std::endl;
   createEntities(sdata);
+
+  sdata->m_new->acceptChanges();
+  sdata->m_new->verify();
+  sdata->m_new->writeNative("submesh.smb");
+
   std::cout << "modifying geometry classification" << std::endl;
   reclassifyGeometry(sdata);
   std::cout << "writing parent element numbering" << std::endl;
@@ -92,10 +97,6 @@ SubMeshData* createSubMesh2(apf::Mesh* m, apf::Numbering* numberings[],
 
   apf::changeMeshShape(sdata->m_new, sdata->m_new->getShape(), true);
 
-  sdata->m_new->acceptChanges();
-  sdata->m_new->verify();
-
-//  sdata->m_new->writeNative("submesh.smb");
 
   return sdata;
 }

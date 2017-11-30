@@ -163,3 +163,86 @@ function countBoundaryEdges(mesh::PumiMesh)
   return bnd_edges_cnt, internal_edge_cnt, periodic_edge_cnt, geo_edge_nums
 
 end  # end function
+
+"""
+  Returns an array of Boundary objects for the faces on the specified
+  geometric face (edges in 2D)
+
+  **Inputs**
+  
+   * mesh: a PumiMesh object
+   * geo_face_nums: an array of the geometric face numbers (edges in 2D)
+   * geo_region_nums: an array of the geometric regions (faces in 2D)
+                      corresponding to geo_face_nums.  This
+                      is only required if the geometric edge is on the interior
+                      of the domain, to uniquely identify the elements.
+
+  **Outputs**
+
+   * an array of Boundary objects
+"""
+function getBoundaries(mesh::PumiMesh, geo_face_nums::Array{Int, 1},
+                       geo_region_nums::Array{Int, 1} = Array(Int, 0))
+
+  bndries = Array(Boundary, 0)
+  adjacent_els = Array(Ptr{Void}, 400)  # apf::Up
+
+  #TODO: check input arrays for uniqueness
+
+  for i=1:mesh.numFace
+    edge_i = mesh.faces[i]
+
+    me_i = toModel(mesh.m_ptr, edge_i)
+    me_dim = getModelType(mesh.m_ptr, me_i)
+    me_tag = getModelTag(mesh.m_ptr, me_i)
+
+    if me_dim == mesh.dim-1
+      idx = findfirst(geo_face_nums, me_tag)
+      if idx != 0  # this mesh edge is on one of the geometric edges
+
+        # get mesh face info
+        numEl = countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward 
+        if length(geo_region_nums) == 0
+          @assert numEl == 1
+          getAdjacent(adjacent_els)
+          el_ptr = adjacent_els[1]
+          elnum = getNumberJ(mesh.el_Nptr, el_ptr, 0, 0) + 1
+        else
+          @assert numEl <= 400
+          el_tag = geo_region_nums[idx]
+          el_count = 0 # number of elements matching
+          elnum = 0
+
+          # find the element that is on the geo_region_nums
+          for j=1:numEl
+            el_j = adjacent_els[j]
+            me_i = toModel(mesh.m_ptr, el_j)
+            me_dim = getModelType(mesh.m_ptr, me_i)
+            me_tag = getModelTag(mesh.m_ptr, me_i)
+
+            if me_dim == mesh.dim && me_tag == el_tag
+              elnum = getNumberJ(mesh.el_Nptr, el_j, 0, 0) + 1
+              el_count += 1
+            end
+          end
+
+          # verify exactly one element matches
+          @assert el_count == 1
+        end  # end if length == 0
+
+        # get local number of the edge
+        facenum_local = getFaceLocalNum(mesh, i, elnum)
+        push!(bndries, Boundary(elnum, facenum_local))
+      end  # end if idx != 0
+    end  # end if me_dim
+  end  # end loop over faces
+
+  return bndries
+end
+
+
+
+
+
+
+
