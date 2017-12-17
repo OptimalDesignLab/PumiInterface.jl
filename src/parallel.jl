@@ -292,6 +292,25 @@ function getEdgeBoundaries(mesh::PumiMeshDG, edges::Array{Ptr{Void}},
   return nothing
 end
 
+"""
+  Gets all of the remote pointers (both matches and remotes) for the
+  specified edges/faces on the specified peer process.
+
+  **Inputs**
+
+   * mesh
+   * peer_num: the MPI rank of the peer process
+   * bndries: array of Boundary objects that identify the faces
+
+  **Inputs/Outputs**
+
+   * orientations: an array of length n x length(bndries), where n is large
+                   enough to store all the remotes/matches on the peer process.
+
+  **Implementation Notes**
+
+  This function asserts of n is not large enough
+"""
 function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::AbstractArray{Boundary}, 
                              orientations::AbstractArray{Ptr{Void}, 2})
 # gets the remote pointers to the vertices of the elements on the boundaries
@@ -355,6 +374,26 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
   return nothing
 end
 
+"""
+  Given the remote parts numbers and the associated MeshEntity pointers, copies
+  the pointers into the output array for only those MeshEntities on the
+  specified peer process.
+
+  **Inputs**
+
+   * remote_partnums: array of part numbers (MPI ranks)
+   * remote_ptrs: MeshEntity pointers (for each remote part)
+   * peer_num: MPI rank of the process to get the MeshEntity pointers for
+   * f: IO stream (unused?)
+
+  **Inputs/Outputs**
+
+   * vert_copies: array to put the selected MeshEntity pointers into
+
+  **Outputs**
+
+   * number of MeshEntity pointers copied to the output array
+"""
 function getVertCopies(remote_partnums::AbstractArray, remote_ptrs::AbstractArray, peer_num::Integer, vert_copies::AbstractArray, f=STDOUT)
 # get all the vertices on peer peer_num and put them in the array
 # returns the number of vertices inserted
@@ -370,6 +409,7 @@ function getVertCopies(remote_partnums::AbstractArray, remote_ptrs::AbstractArra
 
   return pos - 1
 end
+
 
 function extractVertCopies(recv_verts::AbstractArray, local_verts::AbstractArray, facevertsR::AbstractArray)
 # extract the vertices that are the same as the local_verts from recv_verts, 

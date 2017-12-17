@@ -346,6 +346,9 @@ type PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1}   # 2d p
   # BitArrays, where each BitArray has length = the number of ghost elements
   # on the current peer boundary
   shared_element_colormasks::Array{Array{BitArray{1}, 1}, 1}                               
+  remote_metrics::Array{RemoteMetrics{T1}, 1}  # metric information for
+                                                 # remote elements
+
   #TODO: remove this once SBP interface is clarified
   sbpface::Tface  # SBP object needed to do interpolation
   topo::ElementTopology{3}  # SBP topology

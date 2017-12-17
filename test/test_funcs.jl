@@ -1059,4 +1059,155 @@ function test_submesh()
 end
 
 
+function test_parallel_metrics(mesh, sbp, opts)
 
+  # put known values into mesh arrays, do data exchange, check the values
+  # came out correctly
+
+  # need to skip any element that is on multiple boundaries
+  skip_els = Set{Int}()
+  for i=1:mesh.npeers
+    el_list_i = mesh.local_element_lists[i]
+
+    for j=1:(mesh.npeers-1)
+      el_list_j = mesh.local_element_lists[i]
+      common_els = intersect(el_list_i, el_list_j)
+      for k=1:length(common_els)
+        push!(skip_els, common_els[k])
+      end
+    end
+  end
+  # do one peer at a time in case a single element is shared with multiple peers
+  facts("----- Testing exchangeMetricInfo -----") do 
+    for peer=1:mesh.npeers
+      # vert_coords
+      numel = mesh.local_element_counts[peer]
+      rank = mesh.myrank
+
+      for i=1:numel
+        elnum = mesh.local_element_lists[peer]
+
+        if elnum in skip_els
+          skip_i = true
+        else
+          skip_i = false
+        end
+
+        val = 1 + rank
+        for j=1:mesh.coord_numNodesPerElement
+          for k=1:mesh.dim
+            if skip_i
+              tmp = -1
+            else
+              tmp = val
+            end
+            mesh.vert_coords[k, j, elnum] = tmp
+            val += 1
+          end
+        end
+
+        val = 2 + rank
+        for j=1:mesh.numNodesPerElement
+          for k=1:mesh.dim
+            if skip_i
+              tmp = -1
+            else
+              tmp = val
+            end
+            mesh.coords[k, j, elnum] = tmp
+            val += 1
+          end
+        end
+
+        val = 3 + rank
+        for j=1:mesh.numNodesPerElement
+          for d2=1:mesh.dim
+            for d1=1:mesh.dim
+              if skip_i
+                tmp = -1
+              else
+                tmp = val
+              end
+              mesh.dxidx[d1, d2, j, elnum] = tmp
+              val += 1
+            end
+          end
+        end
+
+        val = 4 + rank
+        for j=1:mesh.numNodesPerElement
+          if skip_i
+            tmp = -1
+          else
+            tmp = val
+          end
+          mesh.jac[j, elnum] = tmp
+          val += 1
+        end
+      end  # end loop i
+
+    end  # end loop peer
+
+    # do the data exchange
+    PdePumiInterface.exchangeMetricInfo(mesh, sbp)
+
+    # check that is came out right on the other end
+    for peer=1:mesh.npeers
+      numel = mesh.remote_element_counts[peer]
+      obj = mesh.remote_metrics[peer]
+      rank = mesh.peer_parts[peer]
+
+      for i=1:numel
+
+        val = 1 + rank
+        for j=1:mesh.coord_numNodesPerElement
+          for k=1:mesh.dim
+            tmp = obj.vert_coords[k, j, i]
+            if tmp >= 0 
+              @fact tmp --> val
+            end
+            val += 1
+          end
+        end
+
+        val = 2 + rank
+        for j=1:mesh.numNodesPerElement
+          for k=1:mesh.dim
+            tmp = obj.coords[k, j, i]
+            if tmp >= 0
+              @fact tmp --> val
+            end
+            val += 1
+          end
+        end
+
+        val = 3 + rank
+        for j=1:mesh.numNodesPerElement
+          for d2=1:mesh.dim
+            for d1=1:mesh.dim
+              tmp = obj.dxidx[d1, d2, j, i]
+              if tmp >= 0
+                @fact tmp --> val
+              end
+              val += 1
+            end
+          end
+        end
+
+        val = 4 + rank
+        for j=1:mesh.numNodesPerElement
+          tmp = obj.jac[j, i]
+          if tmp >= 0
+            @fact tmp --> val
+          end
+          val += 1
+        end
+
+      end  # end loop i
+
+    end  # end loop peer
+
+  end  # end facts block
+
+  return nothing
+end
