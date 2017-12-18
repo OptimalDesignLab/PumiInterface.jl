@@ -156,6 +156,72 @@ type VertSharing
 
 end
 
+"""
+  Holds the metric information for the remote elements along the boundary
+  with a peer process.  The Interface objects that describe the boundary
+  are in mesh.shared_interfaces (the remote element is always elementR).
+  The ordering of the elements on the interface is defined by the order the
+  elements are encountered when traversing mesh.shared_interfaces[peer_idx].
+
+  **Fields**
+
+   * peer_num: MPI rank of the process the elements are owned by
+   * peer_idx: index in mesh.peer_parts of peer_num
+   * islocal: see the `local` keyword of the outer constructor
+   * vert_coords: dim x coord_numNodesPerElement x number of elements on
+                  the interface (see mesh.remote_element_counts)
+   * coords: coordinate of the volume nodes of the remote elements,
+             dim x numNodesPerElement x number of elements on the interface
+    * jac: determinant of the mapping jacobian, numNodesPerElement x 
+           number of elements on the interface
+    * dxidx: scaled mapping jacobian at the bolume nodes, dim x dim x
+             numNodesPerElement x number of elements on the interface.
+"""
+type RemoteMetrics{Tmsh}
+  peer_num::Int  # MPI rank of other process
+  peer_idx::Int  # index in mesh.peer_parts
+  islocal::Bool
+  vert_coords::Array{Tmsh, 3}
+  coords::Array{Tmsh, 3}
+  dxidx::Array{Tmsh, 4}
+  jac::Array{Tmsh, 2}
+end
+
+
+"""
+  Outer constructor for [`RemoteMetrics`](@ref).  This function requires
+  [`getParallelInfo`](@ref) to already be called.
+
+  **Inputs**
+
+   * mesh
+   * peer: index of peer in mesh.peer_parts
+
+  **Keywords**
+
+   * islocal: if true, sizes the array using the number of elements on
+            the local side of the part boundary, otherwise sizes the array
+            for the number of elements on the remote side
+"""
+function RemoteMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh}, peer_idx::Int; islocal=true)
+
+  if islocal
+    numEl = mesh.local_element_counts[peer_idx]
+  else
+    numEl = mesh.remote_element_counts[peer_idx]
+  end
+
+  peer_num = mesh.peer_parts[peer_idx]
+  vert_coords = Array(Tmsh, mesh.dim, mesh.coord_numNodesPerElement, numEl)
+  coords = Array(Tmsh, mesh.dim, mesh.numNodesPerElement, numEl)
+  dxidx = Array(Tmsh, mesh.dim, mesh.dim, mesh.numNodesPerElement, numEl)
+  jac = Array(Tmsh, mesh.numNodesPerElement, numEl)
+
+  return RemoteMetrics{Tmsh}(peer_num, peer_idx, islocal, vert_coords, coords,
+                             dxidx, jac)
+end
+
+
 
 """
   This function copies the data fields of one mesh object to another

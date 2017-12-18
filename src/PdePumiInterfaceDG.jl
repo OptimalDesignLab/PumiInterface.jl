@@ -367,7 +367,10 @@ type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d p
   # color masks for the non-local elements, contains npeers x numColor
   # BitArrays, where each BitArray has length = the number of ghost elements
   # on the current peer boundary
-  shared_element_colormasks::Array{Array{BitArray{1}, 1}, 1}                               
+  shared_element_colormasks::Array{Array{BitArray{1}, 1}, 1}                    
+
+  remote_metrics::Array{RemoteMetrics{T1}, 1}  # metric information for
+                                                 # remote elements
   sbpface::Tface  # SBP object needed to do interpolation
   topo::ElementTopology{2}  # topology of the SBP element
   topo_pumi::ElementTopology{2}  # topology of the pumi element

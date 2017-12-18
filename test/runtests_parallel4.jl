@@ -77,6 +77,10 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
 #  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
   compare_meshes(mesh, mesh_c)
 
+
+  # note: this trashes the mesh arrays
+  test_parallel_metrics(mesh, sbp, opts)
+
   # this allocates a ton of memory - don't run
 #  test_metric_rev(mesh, mesh_c, sbp)
 end
