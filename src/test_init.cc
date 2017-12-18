@@ -9,6 +9,7 @@
 #include <apfNumbering.h>
 #include <apfShape.h>
 #include "mpi.h"
+#include "submesh_create.h"
 //#include "dgSBPShape1.h"
 //#include "apfSBPShape.h"
 
@@ -188,13 +189,14 @@ int main (int argc, char** argv)
 
   std::cout << "finished writing paraview files" << std::endl;
 
+  /*
   // create the numberings
-  apf::Numberings* numberings[4];
+  apf::Numbering* numberings[4];
   char name_buff[256];
   for (int i = 0; i < m->getDimension(); ++i)
   {
     sprintf(name_buff, "entity%d", i);
-    numberings[i] = apf::NumberingOwnedNodes(m, name_buff, apf::getConstant(i));
+    numberings[i] = apf::numberOwnedNodes(m, name_buff, apf::getConstant(i));
   }
 
   // copy all elements to new submesh
@@ -204,10 +206,11 @@ int main (int argc, char** argv)
   for (int i = 1; i <= numel; ++i)
     elnums[i-1] = i;
 
-  apf::Mesh2* mnew = createSubMesh2(m, numberings, elnums, numel);
+  SubMeshData* sdata = createSubMesh2(m, numberings, elnums, numel);
 
+  sdata->m_new->verify();
 //  printModelClassification(m);
-
+  */
   return 0;
 }
      
