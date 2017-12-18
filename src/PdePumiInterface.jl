@@ -159,7 +159,9 @@ end
 """
   Holds the metric information for the remote elements along the boundary
   with a peer process.  The Interface objects that describe the boundary
-  are in mesh.shared_interfaces
+  are in mesh.shared_interfaces (the remote element is always elementR).
+  The ordering of the elements on the interface is defined by the order the
+  elements are encountered when traversing mesh.shared_interfaces[peer_idx].
 
   **Fields**
 
@@ -167,7 +169,7 @@ end
    * peer_idx: index in mesh.peer_parts of peer_num
    * islocal: see the `local` keyword of the outer constructor
    * vert_coords: dim x coord_numNodesPerElement x number of elements on
-                  the interface (see mesh.remote_element_counts
+                  the interface (see mesh.remote_element_counts)
    * coords: coordinate of the volume nodes of the remote elements,
              dim x numNodesPerElement x number of elements on the interface
     * jac: determinant of the mapping jacobian, numNodesPerElement x 
