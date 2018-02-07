@@ -79,25 +79,19 @@ SubMeshData::~SubMeshData()
 SubMeshData* createSubMesh2(apf::Mesh* m, apf::Numbering* numberings[],
                           int* el_list, int numel)
 {
-  std::cout << "preparing data" << std::endl;
+  std::cout << "creating submesh" << std::endl;
+
   SubMeshData* sdata = new SubMeshData(m, numberings, el_list, numel);
-  std::cout << "creating vertices" << std::endl;
   createVertices(sdata);
-  std::cout << "creating higher dimension entities" << std::endl;
   createEntities(sdata);
-
-  std::cout << "modifying geometry classification" << std::endl;
   reclassifyGeometry(sdata);
-  std::cout << "writing parent element numbering" << std::endl;
   writeElNumbering(sdata);
-
   sdata->m_new->acceptChanges();
   sdata->m_new->verify();
-  sdata->m_new->writeNative("submesh.smb");
-
+//  std::cout << "about to writeNative" << std::endl;
+//  sdata->m_new->writeNative("submesh.smb");
 
   apf::changeMeshShape(sdata->m_new, sdata->m_new->getShape(), true);
-
 
   return sdata;
 }
@@ -178,7 +172,6 @@ void createVertices(SubMeshData* sdata)
 
   {
     e = *it;
-
     // get downard vertices
     int nverts = m_old->getDownward(e, 0, down_verts);
     
@@ -264,6 +257,7 @@ apf::MeshEntity* createEntity(SubMeshData* sdata, apf::MeshEntity* entity)
   // get the corresponding entities on the new mesh
   for (int i = 0; i < nentities; ++i)
   {
+    // get entities on old mesh
     int e_num = apf::getNumber(sdata->numberings[dim-1], down_entities[i], 0, 0);
     down_entities[i] = sdata->entities[dim-1][e_num];
     assert(down_entities[i] != NULL); // entity already created

@@ -146,6 +146,7 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
     end
   end  # end if mesh.isDG
 
+  println("finished createSubtriangulatedMesh")
   return nothing
 end
 

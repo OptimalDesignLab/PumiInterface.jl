@@ -183,8 +183,7 @@ i = ccall( (init_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32},
 #i = ccall( (init_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array )  # call init in interface library
 
 if ( i != 0)
-  println("init failed, exiting ...")
-  exit()
+  error("init failed, exiting ...")
 end
 
 

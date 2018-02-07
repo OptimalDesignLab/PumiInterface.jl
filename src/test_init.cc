@@ -74,7 +74,7 @@ void printRemoteInfo(apf::Mesh* m)
 
 } // function printRemoteInfo
 */
-/*
+
 void printModelClassification(apf::Mesh * m)
 {
   apf::MeshEntity* e;
@@ -88,7 +88,7 @@ void printModelClassification(apf::Mesh * m)
   {
     apf::MeshIterator* it = m->begin(i);
     cnt = 0;
-    while (e = m->iterate(it))
+    while ((e = m->iterate(it)))
     {
       me = m->toModel(e);
       model_dim = m->getModelType(me);
@@ -102,7 +102,7 @@ void printModelClassification(apf::Mesh * m)
         
 
 }  // end function
-*/
+
 
 void printCoordinates(apf::Mesh* m)
 {
@@ -184,6 +184,7 @@ int main (int argc, char** argv)
   std::cout << "after changing shape, coords = " << std::endl;
   printCoordinates(m);
 
+  printModelClassification(m);
   apf::writeASCIIVtkFiles("output_check", m);
 //  apf::writeVtkFiles("output_check", m);
 
