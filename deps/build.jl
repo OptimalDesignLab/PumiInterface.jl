@@ -30,9 +30,16 @@ end
 
 # install MPI.jl if needed
 if Pkg.installed("MPI") == nothing
-  Pkg.clone("MPI")
+  # because the julia package manager is completely stupid and tries its best to
+  # be unusable, the clone command attempts to resolve dependencies, which fails
+  # because the version of Compat installed is too old to satisfy the version
+  # required by the most recent MPI
+  # instead use git directly to install it
   start_dir2 = pwd()
-  cd(Pkg.dir("MPI"))
+  cd(Pkg.dir("PumiInterface"))
+  run(`git clone https://github.com/JuliaParallel/MPI.jl.git`)
+  run(`mv -v ./MPI.jl ./MPI`)
+  cd("./MPI")
   run(`git checkout v0.5.0`)
   cd(start_dir2)
   Pkg.build("MPI")
