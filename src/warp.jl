@@ -74,7 +74,10 @@ function commit_coords(mesh::PumiMesh, sbp, opts; verify=true)
   acceptChanges(mesh.m_ptr)
   if verify
     Verify(mesh.m_ptr)
+    # TODO; call our verification code too
   end
+
+#  writeVisFiles(mesh, "pre_commit")
 
   getAllCoordinatesAndMetrics(mesh, sbp, opts)
 

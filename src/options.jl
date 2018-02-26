@@ -11,6 +11,8 @@
    * dmg_name
    * order
    * coloring_distance
+   * numBC
+   * other boundary condition related keys
 
   **Inputs**
 

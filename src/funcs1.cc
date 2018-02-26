@@ -916,6 +916,16 @@ int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int 
   return 0;
 }
 
+void destroyNumbering(apf::Numbering* n)
+{
+  apf::destroyNumbering(n);
+}
+
+apf::Numbering* findNumbering(apf::Mesh* m, const char* name)
+{
+  return m->findNumbering(name);
+}
+
 // retrieve a number from julia
 int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
 {
@@ -923,6 +933,10 @@ int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
   return i;
 }
 
+bool isNumbered(apf::Numbering*n, apf::MeshEntity* e, int node, int component)
+{
+  return apf::isNumbered(n, e, node, component);
+}
 
 // this is a non elementary function, here for performance reasons only
 // gets the dof numbers for all nodes affected by the element, in order

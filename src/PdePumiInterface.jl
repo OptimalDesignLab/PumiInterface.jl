@@ -15,6 +15,10 @@ include("nodecalc.jl")
 include("options.jl")
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
+# export types
+export PumiMesh2CG, PumiMesh2DG, PumiMesh3CG, PumiMesh3DG, PumiMesh, PumiMeshCG,
+       PumiMeshDG
+
 #TODO: revise this list
 export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryFaceLocalNum, getFaceLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles, update_coords, commit_coords
 

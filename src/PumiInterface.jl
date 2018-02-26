@@ -2,6 +2,9 @@ __precompile__(false)
 # functions to test the julia/PUMI interface
 module PumiInterface
 
+# make PdePumiInterface findable
+push!(LOAD_PATH, dirname(@__FILE__))  
+
 # no names should exported because there should be higher level functions
 # wrapping these
 # but they are going to be exported anyways
@@ -68,9 +71,12 @@ global const getElCoords_name = "getElCoords"
 global const getElCoords2_name = "getElCoords2"
 global const getAllEntityCoords_name = "getAllEntityCoords"
 global const createNumberingJ_name = "createNumberingJ"
+global const destroyNumbering_name = "destroyNumbering"
+global const findNumbering_name = "findNumbering"
 global const getNumberingShape_name = "getNumberingShape"
 global const numberJ_name = "numberJ"
 global const getNumberJ_name = "getNumberJ"
+global const isNumbered_name = "isNumbered"
 global const getDofNumbers_name = "getDofNumbers"
 global const setNumberingOffset_name = "setNumberingOffset"
 global const getElementNumbers_name = "getElementNumbers"
@@ -127,7 +133,20 @@ end
 
 
 # export low level interface functions
-export declareNames, init, loadMesh, initMesh, pushMeshRef, popMeshRef, getConstantShapePtr, getMeshShapePtr, countJ, writeVtkFiles, getMeshDimension, getType, getDownward, countAdjacent, getAdjacent, getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder, createMeshElement, countIntPoints, getIntPoint, getIntWeight, getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes, getVertCoords, getEdgeCoords, getFaceCoords, getElCoords, getAllEntityCoords, createNumberingJ, getNumberingShape, numberJ, getNumberJ, getDofNumbers, getElementNumbers, getMesh, printNumberingName, createDoubleTag, setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc, runIsoAdapt, runAnisoAdapt, createPackedField, setComponents, getComponents, zeroField, getCoordinateField, countBridgeAdjacent, getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
+export declareNames, init, loadMesh, initMesh, pushMeshRef, popMeshRef,
+       getConstantShapePtr, getMeshShapePtr, countJ, writeVtkFiles,
+       getMeshDimension, getType, getDownward, countAdjacent, getAdjacent,
+       getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder,
+       createMeshElement, countIntPoints, getIntPoint, getIntWeight,
+       getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes,
+       getVertCoords, getEdgeCoords, getFaceCoords, getElCoords,
+       getAllEntityCoords, createNumberingJ, destroyNumbering, findNumbering,
+       getNumberingShape, numberJ, getNumberJ, isNumbered, getDofNumbers,
+       getElementNumbers, getMesh, printNumberingName, createDoubleTag,
+       setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc,
+       runIsoAdapt, runAnisoAdapt, createPackedField, setComponents,
+       getComponents, zeroField, getCoordinateField, countBridgeAdjacent,
+       getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
 # iterator functors
 export MeshIterator, iterate, iteraten, free, deref
@@ -734,6 +753,21 @@ numbering_ptr = ccall ( (createNumberingJ_name, pumi_libname), Ptr{Void}, (Ptr{V
 return numbering_ptr
 end
 
+function destroyNumbering(n_ptr::Ptr{Void})
+
+  ccall ( (destroyNumbering_name, pumi_libname), Void, (Ptr{Void},), n_ptr)
+
+  return nothing
+end
+
+function findNumbering(m_ptr::Ptr{Void}, name::ASCIIString)
+
+  n_ptr = ccall ( (findNumbering_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Cstring), m_ptr, name)
+
+  return n_ptr
+end
+
+
 function getNumberingShape(n_ptr::Ptr{Void})
 
   fshape = ccall( (getNumberingShape_name, pumi_libname), Ptr{Void}, (Ptr{Void},), n_ptr)
@@ -762,6 +796,15 @@ i = ccall( (getNumberJ_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32,
 return i
 
 end
+
+function isNumbered(n_ptr, entity, node::Integer, component::Integer)
+# check whether a node is numbered or not, returns a Julia Bool
+
+i = ccall( (isNumbered_name, pumi_libname), Cint, (Ptr{Void}, Ptr{Void}, Int32, Int32), n_ptr, entity, node, component)
+return i == 1
+
+end
+
 
 
 function getDofNumbers(n_ptr, entities::AbstractArray{Ptr{Void}}, node_offsets::AbstractArray{UInt8}, nodemap::AbstractArray{UInt8}, element::Ptr{Void}, dofnums::AbstractArray{Int32})
