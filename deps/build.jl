@@ -37,11 +37,16 @@ if Pkg.installed("MPI") == nothing
   # instead use git directly to install it
   start_dir2 = pwd()
   cd(Pkg.dir("PumiInterface"))
+  cd("..")
   run(`git clone https://github.com/JuliaParallel/MPI.jl.git`)
   run(`mv -v ./MPI.jl ./MPI`)
   cd("./MPI")
   run(`git checkout v0.5.0`)
   cd(start_dir2)
+  # the Julia package manager refuses to install MPI's dependencies (even
+  # though it is quite eager to do it if you clone the repo
+  # so we have to do it here
+  Pkg.add("BinDeps")
   Pkg.build("MPI")
 end
 
