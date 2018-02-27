@@ -47,26 +47,6 @@ end
 # install MPI.jl if needed
 if PkgFix.installed("MPI") == nothing
   PkgFix.add(MPI_URL, branch_ish=MPI_VER)
-  # because the julia package manager is completely stupid and tries its best to
-  # be unusable, the clone command attempts to resolve dependencies, which fails
-  # because the version of Compat installed is too old to satisfy the version
-  # required by the most recent MPI
-  # instead use git directly to install it
-  #=
-  start_dir2 = pwd()
-  cd(Pkg.dir("PumiInterface"))
-  cd("..")
-  run(`git clone https://github.com/JuliaParallel/MPI.jl.git`)
-  run(`mv -v ./MPI.jl ./MPI`)
-  cd("./MPI")
-  run(`git checkout v0.5.0`)
-  cd(start_dir2)
-  # the Julia package manager refuses to install MPI's dependencies (even
-  # though it is quite eager to do it if you clone the repo
-  # so we have to do it here
-  Pkg.add("BinDeps")
-  Pkg.build("MPI")
-  =#
 end
 
 if install_pumi  # did not find pumi
@@ -78,11 +58,6 @@ pkg_dict = PkgFix.installed()  # get dictionary of installed package names to ve
 
 if !haskey(pkg_dict, "SummationByParts")
   PkgFix.add(SBP_URL, branch_ish=SBP_VER)
-  #=
-  Pkg.clone("https://github.com/OptimalDesignLab/SummationByParts.jl.git")
-  Pkg.checkout("SummationByParts", "jcwork")
-  Pkg.build("SummationByParts")
-  =#
   # SBP installs ODLCommonTools
 end
 
@@ -90,25 +65,6 @@ end
 cd("../src")
 run(`./config.sh`)
 run(`./makeinstall.sh`)
-
-#=
-# build the shared library
-cd("../src")
-run(`./build_shared.scorec.sh7`)
-str5 = string("export LD_LIBRARY_PATH=", pwd(), ":\$LD_LIBRARY_PATH")
-
-# get path to pumi library used to build libfuncs1.so
-sonames = readall(`ldd ./libfuncs1.so`)
-pumi_path = findWord(sonames, "/libmds.so")
-println("pumi_path = ", pumi_path)
-str6 = string("export LD_LIBRARY_PATH=", pumi_path, ":\$LD_LIBRARY_PATH")
-
-
-f = open("evars.sh", "a+")
-println(f, str5)
-println(f, str6)
-close(f)
-=#
 cd(start_dir)
 
 
