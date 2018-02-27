@@ -2,7 +2,7 @@
 
 # install PkgFix if not present
 if !isdir(joinpath(Pkg.dir(), "PkgFix"))
-  Pkg.clone("PkgFix")
+  Pkg.clone("https://github.com/OptimalDesignLab/PkgFix.jl.git")
 end
 
 using PkgFix  # from now on, use PkgFix instead of Pkg for everything
@@ -11,7 +11,7 @@ include("./stringmatch.jl")
 include("install_pumi.jl")
 
 # package URLs and versions
-global const MPI_URL = https://github.com/JuliaParallel/MPI.jl.git
+global const MPI_URL = "https://github.com/JuliaParallel/MPI.jl.git"
 global const MPI_VER = "v0.5.0"
 
 global const SBP_URL = "https://github.com/OptimalDesignLab/SummationByParts.jl.git"
@@ -46,7 +46,7 @@ end
 
 # install MPI.jl if needed
 if PkgFix.installed("MPI") == nothing
-  PkgFix.add(MPI_URL, MPI_VER)
+  PkgFix.add(MPI_URL, branch_ish=MPI_VER)
   # because the julia package manager is completely stupid and tries its best to
   # be unusable, the clone command attempts to resolve dependencies, which fails
   # because the version of Compat installed is too old to satisfy the version
@@ -77,7 +77,7 @@ end
 pkg_dict = PkgFix.installed()  # get dictionary of installed package names to version numbers
 
 if !haskey(pkg_dict, "SummationByParts")
-  PkgFix.add(SBP_URL, SBP_VER)
+  PkgFix.add(SBP_URL, branch_ish=SBP_VER)
   #=
   Pkg.clone("https://github.com/OptimalDesignLab/SummationByParts.jl.git")
   Pkg.checkout("SummationByParts", "jcwork")
