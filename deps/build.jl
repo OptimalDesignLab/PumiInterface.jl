@@ -1,6 +1,22 @@
 # this file will build Pumi if it cannot be located by pkg-config
+
+# install PkgFix if not present
+if !isdir(joinpath(Pkg.dir(), "PkgFix"))
+  Pkg.clone("PkgFix")
+end
+
+using PkgFix  # from now on, use PkgFix instead of Pkg for everything
+
 include("./stringmatch.jl")
 include("install_pumi.jl")
+
+# package URLs and versions
+global const MPI_URL = https://github.com/JuliaParallel/MPI.jl.git
+global const MPI_VER = "v0.5.0"
+
+global const SBP_URL = "https://github.com/OptimalDesignLab/SummationByParts.jl.git"
+global const SBP_VER = "jcwork"
+
 
 start_dir = pwd()
 
@@ -29,12 +45,14 @@ if install_mpi
 end
 
 # install MPI.jl if needed
-if Pkg.installed("MPI") == nothing
+if PkgFix.installed("MPI") == nothing
+  PkgFix.add(MPI_URL, MPI_VER)
   # because the julia package manager is completely stupid and tries its best to
   # be unusable, the clone command attempts to resolve dependencies, which fails
   # because the version of Compat installed is too old to satisfy the version
   # required by the most recent MPI
   # instead use git directly to install it
+  #=
   start_dir2 = pwd()
   cd(Pkg.dir("PumiInterface"))
   run(`git clone https://github.com/JuliaParallel/MPI.jl.git`)
@@ -43,6 +61,7 @@ if Pkg.installed("MPI") == nothing
   run(`git checkout v0.5.0`)
   cd(start_dir2)
   Pkg.build("MPI")
+  =#
 end
 
 if install_pumi  # did not find pumi
@@ -50,12 +69,15 @@ if install_pumi  # did not find pumi
 end
 
 # install non-metadata dependencies
-pkg_dict = Pkg.installed()  # get dictionary of installed package names to version numbers
+pkg_dict = PkgFix.installed()  # get dictionary of installed package names to version numbers
 
 if !haskey(pkg_dict, "SummationByParts")
+  PkgFix.add(SBP_URL, SBP_VER)
+  #=
   Pkg.clone("https://github.com/OptimalDesignLab/SummationByParts.jl.git")
   Pkg.checkout("SummationByParts", "jcwork")
   Pkg.build("SummationByParts")
+  =#
   # SBP installs ODLCommonTools
 end
 
