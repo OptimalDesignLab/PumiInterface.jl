@@ -28,7 +28,7 @@ export zeroBarArrays, getAllCoordinatesAndMetrics_rev
 export injectionOperator, rejectionOperator, getBoundaryInterpArray
 
 # face identification functions
-export getBoundaries
+export getBoundaries, numberSurfacePoints
 
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
@@ -374,6 +374,7 @@ include("elements.jl")
 include("./PdePumiInterface3.jl")
 include("PdePumiInterfaceDG.jl")
 include("PdePumiInterface3DG.jl")
+include("interface.jl")
 
 @doc """
 ### PumiInterface.PumiMesh2

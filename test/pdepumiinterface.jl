@@ -521,6 +521,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     end
   end
 
+  # test surface numbering
+  testSurfaceNumbering(mesh, sbp, opts)
 
   # check reverse mode
   # SBP testing the correctness, these tests only verify values get to the right place

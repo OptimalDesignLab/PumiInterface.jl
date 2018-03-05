@@ -1211,3 +1211,46 @@ function test_parallel_metrics(mesh, sbp, opts)
 
   return nothing
 end
+
+function testSurfaceNumbering(mesh, sbp, opts)
+
+  facts("----- Testing Surface Numbering -----") do
+    nBCs = opts["numBC"]
+    bc_nums =  [nBCs]  # only do the last BC
+    numFacePts, n_face, face_verts = numberSurfacePoints(mesh, 1:nBCs)
+
+    @fact length(face_verts) --> numFacePts
+
+    geo_tags = opts["BC$nBCs"]
+    
+    # check that every face verts is on the specified geometry
+    for vert in face_verts
+      me =  toModel(mesh.m_ptr, vert)
+      me_type = getModelType(mesh.m_ptr, me)  # dimension of model entity
+      me_tag = getModelTag(mesh.m_ptr, me)
+
+      @fact me_type --> mesh.dim-1  # is on a face somewhere
+      @fact me_tag in geo_tags --> true
+    end
+
+    # check that all verts with number numFacePts + 1 are not on the geometry
+    for vert in mesh.verts
+      n_v = getNumberJ(n_face, vert, 0, 0)
+      me =  toModel(mesh.m_ptr, vert)
+      me_type = getModelType(mesh.m_ptr, me)
+      me_tag = getModelTag(mesh.m_ptr, me)
+
+      if n_v > numFacePts
+        if me_type == mesh.dim - 1
+          @fact !(me_tag in geo_tags) --> true
+        end
+      else
+        if me_type == mesh.dim - 1
+          @fact me_tag in geo_tags --> true
+        end
+      end
+    end
+  end  # end facts block
+
+  return nothing
+end
