@@ -45,7 +45,7 @@ if install_mpi
 end
 
 # install MPI.jl if needed
-if PkgFix.installed("MPI") == nothing
+if PkgFix.installed("MPI") == Void
   PkgFix.add(MPI_URL, branch_ish=MPI_VER)
 end
 
