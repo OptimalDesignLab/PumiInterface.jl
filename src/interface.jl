@@ -23,6 +23,10 @@
 function numberSurfacePoints{I<:Integer}(mesh::PumiMeshDG, bc_nums::AbstractVector{I})
 
   @assert mesh.coord_order == 1
+  for i in bc_nums  # check that the BC numbers are valid
+    @assert i <= length(mesh.bndry_offsets - 1)
+    @assert i > 0
+  end
   # number the (unique) coordinate nodes on the faces
 
   # we can't guarantee an existing numbering with the same name was
