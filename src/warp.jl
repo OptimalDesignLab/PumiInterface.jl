@@ -59,7 +59,7 @@ end
 """
   This must be called after all calls to update_coords are complete. It
   update all fields of the mesh that are derived from the coordinates
-  (dxidx, jac, node coordinate etc.), given than update_coords does not
+  (dxidx, jac, node coordinate etc.), given that update_coords does not
   change the mesh topology.
 
   The verify keyword argument determines whether or not to run the Pumi
@@ -77,7 +77,7 @@ function commit_coords(mesh::PumiMesh, sbp, opts; verify=true)
     # TODO; call our verification code too
   end
 
-#  writeVisFiles(mesh, "pre_commit")
+  writeVisFiles(mesh, "pre_commit")
 
   getAllCoordinatesAndMetrics(mesh, sbp, opts)
 

@@ -26,6 +26,8 @@ include("metrics_curvilinear.jl")
   efficient to call this function multiple times (for example, after
   updating the mesh coordinates)
 
+  This function is collective mesh.comm.
+
   Fields populated by this function:
     Linear meshes:
       vert_coords
@@ -44,6 +46,7 @@ include("metrics_curvilinear.jl")
       nrm_bndry
       nrm_face
       nrm_sharedface
+      remote_metrics
       min_el_size
       volume
 
@@ -59,6 +62,7 @@ include("metrics_curvilinear.jl")
       nrm_face
       nrm_sharedface
       min_el_size
+      remote_metrics
       volume
 
 
@@ -100,6 +104,44 @@ function getAllCoordinatesAndMetrics(mesh, sbp, opts)
 end
 
 """
+  This function recalculates the volume node coordinates and metrics from
+  the vertex coordinates in mesh.vert_coords.  This function populates all
+  the same fields as [`getAllCoordinatesAndMetics`](@ref) except for 
+  `mesh.vert_coords`.
+
+  This function does not support opts["use_linear_metrics"].
+
+  This function is collective on mesh.comm
+
+  **Inputs**
+
+   * mesh: the mesh
+   * sbp: the SBP operator
+   * opts: options dictionary
+"""
+function recalcCoordinatesAndMetrics(mesh, sbp, opts)
+
+  @assert !opts["use_linear_metrics"]
+  @assert mesh.coord_order <= 2
+
+  getFaceCoordinatesAndNormals(mesh, sbp)
+  getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+
+  # make sure the mapping jacobian is > 0
+  checkMapping(mesh)
+
+  # calculate things that depend on the above
+  mesh.min_el_size = getMinElementSize(mesh)
+  mesh.volume = calcVolumeIntegral(mesh, sbp)
+
+  # send metric information in parallel
+  exchangeMetricInfo(mesh, sbp)
+
+  return nothing
+end
+
+
+"""
   Reverse mode of getAllCoordinateAndMetrics.  Back propigates
   mesh.nrm_*_bar, mesh.dxidx_bar, mesh.jac_bar to mesh.vert_coords_bar.
 
@@ -108,9 +150,12 @@ end
 
   This function also recalculates the face normal vectors and coordinates,
   overwriting the relevent arrays in the mesh object.
+
+  This function does not yet support the reverse mode of mesh.remote_metrics.
 """
 function getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
 
+  @assert mesh.commsize == 1
   if opts["use_linear_metrics"]
 #   if mesh.coord_order == 1
     @assert mesh.coord_order == 1

@@ -547,7 +547,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
 
   # test metrics reverse
-  test_metric_rev(mesh, mesh_c, sbp)
+  test_metric_rev(mesh, mesh_c, sbp, opts)
 
    function test_interp{Tmsh}(mesh::AbstractMesh{Tmsh})
      sbpface = mesh.sbpface
@@ -955,6 +955,39 @@ facts("----- Testing PdePumiInterfaceDG -----") do
       end
     end
   end
+
+  # recalculate and verify all quantities are the same
+  recalcCoordinatesAndMetrics(mesh, sbp, opts)
+
+  for i=1:mesh.numEl
+    for j=1:mesh.numNodesPerElement
+      for k=1:mesh.dim
+        for p=1:mesh.dim
+          @fact mesh.dxidx[p, k, j, i] --> roughly(dxidx_orig[p, k, j, i], atol=1e-12)
+        end
+      end
+
+      @fact mesh.jac[j, i] --> roughly(jac_orig[j, i], atol=1e-12)
+    end
+  end
+
+  for i=1:mesh.numBoundaryFaces
+    for j=1:mesh.numNodesPerFace
+      for k=1:mesh.dim
+        @fact mesh.nrm_bndry[k, j, i] --> roughly(nrm_bndry_orig[k, j, i], atol=1e-12)
+      end
+    end
+  end
+
+  for i=1:mesh.numInterfaces
+    for j=1:mesh.numNodesPerFace
+      for k=1:mesh.dim
+        @fact mesh.nrm_face[k, j, i] --> roughly(nrm_face_orig[k, j, i], atol=1e-12)
+      end
+    end
+  end
+
+
       
 
   mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)

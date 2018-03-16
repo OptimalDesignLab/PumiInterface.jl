@@ -400,7 +400,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   # test reverse mode
   PdePumiInterface.copy_data!(mesh_c, mesh)
-  test_metric_rev(mesh, mesh_c, sbp)
+  test_metric_rev(mesh, mesh_c, sbp, opts)
 
 
   # test with a diagonal E operator
@@ -479,7 +479,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   # test reverse mode
   PdePumiInterface.copy_data!(mesh2_c, mesh2)
-  test_metric_rev(mesh2, mesh2_c, sbp)
+  test_metric_rev(mesh2, mesh2_c, sbp, opts)
 
 
  

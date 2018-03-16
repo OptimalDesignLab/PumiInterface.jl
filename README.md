@@ -171,6 +171,47 @@ If you want to find out what function in funcs1.cc a Julia function calls, look 
 Discontinuous Galerkin (DG), in two dimensions, 2D and 3D.  Currently,
 2D CG, 2D DG and 3D DG are implemented.
 
+The DG outer constructors constructors are
+
+```julia
+PumiMeshDG2{T, Tface}(::Type{T}, sbp::AbstractSBP, opts, 
+                      sbpface::Tface; dofpernode=1, shape_type=2,
+                      comm=MPI.COMM_WORLD)
+
+function PumiMeshDG3{T, Tface}(::Type{T}, sbp::AbstractSBP, opts,
+                               sbpface::Tface,
+                               topo::ElementTopology{3}; 
+                               dofpernode=1, shape_type=2, comm=MPI.COMM_WORLD)
+
+```
+
+where `T` is the element type for all the data arrays (coordinates, metrics
+etc), `sbp` is the SBP operator, `opts` is the options dictionary (see below),
+`sbpface` is the SBP face operator associated with `sbp`, and `topo` is the
+`ElementTopology` object that describes the topology of the reference SBP
+element.
+
+The keyword arguments are
+
+ * `dofPerNode`: number of degrees of freedom on each node
+ * `shape_type`: this integer deterines the apf::FieldShape that defines the
+               node distribution on an element.  It must match the SBP operator
+               provided (see below)
+ * `comm`: MPI communicator to use.  Currently only MPI.COMM_WORLD is supported.
+
+
+The `shape_type` values are found in `getFieldShape` in `func1.cc`.  The
+commonly used values are:
+
+0: node set associated with Lagrange polynomials (currently no SBP operator equivalent)
+1: SBP Gamma CG (2D only)
+2: SBP Omega DG
+3: SBP Gamma DG
+4: SBP Diagonal E (with vertex nodes)
+5: SBP Diagonal E (without vertex nodes)
+
+
+
 ## Options dictionary
 The constructors for the various mesh object take an options dictionary
 that set the options about how to construct the object, such as boundary
@@ -197,7 +238,8 @@ For curvilinear grids, dxidx and jac are not calculated at the face nodes (ie.
 are arrays of size zero).  Instead, users should use the normal vectors
 calculated at the face nodes, `nrm_face`, `nrm_bndry`, `nrm_sharedface`.
 These arrays are calculated for non-curvilinear meshes as well, and should
-be used whenever possible.
+be used whenever possible.  See `getAllCoordinatesAndMetrics()` in `metrics.jl`
+for more details on which arrays are populated for which modes.
 
 ## Periodic Boundary Conditions
 DG meshes support periodic boundary conditions.  The .smb file contains
@@ -249,6 +291,25 @@ dictionary) to subtriangulate the mesh such that all nodes plus all vertices
 in the origonal mesh are vertices in the new mesh.  This allows the
 visualization of the exact nodal values.  The nodal values are interpolated
 to the vertices.
+
+## Mesh Warping
+
+Mesh warping is supported for DG meshes.  The function `update_coords()` allows
+setting the new coordinates of each element.  The function `commit_coords()`
+must be called after all calls to `update_coords()` are complete.
+
+
+## Derivative calculation
+
+Constructing a mesh object with `Tmsh = Complex128` is supported.  This allows
+using the complex step method to calculate derivative with respect to the mesh
+coordinate and metrics.  The function `recalcCoordinatesAndMetrics` can be used
+to recalculate the volume coordinates and metrics after the `mesh.vert_coords`
+field has been updated.
+
+Some initial work on reverse mode differentiation has been started, but it
+has not been extended to parallel yet.  See `getAllCoordinatesAndMetrics_rev()`.
+
 
 # Version History
 v0.1: the old code, before Pumi switched to the CMake build system.  This version is no longer supported

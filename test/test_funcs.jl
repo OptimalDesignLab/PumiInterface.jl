@@ -153,7 +153,7 @@ end  # end function
   This function tests the reverse mode of calcEoneElement and then
   calls other functions to test the other parts of the calculation.
 """
-function test_metric_rev(mesh, mesh_c, sbp)
+function test_metric_rev(mesh, mesh_c, sbp, opts)
 
   facts("----- testing metric reverse mode -----") do
     sbpface = mesh.sbpface
@@ -252,10 +252,10 @@ function test_metric_rev(mesh, mesh_c, sbp)
     @fact norm(jac - jac2) --> roughly(0.0, atol=1e-12)
 
 
-    test_metric2_rev(mesh, mesh_c, sbp)
-    test_metrics3_rev(mesh, mesh_c, sbp)
-    test_metrics4_rev(mesh, mesh_c, sbp)
-    test_metrics5_rev(mesh, mesh_c, sbp)
+    test_metric2_rev(mesh, mesh_c, sbp, opts)
+    test_metrics3_rev(mesh, mesh_c, sbp, opts)
+    test_metrics4_rev(mesh, mesh_c, sbp, opts)
+    test_metrics5_rev(mesh, mesh_c, sbp, opts)
 
   end  # end facts block
 
@@ -265,7 +265,7 @@ end
 """
   Test calcEone_rev
 """
-function test_metric2_rev(mesh, mesh_c, sbp)
+function test_metric2_rev(mesh, mesh_c, sbp, opts)
 
   facts("----- Testing second part of Metric reverse mode -----") do
 
@@ -380,7 +380,7 @@ end
 """
   Test getCurvilinearCoordinatesAndMetrics_rev (dxidx -> vert_coord, nrm)
 """
-function test_metrics3_rev(mesh, mesh_c, sbp)
+function test_metrics3_rev(mesh, mesh_c, sbp, opts)
 
   facts("----- testing metrics reverse mode 3 -----") do
 #    nout = mesh.dim*mesh.numNodesPerElement*2
@@ -588,7 +588,7 @@ function test_metrics3_rev(mesh, mesh_c, sbp)
 end
 
 
-function test_metrics4_rev(mesh, mesh_c, sbp)
+function test_metrics4_rev(mesh, mesh_c, sbp, opts)
 
   # zero out all bar variables, just in case
   fill!(mesh.dxidx_bar, 0.0)
@@ -719,7 +719,7 @@ end
 """
   Test everything together
 """
-function test_metrics5_rev(mesh, mesh_c, sbp)
+function test_metrics5_rev(mesh, mesh_c, sbp, opts)
   
   facts("----- testing metrics5_rev -----") do
 

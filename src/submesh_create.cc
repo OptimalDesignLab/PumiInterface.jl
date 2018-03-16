@@ -43,8 +43,6 @@ SubMeshData::SubMeshData(apf::Mesh* _m_old, apf::Numbering* _numberings[], int* 
     {
       el_entities[idx] = e;
       idx += 1;
-       
-//        el_set.insert(e);
     }
   }
 
