@@ -1216,7 +1216,6 @@ function testSurfaceNumbering(mesh, sbp, opts)
 
   facts("----- Testing Surface Numbering -----") do
     nBCs = opts["numBC"]
-    println("nBCs = ", nBCs)
     bc_nums =  [nBCs]  # only do the last BC  #TODO: re-enable this
 #    bc_nums = 1:nBCs
     numFacePts, n_face, face_verts = numberSurfacePoints(mesh, bc_nums)
@@ -1231,8 +1230,6 @@ function testSurfaceNumbering(mesh, sbp, opts)
       end
     end
 
-    println("geo_tags = ", geo_tags)
-
     
     # check that if the MeshEntity is classified in an edge/face, then it
     # is part of the geometry
@@ -1242,10 +1239,6 @@ function testSurfaceNumbering(mesh, sbp, opts)
       me =  toModel(mesh.m_ptr, vert)
       me_type = getModelType(mesh.m_ptr, me)  # dimension of model entity
       me_tag = getModelTag(mesh.m_ptr, me)
-
-      println("MeshEntity type = ", getType(mesh.m_ptr, vert))
-      println("me_type = ", me_type)
-      println("me_tag = ", me_tag)
 
       if me_type == mesh.dim - 1
         @fact me_tag in geo_tags --> true
@@ -1260,10 +1253,8 @@ function testSurfaceNumbering(mesh, sbp, opts)
     entities[1] = mesh.verts
     entities[2] = mesh.edges
     for edim = 1:length(entities)
-      println("edim = ", edim)
       if hasNodesIn(mesh.coordshape_ptr, edim - 1)
         for vert in entities[edim]
-          println("  vert = ", vert)
           n_v = getNumberJ(n_face, vert, 0, 0)
           me =  toModel(mesh.m_ptr, vert)
           me_type = getModelType(mesh.m_ptr, me)

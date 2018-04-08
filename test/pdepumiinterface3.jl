@@ -34,6 +34,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
 #  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
+
   @fact mesh.m_ptr --> not(C_NULL)
   @fact mesh.mshape_ptr --> not(C_NULL)
   @fact mesh.coordshape_ptr --> not(mesh.mshape_ptr)
@@ -135,6 +136,8 @@ facts("----- Testing PdePumiInterface3DG -----") do
     @fact bndry_i.face --> greater_than(0)
     @fact bndry_i.face --> less_than(5)
   end
+
+  testSurfaceNumbering(mesh, sbp, opts)
 
   # check mapping interpolation
   # should be constant within an element for straight-sided elements
@@ -286,6 +289,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
 #  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
+
   mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
 #  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
@@ -302,6 +306,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)
   topo = ElementTopology{3}(face_verts)
   sbpface = TetFace{Tsbp}(degree, sbp.cub, ref_verts)
+
 
   opts = PdePumiInterface.get_defaults()
   opts["dmg_name"] = ".null"
@@ -397,6 +402,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   end
 
 
+  testSurfaceNumbering(mesh, sbp, opts)
 
   # test reverse mode
   PdePumiInterface.copy_data!(mesh_c, mesh)
