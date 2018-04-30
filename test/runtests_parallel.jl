@@ -322,7 +322,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   end
 
   compare_meshes(mesh, mesh_c)
-  test_metric_rev(mesh, mesh_c, sbp)
+  test_metric_rev(mesh, mesh_c, sbp, opts)
 
   MPI.Barrier(mesh.comm)
 
@@ -448,7 +448,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   # test curvilinear metrics reverse mode
   compare_meshes(mesh, mesh_c)
-  test_metric_rev(mesh, mesh_c, sbp)
+  test_metric_rev(mesh, mesh_c, sbp, opts)
 
 
 
