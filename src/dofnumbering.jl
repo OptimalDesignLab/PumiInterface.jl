@@ -90,110 +90,110 @@ function getDofNumbers(mesh::PumiMeshDG)
 #println("in getDofNumbers")
 #println("numNodesPerElement = ", mesh.numNodesPerElement)
 
-mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.shared_element_offsets[end] - 1)
+  mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.shared_element_offsets[end] - 1)
 
-for i=1:mesh.numEl
-  #TODO: use the non-allocating version
-  dofnums = getGlobalNodeNumbers(mesh, i)
+  for i=1:mesh.numEl
+    #TODO: use the non-allocating version
+    dofnums = getGlobalNodeNumbers(mesh, i)
 
-  for j=1:mesh.numNodesPerElement
-    for k=1:mesh.numDofPerNode  # loop over dofs on the node
-      mesh.dofs[k, j, i] = dofnums[k,j]
-    end
-  end
-end
-# get dof number of non-local elements
-# post receives first
-send_reqs = mesh.send_reqs
-recv_reqs = mesh.recv_reqs
-for i=1:mesh.npeers
-  # get the pointer of the start location
-  start_el = mesh.shared_element_offsets[i]
-  numel = mesh.shared_element_offsets[i+1] - start_el
-  ndata = mesh.numDofPerNode*mesh.numNodesPerElement*numel
-  lin_idx = sub2ind(size(mesh.dofs), 1, 1, start_el)
-  ptr_start_el = pointer(mesh.dofs, lin_idx)
-  peer_i = mesh.peer_parts[i]
-  recv_reqs[i] = MPI.Irecv!(ptr_start_el, ndata, peer_i, 1, mesh.comm)
-end
-
-# now send data
-dof_sendbuf = Array(Array{Int, 3}, mesh.npeers)
-for i=1:mesh.npeers
-  elnums_i = mesh.local_element_lists[i]
-  numel = length(elnums_i)
-  dof_sendbuf[i] = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, numel)
-  sendbuf_i = dof_sendbuf[i]
-  for j=1:length(elnums_i)
-    elnum_j = elnums_i[j]
-    for k=1:mesh.numNodesPerElement
-      for p=1:mesh.numDofPerNode
-        sendbuf_i[p, k, j] = mesh.dofs[p, k, elnum_j]
-      end
-    end
-  end  # end loop over current list of elements
-
-  # now do the send
-  send_reqs[i] = MPI.Isend(sendbuf_i, mesh.peer_parts[i], 1, mesh.comm)
-end
-
-# figure out the local to global offset of the dof numbers
-# compute number of local dofs
-ndof = 0
-for i=1:(mesh.dim + 1)
-  ndof += mesh.numNodesPerType[i]*mesh.numEntitiesPerType[i]*mesh.numDofPerNode
-end
-println(mesh.f, "ndof = ", ndof)
-# get all processes dof offsets
-dof_offsets = MPI.Allgather(ndof, mesh.comm)
-println(mesh.f, "dof_offsets = ", dof_offsets)
-# figure out own dof_offset
-dof_offset = 0
-for i=1:mesh.myrank  # sum all dofs up to but *not* including self
-  dof_offset += dof_offsets[i]
-end
-mesh.dof_offset = dof_offset
-
-# figure out peer dof_offsets
-peer_dof_offsets = Array(Int, mesh.npeers)
-for i=1:mesh.npeers
-  dof_offset_i = 0
-  for j=1:mesh.peer_parts[i]
-    dof_offset_i += dof_offsets[j]
-  end
-  peer_dof_offsets[i] = dof_offset_i
-end
-
-println(mesh.f, "peer_parts = ", mesh.peer_parts)
-println(mesh.f, "peer_dof_offsets = ", peer_dof_offsets)
-# adjust other elements dof such that dof + dof_offset of this process = global
-# dof number
-# store local dof number + (offset of owner - offset of host) in dofs array
-dofs = mesh.dofs
-for i=1:mesh.npeers
-  idx, stat =  MPI.Waitany!(recv_reqs)
-  # do subtraction first to avoid overflow
-  offset = peer_dof_offsets[idx] - dof_offset
-  start_el = mesh.shared_element_offsets[idx]
-  end_el = mesh.shared_element_offsets[idx+1] - 1
-  for j=start_el:end_el
-    for k=1:mesh.numNodesPerElement
-      for p=1:mesh.numDofPerNode
-        dofs[p, k, j] += offset
+    for j=1:mesh.numNodesPerElement
+      for k=1:mesh.numDofPerNode  # loop over dofs on the node
+        mesh.dofs[k, j, i] = dofnums[k,j]
       end
     end
   end
+  # get dof number of non-local elements
+  # post receives first
+  send_reqs = mesh.send_reqs
+  recv_reqs = mesh.recv_reqs
+  for i=1:mesh.npeers
+    # get the pointer of the start location
+    start_el = mesh.shared_element_offsets[i]
+    numel = mesh.shared_element_offsets[i+1] - start_el
+    ndata = mesh.numDofPerNode*mesh.numNodesPerElement*numel
+    lin_idx = sub2ind(size(mesh.dofs), 1, 1, start_el)
+    ptr_start_el = pointer(mesh.dofs, lin_idx)
+    peer_i = mesh.peer_parts[i]
+    recv_reqs[i] = MPI.Irecv!(ptr_start_el, ndata, peer_i, 1, mesh.comm)
+  end
 
-end  # end loop over peers
+  # now send data
+  dof_sendbuf = Array(Array{Int, 3}, mesh.npeers)
+  for i=1:mesh.npeers
+    elnums_i = mesh.local_element_lists[i]
+    numel = length(elnums_i)
+    dof_sendbuf[i] = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, numel)
+    sendbuf_i = dof_sendbuf[i]
+    for j=1:length(elnums_i)
+      elnum_j = elnums_i[j]
+      for k=1:mesh.numNodesPerElement
+        for p=1:mesh.numDofPerNode
+          sendbuf_i[p, k, j] = mesh.dofs[p, k, elnum_j]
+        end
+      end
+    end  # end loop over current list of elements
 
-# wait for the sends to finish before returning
-for i=1:mesh.npeers
-  MPI.Wait!(send_reqs[i])
-end
+    # now do the send
+    send_reqs[i] = MPI.Isend(sendbuf_i, mesh.peer_parts[i], 1, mesh.comm)
+  end
 
-#println("mesh.dof = ", mesh.dofs)
+  # figure out the local to global offset of the dof numbers
+  # compute number of local dofs
+  ndof = 0
+  for i=1:(mesh.dim + 1)
+    ndof += mesh.numNodesPerType[i]*mesh.numEntitiesPerType[i]*mesh.numDofPerNode
+  end
+  println(mesh.f, "ndof = ", ndof)
+  # get all processes dof offsets
+  dof_offsets = MPI.Allgather(ndof, mesh.comm)
+  println(mesh.f, "dof_offsets = ", dof_offsets)
+  # figure out own dof_offset
+  dof_offset = 0
+  for i=1:mesh.myrank  # sum all dofs up to but *not* including self
+    dof_offset += dof_offsets[i]
+  end
+  mesh.dof_offset = dof_offset
 
-return nothing
+  # figure out peer dof_offsets
+  peer_dof_offsets = Array(Int, mesh.npeers)
+  for i=1:mesh.npeers
+    dof_offset_i = 0
+    for j=1:mesh.peer_parts[i]
+      dof_offset_i += dof_offsets[j]
+    end
+    peer_dof_offsets[i] = dof_offset_i
+  end
+
+  println(mesh.f, "peer_parts = ", mesh.peer_parts)
+  println(mesh.f, "peer_dof_offsets = ", peer_dof_offsets)
+  # adjust other elements dof such that dof + dof_offset of this process = global
+  # dof number
+  # store local dof number + (offset of owner - offset of host) in dofs array
+  dofs = mesh.dofs
+  for i=1:mesh.npeers
+    idx, stat =  MPI.Waitany!(recv_reqs)
+    # do subtraction first to avoid overflow
+    offset = peer_dof_offsets[idx] - dof_offset
+    start_el = mesh.shared_element_offsets[idx]
+    end_el = mesh.shared_element_offsets[idx+1] - 1
+    for j=start_el:end_el
+      for k=1:mesh.numNodesPerElement
+        for p=1:mesh.numDofPerNode
+          dofs[p, k, j] += offset
+        end
+      end
+    end
+
+  end  # end loop over peers
+
+  # wait for the sends to finish before returning
+  for i=1:mesh.npeers
+    MPI.Wait!(send_reqs[i])
+  end
+
+  #println("mesh.dof = ", mesh.dofs)
+
+  return nothing
 
 end
 

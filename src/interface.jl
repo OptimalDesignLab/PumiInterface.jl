@@ -12,6 +12,8 @@
    * mesh
    * bc_nums: array of boundary condition numbers that define the surface(s)
               to number
+   * isglobal: if true, do a globally consistent numbering of surface points,
+               otherwise, do part-local numbering, default true
    * numbering_name: the name of the Pumi numbering to be created, any existing
                      numbering with this name will be deleted.
                      Default "warp_surf_nums"
@@ -19,11 +21,16 @@
   **Outputs**
 
    * numFaceNodes: number of nodes on the specified surface(s)
-   * n_face: a Ptr{Void} (really an apf::Numbering*) 
+   * n_face: a Ptr{Void} (really an apf::Numbering*).  Note that this is
+             not an apf::GlobalNumbering*, so be careful not to overflow
+             a Cint.
    * face_verts: array of apf::MeshEntity* in the order they appear in the
                  surface numbering, length numFaceNodes
 """
-function numberSurfacePoints{I<:Integer}(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, numbering_name::AbstractString="warp_surf_nums")
+function numberSurfacePoints{I<:Integer}(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglobal::Bool=false, numbering_name::AbstractString="warp_surf_nums")
+
+  #TODO: should face_verts be only the MeshEntities owned by this part, or
+  #      all the ones present on this part?
 
   @assert mesh.coord_order <= 2
   for i in bc_nums  # check that the BC numbers are valid
