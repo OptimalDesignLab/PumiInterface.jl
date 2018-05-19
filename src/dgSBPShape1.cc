@@ -534,7 +534,7 @@ class DG1SBPCubic : public FieldShape
           fail("unimplimented getLocalGradients() called in DG1SBPCubic Triangle");
         }
 		
-        int countNodes() const {return 10;}
+        int countNodes() const {return 12;}
 		
 		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
                 {
@@ -641,7 +641,7 @@ class DG1SBPCubic : public FieldShape
     {
       if (type == Mesh::TRIANGLE)
       {
-        return 10;
+        return 12;
       } else
       {
         return 0;
@@ -664,6 +664,35 @@ class DG1SBPCubic : public FieldShape
       switch (node)
       {
         case 0:
+          {xi = Vector3(0.06308901449150225, 0.8738219710169954, 0.0); break; }
+        case 1:
+          {xi = Vector3(0.06308901449150225, 0.06308901449150225, 0.0); break; }
+        case 2:
+          {xi = Vector3(0.8738219710169954, 0.06308901449150225, 0.0); break; }
+        case 3:
+          {xi = Vector3(0.24928674517091048, 0.501426509658179, 0.0); break; }
+        case 4:
+          {xi = Vector3(0.24928674517091048, 0.24928674517091048, 0.0); break; }
+        case 5:
+          {xi = Vector3(0.501426509658179, 0.24928674517091048, 0.0); break; }
+        case 6:
+          {xi = Vector3(0.31035245103378434, 0.6365024991213988, 0.0); break; }
+        case 7:
+          {xi = Vector3(0.053145049844816994, 0.6365024991213988, 0.0); break; }
+        case 8:
+          {xi = Vector3(0.053145049844816994, 0.31035245103378434, 0.0); break; }
+        case 9:
+          {xi = Vector3(0.31035245103378434, 0.053145049844816994, 0.0); break; }
+        case 10:
+          {xi = Vector3(0.6365024991213988, 0.053145049844816994, 0.0); break; }
+        case 11:
+          {xi = Vector3(0.6365024991213988, 0.31035245103378434, 0.0); break; }
+        default:
+          {xi = Vector3(0, 0, 0); break; }
+
+        /*
+        // 2p-1 cubature rule
+        case 0:
           { xi = Vector3(0.06931165313831339,0.8613766937233732, 0); break; }
         case 1:
           { xi = Vector3(0.06931165313831339,0.06931165313831339,0); break; }
@@ -685,6 +714,7 @@ class DG1SBPCubic : public FieldShape
           { xi = Vector3(0.3333333333333333,0.3333333333333333,0); break; }
         default: 
           { xi = Vector3(0, 0,0); break; }
+        */
       }
 	
 	  
@@ -779,7 +809,7 @@ class DG1SBPQuartic : public FieldShape
           fail("unimplimented getLocalGradients() called in DG1SBPQuartic Triangle");
         }
 		
-        int countNodes() const {return 15;}
+        int countNodes() const {return 16;}
 		
 		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
                 {
@@ -888,7 +918,7 @@ class DG1SBPQuartic : public FieldShape
     {
       if (type == Mesh::TRIANGLE)
       {
-        return 15;
+        return 16;
       } else
       {
         return 0;
@@ -907,6 +937,43 @@ class DG1SBPQuartic : public FieldShape
       }
       switch (node)
       {
+        case 0:
+          {xi = Vector3(0.1705693077517602, 0.6588613844964796, 0.0); break; }
+        case 1:
+          {xi = Vector3(0.1705693077517602, 0.1705693077517602, 0.0); break; }
+        case 2:
+          {xi = Vector3(0.6588613844964796, 0.1705693077517602, 0.0); break; }
+        case 3:
+          {xi = Vector3(0.4592925882927231, 0.08141482341455375, 0.0); break; }
+        case 4:
+          {xi = Vector3(0.4592925882927231, 0.4592925882927231, 0.0); break; }
+        case 5:
+          {xi = Vector3(0.08141482341455375, 0.4592925882927231, 0.0); break; }
+        case 6:
+          {xi = Vector3(0.05054722831703096, 0.8989055433659381, 0.0); break; }
+        case 7:
+          {xi = Vector3(0.05054722831703096, 0.05054722831703096, 0.0); break; }
+        case 8:
+          {xi = Vector3(0.8989055433659381, 0.05054722831703096, 0.0); break; }
+        case 9:
+          {xi = Vector3(0.0083947774099576, 0.7284923929554042, 0.0); break; }
+        case 10:
+          {xi = Vector3(0.2631128296346381, 0.7284923929554042, 0.0); break; }
+        case 11:
+          {xi = Vector3(0.2631128296346381, 0.0083947774099576, 0.0); break; }
+        case 12:
+          {xi = Vector3(0.0083947774099576, 0.2631128296346381, 0.0); break; }
+        case 13:
+          {xi = Vector3(0.7284923929554042, 0.2631128296346381, 0.0); break; }
+        case 14:
+          {xi = Vector3(0.7284923929554042, 0.0083947774099576, 0.0); break; }
+        case 15:
+          {xi = Vector3(0.3333333333333333, 0.3333333333333333, 0.0); break; }
+        default:
+          {xi = Vector3(0, 0, 0); break; }
+
+        /*
+        // 2p-1 cubature
         case 0:
           { xi = Vector3(0.0421656144094321,0.9156687711811358, 0); break; }
         case 1:
@@ -939,6 +1006,7 @@ class DG1SBPQuartic : public FieldShape
           { xi = Vector3(0.7404565999904429,0.047981341371464654,0); break; }
         default: 
           { xi = Vector3(0, 0,0); break; }
+        */
       }
 	
 

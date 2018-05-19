@@ -516,6 +516,8 @@ end  # end outer constructor
 function PumiMeshDG2{T, Tface}(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts_old,
                               newbc_name::AbstractString, el_list::AbstractVector)
 
+  @assert length(el_list) > 0
+
   if old_mesh.commsize != 1
     throw(ErrorException("Submesh not supported in parallel"))
   end
