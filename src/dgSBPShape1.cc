@@ -437,9 +437,9 @@ class DG1SBPCubic : public FieldShape
         void getValues(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<double>& values) const
         {
-          values.allocate(1);
-          values[0] = 1.0;
-//            fail("unimplimented getValues called in DG1SBPCubic Vertex");    
+//          values.allocate(1);
+//          values[0] = 1.0;
+            fail("unimplimented getValues called in DG1SBPCubic Vertex");    
         }
         void getLocalGradients(Mesh*, MeshEntity*,
             Vector3 const&, NewArray<Vector3>&) const
@@ -534,39 +534,42 @@ class DG1SBPCubic : public FieldShape
           fail("unimplimented getLocalGradients() called in DG1SBPCubic Triangle");
         }
 		
-        int countNodes() const {return 12;}
-		
-		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
-                {
-		// elem is the triangle 
-		// shared is the entity (edge or vertex) being shared
-		// order[] contains the mapping such that order[i], where i is the local node number, gives
-		// the position of that node in the canonical ordering
-		
-		// which is the index of shared in getDownward(elm)
-		// rotate is the number of rotations required  ( a complete circle is n rotations, where n is the 
-		// number of sides of elem
-		// flip determines whether to flip the nodes
-		int which, rotate;
-		bool flip;
-		
-		getAlignment(m, elem, shared, which, flip, rotate); // populate, which, flip, rotate
-		
-		  if (m->getType(shared) == Mesh::EDGE)
-		  {
-		    if (flip)
-			{ 
-			  order[0] = 1;
-			  order[1] = 0;
-			} else   // not flipping
-			{  
-			  order[0] = 0;
-			  order[1] = 1;
-			}
-		  }
-		  
-		  // no need to consider shared vertices
-		}
+        int countNodes() const {return 10;}
+        
+        void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
+        {
+        /*
+        // elem is the triangle 
+        // shared is the entity (edge or vertex) being shared
+        // order[] contains the mapping such that order[i], where i is the local node number, gives
+        // the position of that node in the canonical ordering
+        
+        // which is the index of shared in getDownward(elm)
+        // rotate is the number of rotations required  ( a complete circle is n rotations, where n is the 
+        // number of sides of elem
+        // flip determines whether to flip the nodes
+        int which, rotate;
+        bool flip;
+        
+        getAlignment(m, elem, shared, which, flip, rotate); // populate, which, flip, rotate
+        
+          if (m->getType(shared) == Mesh::EDGE)
+          {
+            if (flip)
+                { 
+                  order[0] = 1;
+                  order[1] = 0;
+                } else   // not flipping
+                {  
+                  order[0] = 0;
+                  order[1] = 1;
+                }
+          }
+          
+          // no need to consider shared vertices
+        */
+        }
+        
     };
 	
     class Tetrahedron : public EntityShape
@@ -641,7 +644,7 @@ class DG1SBPCubic : public FieldShape
     {
       if (type == Mesh::TRIANGLE)
       {
-        return 12;
+        return 10;
       } else
       {
         return 0;
@@ -660,9 +663,11 @@ class DG1SBPCubic : public FieldShape
             xi = Vector3(0,0,0);
             return;
 	  }
-
+      
       switch (node)
       {
+        // 2p cubature
+        /*
         case 0:
           {xi = Vector3(0.06308901449150225, 0.8738219710169954, 0.0); break; }
         case 1:
@@ -689,8 +694,9 @@ class DG1SBPCubic : public FieldShape
           {xi = Vector3(0.6365024991213988, 0.31035245103378434, 0.0); break; }
         default:
           {xi = Vector3(0, 0, 0); break; }
+        */
 
-        /*
+        
         // 2p-1 cubature rule
         case 0:
           { xi = Vector3(0.06931165313831339,0.8613766937233732, 0); break; }
@@ -714,7 +720,7 @@ class DG1SBPCubic : public FieldShape
           { xi = Vector3(0.3333333333333333,0.3333333333333333,0); break; }
         default: 
           { xi = Vector3(0, 0,0); break; }
-        */
+        
       }
 	
 	  
@@ -809,7 +815,7 @@ class DG1SBPQuartic : public FieldShape
           fail("unimplimented getLocalGradients() called in DG1SBPQuartic Triangle");
         }
 		
-        int countNodes() const {return 16;}
+        int countNodes() const {return 15;}
 		
 		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
                 {
@@ -918,7 +924,7 @@ class DG1SBPQuartic : public FieldShape
     {
       if (type == Mesh::TRIANGLE)
       {
-        return 16;
+        return 15;
       } else
       {
         return 0;
@@ -937,6 +943,8 @@ class DG1SBPQuartic : public FieldShape
       }
       switch (node)
       {
+        /*
+        // 2p cubature
         case 0:
           {xi = Vector3(0.1705693077517602, 0.6588613844964796, 0.0); break; }
         case 1:
@@ -971,8 +979,9 @@ class DG1SBPQuartic : public FieldShape
           {xi = Vector3(0.3333333333333333, 0.3333333333333333, 0.0); break; }
         default:
           {xi = Vector3(0, 0, 0); break; }
+        */
 
-        /*
+        
         // 2p-1 cubature
         case 0:
           { xi = Vector3(0.0421656144094321,0.9156687711811358, 0); break; }
@@ -1006,7 +1015,6 @@ class DG1SBPQuartic : public FieldShape
           { xi = Vector3(0.7404565999904429,0.047981341371464654,0); break; }
         default: 
           { xi = Vector3(0, 0,0); break; }
-        */
       }
 	
 

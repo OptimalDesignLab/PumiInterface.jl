@@ -115,7 +115,7 @@ end
 #sbp = TriSBP{Float64}(degree=1, reorder=false, internal=false)
 #sbp = TetSBP{Float64}(degree=3, reorder=false, internal=true)
 #sbp = getTetSBPDiagE(degree=3)
-sbp = getTriSBPOmega(degree=4)
+sbp = getTriSBPOmega(degree=3)
 xi, coords = nodecalc(sbp, true)
 printCaseStatement(xi)
 printBaryCoords(xi, coords)
