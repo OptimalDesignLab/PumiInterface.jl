@@ -10,6 +10,7 @@
 namespace apf {
   extern "C" {
     FieldShape* getDG1SBPShape(int order);
+    FieldShape* getDG7SBPShape(int order);
   }
 }
 

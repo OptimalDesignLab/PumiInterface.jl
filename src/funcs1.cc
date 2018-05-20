@@ -356,9 +356,13 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     {
       fshape = apf::getDG5SBPShape(order);
       change_shape = true;
-    } else if (shape_type == 6)  // 2p SBP Omega
+    } else if (shape_type == 6)  // 2p SBP Omega (optimized)
     {
       fshape = apf::getDG6SBPShape(order);
+      change_shape = true;
+    } else if (shape_type == 7)  // 2p SBP Omega (not optimized)
+    {
+      fshape = apf::getDG7SBPShape(order);
       change_shape = true;
     } else  // default to lagrange shape functions
     {

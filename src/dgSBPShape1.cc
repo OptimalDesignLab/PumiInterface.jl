@@ -10,7 +10,12 @@ namespace apf {
 class DG1SBPLinear : public FieldShape
 {
   public:
-    DG1SBPLinear() { registerSelf(apf::DG1SBPLinear::getName()); }
+    DG1SBPLinear() 
+    { 
+      // registering more than once is not allowed
+      if ( !getShapeByName(apf::DG1SBPLinear::getName()) )
+        registerSelf(apf::DG1SBPLinear::getName()); 
+    }
     const char* getName() const  {return "DG1SBPLinear"; }
     class Vertex : public EntityShape
     // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
@@ -207,7 +212,11 @@ class DG1SBPLinear : public FieldShape
 class DG1SBPQuadratic : public FieldShape
 {
   public:
-    DG1SBPQuadratic() { registerSelf(apf::DG1SBPQuadratic::getName()); }
+    DG1SBPQuadratic() 
+    {
+     if ( !getShapeByName(apf::DG1SBPQuadratic::getName()) ) 
+      registerSelf(apf::DG1SBPQuadratic::getName());
+    }
     const char* getName() const { return "DG1SBPQuadratic"; }
     class Vertex : public EntityShape
     // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
@@ -1024,6 +1033,553 @@ class DG1SBPQuartic : public FieldShape
 
 
 
+//-----------------------------------------------------------------------------
+// SBP Omega 2p, not optimized
+class DG7SBPCubic : public FieldShape
+{
+  public:
+    DG7SBPCubic() { registerSelf(apf::DG7SBPCubic::getName()); }
+    const char* getName() const { return "DG7SBPCubic"; }
+    class Vertex : public EntityShape
+    // use shape function value, derivative functions inherited from base EntityShape (which return fail('unimplimented')	  
+	
+	// need to register name with PUMI?
+    {
+	
+      public:
+	  
+        void getValues(Mesh*, MeshEntity*,
+            Vector3 const&, NewArray<double>& values) const
+        {
+//          values.allocate(1);
+//          values[0] = 1.0;
+            fail("unimplimented getValues called in DG7SBPCubic Vertex");    
+        }
+        void getLocalGradients(Mesh*, MeshEntity*,
+            Vector3 const&, NewArray<Vector3>&) const
+        {
+           fail("unimplimented getValues called in DG7SBPCubic Vertex");
+        }
+		
+        int countNodes() const {return 0;}
+    };
+    class Edge : public EntityShape
+    {
+      public:
+	  
+        void getValues(Mesh*, MeshEntity*,
+            Vector3 const& xi, NewArray<double>& values) const
+        {
+          /*
+          double xiv = xi[0];
+          const double n1 = 0.0;
+          const double n2 = 0.2934695559090417;
+          const double n3 = 0.706530440905599;
+          const double n4 = 1.0;
+          values.allocate(4);
+          values[0] = (xiv - n2)*(xiv - n3)*(xiv - n4)/(-0.20734517566347355);
+          values[1] = (xiv - n1)*(xiv - n3)*(xiv - n4)/(0.08564618241975609);
+          values[2] = (xiv - n1)*(xiv - n2)*(xiv - n4)/(-0.08564618241982433);
+          values[3] = (xiv - n1)*(xiv - n2)*(xiv - n3)/(0.2073451756638735);
+          */
+          
+          fail("unimplimented getValues() called in DG7SBPCubic Edge");
+        }
+
+        void getLocalGradients(Mesh*, MeshEntity*,
+            Vector3 const&, NewArray<Vector3>& grads) const
+        {
+          /*
+          grads.allocate(2);
+          grads[0] = Vector3(-0.5,0,0);
+          grads[1] = Vector3( 0.5,0,0);
+          */
+          fail("unimplimented getLocaGradients() called in DG7SBPCubic Edge");
+        }
+		
+        int countNodes() const {return 0;}
+		
+
+    };
+    class Triangle : public EntityShape
+    {
+      public:
+	  
+        void getValues(Mesh*, MeshEntity*,
+            Vector3 const& xi, NewArray<double>& values) const
+        {
+/*          
+          values.allocate(12);
+          values[0] = 1-xi[0]-xi[1];
+          values[1] = xi[0];
+          values[2] = xi[1];
+          values[3] = 0.0;
+
+          values[4] = 0.0;
+          values[5] = 0.0;
+          values[6] = 0.0;
+          values[7] = 0.0;
+          values[8] = 0.0;
+          values[9] = 0.0;
+          values[10] = 0.0;
+          values[11] = 0.0;
+*/
+          
+          fail("unimplimented getValues() called in DG7SBPCubic Triangle");
+        }
+        void getLocalGradients(Mesh*, MeshEntity*,
+            Vector3 const&, NewArray<Vector3>& grads) const
+        {
+/*          
+          grads.allocate(12);
+          grads[0] = Vector3(-1,-1,0);
+          grads[1] = Vector3( 1, 0,0);
+          grads[2] = Vector3( 0, 1,0);
+          grads[3] = Vector3( 0, 0, 0);
+          grads[4] = Vector3( 0, 0, 0);
+          grads[5] = Vector3( 0, 0, 0);
+          grads[6] = Vector3( 0, 0, 0);
+          grads[7] = Vector3( 0, 0, 0);
+          grads[8] = Vector3( 0, 0, 0);
+          grads[9] = Vector3( 0, 0, 0);
+          grads[10] = Vector3( 0, 0, 0);
+          grads[11] = Vector3( 0, 0, 0);
+*/          
+          fail("unimplimented getLocalGradients() called in DG7SBPCubic Triangle");
+        }
+		
+        int countNodes() const {return 12;}
+        
+        void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
+        {
+        /*
+        // elem is the triangle 
+        // shared is the entity (edge or vertex) being shared
+        // order[] contains the mapping such that order[i], where i is the local node number, gives
+        // the position of that node in the canonical ordering
+        
+        // which is the index of shared in getDownward(elm)
+        // rotate is the number of rotations required  ( a complete circle is n rotations, where n is the 
+        // number of sides of elem
+        // flip determines whether to flip the nodes
+        int which, rotate;
+        bool flip;
+        
+        getAlignment(m, elem, shared, which, flip, rotate); // populate, which, flip, rotate
+        
+          if (m->getType(shared) == Mesh::EDGE)
+          {
+            if (flip)
+                { 
+                  order[0] = 1;
+                  order[1] = 0;
+                } else   // not flipping
+                {  
+                  order[0] = 0;
+                  order[1] = 1;
+                }
+          }
+          
+          // no need to consider shared vertices
+        */
+        }
+        
+    };
+	
+    class Tetrahedron : public EntityShape
+    {
+      public:
+    
+        void getValues(Mesh*, MeshEntity*,
+            Vector3 const& xi, NewArray<double>& values) const
+        {
+          /*
+          values.allocate(3);
+          values[0] = 1-xi[0]-xi[1];
+          values[1] = xi[0];
+          values[2] = xi[1];
+          */
+          fail("unimplimented getValues() called in DG7SBPCubic Tetrahdron");
+        }
+        void getLocalGradients(Mesh*, MeshEntity*,
+            Vector3 const&, NewArray<Vector3>& grads) const
+        {
+          /*
+          grads.allocate(3);
+          grads[0] = Vector3(-1,-1,0);
+          grads[1] = Vector3( 1, 0,0);
+          grads[2] = Vector3( 0, 1,0);
+          */
+          fail("unimplimented getLocalGradients() called in DG7SBPCubic Tetrahdron");
+        }
+    
+        int countNodes() const {return 0;}
+    
+    void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
+    // elem is the triangle 
+    // shared is the entity (edge or vertex) being shared
+    // order[] contains the mapping such that order[i], where i is the local node number, give
+    // the position of that node in the canonical ordering
+    {
+      // nothing to do here for linear element because they have no shared nodes on edges
+    
+    }
+    };
+	
+	EntityShape* getEntityShape(int type)
+    {
+      static Vertex vertex;
+      static Edge edge;
+      static Triangle triangle;
+//      static Quad quad;
+      static Tetrahedron tet;
+//      static Prism prism;
+//      static Pyramid pyramid;
+ //     static Hexahedron hex;
+      static EntityShape* shapes[Mesh::TYPES] =
+      {&vertex,
+       &edge,
+       &triangle,
+       NULL, // quad
+       &tet,
+       NULL, // hex
+       NULL,  //prism
+       NULL};  //pyramid
+      return shapes[type];
+    }
+    bool hasNodesIn(int dimension)
+    {
+      if (dimension <= 1)
+        return false;
+      else
+        return true;
+    }
+    int countNodesOn(int type)
+    {
+      if (type == Mesh::TRIANGLE)
+      {
+        return 12;
+      } else
+      {
+        return 0;
+      }
+
+    }
+
+    int getOrder() {return 3;}
+    void getNodeXi(int type, int node, Vector3& xi)
+    {
+	  // return the xi coordinates of the specified node of the specified type
+	  // *in the coordinate system of that type*
+	  // which makes this function not useful
+	  if (type != Mesh::TRIANGLE)
+	  {
+            xi = Vector3(0,0,0);
+            return;
+	  }
+      
+      switch (node)
+      {
+        // 2p cubature
+        case 0:
+          {xi = Vector3(0.06308901449150225, 0.8738219710169954, 0.0); break; }
+        case 1:
+          {xi = Vector3(0.06308901449150225, 0.06308901449150225, 0.0); break; }
+        case 2:
+          {xi = Vector3(0.8738219710169954, 0.06308901449150225, 0.0); break; }
+        case 3:
+          {xi = Vector3(0.24928674517091048, 0.501426509658179, 0.0); break; }
+        case 4:
+          {xi = Vector3(0.24928674517091048, 0.24928674517091048, 0.0); break; }
+        case 5:
+          {xi = Vector3(0.501426509658179, 0.24928674517091048, 0.0); break; }
+        case 6:
+          {xi = Vector3(0.31035245103378434, 0.6365024991213988, 0.0); break; }
+        case 7:
+          {xi = Vector3(0.053145049844816994, 0.6365024991213988, 0.0); break; }
+        case 8:
+          {xi = Vector3(0.053145049844816994, 0.31035245103378434, 0.0); break; }
+        case 9:
+          {xi = Vector3(0.31035245103378434, 0.053145049844816994, 0.0); break; }
+        case 10:
+          {xi = Vector3(0.6365024991213988, 0.053145049844816994, 0.0); break; }
+        case 11:
+          {xi = Vector3(0.6365024991213988, 0.31035245103378434, 0.0); break; }
+        default:
+          {xi = Vector3(0, 0, 0); break; }
+        
+      }
+	
+	  
+    }
+};  // class DG7SBPCubic
+
+
+
+class DG7SBPQuartic : public FieldShape
+{
+  public:
+    DG7SBPQuartic() { registerSelf(apf::DG7SBPQuartic::getName()); }
+    const char* getName() const { return "DG7SBPQuartic"; }
+	
+	
+    class Vertex : public EntityShape
+	
+	// need to register name with PUMI?
+    {
+	
+      public:
+	  
+        void getValues(Mesh*, MeshEntity*,
+            Vector3 const&, NewArray<double>& values) const
+        {
+//          values.allocate(1);
+//          values[0] = 1.0;
+            fail("unimplimented getValues called in DG7SBPQuartic Vertex");    
+        }
+        void getLocalGradients(Mesh*, MeshEntity*,
+            Vector3 const&, NewArray<Vector3>&) const
+        {
+           fail("unimplimented getValues called in DG7SBPQuartic Vertex");
+        }
+		
+        int countNodes() const {return 0;}
+    };
+    class Edge : public EntityShape
+    {
+      public:
+	  
+        void getValues(Mesh*, MeshEntity*,
+            Vector3 const& xi, NewArray<double>& values) const
+        {
+          /*
+          values.allocate(2);
+          values[0] = (1.0-xi[0])/2.0;
+          values[1] = (1.0+xi[0])/2.0;
+          */
+          fail("unimplimented getValues() called in DG7SBPQuartic Edge");
+        }
+
+        void getLocalGradients(Mesh*, MeshEntity*,
+            Vector3 const&, NewArray<Vector3>& grads) const
+        {
+          /*
+          grads.allocate(2);
+          grads[0] = Vector3(-0.5,0,0);
+          grads[1] = Vector3( 0.5,0,0);
+          */
+          fail("unimplimented getLocaGradients() called in DG7SBPQuartic Edge");
+        }
+		
+        int countNodes() const {return 0;}
+		
+
+    };
+    class Triangle : public EntityShape
+    {
+      public:
+	  
+        void getValues(Mesh*, MeshEntity*,
+            Vector3 const& xi, NewArray<double>& values) const
+        {
+          /*
+          values.allocate(3);
+          values[0] = 1-xi[0]-xi[1];
+          values[1] = xi[0];
+          values[2] = xi[1];
+          */
+          fail("unimplimented getValues() called in DG7SBPQuartic Triangle");
+        }
+        void getLocalGradients(Mesh*, MeshEntity*,
+            Vector3 const&, NewArray<Vector3>& grads) const
+        {
+          /*
+          grads.allocate(3);
+          grads[0] = Vector3(-1,-1,0);
+          grads[1] = Vector3( 1, 0,0);
+          grads[2] = Vector3( 0, 1,0);
+          */
+          fail("unimplimented getLocalGradients() called in DG7SBPQuartic Triangle");
+        }
+		
+        int countNodes() const {return 16;}
+		
+		void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
+                {
+		// elem is the triangle 
+		// shared is the entity (edge or vertex) being shared
+		// order[] contains the mapping such that order[i], where i is the local node number, gives
+		// the position of that node in the canonical ordering
+		
+		// which is the index of shared in getDownward(elm)
+		// rotate is the number of rotations required  ( a complete circle is n rotations, where n is the 
+		// number of sides of elem
+		// flip determines whether to flip the nodes
+		int which, rotate;
+		bool flip;
+		
+		getAlignment(m, elem, shared, which, flip, rotate); // populate, which, flip, rotate
+		
+		  if (m->getType(shared) == Mesh::EDGE)
+		  {
+		    if (flip)
+			{ 
+			  order[0] = 2;
+			  order[1] = 1;
+			  order[2] = 0;
+			} else   // not flipping
+			{  
+			  order[0] = 0;
+			  order[1] = 1;
+			  order[2] = 2;
+			}
+		  }
+		  
+		  // no need to consider shared vertices
+		}
+    };
+	
+    class Tetrahedron : public EntityShape
+    {
+      public:
+    
+        void getValues(Mesh*, MeshEntity*,
+            Vector3 const& xi, NewArray<double>& values) const
+        {
+          /*
+          values.allocate(3);
+          values[0] = 1-xi[0]-xi[1];
+          values[1] = xi[0];
+          values[2] = xi[1];
+          */
+          fail("unimplimented getValues() called in DG7SBPQuartic Tetrahdron");
+        }
+        void getLocalGradients(Mesh*, MeshEntity*,
+            Vector3 const&, NewArray<Vector3>& grads) const
+        {
+          /*
+          grads.allocate(3);
+          grads[0] = Vector3(-1,-1,0);
+          grads[1] = Vector3( 1, 0,0);
+          grads[2] = Vector3( 0, 1,0);
+          */
+          fail("unimplimented getLocalGradients() called in DG7SBPQuartic Tetrahdron");
+        }
+    
+        int countNodes() const {return 0;}
+    
+    void alignSharedNodes(Mesh* m, MeshEntity* elem, MeshEntity* shared, int order[])
+    // elem is the triangle 
+    // shared is the entity (edge or vertex) being shared
+    // order[] contains the mapping such that order[i], where i is the local node number, give
+    // the position of that node in the canonical ordering
+    {
+      // nothing to do here for linear element because they have no shared nodes on edges
+    
+    }
+    };
+	
+	EntityShape* getEntityShape(int type)
+    {
+      static Vertex vertex;
+      static Edge edge;
+      static Triangle triangle;
+//      static Quad quad;
+      static Tetrahedron tet;
+//      static Prism prism;
+//      static Pyramid pyramid;
+ //     static Hexahedron hex;
+      static EntityShape* shapes[Mesh::TYPES] =
+      {&vertex,
+       &edge,
+       &triangle,
+       NULL, // quad
+       &tet,
+       NULL, // hex
+       NULL,  //prism
+       NULL};  //pyramid
+      return shapes[type];
+    }
+    bool hasNodesIn(int dimension)
+    {
+      if (dimension <= 1)
+        return false;
+      else
+        return true;
+    }
+    int countNodesOn(int type)
+    {
+      if (type == Mesh::TRIANGLE)
+      {
+        return 16;
+      } else
+      {
+        return 0;
+      }
+    }
+    int getOrder() {return 4;}
+    void getNodeXi(int type, int node, Vector3& xi)
+    {
+	  // return the xi coordinates of the specified node of the specified type
+	  // *in the coordinate system of that type*
+	  // which makes this function not useful
+      if (type != Mesh::TRIANGLE)
+      {
+        xi = Vector3(0,0,0);
+        return;
+      }
+      switch (node)
+      {
+        // 2p cubature
+        case 0:
+          {xi = Vector3(0.1705693077517602, 0.6588613844964796, 0.0); break; }
+        case 1:
+          {xi = Vector3(0.1705693077517602, 0.1705693077517602, 0.0); break; }
+        case 2:
+          {xi = Vector3(0.6588613844964796, 0.1705693077517602, 0.0); break; }
+        case 3:
+          {xi = Vector3(0.4592925882927231, 0.08141482341455375, 0.0); break; }
+        case 4:
+          {xi = Vector3(0.4592925882927231, 0.4592925882927231, 0.0); break; }
+        case 5:
+          {xi = Vector3(0.08141482341455375, 0.4592925882927231, 0.0); break; }
+        case 6:
+          {xi = Vector3(0.05054722831703096, 0.8989055433659381, 0.0); break; }
+        case 7:
+          {xi = Vector3(0.05054722831703096, 0.05054722831703096, 0.0); break; }
+        case 8:
+          {xi = Vector3(0.8989055433659381, 0.05054722831703096, 0.0); break; }
+        case 9:
+          {xi = Vector3(0.0083947774099576, 0.7284923929554042, 0.0); break; }
+        case 10:
+          {xi = Vector3(0.2631128296346381, 0.7284923929554042, 0.0); break; }
+        case 11:
+          {xi = Vector3(0.2631128296346381, 0.0083947774099576, 0.0); break; }
+        case 12:
+          {xi = Vector3(0.0083947774099576, 0.2631128296346381, 0.0); break; }
+        case 13:
+          {xi = Vector3(0.7284923929554042, 0.2631128296346381, 0.0); break; }
+        case 14:
+          {xi = Vector3(0.7284923929554042, 0.0083947774099576, 0.0); break; }
+        case 15:
+          {xi = Vector3(0.3333333333333333, 0.3333333333333333, 0.0); break; }
+        default:
+          {xi = Vector3(0, 0, 0); break; }
+        
+      }
+	
+
+	  
+    }
+};  // class DG7SBPQuartic
+
+
+
+
+
+
+
+
 
 FieldShape* getDG1SBPShape(int order)
 {
@@ -1046,5 +1602,29 @@ FieldShape* getDG1SBPShape(int order)
 	  return NULL;
     }
 }
+
+FieldShape* getDG7SBPShape(int order)
+{
+  static DG1SBPLinear linear1;  // for p=1 and 2, this is the same as shape 1
+  static DG1SBPQuadratic quadratic1;
+  static DG7SBPCubic cubic1;
+  static DG7SBPQuartic quartic1;
+  // add an if statement here or something to support other orders
+  switch (order) {
+    case 1:
+	  return &linear1;
+	case 2:
+	  return &quadratic1;
+	case 3:
+	  return &cubic1;
+	case 4:
+	  return &quartic1;
+	default:
+	  std::cout << "order " << order << " is not supported by apfSBPShape.cc" << std::endl;
+	  return NULL;
+    }
+}
+
+
 
 } // end namespace apf
