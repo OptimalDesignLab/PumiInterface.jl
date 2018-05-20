@@ -891,6 +891,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
 #  mesh =  PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
+  testSurfaceNumbering(mesh, sbp, opts)
   #TODO: check sizes of arrays
 
   function test_volume_curvilinear(mesh, sbp)

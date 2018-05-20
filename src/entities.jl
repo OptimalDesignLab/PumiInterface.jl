@@ -185,34 +185,32 @@ function getGlobalNodeNumbers(mesh::PumiMesh, elnum::Integer, dofnums::AbstractA
 # getdofs specifies whether to get dof numbers or node numbers
 # 
 
-el_i = mesh.elements[elnum]
-type_i = getType(mesh.m_ptr, el_i)  # what is this used for?
+  el_i = mesh.elements[elnum]
+  type_i = getType(mesh.m_ptr, el_i)  # what is this used for?
 
-#println("elnum = ", elnum)
-# calculate total number of nodes
-#nnodes = 3 + 3*mesh.numNodesPerType[2] + mesh.numNodesPerType[3]
-nnodes = mesh.numNodesPerElement
+  #println("elnum = ", elnum)
+  # calculate total number of nodes
+  #nnodes = 3 + 3*mesh.numNodesPerType[2] + mesh.numNodesPerType[3]
+  nnodes = mesh.numNodesPerElement
 
-if getdofs
-  numdof = nnodes*mesh.numDofPerNode  # what is this used for?
-  numbering_ptr = mesh.dofnums_Nptr
-else
-  numdof = nnodes
-  numbering_ptr = mesh.nodenums_Nptr
-end
+  if getdofs
+    numdof = nnodes*mesh.numDofPerNode  # what is this used for?
+    numbering_ptr = mesh.dofnums_Nptr
+  else
+    numdof = nnodes
+    numbering_ptr = mesh.nodenums_Nptr
+  end
 
-# get entities in the Pumi order
-node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
+  # get entities in the Pumi order
+  node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
 
-# get node offsets in the SBP order
-node_offsets = sview(mesh.elementNodeOffsets, :, elnum)
-#node_offsets = sview(mesh.elementNodeOffsets[:, elnum])
+  # get node offsets in the SBP order
+  node_offsets = sview(mesh.elementNodeOffsets, :, elnum)
+  #node_offsets = sview(mesh.elementNodeOffsets[:, elnum])
 
-PumiInterface.getDofNumbers(numbering_ptr, node_entities, node_offsets, mesh.nodemapPumiToSbp, el_i, dofnums)  # C implimentation
+  PumiInterface.getDofNumbers(numbering_ptr, node_entities, node_offsets, mesh.nodemapPumiToSbp, el_i, dofnums)  # C implimentation
 
-return nothing
-
-
+  return nothing
 end
 
 

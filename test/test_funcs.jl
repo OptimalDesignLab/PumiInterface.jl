@@ -1216,40 +1216,66 @@ function testSurfaceNumbering(mesh, sbp, opts)
 
   facts("----- Testing Surface Numbering -----") do
     nBCs = opts["numBC"]
-    bc_nums =  [nBCs]  # only do the last BC
-    numFacePts, n_face, face_verts = numberSurfacePoints(mesh, 1:nBCs)
+    bc_nums =  [nBCs]  # only do the last BC  #TODO: re-enable this
+#    bc_nums = 1:nBCs
+    numFacePts, n_face, face_verts = numberSurfacePoints(mesh, bc_nums)
 
     @fact length(face_verts) --> numFacePts
 
-    geo_tags = opts["BC$nBCs"]
+    geo_tags = Array(Int, 0)
+    for bc in bc_nums
+      geo_tags_bc = opts["BC$bc"]
+      for j=1:length(geo_tags_bc)
+        push!(geo_tags, geo_tags_bc[j])
+      end
+    end
+
     
-    # check that every face verts is on the specified geometry
+    # check that if the MeshEntity is classified in an edge/face, then it
+    # is part of the geometry
+    # this is a bit too loose because some MeshEntities are classified on
+    # the geometric entities that are on the closure of the specified geometry
     for vert in face_verts
       me =  toModel(mesh.m_ptr, vert)
       me_type = getModelType(mesh.m_ptr, me)  # dimension of model entity
       me_tag = getModelTag(mesh.m_ptr, me)
 
-      @fact me_type --> mesh.dim-1  # is on a face somewhere
-      @fact me_tag in geo_tags --> true
-    end
-
-    # check that all verts with number numFacePts + 1 are not on the geometry
-    for vert in mesh.verts
-      n_v = getNumberJ(n_face, vert, 0, 0)
-      me =  toModel(mesh.m_ptr, vert)
-      me_type = getModelType(mesh.m_ptr, me)
-      me_tag = getModelTag(mesh.m_ptr, me)
-
-      if n_v > numFacePts
-        if me_type == mesh.dim - 1
-          @fact !(me_tag in geo_tags) --> true
-        end
-      else
-        if me_type == mesh.dim - 1
-          @fact me_tag in geo_tags --> true
-        end
+      if me_type == mesh.dim - 1
+        @fact me_tag in geo_tags --> true
       end
+
     end
+
+    # check that all entities with number numFacePts + 1 are not on the geometry
+
+    seen_nums = zeros(Int, numFacePts)
+    entities = Array(Vector{Ptr{Void}}, 2)
+    entities[1] = mesh.verts
+    entities[2] = mesh.edges
+    for edim = 1:length(entities)
+      if hasNodesIn(mesh.coordshape_ptr, edim - 1)
+        for vert in entities[edim]
+          n_v = getNumberJ(n_face, vert, 0, 0)
+          me =  toModel(mesh.m_ptr, vert)
+          me_type = getModelType(mesh.m_ptr, me)
+          me_tag = getModelTag(mesh.m_ptr, me)
+
+          if n_v > numFacePts
+            if me_type == mesh.dim - 1
+              @fact !(me_tag in geo_tags) --> true
+            end
+          else 
+            seen_nums[n_v] += 1  # for uniqueness check
+            if me_type == mesh.dim - 1
+              @fact me_tag in geo_tags --> true
+            end
+          end
+        end  # end loop vert
+      end  # end if
+    end  # end loop edim
+
+    @fact maximum(seen_nums) --> 1
+    @fact minimum(seen_nums) --> 1
   end  # end facts block
 
   return nothing

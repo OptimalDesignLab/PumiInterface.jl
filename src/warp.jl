@@ -8,8 +8,12 @@
   their positions.
 
   elnum is the element number to update
-  coords_new is the mesh.dim x numVertsPerElement array of new coordinates.
-    Each column contains the coordinates for a vertex
+  coords_new is the mesh.dim x coord_numNodesPerElement array of new coordinates.
+    Each column contains the coordinate of a coordinate node, starting
+    with the vertices, followed by the edges (if quadratic).
+    The entities must be ordered the same as the downward adjacencies of
+    the elements.  The mesh.topo field combined with mesh.element_vertnums
+    can be used to figure this out.
 
   After completeing all calles the update_coords, users *must* call
   commit_coords()
