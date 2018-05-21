@@ -342,4 +342,6 @@ v0.6: fix bug in in 3D metric calculation, also introduce asserts to make sure
       Also, removes all global state from libfuncs1, so it is now possible to
       load multiple meshes simultaneously.
 
+v0.7: change mesh constructors to be outer constructors, add submesh creation
+
 [![Build Status](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl.svg?branch=build_system)](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl)
