@@ -5,12 +5,14 @@ using ODLCommonTools
 using SummationByParts
 using PdePumiInterface
 include("defs.jl")
-
+include("common_functions.jl")
+include("test_funcs.jl")
 
 facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   degree = 1
   Tsbp = Float64
-  sbp = TetSBP{Tsbp}(degree=degree, reorder=false, internal=true)
+  sbp = getTetSBPOmega(degree=degree)
+#  sbp = TetSBP{Tsbp}(degree=degree, internal=true)
   ref_verts = sbp.vtx
   interp_op = SummationByParts.buildinterpolation(sbp, ref_verts.')
   face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)
@@ -21,11 +23,17 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   smb_name = "pcube10.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["dmg_name"] = dmg_name
+  opts["smb_name"] = smb_name
+  opts["use_linear_metrics"] = true
+  opts["coloring_distance"] = 2
+  opts["order"] = degree
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
-  interp_op = eye(4)
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+#  interp_op = eye(4)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   # check coloring
   @fact mesh.maxColors --> less_than(18)
@@ -63,6 +71,21 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
   end  # end loop over peers
 
 
+  mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
+#  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  compare_meshes(mesh, mesh_c)
 
+
+  # note: this trashes the mesh arrays
+  test_parallel_metrics(mesh, sbp, opts)
+
+  # this allocates a ton of memory - don't run
+#  test_metric_rev(mesh, mesh_c, sbp)
 end
 
+MPI.Barrier(MPI.COMM_WORLD)
+if MPI.Initialized()
+  MPI.Finalize()
+end

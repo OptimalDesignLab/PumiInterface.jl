@@ -1,19 +1,34 @@
 module PdePumiInterface
-push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
-push!(LOAD_PATH, "/users/creanj/.julia/v0.4/PDESolver/src/common")
+#push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
+#push!(LOAD_PATH, "/users/creanj/.julia/v0.4/PDESolver/src/common")
 using PumiInterface
 using SummationByParts
 using ODLCommonTools
+import ODLCommonTools.sview
 using ArrayViews
 using MPI
 
+import ODLCommonTools.sview
+
 include("nodecalc.jl")
-include("elements.jl")
-include("bary.jl")
+#include("bary.jl")
 include("options.jl")
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
+# export types
+export PumiMesh2CG, PumiMesh2DG, PumiMesh3CG, PumiMesh3DG, PumiMesh, PumiMeshCG,
+       PumiMeshDG
+
+#TODO: revise this list
 export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryFaceLocalNum, getFaceLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles, update_coords, commit_coords
+
+export zeroBarArrays, recalcCoordinatesAndMetrics, getAllCoordinatesAndMetrics_rev
+
+# submesh functions
+export injectionOperator, rejectionOperator, getBoundaryInterpArray
+
+# face identification functions
+export getBoundaries, numberSurfacePoints
 
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
@@ -111,9 +126,256 @@ typealias PumiMeshCG{T1} Union{PumiMesh2CG{T1}, PumiMesh3CG{T1}}
 """
 typealias PumiMeshDG{T1} Union{PumiMesh2DG{T1}, PumiMesh3DG{T1}}
 
+"""
+  Holds data describing vertices shared between parts
+
+  Fields:
+    npeers: number of other processes the current process shared vertices with
+    peer_nums: the MPI ranks of the peer processes
+    counts: the number of vertices shared with each peer process
+            (note: a vertex can be shared with several peer processes)
+    vert_nums: Array of arrays.  For each peer process, the inner array contains
+               the 1-based numbers of the vertices shared with each process.
+               The order of the vertices in each inner array is the same on
+               the local and remote process.
+    rev_mapping: a dictionary mapping from vert_nums to a
+                 Pair{Vector{Cint}, Vector{Int}).
+                 The fist vector contains the MPI ranks of all peer processes
+                 this vertex is shared with and the second vector is the index
+                 of vertex in vert_nums
+"""
+type VertSharing
+  npeers::Int  # number of peers this process shares verts with
+  peer_nums::Array{Cint, 1}  # the Part numbers of the peer processes
+  counts::Array{Int, 1}  # the number of vertices shared with each peer
+  # an array of arrays.  The outer array is of length npeers, the inner arrays
+  # are of length counts[i] and hold the 1-based number of each vertex shared
+  # with the current peer, in the mutually agreed to ordering
+  vert_nums::Array{Array{Int, 1}, 1}
+
+  # mapping from the 1-based number of a vertex to a Pair object containing
+  # two arrays, the parts numbers and the corresponding indices of
+  # the vertices in the mutually agreed to ordering
+  rev_mapping::Dict{Int, Pair{Array{Cint, 1}, Array{Int, 1}}}
+
+end
+
+"""
+  Holds the metric information for the remote elements along the boundary
+  with a peer process.  The Interface objects that describe the boundary
+  are in mesh.shared_interfaces (the remote element is always elementR).
+  The ordering of the elements on the interface is defined by the order the
+  elements are encountered when traversing mesh.shared_interfaces[peer_idx].
+
+  **Fields**
+
+   * peer_num: MPI rank of the process the elements are owned by
+   * peer_idx: index in mesh.peer_parts of peer_num
+   * islocal: see the `local` keyword of the outer constructor
+   * vert_coords: dim x coord_numNodesPerElement x number of elements on
+                  the interface (see mesh.remote_element_counts)
+   * coords: coordinate of the volume nodes of the remote elements,
+             dim x numNodesPerElement x number of elements on the interface
+    * jac: determinant of the mapping jacobian, numNodesPerElement x 
+           number of elements on the interface
+    * dxidx: scaled mapping jacobian at the bolume nodes, dim x dim x
+             numNodesPerElement x number of elements on the interface.
+"""
+type RemoteMetrics{Tmsh}
+  peer_num::Int  # MPI rank of other process
+  peer_idx::Int  # index in mesh.peer_parts
+  islocal::Bool
+  vert_coords::Array{Tmsh, 3}
+  coords::Array{Tmsh, 3}
+  dxidx::Array{Tmsh, 4}
+  jac::Array{Tmsh, 2}
+end
+
+
+"""
+  Outer constructor for [`RemoteMetrics`](@ref).  This function requires
+  [`getParallelInfo`](@ref) to already be called.
+
+  **Inputs**
+
+   * mesh
+   * peer: index of peer in mesh.peer_parts
+
+  **Keywords**
+
+   * islocal: if true, sizes the array using the number of elements on
+            the local side of the part boundary, otherwise sizes the array
+            for the number of elements on the remote side
+"""
+function RemoteMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh}, peer_idx::Int; islocal=true)
+
+  if islocal
+    numEl = mesh.local_element_counts[peer_idx]
+  else
+    numEl = mesh.remote_element_counts[peer_idx]
+  end
+
+  peer_num = mesh.peer_parts[peer_idx]
+  vert_coords = Array(Tmsh, mesh.dim, mesh.coord_numNodesPerElement, numEl)
+  coords = Array(Tmsh, mesh.dim, mesh.numNodesPerElement, numEl)
+  dxidx = Array(Tmsh, mesh.dim, mesh.dim, mesh.numNodesPerElement, numEl)
+  jac = Array(Tmsh, mesh.numNodesPerElement, numEl)
+
+  return RemoteMetrics{Tmsh}(peer_num, peer_idx, islocal, vert_coords, coords,
+                             dxidx, jac)
+end
+
+
+
+"""
+  This function copies the data fields of one mesh object to another
+  mesh object.  Pumi fields are not modified.  The two meshes should
+  generally represent the same Pumi mesh.  Any fields not present on both
+  meshes are skipped.
+
+  Data fields means: vert_coords, coords*, dxidx*, jac*, nrm*
+"""
+function copy_data!(dest::PumiMesh, src::PumiMesh)
+
+  # make sure these mesh objects have compatable numbers of things
+  @assert src.shape_type == dest.shape_type
+  @assert src.order == dest.order
+  @assert src.numEl == dest.numEl
+  @assert src.numDofPerNode == dest.numDofPerNode
+
+  src_fields = fieldnames(src)
+  dest_fields = fieldnames(dest)
+
+  fieldnames_serial = [:vert_coords, :coords_bndry, :coords_interface, :dxidx, 
+                :jac, :nrm_face, :nrm_bndry]
+  fieldnames_shared = [:coords_sharedface, :dxidx_sharedface, :jac_sharedface,
+                       :nrm_sharedface]
+
+  if src.coord_order == 1
+    push!(fieldnames_serial, :dxidx_face, :dxidx_bndry, :jac_face, :jac_bndry)
+    push!(fieldnames_shared, :dxidx_sharedface, :jac_sharedface)
+  end
+
+  for i in fieldnames_serial
+    if i in src_fields && i in dest_fields
+      f_src = getfield(src, i)
+      f_dest = getfield(dest, i)
+      copy!(f_dest, f_src)
+    end
+  end
+
+   for i in fieldnames_shared
+     if i in src_fields && i in dest_fields
+       f_src = getfield(src, i)
+       f_dest = getfield(dest, i)
+
+       for peer=1:src.npeers
+        copy!(f_dest[peer], f_src[peer])
+      end
+    end
+  end
+
+
+  return nothing
+end
+
+"""
+  Zero out all fields than end with _bar.  Useful for resetting everything
+  (including intermediate arrays) after doing a reverse mode evaluation.
+"""
+function zeroBarArrays(mesh::PumiMesh)
+
+  fnames = fieldnames(mesh)
+
+  for fname in fnames
+    fname_str = string(fname)
+    if endswith(fname_str, "_bar")
+      field = getfield(mesh, fname)
+
+      # treat parallel (Arrays-of-Arrays) separately
+      if contains(fname_str, "sharedface")
+        for i=1:mesh.npeers
+          fill!(field[i], 0.0)
+        end
+      else
+        fill!(field, 0.0)
+      end
+    end
+  end
+
+  return nothing
+end
+
+"""
+  Registers a finalizer that cleans up the pumi mesh underlying the julia
+  mesh object, including all the other meshes (subtriangulated etc.).
+  This uses reference counting, so the mesh is only freed if there are no 
+  more references to it.
+"""
+function registerFinalizer(mesh::PumiMesh)
+
+  finalizer(mesh, finalizeMesh)
+
+end
+
+"""
+  The finalizer function itself used by registerFinalizer().  If users
+  want to free the Pumi datastructure early, they can call this function.
+"""
+function finalizeMesh(mesh::PumiMesh)
+
+  fnames = fieldnames(mesh)
+
+  # only do the main mesh for now
+  if mesh.m_ptr != C_NULL
+    popMeshRef(mesh.m_ptr)
+
+    # figure out which other mesh pointers need to be zeroed
+    zero_mnew = ( :mnew_ptr in fnames) && mesh.mnew_ptr == mesh.m_ptr
+    zero_mexact = ( :mexact_ptr in fnames) && mesh.mexact_ptr == mesh.m_ptr
+
+    mesh.m_ptr = C_NULL
+    if zero_mnew
+      mesh.mnew_ptr = C_NULL
+    end
+    if zero_mexact
+      mesh.mexact_ptr = C_NULL
+    end
+  end
+
+  if ( :mnew_ptr in fnames) && mesh.mnew_ptr != C_NULL
+    popMeshRef(mesh.mnew_ptr)
+
+    zero_mexact = ( :mexact_ptr in fnames) && mesh.mexact_ptr == mesh.mnew_ptr
+
+    mesh.mnew_ptr = C_NULL
+    if zero_mexact
+      mesh.mexact_ptr == C_NULL
+    end
+  end
+
+  if ( :mexect_ptr in fnames) && mesh.mexact_ptr != C_NULL
+    popMeshRef(mesh.mexact_ptr)
+    mesh.mexact_ptr = C_NULL
+  end
+
+  if ( :subdata in fnames) && mesh.subdata.pobj != C_NULL
+    free(mesh.subdata)
+    mesh.subdata = SubMeshData(C_NULL)
+  end
+
+
+
+  return nothing
+end
+
+
+include("elements.jl")
 include("./PdePumiInterface3.jl")
 include("PdePumiInterfaceDG.jl")
 include("PdePumiInterface3DG.jl")
+include("interface.jl")
+
 @doc """
 ### PumiInterface.PumiMesh2
 
@@ -121,6 +383,9 @@ include("PdePumiInterface3DG.jl")
   This is an implementation of AbstractMesh for a 2 dimensional equation.  
   The constructor for this type extracts all the needed information from Pumi,
   so the solver never needs access to Pumi.
+
+  CG meshes do not support periodic boundary conditions or reverse mode, despite
+  the presece of some fields that indicate otherwise.
 
   Fields:
     m_ptr: a Ptr{Void} to the Pumi mesh
@@ -144,6 +409,7 @@ include("PdePumiInterface3DG.jl")
     numDofPerNode: number of degrees of freedom on each node
     numBoundaryFaces: number of edges on the boundary of the domain
     numInterfaces: number of internal edges (edges not on boundary)
+    numPeriodicInterfaces: number of matched interfaces
     numNodesPerElements: number of nodes on an element
     numNodesPerType: array of length 3 that tells how many nodes are on a mesh
                      vertex, edge, and element
@@ -163,7 +429,7 @@ include("PdePumiInterface3DG.jl")
                       color the elements (graph vertices are elements and graph
                       edges exist where elements share an edge)
 """->
-type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
+type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
@@ -246,6 +512,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 #  boundary_nums::Array{Int, 2}  # array of [element number, edgenumber] for each edge on the boundary
 
   bndry_funcs::Array{BCType, 1}  # array of boundary functors (Abstract type)
+  bndry_funcs_revm::Array{BCType_revm, 1}  # reverse mode functors
   bndry_normals::Array{T1, 3}  # array of normals to each face on the boundary
 #  bndry_facenums::Array{Array{Int, 1}, 1}  # hold array of faces corresponding to each boundary condition
   bndry_offsets::Array{Int, 1}  # location in bndryfaces where new type of BC starts
@@ -265,7 +532,9 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   coords::Array{T1, 3}  # store coordinates of all nodes
   dxidx::Array{T1, 4}  # store scaled mapping jacobian
+  dxidx_bar::Array{T1, 4}  # needed for compatability with DG
   jac::Array{T1,2}  # store mapping jacobian output
+  jac_bar::Array{T1, 2}  # needed for compatability with DG
 
   dofs::Array{Int32, 3}  # store dof numbers of solution array to speed assembly
   element_vertnums::Array{Int32, 2}  # map from elements to their vertex numbers
@@ -288,9 +557,14 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   color_cnt::Array{Int32, 1}  # number of elements in each color
 
   dof_offset::Int  # local to global dof offset
-  sbpface::TriFace{Float64}
+  sbpface::Tface
   topo::ElementTopology{2}
 
+  facenodes::Array{Int, 2}  # array of numNodesPerFace x numFacesPerElement 
+                            # giving the index of the volume node that
+                            # corresponds to each face node
+                            # this is a temporary hack to keep the PDESolver
+                            # test running
  function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface; dofpernode=1, shape_type=1, coloring_distance=2)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
@@ -302,7 +576,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
   println("\nConstructing PumiMesh2 Object")
-  println("  sbp_name = ", smb_name)
+  println("  smb_name = ", smb_name)
   println("  dmg_name = ", dmg_name)
   if !MPI.Initialized()
     MPI.Init()
@@ -322,13 +596,23 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   mesh.numPeriodicInterfaces = 0
   mesh.topo = ElementTopology2()  # get default topology because it isn't
                                   # important for 2d
-  num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim = init2(dmg_name, smb_name, order, shape_type=shape_type)
-  mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
-                                         # field shape for CG
+
+  mesh.m_ptr, dim = loadMesh(dmg_name, smb_name, order, shape_type=shape_type)
+
+  pushMeshRef(mesh.m_ptr)
   if dim != mesh.dim
     throw(ErrorException("loaded mesh is not 2 dimensions"))
   end
+  mesh.mshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
+
+#  num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, shape_type=shape_type)
+  mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
+                                         # field shape for CG
   mesh.sbpface = sbpface
+  if !haskey(ENV, "PDEPUMIINTERFACE_TESTING")
+    @assert mesh.order == 1
+  end
+  mesh.facenodes = Int[1 2 3; 2 3 1]
 
   mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
@@ -361,29 +645,24 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     pos += mesh.numTypePerElement[i-1]*mesh.numNodesPerType[i-1]
     mesh.typeOffsetsPerElement[i] = pos
   end
-  println("mesh.typeOffsetsPerElement = ", mesh.typeOffsetsPerElement)
   mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
   mesh.numNodesPerElement = mesh.typeOffsetsPerElement[end]-1
   numnodes = 0
   for i=1:3
     numnodes += mesh.numNodesPerType[i]*mesh.numEntitiesPerType[i]
   end
-  println("numNodesPerType = ", mesh.numNodesPerType)
-  println("numEntitesPerType = ", mesh.numEntitiesPerType)
-  println("numnodes = ", numnodes)
-  println("numdof = ", numnodes*dofpernode)
   mesh.numNodes = numnodes      # we assume there are no non-free nodes/dofs
   mesh.numDof = numnodes*dofpernode
 
   # get nodemaps
-  mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(order, shape_type, mesh.numNodesPerElement)
+  mesh.nodemapSbpToPumi, mesh.nodemapPumiToSbp = getNodeMaps(order, shape_type, mesh.numNodesPerElement, mesh.dim, mesh.isDG)
 
  
   # get pointers to mesh entity numberings
-  mesh.vert_Nptr = getVertNumbering()
-  mesh.edge_Nptr = getEdgeNumbering()
-  mesh.face_Nptr = mesh.edge_Nptr
-  mesh.el_Nptr = getFaceNumbering()
+  mesh.vert_Nptr = n_arr[1] #getVertNumbering()
+  mesh.edge_Nptr = n_arr[2] #getEdgeNumbering()
+  mesh.face_Nptr = n_arr[2] #mesh.edge_Nptr
+  mesh.el_Nptr = n_arr[3] #getFaceNumbering()
   mesh.entity_Nptrs = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
 
   # create the coloring_Nptr
@@ -400,6 +679,13 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   # create dof numbering
   mesh.dofnums_Nptr = createNumberingJ(mesh.m_ptr, "reordered dof numbers", 
                       mesh.mshape_ptr, dofpernode)
+
+  println("about to get entity pointers")
+  mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
+  println("finished getting entity pointers")
+  # TODO: check for dangling elements
+  checkConnectivity(mesh)
+
 
   # populate node status numbering
   populateNodeStatus(mesh)
@@ -427,61 +713,15 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
  
 
   # get entity pointers
-  mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
   mesh.element_vertnums = getElementVertMap(mesh)
 
-  mesh.numBC = opts["numBC"]
+  # get face data
+  boundary_nums = getAllFaceData(mesh, opts)
 
-  # create array of all model edges that have a boundary condition
-  bndry_edges_all = Array(Int, 0)
-  for i=1:mesh.numBC
-    key_i = string("BC", i)
-    bndry_edges_all = [ bndry_edges_all; opts[key_i]]  # ugly but easy
-  end
-
- mesh.numBoundaryFaces, num_ext_edges =  countBoundaryEdges(mesh, bndry_edges_all)
-
-  # populate mesh.bndry_faces from options dictionary
-#  mesh.bndry_faces = Array(Array{Int, 1}, mesh.numBC)
-  mesh.bndry_offsets = Array(Int, mesh.numBC + 1)
-  mesh.bndry_funcs = Array(BCType, mesh.numBC)
-  mesh.bndry_geo_nums = Array(Array{Int, 1}, mesh.numBC)
-  boundary_nums = Array(Int, mesh.numBoundaryFaces, 2)
-
-  offset = 1
-  for i=1:mesh.numBC
-    key_i = string("BC", i)
-    model_edges = opts[key_i]
-
-    # record geometric edges
-    ngeo = length(model_edges)
-    mesh.bndry_geo_nums[i] = Array(Int, ngeo)
-    mesh.bndry_geo_nums[i][:] = model_edges[:]
-
-    println("opts[key_i] = ", model_edges)
-#    println("typeof(opts[key_i]) = ", typeof(opts[key_i]))
-    mesh.bndry_offsets[i] = offset
-    offset, print_warning = getMeshEdgesFromModel(mesh, model_edges, offset, boundary_nums)  # get the mesh edges on the model edge
-    # offset is incremented by getMeshEdgesFromModel
-    if print_warning
-      throw(ErrorException("Cannot apply boundary conditions to periodic boundary, model entity $model_edges"))
-    end
-
-  end
-
-
-  mesh.bndry_offsets[mesh.numBC + 1] = offset # = num boundary edges
-
-  # get array of all boundary mesh edges in the same order as in mesh.bndry_faces
-#  boundary_nums = flattenArray(mesh.bndry_faces[i])
-#  boundary_edge_faces = getBoundaryElements(mesh, mesh.bndry_faces)
   # use partially constructed mesh object to populate arrays
-
   mesh.elementNodeOffsets, mesh.typeNodeFlags = getEntityOrientations(mesh)
 
   getDofNumbers(mesh)  # store dof numbers
-
-
 
   if coloring_distance == 2
     numc = colorMesh2(mesh)
@@ -492,7 +732,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
     getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
-    println("getting perturbed neighbors")
     mesh.pertNeighborEls = getPertNeighbors1(mesh)
 
   elseif coloring_distance == 0  # do a distance-0 coloring
@@ -515,12 +754,10 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   # this takes into account the coloring distance
   #TODO: make getting sparsity bounds faster
   if opts["run_type"] != 1  # no a rk4 run
-    println("getting sparsity bounds")
     mesh.sparsity_bnds = zeros(Int32, 2, mesh.numDof)
-    @time getSparsityBounds(mesh, mesh.sparsity_bnds)
+    getSparsityBounds(mesh, mesh.sparsity_bnds)
     mesh.sparsity_nodebnds = zeros(Int32, 2, mesh.numNodes)
-    @time getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
-    println("finished getting sparsity bounds")
+    getSparsityBounds(mesh, mesh.sparsity_nodebnds, getdofs=false)
   end
 
 
@@ -530,22 +767,7 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     mesh.pertNeighborEls_edge = getPertEdgeNeighbors(mesh)
   end
 
-  # get boundary information for entire mesh
-  println("getting boundary info")
-  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
-  getBoundaryArray(mesh, boundary_nums)
-
-  # need to count the number of internal interfaces - do this during boundary edge counting
-  println("getting interface info")
-  mesh.numInterfaces = mesh.numEdge - num_ext_edges
-  mesh.interfaces = Array(Interface, mesh.numInterfaces)
-  getInterfaceArray(mesh)
-
-  getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
-
-  mesh.dxidx = Array(T1, 2, 2, sbp.numnodes, mesh.numEl)
-  mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
-  mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+  getCoordinatesAndMetrics(mesh, sbp)  # store coordinates of all nodes into array
 
   mesh.min_el_size = getMinElementSize(mesh)
   # get face normals
@@ -558,9 +780,9 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 #  getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   # create subtriangulated mesh
-  createSubtriangulatedMesh(mesh)
+  createSubtriangulatedMesh(mesh, opts)
 
-  println("finished creating sub mesh\n")
+  checkFinalMesh(mesh)
 
   println("printin main mesh statistics")
 
@@ -602,12 +824,14 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     close(f)
   end
 
+
   if opts["write_boundarynums"]
     rmfile("boundary_nums.dat")
     f = open("boundary_nums.dat", "a+")
     println(f, boundary_nums)
     close(f)
   end
+
 
   if opts["write_dxidx"]
     rmfile("dxidx.dat")
@@ -617,7 +841,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   if opts["write_coords"]
     rmfile("coords.dat")
-    println("size(coords) = ", size(mesh.coords))
     writedlm("coords.dat", mesh.coords)
 #    printcoords("coords.dat", mesh.coords)
   end
@@ -628,7 +851,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   end
 
   if opts["write_sparsity_nodebnds"]
-    println("writing sparsiy node bounds")
     rmfile("sparsity_nodebnds.dat")
     writedlm("sparsity_nodebnds.dat", mesh.sparsity_nodebnds)
   end
@@ -640,7 +862,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   if opts["write_dofs"]
     rmfile("dofs.dat")
-    println("size(mesh.dofs) = ", size(mesh.dofs))
     writedlm("dofs.dat", mesh.dofs)
   end
 
@@ -648,7 +869,6 @@ type PumiMesh2{T1} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     writeCounts(mesh)
   end
 
-  println("about to write mesh_complete")
   writeVisFiles(mesh, "mesh_complete")
   return mesh
   # could use incomplete initilization to avoid copying arrays
@@ -660,12 +880,14 @@ end
 end
 
 include("adapt.jl")
+include("bary.jl")
 include("coloring.jl")
 include("dofnumbering.jl")
 include("elements.jl")
 include("entities.jl")
 include("faces.jl")
 include("interpolation.jl")
+include("metrics.jl")
 include("model.jl")
 include("orientation.jl")
 include("output.jl")
@@ -674,8 +896,8 @@ include("sparsity.jl")
 include("utils.jl")
 include("visualization.jl")
 include("warp.jl")
-
-
+include("verify.jl")
+include("submesh.jl")
 
 function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)
@@ -707,7 +929,6 @@ function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts;
 
   elseif coloring_distance == 0  # do a distance-0 coloring
     numc = colorMesh0(mesh)
-    println("distance-0 coloring numc = ", numc)
     @assert numc == 1
     mesh.numColors = numc
     mesh.maxColors = numc
@@ -740,49 +961,11 @@ end
 
 
 function getMinElementSize(mesh::AbstractMesh)
-  return sqrt(1./maximum(mesh.jac))*mesh.min_node_dist
+  # TODO; write a for loop, don't do real(mesh.jac)
+  local_min = real(((1./maximum(real(mesh.jac)) )^(1/mesh.dim) )*mesh.min_node_dist)
+  global_min = MPI.Allreduce(real(local_min), MPI.MIN, mesh.comm)  #TODO: is the complex part needed in general
+  return global_min
 end
-
-
-#=
-function numberDofs(mesh::PumiMesh2)
-# number the degrees of freedom of the mesh, using the apf::Numbering* stroed
-# in the mesh
-
-  # move this into a function
-  resetAllIts2()
-  println("performing initial numbering of dofs")
-  # calculate number of nodes, dofs (works for first and second order)
-  numnodes = mesh.order*mesh.numVert 
-  numdof = numnodes*mesh.numDofPerNode
-  # number dofs
-  ctr= 1
-  for i=1:mesh.numVert
-    for j=1:mesh.numDofPerNode
-      numberJ(mesh.dofnums_Nptr, mesh.verts[i], 0, j-1, ctr)
-      println("vertex ", i,  " numbered ", ctr)
-      ctr += 1
-    end
-  end
-
-  if mesh.order >= 2
-    for i=1:mesh.numEdges
-      for j=1:mesh.numDofPerNode
-        numberJ(mesh.dofnums_Nptr, mesh.edges[i], 0, j-1, ctr)
-        ctr += 1
-      end
-    end
-  end
-
-  mesh.numNodes = numnodes
-  mesh.numDof = numdof
-
-return nothing
-
-end  # end function
-=#
-
-
 
 
 # for reinitilizeing after mesh adaptation
@@ -800,16 +983,19 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   dmg_name = "b"
   order = mesh.order
   dofpernode = mesh.numDofPerNode
-  tmp, num_Entities, m_ptr, mshape_ptr, dim = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
+  dim = mesh.dim
+
+  mshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
+#  tmp, num_Entities, m_ptr, mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
   f_ptr = mesh.f_ptr  # use existing solution field
 
   numVert = convert(Int, num_Entities[1])
   numEdge =convert(Int,  num_Entities[2])
   numEl = convert(Int, num_Entities[3])
 
-  mesh.vert_Nptr = getVertNumbering()
-  mesh.edge_Nptr = getEdgeNumbering()
-  mesh.el_Nptr = getFaceNumbering()
+  mesh.vert_Nptr = n_arr[1] #getVertNumbering()
+  mesh.edge_Nptr = n_arr[2] #getEdgeNumbering()
+  mesh.el_Nptr = n_arr[3] #getFaceNumbering()
 
 
 
@@ -821,26 +1007,26 @@ function reinitPumiMesh2(mesh::PumiMesh2)
 
   # get pointers to all MeshEntities
   # also initilize the field to zero
-  resetAllIts2()
 #  comps = zeros(dofpernode)
   comps = [1.0, 2, 3, 4]
+  it = MeshIterator(mesh.m_ptr, 0)
   for i=1:numVert
-    verts[i] = getVert()
-    incrementVertIt()
+    verts[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
+  it = MeshIterator(mesh.m_ptr, 1)
   for i=1:numEdge
-    edges[i] = getEdge()
-    incrementEdgeIt()
+    edges[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
+  it = MeshIterator(mesh.m_ptr, it)
   for i=1:numEl
-    elements[i] = getFace()
-    incrementFaceIt()
+    elements[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
-  resetAllIts2()
-  println("performing initial numbering of dofs")
   # calculate number of nodes, dofs (works for first and second order)
   numnodes = order*numVert 
   numdof = numnodes*dofpernode
@@ -868,20 +1054,21 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   # count boundary edges
   bnd_edges_cnt = 0
   bnd_edges = Array(Int, numEdge, 2)
+  it = MeshIterator(mesh.m_ptr, it)
   for i=1:numEdge
-    edge_i = getEdge()
+    edge_i = iterate(mesh.m_ptr, it)
     numFace = countAdjacent(m_ptr, edge_i, 2)  # should be count upward
 
     if numFace == 1  # if an exterior edge
       faces = getAdjacent(numFace)
-      facenum = getFaceNumber2(faces[1]) + 1
+      facenum = getNumberJ(mesh.el_Nptr, faces[1], 0, 0) + 1
 
       bnd_edges_cnt += 1
       bnd_edges[bnd_edges_cnt, 1] = facenum
       bnd_edges[bnd_edges_cnt, 2] = i
     end
-    incrementEdgeIt()
   end
+  free(mesh.m_ptr, it)
 
   bnd_edges_small = bnd_edges[1:bnd_edges_cnt, :]
 
@@ -917,6 +1104,8 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   println("numEl = ", numEl)
   println("numDof = ", numdof)
   println("numNodes = ", numnodes)
+
+  registerFinalizer(mesh)
 
   writeVtkFiles("mesh_complete", m_ptr)
 end

@@ -5,13 +5,17 @@ using ODLCommonTools
 using SummationByParts
 using PdePumiInterface
 include("defs.jl")
-
+include("common_functions.jl")
+include("test_funcs.jl")
 
   dmg_name = "parallel2.dmg"
   smb_name = "./parallel2.smb"
   order = 1
 facts("Testing PUMIInterface.jl") do
-  num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
+
+  m_ptr, dim = loadMesh(dmg_name, smb_name, order)
+  mshape_ptr, num_Entities, n_arr = initMesh(m_ptr)
+#  num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
 
   myrank = MPI.Comm_rank(MPI.COMM_WORLD)
   @fact num_Entities[1] --> 6
@@ -24,29 +28,28 @@ facts("Testing PUMIInterface.jl") do
 
 
   @fact peers[1] --> 1-myrank
-  resetVertIt()
 
-  resetAllIts2()
   verts = Array(Ptr{Void}, num_Entities[1])
   edges = Array(Ptr{Void}, num_Entities[2])
   faces = Array(Ptr{Void}, num_Entities[3])
 
+  it = MeshIterator(m_ptr, 0)
   for i=1:length(verts)
-    verts[i] = getVert()
-    incrementVertIt()
+    verts[i] = iterate(m_ptr, it)
   end
+  free(m_ptr, it)
 
+  it = MeshIterator(m_ptr, 1)
   for i=1:length(edges)
-    edges[i] = getEdge()
-    incrementEdgeIt()
+    edges[i] = iterate(m_ptr, it)
   end
+  free(m_ptr, it)
 
+  it = MeshIterator(m_ptr, 2)
   for i=1:length(faces)
-    faces[i] = getFace()
-    incrementFaceIt()
+    faces[i] = iterate(m_ptr, it)
   end
-
-  resetAllIts2()
+  free(m_ptr, it)
 
   # check the countRemotes function
   # the only thing that can really be tested is the number of total remotes
@@ -86,6 +89,10 @@ end
 
 facts("----- Testing PdePumiInterfaceDG -----") do
   opts = Dict{Any, Any}(
+    "dmg_name" => dmg_name,
+    "smb_name" => smb_name,
+    "coloring_distance" => 2,
+    "order" => order,
     "numBC" => 1,
     "BC1" =>  [0,1,2,3],
     "run_type" => 1,
@@ -104,15 +111,19 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     "write_interfaces" => false,
     "write_boundaries" => false,
     "write_sharedboundaries" => false,
+    "use_linear_metrics" => true,
     )
 
-  sbp = TriSBP{Float64}(degree=order, reorder=false, internal=true)
+  sbp = getTriSBPOmega(degree=order)
+#  sbp = TriSBP{Float64}(degree=order, internal=true)
 
   vtx = [-1. 1 -1; -1 -1 1]
-  interp_op = SummationByParts.buildinterpolation(sbp, vtx)
+#  interp_op = SummationByParts.buildinterpolation(sbp, vtx)
   sbpface = TriFace{Float64}(order, sbp.cub, vtx.')
-
-  mesh = PumiMeshDG2{Float64}(dmg_name, smb_name, order, sbp, opts, interp_op, sbpface)
+  mesh_c = PumiMeshDG2(Complex128, sbp, opts, sbpface)
+#  mesh_c = PumiMeshDG2{Complex128, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface)
+  mesh = PumiMeshDG2(Float64, sbp, opts, sbpface)
+#  mesh = PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface)
 
   @fact mesh.numVert --> 6
   @fact mesh.numEdge --> 9
@@ -288,6 +299,33 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     end
   end
 
+
+  vshare = mesh.vert_sharing
+  @fact vshare.npeers --> 1
+  @fact vshare.peer_nums --> [1 - mesh.myrank]
+  @fact vshare.counts[1] --> 3
+  @fact length(vshare.vert_nums[1]) --> 3
+  @fact length(keys(vshare.rev_mapping)) --> 3
+
+  # check vert_nums and rev_mapping in more detail
+  for i=1:3
+    @fact vshare.vert_nums[1][i] --> greater_than(0)
+    @fact vshare.vert_nums[1][i] --> less_than(mesh.numVert + 1)
+  end
+
+  for (key, val) in vshare.rev_mapping
+    @fact length(val.first) --> 1
+    @fact length(val.second) --> 1
+    @fact val.first[1] --> 1-mesh.myrank  # part number
+    @fact val.second[1] --> greater_than(0)
+    @fact val.second[1] --> less_than(4)  # number of shared vertices + 1
+  end
+
+  compare_meshes(mesh, mesh_c)
+  test_metric_rev(mesh, mesh_c, sbp, opts)
+
+  MPI.Barrier(mesh.comm)
+
 end
 
 
@@ -295,7 +333,8 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   degree = 1
   Tsbp = Float64
-  sbp = TetSBP{Tsbp}(degree=degree, reorder=false, internal=true)
+  sbp = getTetSBPOmega(degree=degree)
+#  sbp = TetSBP{Tsbp}(degree=degree, internal=true)
   ref_verts = sbp.vtx
   interp_op = SummationByParts.buildinterpolation(sbp, ref_verts.')
   face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)
@@ -307,11 +346,19 @@ facts("----- Testing PdePumiInterface3DG -----") do
   smb_name = "pcube2.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["dmg_name"] = dmg_name
+  opts["smb_name"] = smb_name
+  opts["use_linear_metrics"] = true
+  opts["coloring_distance"] = 2
+  opts["order"] = degree
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
-  interp_op = eye(4)
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+#  interp_op = eye(4)
+  mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
+#  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numEl --> 12
   @fact mesh.numGlobalEl --> 16
@@ -399,35 +446,105 @@ facts("----- Testing PdePumiInterface3DG -----") do
     end   # end loop over peer faces
   end  # end loop over peers
 
+  # test curvilinear metrics reverse mode
+  compare_meshes(mesh, mesh_c)
+  test_metric_rev(mesh, mesh_c, sbp, opts)
+
+
+
   # test periodic things
   smb_name = "tet2_pxz_p2_.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["smb_name"] = smb_name
+  opts["dmg_name"] = dmg_name
+  opts["use_linear_metrics"] = true
+  opts["coloring_distance"] = 2
+  opts["order"] = degree
   opts["numBC"] = 1
   opts["BC1"] = [0,2,4,5]
 
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 4
   @fact mesh.numInterfaces --> (mesh.numFace - 8 - 3*4 - 8)
   @fact mesh.peer_face_counts[1] --> 8
 
   smb_name = "tet2_pxy_p2_.smb"
-
+  opts["smb_name"] = smb_name
   opts["BC1"] = [1,2,3,4]
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 0
   @fact mesh.numInterfaces --> (mesh.numFace - 2*8 - 4*4)
   @fact mesh.peer_face_counts[1] --> 16
 
+  vshare = mesh.vert_sharing
+  @fact vshare.npeers --> 1
+  @fact vshare.peer_nums --> [1 - mesh.myrank]
+  @fact vshare.counts[1] --> 18
+  @fact length(vshare.vert_nums[1]) --> 18
+  @fact length(keys(vshare.rev_mapping)) --> 18
+
+  # check vert_nums and rev_mapping in more detail
+  for i=1:18
+    @fact vshare.vert_nums[1][i] --> greater_than(0)
+    @fact vshare.vert_nums[1][i] --> less_than(mesh.numVert + 1)
+  end
+
+  for (key, val) in vshare.rev_mapping
+    @fact length(val.first) --> 1
+    @fact length(val.second) --> 1
+    @fact val.first[1] --> 1-mesh.myrank  # part number
+    @fact val.second[1] --> greater_than(0)
+    @fact val.second[1] --> less_than(19)  # number of shared vertices + 1
+  end
+
+
+  MPI.Barrier(mesh.comm)
+
+  # check assertion for ambiguous parallel things
+  dmg_name = ".null"
+  smb_name = "tet111_.smb"
+
+  opts = PdePumiInterface.get_defaults()
+  opts["dmg_name"] = dmg_name
+  opts["smb_name"] = smb_name
+  opts["order"] = degree
+  opts["numBC"] = 0
+  opts["coloring_distance"] = 2
+ 
+  @fact_throws PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  @fact_throws PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+
+  # check 2 x 2 x 2 mesh works
+  dmg_name = ".null"
+  smb_name = "tet222_.smb"
+
+  opts["dmg_name"] = dmg_name
+  opts["smb_name"] = smb_name
+
+  PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+
+  # this doesn't work because each partition is a 1 x 1 x 1 cube with periodic faces
+  dmg_name = ".null"
+  smb_name = "tet211_.smb"
+  opts["dmg_name"] = dmg_name
+  opts["smb_name"] = smb_name
+
+  @fact_throws PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  @fact_throws PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+
 
 
 end
 
-
-
-MPI.Barrier( MPI.COMM_WORLD)
+MPI.Barrier(MPI.COMM_WORLD)
 if MPI.Initialized()
   MPI.Finalize()
 end
+
+FactCheck.exitstatus()

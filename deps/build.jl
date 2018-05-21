@@ -1,7 +1,28 @@
 # this file will build Pumi if it cannot be located by pkg-config
-include("./stringmatch.jl")
 
-install_pumi = try run(`pkg-config --exists --libs libmds`) 
+# install PkgFix if not present
+if !isdir(joinpath(Pkg.dir(), "PkgFix"))
+  Pkg.clone("https://github.com/OptimalDesignLab/PkgFix.jl.git")
+end
+
+using PkgFix  # from now on, use PkgFix instead of Pkg for everything
+
+include("./stringmatch.jl")
+include("install_pumi.jl")
+
+# package URLs and versions
+global const MPI_URL = "https://github.com/JuliaParallel/MPI.jl.git"
+global const MPI_VER = "v0.5.0"
+
+global const SBP_URL = "https://github.com/OptimalDesignLab/SummationByParts.jl.git"
+global const SBP_VER = "jc_v0.1"
+
+
+start_dir = pwd()
+
+run(`./cleanup.sh`)
+
+install_pumi = try run(`cmake --find-package -DNAME=SCOREC -DCOMPILER_ID=GNU -DLANGUAGE=CXX -DMODE=EXIST`) 
           false
           catch 
 	  true 
@@ -16,91 +37,34 @@ install_mpi = try run(`which mpicxx`)
 	end
 println("install_mpi = ", install_mpi)
 
-
-
-start_dir = pwd()  # record where we started
-
-
+# install MPI itself
 if install_mpi
   cmd_string = "./travis-install-mpi.sh"
   arg_str = "mpich3"
   run(`$cmd_string $arg_str`)
 end
 
-#pumi_version = "e4eabf5"
-pumi_version = "d1837c5936c28d6ef09abd02c82ea2a4ea9b6f55"
-#pumi_version = "HEAD"
-if install_pumi  # did not find pumi
-#  if isdir("./core")
-#    println("deleting existing Core repo in /deps")
-#    rm("./core", recursive=true)
-#  end
-  if !isdir("./core")
-    run(`./download.sh`)
-  end
-  cd("./core")
-#  run(`git pull`)
-  run(`git checkout $pumi_version`)
-  mkdir("./build")
-  cd("./build")
-  mkdir("./install")  # install directory
-  run(`../../config.sh`)
-  run(`make -j 4`)
-  run(`make install`)
-  str1 = joinpath( pwd(), "install/lib")
-  str2 = string("export LD_LIBRARY_PATH=", str1, ":\$LD_LIBRARY_PATH")
-  str3 = joinpath(str1, "pkgconfig")
-  str4 = string("export PKG_CONFIG_PATH=", str3, ":\$PKG_CONFIG_PATH")
-
-  # write to file 
-  fname = "evars.sh"
-  f = open(fname, "a+")
-
-  println(f, str2)
-  println(f, str4)
-
-  close(f)
-
-  # update ENV here 
-
-  if haskey(ENV, "LD_LIBRARY_PATH")
-    ld_path = ENV["LD_LIBRARY_PATH"]
-    ld_path = string(str1, ":", ld_path)
-    ENV["LD_LIBRARY_PATH"] = ld_path
-  else
-    ENV["LD_LIBRARY_PATH"] = str1
-  end
-
-  if haskey(ENV, "PKG_CONFIG_PATH")
-    pkg_path = ENV["PKG_CONFIG_PATH"]
-    pkg_path = string(str3,":", pkg_path)
-    ENV["PKG_CONFIG_PATH"] = pkg_path
-  else
-    ENV["PKG_CONFIG_PATH"] = str3
-  end
-
-
-  cd(start_dir)
-
+# install MPI.jl if needed
+if PkgFix.installed("MPI") == nothing
+  PkgFix.add(MPI_URL, branch_ish=MPI_VER)
 end
 
-# build the shared library
+if install_pumi  # did not find pumi
+  installPumi()
+end
+
+# install non-metadata dependencies
+pkg_dict = PkgFix.installed()  # get dictionary of installed package names to version numbers
+
+if !haskey(pkg_dict, "SummationByParts")
+  PkgFix.add(SBP_URL, branch_ish=SBP_VER)
+  # SBP installs ODLCommonTools
+end
+
+# now that all dependencies exist, install this package
 cd("../src")
-run(`./build_shared.scorec.sh7`)
-str5 = string("export LD_LIBRARY_PATH=", pwd(), ":\$LD_LIBRARY_PATH")
-
-# get path to pumi library used to build libfuncs1.so
-sonames = readall(`ldd ./libfuncs1.so`)
-pumi_path = findWord(sonames, "/libmds.so")
-println("pumi_path = ", pumi_path)
-str6 = string("export LD_LIBRARY_PATH=", pumi_path, ":\$LD_LIBRARY_PATH")
-
-
-f = open("evars.sh", "a+")
-println(f, str5)
-println(f, str6)
-close(f)
-
+run(`./config.sh`)
+run(`./makeinstall.sh`)
 cd(start_dir)
 
 

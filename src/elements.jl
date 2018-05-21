@@ -1,9 +1,28 @@
-function getTriangulation(order::Integer, shape_type::Integer)
-# get the sub-triangulation for an element of the specified order element
-# the first 3 values indicate the verticies, later values refer to the nodes
-# triangulation must be a 3 x n array of Int32s, so when it gets transposed
-# by passing it to C, it becomes a n x 3 array of ints
+"""
+  Get the sub-triangulation for an element of the specified order element
+  the first 3 values indicate the verticies, later values refer to the nodes
+  triangulation must be a 3 x n array of Int32s, so when it gets transposed
+  by passing it to C, it becomes a n x 3 array of ints
 
+  This function should only be called for shape types that support
+  subtriangulation, otherwise an error is thrown
+  
+  Inputs:
+  
+    order: the degree of the operator
+    shape_type: the integer shape type
+
+  Outputs:
+
+    triangulation: an Int32 array, 2 x numNodesPerElement for CG meshes
+                   that have nodes on the vertices, or
+                   2 x numNodesPerElement + 3 for DG meshes that do not have
+                   nodes on vertices are supported.
+
+  Currently only shape_type == 1 (CG) and shape_type == 2 (DG SBP Omega) are
+  supported.
+"""
+function getTriangulation(order::Integer, shape_type::Integer)
   if shape_type == 1
     if order == 1  # no need to subtriangulate this case
       triangulation = zeros(Int32, 0, 0)
@@ -32,13 +51,6 @@ function getTriangulation(order::Integer, shape_type::Integer)
     else
       throw(ErrorException("unsupported triangulation requested"))
     end
-  elseif shape_type == 3
-#    if order  == 1
-#      triangulation = Int32 [ 3 1 2;].'
-#    else
-       triangulation = zeros(Int32, 0, 0)
-#      throw(ErrorException("unsupported triangulation requested"))
-#    end
   else
       throw(ErrorException("unsupported triangulation requested"))
   end  # end if shape_type
@@ -46,49 +58,41 @@ function getTriangulation(order::Integer, shape_type::Integer)
   return triangulation
 end
 
-function getNodeMaps(order::Integer, shape_type::Integer, numNodesPerElement, dim=2)
+function getNodeMaps(order::Integer, shape_type::Integer, numNodesPerElement, dim, isDG::Bool)
 # get the mappings between the SBP and Pumi node orderings
 # having to do the mapping at all is inelegent to say the least
 # store mappings in both directions in case they are needed
 # use UInt8s to save cache space during loops
 
-  if dim == 2
-    println("getting node maps for 2D mesh")
-    if shape_type == 1
-      if order == 1
-        sbpToPumi = UInt8[1,2,3]
-        pumiToSbp = UInt8[1,2,3]
-      elseif order == 2
-        sbpToPumi = UInt8[1,2,3,4,5,6,7]
-        pumiToSbp = UInt8[1,2,3,4,5,6,7]
-      elseif order == 3
-        sbpToPumi = UInt8[1,2,3,4,5,6,7,9,8,12,10,11]
-        pumiToSbp= UInt8[1,2,3,4,5,6,7,9,8,11,12,10]
-      elseif order == 4 
-        sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,17,13,15,14,16,18]
-        pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,14,16,15,17,13,18]
+  if !isDG  # CG
+    if dim == 2
+      if shape_type == 1
+        if order == 1
+          sbpToPumi = UInt8[1,2,3]
+          pumiToSbp = UInt8[1,2,3]
+        elseif order == 2
+          sbpToPumi = UInt8[1,2,3,4,5,6,7]
+          pumiToSbp = UInt8[1,2,3,4,5,6,7]
+        elseif order == 3
+          # TODO: is it possible to change the apf::FieldShape object to 
+          # make the sbp and Pumi node orderings the same?
+          sbpToPumi = UInt8[1,2,3,4,5,6,7,9,8,12,10,11]
+          pumiToSbp= UInt8[1,2,3,4,5,6,7,9,8,11,12,10]
+        elseif order == 4 
+          sbpToPumi = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,17,13,15,14,16,18]
+          pumiToSbp = UInt8[1,2,3,4,5,6,7,8,9,12,11,10,14,16,15,17,13,18]
+        else
+          throw(ErrorException("Unsupported element order $order requestion in getNodeMaps"))
+        end  # end if order
       else
-        println(STDERR, "Warning: Unsupported element order requestion in getNodeMaps")
+        throw(ErrorException("CG only supports shape type 1, requested $(shape_type)"))
+      end  # end if shape_type 
+    else  # 3D
+      throw(ErrorException("3 dimensional continuous Galerkin not supported"))
+    end  # end if dim
 
-        # default to 1:1 mapping
-        sbpToPumi = UInt8[1:numNodesPerElement]
-        pumiToSbp = UInt8[1:numNodesPerElement]
-      end
-
-    elseif shape_type == 2 || shape_type == 3
-      if order <= 4
-        sbpToPumi = collect(UInt8, 1:numNodesPerElement)
-        pumiToSbp = collect(UInt8, 1:numNodesPerElement)
-      else
-
-        println(STDERR, "Warning: Unsupported element order requestion in getFaceOffsets")
-        # default to 1:1 mapping
-        sbpToPumi = UInt8[1:numNodesPerElement;]
-        pumiToSbp = UInt8[1:numNodesPerElement;]
-      end
-
-    end  # end if shape_type
-  else  # dim == 3
+  else # DG
+    # the sbp and Pumi nodemaps are the same in this case
     sbpToPumi = collect(UInt8, 1:numNodesPerElement)
     pumiToSbp = collect(UInt8, 1:numNodesPerElement)
   end
@@ -96,76 +100,172 @@ function getNodeMaps(order::Integer, shape_type::Integer, numNodesPerElement, di
   return sbpToPumi, pumiToSbp
 end  # end getNodeMaps
 
-function createSubtriangulatedMesh(mesh::AbstractMesh)
+function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
 # this function is used to figure out how to do subtriangulation/visualization
 # for 2D meshes only
 # 3D meshes don't subtriangulate
+
+  @assert mesh.dim == 2
 
   order = mesh.order
   shape_type = mesh.shape_type
   dofpernode = mesh.numDofPerNode
 
-  if mesh.shape_type == 1
+  if !mesh.isDG  #mesh.shape_type == 1
     if order >= 3
+      mesh.mnew_ptr, mesh.fnew_ptr, mesh.fnewshape_ptr = createCGSubMesh(mesh)
 
-      mesh.triangulation = getTriangulation(order, shape_type)
-      mesh.mnew_ptr = createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
-
-      println("creating solution field on new mesh")
-      mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
-
-      mesh.fnewshape_ptr = getMeshShapePtr(mesh.mnew_ptr)
     else
       mesh.triangulation = zeros(Int32, 0, 0)
       # maybe makes these equal f_ptr and m_ptr for consistency?
       mesh.mnew_ptr = C_NULL
       mesh.fnew_ptr = C_NULL
     end
-
-  elseif mesh.shape_type == 2
-    if order >= 1
-
-      mesh.triangulation = getTriangulation(order, shape_type)
-      println("size(mesh.triangulation) = ", size(mesh.triangulation))
-      mesh.mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, mesh.coords)
-
-      println("creating solution field on new mesh")
-      mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field", dofpernode)
-      mesh.fnewshape_ptr = getMeshShapePtr(mesh.mnew_ptr)
-    else
-      throw(ErrorException("Congratulations: you have reached and unreachable case"))
-    end
-  elseif mesh.shape_type == 3  # DG SBP Gamma
+  else
     # I don't think subtriangulation will work in this case, so create a 
-    # linear field on the existing mesh, and interpolate the solution onto it
-    fshape_new = getFieldShape(0, 1, mesh.dim)
+    # field with the same degree as a coordinate field on the existing mesh, 
+    # and interpolate the solution onto it
+    # it appears the pumi vtu writing bumps the field up the same as the
+    # coordinate field, so we might as well do  it ourselves
+    fshape_new = getFieldShape(0, mesh.coord_order, mesh.dim)
 
     mesh.mnew_ptr = mesh.m_ptr
     mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field_interp", dofpernode)
     mesh.fnewshape_ptr = fshape_new
 
-  end  # end if mesh.shape_type 
+    if (mesh.shape_type == 2) && opts["exact_visualization"]
+      mesh.mexact_ptr, mesh.fexact_ptr, mesh.fexactshape_ptr = createDGSubMesh(mesh)
+    else
+      mesh.mexact_ptr = C_NULL
+      mesh.fexact_ptr = C_NULL
+      mesh.fexactshape_ptr = C_NULL
+    end
 
+    if mesh.shape_type != 2 && opts["exact_visualization"]
+      throw(ErrorException("exact visualization only supported for SBP Omega"))
+    end
+  end  # end if mesh.isDG
+
+  println("finished createSubtriangulatedMesh")
   return nothing
 end
 
-function transferFieldToSubmesh(mesh::AbstractMesh, u)
+
+function createCGSubMesh(mesh::PumiMeshCG)
+  order = mesh.order
+  shape_type = mesh.shape_type
+  dofpernode = mesh.numDofPerNode
+  
+  mesh.triangulation = getTriangulation(order, shape_type)
+  mnew_ptr = createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
+
+  fnew_ptr = createPackedField(mnew_ptr, "solution_field", dofpernode)
+
+  fnewshape_ptr = getMeshShapePtr(mnew_ptr)
+
+  return mnew_ptr, fnew_ptr, fnewshape_ptr
+end
+
+
+function createDGSubMesh(mesh::PumiMeshDG)
+  order = mesh.order
+  shape_type = mesh.shape_type
+  dofpernode = mesh.numDofPerNode
+
+  mesh.triangulation = getTriangulation(order, shape_type)
+  mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, real(mesh.coords))
+
+  fnew_ptr = createPackedField(mnew_ptr, "solution_field", dofpernode)
+  fnewshape_ptr = getMeshShapePtr(mnew_ptr)
+
+  return mnew_ptr, fnew_ptr, fnewshape_ptr
+end
+
+function transferFieldToSubmesh(mesh::AbstractMesh, u, mnew_ptr=mesh.mnew_ptr, 
+                                fnew_ptr=mesh.fnew_ptr)
 
   if mesh.isInterpolated
     if mesh.shape_type != 3
-      println("transferring field to submesh")
-      transferFieldDG(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.interp_op.', mesh.fnew_ptr)
+      transferFieldDG(mesh.m_ptr, mnew_ptr, mesh.triangulation, 
+                      mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, 
+                      mesh.entity_Nptrs, mesh.f_ptr, mesh.interp_op.', fnew_ptr)
     else
+      throw(ErrorException("Submesh not supported for SBPGamma"))
+    end
 
       # this is a bit wasteful, because the un-interpolated solution was
       # already saved to mesh.f_ptr
-      interpolateToMesh(mesh, u)
-    end
-  else
+      # interpolateToMesh(mesh, u)
+    #end
+  else  # CG mesh
     if mesh.order >= 3
       transferField(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.fnew_ptr)
     end
   end
 
   return nothing
+end
+
+"""
+  This function gets the xi coordinates of the nodes of a lagrangian entity
+  in order verts, edges, faces, regions. 1D, 2D, and 3D entities are supported,
+  which is useful because it allows getting the xi coordinates of both element
+  coordinates and its faces.
+
+  Inputs:
+    order: order of the element
+    dim: dimensionality of the entity
+
+  Outputs:
+    node_xi: a dim x numnodes array containing the xi coordinates of each node
+
+  Note that this follows the Pumi convention that the reference element is 
+  a right triangle with the right angle in the lower left corner.  Barycentric
+  coordinates are used and span from 0 to 1.  The right angle corner has
+  coordinate xi3, the next corner counter-clowckwise is xi1, and the next is
+  xi2.  The array contains xi1 and xi2 along the first dimension.  However,
+  the ordering of the vertices is counter-clockwise from the bottom left, 
+  ie. the 1st vertex has coordinate xi3.  This is rather confusing and the
+  source of many problems.
+
+  The easiest way to see the Pumi convention is to look at the shape functions
+  for the lagrangian elements in apfShape.cc
+"""
+function getXiCoords(order::Integer, dim::Integer)
+
+  if dim == 1
+    if order == 1
+      xi = [0. 1;]
+    elseif order == 2
+      xicoords = [0. 1 0.5;]
+    else
+      throw(ErrorException("unsupported order $order for dimension $dim"))
+    end
+  elseif dim == 2
+    if order == 1
+      xicoords = [0. 1 0;
+                  0 0 1]
+    elseif order == 2
+      xicoords = [0. 1 0 0.5 0.5 0.0;
+                  0 0 1 0.0 0.5 0.5]
+    else
+      throw(ErrorException("unsupported order $order for dimension $dim"))
+    end
+  elseif dim == 3
+    if order == 1
+      xicoords = [0. 1 0 0;
+                  0 0 1 0;
+                  0  0 0 1]
+    elseif order == 2
+      xicoords = [0. 1 0 0 0.5 0.5 0.0 0.0 0.5 0.0;
+                  0 0 1 0 0.0 0.5 0.5 0.0 0.0 0.5;
+                  0 0 0 1 0.0 0.0 0.0 0.5 0.5 0.5]
+    else
+      throw(ErrorException("unsupported order $order for dimension $dim"))
+    end
+  else
+    throw(ErrorException("unsupported dimension $dim"))
+  end
+
+
 end

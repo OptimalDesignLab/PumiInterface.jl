@@ -10,5 +10,6 @@ cmake .. \
   -DENABLE_THREADS=OFF \
   -DBUILD_SHARED_LIBS=True \
   -DCMAKE_INSTALL_PREFIX=`pwd`"/install" \
-  -DIS_TESTING=True
-#  -DENABLE_ZOLTAN=
+  -DIS_TESTING=True \
+  -DMESHES=`pwd`"/../../pumi-meshes"
+#  -DENABLE_ZOLTAN=True

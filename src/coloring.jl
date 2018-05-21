@@ -278,8 +278,6 @@ for i=1:mesh.numEl
   fill!(colors, 0)
 
 end
-println("number of colors = ", numc)
-println("number of each color = ", cnt_colors)
 mesh.color_cnt = cnt_colors
 
 return numc
@@ -323,9 +321,9 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
   # the last 2 entries are for the local distance-2 neighbors connected by a
   # non-local element
   # (for the case where a single element has 2 non local neighbors)
-  local_colors = view(colors, local_start:(nonlocal_start-1))
-  nonlocal_d1neighborcolors = view(colors, nonlocal_start:(nonlocal_d2_start-1))
-  nonlocal_neighborcolors = view(colors, nonlocal_d2_start:(final_start-1))
+  local_colors = sview(colors, local_start:(nonlocal_start-1))
+  nonlocal_d1neighborcolors = sview(colors, nonlocal_start:(nonlocal_d2_start-1))
+  nonlocal_neighborcolors = sview(colors, nonlocal_d2_start:(final_start-1))
 
 
   for i in keys(colordata.adj_dict)
@@ -333,7 +331,7 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
     self[1] = el_i
 
     num_adj = getDistance2Colors(mesh, i, adj, adj2, local_colors, matchdata)
-    getNonLocalColors(mesh, view(adj, 1:num_adj), colordata, nonlocal_d1neighborcolors)
+    getNonLocalColors(mesh, sview(adj, 1:num_adj), colordata, nonlocal_d1neighborcolors)
     getNonlocalDistance2Colors(mesh, i, colordata, nonlocal_neighborcolors)
     # the non-local elements have not been colored yet, so no need to get their colors
 #    getNonLocalColors(mesh, self, colordata, nonlocal_neighborcolors)
@@ -612,10 +610,8 @@ function getMinColor2{T}(adj::AbstractArray{T}, numc::Integer)
   mask_sum = sum(mask)
 
   if mask_sum == numc  # all existing colors used, so add another
-    println("adding color ", numc + 1)
     min_color = numc + 1
   elseif mask_sum == (numc - 1)  # there is exactly 1 color remaining
-  #  println("exactly 1 color remaining")
     # find out which color is missing and use it
     for i=1:numc
       if !mask[i]  # if mask is false
@@ -623,7 +619,6 @@ function getMinColor2{T}(adj::AbstractArray{T}, numc::Integer)
       end
     end
   else  # some colors are missing
-  #  println("getting minimum color")
     min_color = getMinColor(adj)  # get the minimum
   end
 
@@ -677,9 +672,9 @@ for i=1:length(masks)
   masks[i] = falses(mesh.numEl)
 end
 
-if verify
-  println("verifying distance-1 coloring")
-end
+#if verify
+#  println("verifying distance-1 coloring")
+#end
 
 
 cnt = 0
@@ -730,7 +725,7 @@ for i=1:mesh.numEl
 end
 
 if verify
-  println("color-1 verification finished")
+#  println("color-1 verification finished")
   if cnt != 0
     println(STDERR, "number of element with non unique coloring = ", cnt)
     throw(ErrorException("non unique element coloring"))

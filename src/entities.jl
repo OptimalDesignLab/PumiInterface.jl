@@ -1,4 +1,48 @@
 # functions for gathering MeshEntity*s 
+"""
+  This function calculates the numNodesPerType and typeOffsetsPerElement arrays
+  and returns them
+
+  Inputs:
+    fshape: a FieldShape*
+    dim: the dimensionality of the mesh (2 or 3)
+    numTypePerElement: number of each dimension entity per element (see
+                       interfaces.md)
+
+    Outputs:
+      numNodesPerType: array of length 3 or 4 (2d or 3d), containing the number
+                       of nodes on each vert, edge, face (or region).
+
+      typeOffsetsPerElement: array of length dim + 2 containing the index of 
+                             the first node of each type.  The last element
+                             is one more than the number of nodes
+
+"""
+function getNodeInfo{I <: Integer}(fshape::Ptr{Void}, dim::Integer, numTypePerElement::Array{I, 1})
+
+  num_nodes_v = countNodesOn(fshape, 0)  # number of nodes on a vertex
+  num_nodes_e = countNodesOn(fshape, 1) # on edge
+  num_nodes_f = countNodesOn(fshape, 2) # on face
+
+  if dim == 3
+    num_nodes_r = countNodesOn(fshape, apfTET)  # on region
+    numNodesPerType = [num_nodes_v, num_nodes_e, num_nodes_f, num_nodes_r]
+  else
+    numNodesPerType = [num_nodes_v, num_nodes_e, num_nodes_f]
+  end
+  # count numbers of different things per other thing
+  # use for bookkeeping
+  typeOffsetsPerElement = zeros(Int, dim+2)
+  pos = 1
+  typeOffsetsPerElement[1] = pos
+  for i=2:(dim + 2)
+    pos += numTypePerElement[i-1]*numNodesPerType[i-1]
+    typeOffsetsPerElement[i] = pos
+  end
+
+  return numNodesPerType, typeOffsetsPerElement
+end
+
 
 # can be generalized trivially
 function getBoundaryElements(mesh::PumiMeshDG2, bndry_edges::AbstractArray{Int, 1})
@@ -36,51 +80,67 @@ function getEntityPointers(mesh::PumiMesh)
   idx = 0
   # get pointers to all MeshEntities
   # also initilize the field to zero
-  resetAllIts2()
+#  resetAllIts2(mesh.m_ptr)
 #  comps = zeros(dofpernode)
+  it = MeshIterator(mesh.m_ptr, 0)
   for i=1:mesh.numVert
-    entity = getVert()
+#    entity = getVert()
+    entity = iterate(mesh.m_ptr, it)
     idx = getNumberJ(mesh.vert_Nptr, entity, 0, 0) + 1
     verts[idx] = entity
-    incrementVertIt()
+#    incrementVertIt()
   end
+  free(mesh.m_ptr, it)
 
+  it = MeshIterator(mesh.m_ptr, 1)
   for i=1:mesh.numEdge
-    entity = getEdge()
+    entity = iterate(mesh.m_ptr, it)
+#    entity = getEdge()
     idx = getNumberJ(mesh.edge_Nptr, entity, 0, 0) + 1
     edges[idx] = entity
-    incrementEdgeIt()
+#    incrementEdgeIt()
   end
+  free(mesh.m_ptr, it)
 
   if mesh.dim == 3
     faces = Array(Ptr{Void}, mesh.numFace)
+    it = MeshIterator(mesh.m_ptr, 2)
     for i=1:mesh.numFace
-      entity = getFace()
+      entity = iterate(mesh.m_ptr, it)
+#      entity = getFace()
       idx = getNumberJ(mesh.face_Nptr, entity, 0, 0) + 1
       faces[idx] = entity
-      incrementFaceIt()
+#      incrementFaceIt()
     end
+    free(mesh.m_ptr, it)
+
+    it = MeshIterator(mesh.m_ptr, 3)
     for i=1:mesh.numEl
-      entity = getEl()
+      entity = iterate(mesh.m_ptr, it)
+#      entity = getEl()
       idx = getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
       elements[idx] = entity
-      incrementElIt()
+#      incrementElIt()
     end
+    free(mesh.m_ptr, it)
 
 
   else
     faces = edges
+    it = MeshIterator(mesh.m_ptr, 2)
     for i=1:mesh.numEl
-      entity = getFace()
+      entity = iterate(mesh.m_ptr, it)
+#      entity = getFace()
       idx = getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
       elements[idx] = entity
-      incrementFaceIt()
+#      incrementFaceIt()
     end
+    free(mesh.m_ptr, it)
 
 
   end
 
-  resetAllIts2()
+#  resetAllIts2(mesh.m_ptr)
 
   return verts, edges, faces, elements
 
@@ -100,183 +160,8 @@ function getNodeIdx(e_type::Integer, e_idx::Integer, node_idx::Integer, typeOffs
   return type_offset -1 + (e_idx - 1)*nodes_on_type + node_idx
 end
 
-#TODO: stop using slice notation
-# can be generalized with numVertsPerElement
-function getCoordinates(mesh::PumiMeshDG, sbp::AbstractSBP)
-# populate the coords array of the mesh object
-
-nvert_per_el = mesh.numTypePerElement[1]
-mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
-mesh.vert_coords = Array(Float64, mesh.dim, nvert_per_el, mesh.numEl)
-
-#println("entered getCoordinates")
-numVertsPerElement = mesh.numTypePerElement[1]
-coords_i = zeros(3,numVertsPerElement)
-coords_it = zeros(numVertsPerElement, mesh.dim)
-for i=1:mesh.numEl  # loop over elements
-  
-  el_i = mesh.elements[i]
-  getElementCoords(mesh, el_i, coords_i)
-  mesh.vert_coords[:, :, i] = coords_i[1:mesh.dim, :]
-  coords_it[:,:] = coords_i[1:mesh.dim, :].'
-  mesh.coords[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbp.cub, coords_it)
-end
-
-return nothing
-
-end
-
-function getElementCoords(mesh::PumiMesh2D, entity::Ptr{Void}, coords::AbstractMatrix)
-  # coords must be 3 x numVertsPerElement
-  sx, sy = size(coords)
-  getFaceCoords(entity, coords, sx, sy)
-end
-
-
-function getElementCoords(mesh::PumiMesh3D, entity::Ptr{Void}, coords::AbstractMatrix)
-
-  sx, sy = size(coords)
-  getElCoords(entity, coords, sx, sy)
-end
-
-
-
-#TODO: stop using slice notation
-function getCoordinates(mesh::PumiMeshCG, sbp::AbstractSBP)
-# populate the coords array of the mesh object
-mesh.coords = Array(Float64, 2, sbp.numnodes, mesh.numEl)
-
-#println("entered getCoordinates")
-
-numVertsPerElement = mesh.numTypePerElement[1]
-coords_i = zeros(3,numVertsPerElement)
-coords_it = zeros(numVertsPerElement, mesh.dim)
-for i=1:mesh.numEl  # loop over elements
-  el_i = mesh.elements[i]
-  getElementCoords(mesh, el_i, coords_i)
-
-
-  coords_it[:,:] = coords_i[1:mesh.dim, :].'
-  mesh.coords[:, :, i] = calcnodes(sbp, coords_it)
-end
-
-return nothing
-
-end
-
-
-function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh}, 
-                             bndryfaces::Array{Boundary}, 
-                             coords_bndry::Array{Tmsh, 3})
-# calculate the coordinates on the boundary for the specified faces
-# and store in coords_bndry
-
-#  println("----- Entered getBndryCoordinates -----")
-  sbpface = mesh.sbpface
-
-  coords_i = zeros(3, 3)
-  coords_it = zeros(3, 2)
-  coords_edge = zeros(2, 2)
-
-  for i=1:length(bndryfaces)
-    bndry_i = bndryfaces[i]
-
-    el = bndry_i.element
-    el_ptr = mesh.elements[el]
-    face = bndry_i.face
-
-    sizex, sizey = size(coords_i)
-    getFaceCoords(el_ptr, coords_i, sizex, sizey)
-
-    coords_it[:, :] = coords_i[1:2, :].'
-
-    # extract the needed vertex coords
-#    v1 = facemap[1, face]
-#    v2 = facemap[2, face]
-    v1 = face
-    v2 = mod(face,3) + 1
-    coords_edge[1, 1] = coords_it[v1, 1]
-    coords_edge[1, 2] = coords_it[v1, 2]
-    coords_edge[2, 1] = coords_it[v2, 1]
-    coords_edge[2, 2] = coords_it[v2 ,2]
-
-    coords_bndry[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbpface.cub, coords_edge)
-
-  end
-
-end
-
-function getBndryCoordinates{Tmsh}(mesh::PumiMesh3DG{Tmsh}, bndryfaces::Array{Boundary}, coords_bndry::Array{Tmsh, 3})
-
-  sbpface = mesh.sbpface
-  coords_i = zeros(3, mesh.numEntitiesPerType[1])
-  coords_face = zeros(3, 3)
-  vertmap = mesh.topo.face_verts
-  for i=1:length(bndryfaces)
-    bndry_i = bndryfaces[i]
-    el = bndry_i.element
-    el_ptr = mesh.elements[el]
-    face = bndry_i.face
-
-    getElementCoords(mesh, el_ptr, coords_i)
-
-    # extract the vertices of the face
-    for v=1:3
-      vidx = vertmap[v, face]
-      for dim=1:3
-        coords_face[v, dim] = coords_i[dim, vidx]
-      end
-    end
-
-    coords_bndry[:, :, i] = SummationByParts.SymCubatures.calcnodes(sbpface.cub, coords_face)
-  end
-
-  return nothing
-end
-
-
-#=
-function getElementVertCoords(mesh::PumiMesh, elnum::Integer, coords::AbstractArray{Float64,2})
-# get the coordinates of the vertices of an element
-# elnum is the number of the element
-# coords is the array to be populated with the coordinates
-# each column of coords contains the coordinates for a vertex
-# coords must be 3x3
-
-  el_j = mesh.elements[elnum]
-  (sizex, sizey) = size(coords)
-  getFaceCoords(el_j, coords, sizex, sizey)  # populate coords
-
-  return nothing
-
-end # end function
-
-# generalizes with numVertsPerElement (or just get rid of this?)
-function getElementVertCoords(mesh::PumiMesh,  elnums::Array{Int,1})
-# elnums = vector of element numbbers
-# return array of size 3x3xn, where each column (first index) contains the coordinates of a vertex
-# n is the number of elements in elnums
-
-
-# get the number of verts 
-n = length(elnums)
-
-coords = zeros(3, 3, n)  # first dimension = x,y, or z, second dimension = vertex number
-
-for j = 1:n  # loop over elements in elnums
-#  println("j = ", j)
-  elnum_j = elnums[j]
-#  println("elnum_j = ", elnum_j)
-  el_j = mesh.elements[elnum_j]
-  sub_array = sub(coords, :, :, j)
-  getFaceCoords(el_j, sub_array, 3, 3)  # populate coords
-end
-
-return coords
-
-end
-=#
-
+#------------------------------------------------------------------------------
+# misc. helper functions
 function getGlobalNodeNumbers(mesh::PumiMesh, elnum::Integer; getdofs=true)
 
   if getdofs
@@ -300,34 +185,32 @@ function getGlobalNodeNumbers(mesh::PumiMesh, elnum::Integer, dofnums::AbstractA
 # getdofs specifies whether to get dof numbers or node numbers
 # 
 
-el_i = mesh.elements[elnum]
-type_i = getType(mesh.m_ptr, el_i)  # what is this used for?
+  el_i = mesh.elements[elnum]
+  type_i = getType(mesh.m_ptr, el_i)  # what is this used for?
 
-#println("elnum = ", elnum)
-# calculate total number of nodes
-#nnodes = 3 + 3*mesh.numNodesPerType[2] + mesh.numNodesPerType[3]
-nnodes = mesh.numNodesPerElement
+  #println("elnum = ", elnum)
+  # calculate total number of nodes
+  #nnodes = 3 + 3*mesh.numNodesPerType[2] + mesh.numNodesPerType[3]
+  nnodes = mesh.numNodesPerElement
 
-if getdofs
-  numdof = nnodes*mesh.numDofPerNode  # what is this used for?
-  numbering_ptr = mesh.dofnums_Nptr
-else
-  numdof = nnodes
-  numbering_ptr = mesh.nodenums_Nptr
-end
+  if getdofs
+    numdof = nnodes*mesh.numDofPerNode  # what is this used for?
+    numbering_ptr = mesh.dofnums_Nptr
+  else
+    numdof = nnodes
+    numbering_ptr = mesh.nodenums_Nptr
+  end
 
-# get entities in the Pumi order
-node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
+  # get entities in the Pumi order
+  node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
 
-# get node offsets in the SBP order
-node_offsets = view(mesh.elementNodeOffsets, :, elnum)
-#node_offsets = view(mesh.elementNodeOffsets[:, elnum])
+  # get node offsets in the SBP order
+  node_offsets = sview(mesh.elementNodeOffsets, :, elnum)
+  #node_offsets = sview(mesh.elementNodeOffsets[:, elnum])
 
-PumiInterface.getDofNumbers(numbering_ptr, node_entities, node_offsets, mesh.nodemapPumiToSbp, el_i, dofnums)  # C implimentation
+  PumiInterface.getDofNumbers(numbering_ptr, node_entities, node_offsets, mesh.nodemapPumiToSbp, el_i, dofnums)  # C implimentation
 
-return nothing
-
-
+  return nothing
 end
 
 
@@ -412,6 +295,8 @@ function getBoundaryFaceLocalNum(mesh::PumiMesh, edge_num::Integer)
 # of the mesh
 # edge_num is an edge num from the output of getBoundaryEdgeNums() (ie. the global edge number)
 # the local edge number is the edge number within the element (1st,s 2nd, 3rd...)
+#TODO: usage of this function might be a problem because it returns the local face number
+#      of the *Pumi* reference topology, not the SBP topology.
   face_i = mesh.faces[edge_num]
 
   # get mesh face associated with edge
@@ -475,4 +360,5 @@ function getElementVertMap(mesh::PumiMesh)
 
   return elvertmap
 end
+
 

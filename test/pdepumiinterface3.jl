@@ -9,7 +9,8 @@ include("defs.jl")
 facts("----- Testing PdePumiInterface3DG -----") do
   degree = 1
   Tsbp = Float64
-  sbp = TetSBP{Tsbp}(degree=degree, reorder=false, internal=true)
+  sbp = getTetSBPOmega(degree=degree, Tsbp=Tsbp)
+#  sbp = TetSBP{Tsbp}(degree=degree, internal=true)
   ref_verts = sbp.vtx
   interp_op = SummationByParts.buildinterpolation(sbp, ref_verts.')
   face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)
@@ -21,13 +22,18 @@ facts("----- Testing PdePumiInterface3DG -----") do
   smb_name = "unitcube.smb"
 
   opts = PdePumiInterface.get_defaults()
+  opts["smb_name"] = smb_name
+  opts["dmg_name"] = dmg_name
+  opts["order"] = degree
+  opts["coloring_distance"] = 2
+  opts["use_linear_metrics"] = true
   opts["numBC"] = 1
   opts["BC1"] = [0,1,2,3,4,5]
 
-  interp_op = eye(4)
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+#  interp_op = eye(4)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
-  println("finished")
 
   @fact mesh.m_ptr --> not(C_NULL)
   @fact mesh.mshape_ptr --> not(C_NULL)
@@ -62,6 +68,7 @@ facts("----- Testing PdePumiInterface3DG -----") do
   @fact mesh.numBoundaryFaces --> 12
   @fact mesh.numInterfaces --> 6
   @fact mesh.numFacesPerElement --> 4
+  @fact mesh.volume --> roughly(1.0, atol=1e-12)
   @fact mesh.numEntitiesPerType --> [mesh.numVert, mesh.numEdge, mesh.numFace, mesh.numEl]
   @fact mesh.numTypePerElement --> [4, 6, 4, 1]
   @fact mesh.el_type --> apfTET
@@ -130,6 +137,8 @@ facts("----- Testing PdePumiInterface3DG -----") do
     @fact bndry_i.face --> less_than(5)
   end
 
+  testSurfaceNumbering(mesh, sbp, opts)
+
   # check mapping interpolation
   # should be constant within an element for straight-sided elements
   for i=1:mesh.numInterfaces
@@ -168,6 +177,10 @@ facts("----- Testing PdePumiInterface3DG -----") do
     end
   end  # end loop over interfaces
 
+
+  # the 2D tests should work for this too
+  test_interp_rev(mesh)
+
   # test update_coords
   coords_orig = copy(mesh.vert_coords)
   
@@ -182,9 +195,9 @@ facts("----- Testing PdePumiInterface3DG -----") do
     update_coords(mesh, i, coords_i)
   end
 
-  commit_coords(mesh)
+  commit_coords(mesh, sbp, opts)
 
-  PdePumiInterface.getCoordinates(mesh, sbp)
+#  PdePumiInterface.getCoordinatesAndMetrics(mesh, sbp)
   for i = 1:length(mesh.vert_coords)
     @fact abs(2*coords_orig[i] - mesh.vert_coords[i]) --> less_than(1e-10)
   end
@@ -220,9 +233,10 @@ facts("----- Testing PdePumiInterface3DG -----") do
   # test periodic 
   @fact mesh.numPeriodicInterfaces --> 0
 
-  smb_name = "tet3_pxz.smb"
+  opts["smb_name"] = "tet3_pxz.smb"
   opts["BC1"] = [0,2,4,5,6]
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 18
   for i=1:mesh.numInterfaces
@@ -239,11 +253,13 @@ facts("----- Testing PdePumiInterface3DG -----") do
 
   # this mesh test that matched vertices are used for orientation 
   # determiniation
-  smb_name = "tet5_periodic.smb"
+
+  opts["smb_name"] = "tet5_periodic.smb"
   opts["numBC"] = 0
   delete!(opts, "BC1")
 
-  mesh = PumiMeshDG3{Float64}(dmg_name, smb_name, degree, sbp, opts, interp_op, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   @fact mesh.numPeriodicInterfaces --> 3*(5*5*2)
   for i=1:mesh.numInterfaces
@@ -252,9 +268,227 @@ facts("----- Testing PdePumiInterface3DG -----") do
   end
 
 
+  for order=1:2
+    fshape = getFieldShape(0, order, 3)
+    eshape = getEntityShape(fshape, apfTET)  # triangle
+    nodexi = PdePumiInterface.getXiCoords(order, 3)
+    numnodes = size(nodexi, 2)
+    for i=1:numnodes
+      vals = getValues(mesh.m_ptr, eshape, nodexi[:, i], numnodes)
+      for j=1:numnodes
+        if i == j
+          @fact abs(vals[j] - 1) --> less_than(1e-12)
+        else
+          @fact abs(vals[j]) --> less_than(1e-12)
+        end  # end if else
+      end   # end loop j
+    end  # end loop i
+
+  end  # end loop order
+
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
 
+  mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
+#  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
+  compare_meshes(mesh, mesh_c)
+
+  # test curvilinear is same as linear for linear mesh
+  println("testing curvilinear")
+  degree = 2
+  Tsbp = Float64
+  sbp = getTetSBPOmega(degree=degree, Tsbp=Tsbp)
+#  sbp = TetSBP{Tsbp}(degree=degree, internal=true)
+#  ref_verts = sbp.vtx
+  interp_op = SummationByParts.buildinterpolation(sbp, ref_verts.')
+  face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)
+  topo = ElementTopology{3}(face_verts)
+  sbpface = TetFace{Tsbp}(degree, sbp.cub, ref_verts)
+
+
+  opts = PdePumiInterface.get_defaults()
+  opts["dmg_name"] = ".null"
+#  smb_name = "tet1.smb"
+  opts["smb_name"] = "unitcube.smb"
+  opts["coloring_distance"] = 2
+
+
+  opts["use_linear_metrics"] = true
+  opts["order"] = degree
+  opts["numBC"] = 1
+  opts["BC1"] = [0,1,2,3,4,5]
+
+#  interp_op = eye(4)
+  mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
+#  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
+
+  
+  dxidx_orig = copy(mesh.dxidx)
+  jac_orig = copy(mesh.jac)
+  nrm_bndry_orig = copy(mesh.nrm_bndry)
+  nrm_face_orig = copy(mesh.nrm_face)
+  coords_orig = copy(mesh.coords)
+  coords_bndry_orig = copy(mesh.coords_bndry)
+  coords_interface_orig = copy(mesh.coords_interface)
+  
+  # use curvilinear routines to do calculation
+  PdePumiInterface.getMeshCoordinates(mesh, sbp)
+  PdePumiInterface.getFaceCoordinatesAndNormals(mesh, sbp)
+ # PdePumiInterface.getCurvilinearCoordinatesAndMetrics(mesh, sbp)
+  
+
+  # verify metrics are constant for a uniform linear mesh
+
+  for i=1:mesh.numEl
+    for j=1:mesh.numNodesPerElement
+      @fact norm(mesh.dxidx[:, :, j, i] - mesh.dxidx[:, :, 1, i]) --> roughly(0.0, atol=1e-12)
+    end
+  end
+
+  for i=1:mesh.numBoundaryFaces
+    for j=1:mesh.numNodesPerFace
+      @fact norm(mesh.nrm_bndry[:, j, i] - mesh.nrm_bndry[:, 1, i]) --> roughly(0.0, atol=1e-12)
+    end
+  end
+
+  for i=1:mesh.numInterfaces
+    for j=1:mesh.numNodesPerFace
+      @fact norm(mesh.nrm_face[:, j, i] - mesh.nrm_face[:, 1, i]) --> roughly(0.0, atol=1e-12)
+    end
+  end
+
+  
+
+  for i=1:mesh.numEl
+    for j=1:mesh.numNodesPerElement
+      for k=1:mesh.dim
+        for p=1:mesh.dim
+          @fact mesh.dxidx[p, k, j, i] --> roughly(dxidx_orig[p, k, j, i], atol=1e-12)
+        end
+      end
+
+      @fact mesh.jac[j, i] --> roughly(jac_orig[j, i], atol=1e-12)
+    end
+  end
+
+  for i=1:mesh.numBoundaryFaces
+    for j=1:mesh.numNodesPerFace
+      for k=1:mesh.dim
+        @fact mesh.nrm_bndry[k, j, i] --> roughly(nrm_bndry_orig[k, j, i], atol=1e-12)
+        @fact mesh.coords_bndry[k, j, i] --> roughly(coords_bndry_orig[k, j, i], atol=1e-12)
+      end
+    end
+  end
+
+  for i=1:mesh.numInterfaces
+    for j=1:mesh.numNodesPerFace
+      for k=1:mesh.dim
+        @fact mesh.nrm_face[k, j, i] --> roughly(nrm_face_orig[k, j, i], atol=1e-12)
+        @fact mesh.coords_interface[k, j, i] --> roughly(coords_interface_orig[k, j, i], atol=1e-12)
+      end
+    end
+  end
+
+  for i=1:mesh.numEl
+    for j=1:mesh.numNodesPerElement
+      for d=1:mesh.dim
+        @fact mesh.coords[d, j, i] --> roughly(coords_orig[d, j, i], atol=1e-13)
+      end
+    end
+  end
+
+
+  testSurfaceNumbering(mesh, sbp, opts)
+
+  # test reverse mode
+  PdePumiInterface.copy_data!(mesh_c, mesh)
+  test_metric_rev(mesh, mesh_c, sbp, opts)
+
+
+  # test with a diagonal E operator
+  degree = 2
+  Tsbp = Float64
+  sbp = getTetSBPDiagE(degree=degree, Tsbp=Tsbp)
+#  sbp = TetSBP{Tsbp}(degree=degree, internal=true)
+#  ref_verts = sbp.vtx
+  interp_op = SummationByParts.buildinterpolation(sbp, ref_verts.')
+  face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)
+  topo = ElementTopology{3}(face_verts)
+  sbpface = getTetFaceForDiagE(degree, sbp.cub, ref_verts)
+#  sbpface = TetFace{Tsbp}(degree, sbp.cub, ref_verts)
+
+  opts["dmg_name"] = ".null"
+#  smb_name = "tet1.smb"
+  opts["smb_name"] = "unitcube.smb"
+
+  opts["use_linear_metrics"] = false
+
+#  interp_op = eye(4)
+
+  mesh2_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo; shape_type=4)
+#  mesh2_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo, shape_type=4)
+  
+  mesh2 = PumiMeshDG3(Float64, sbp, opts, sbpface, topo, shape_type=4)
+#  mesh2 = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo, shape_type=4)
+
+  for i=1:mesh.numEl
+    for j=1:mesh.numNodesPerElement
+      @fact norm(mesh.dxidx[:, :, j, i] - mesh2.dxidx[:, :, 1, i]) --> roughly(0.0, atol=1e-12)
+    end
+  end
+
+  for i=1:mesh.numBoundaryFaces
+    for j=1:mesh.numNodesPerFace
+      @fact norm(mesh.nrm_bndry[:, j, i] - mesh2.nrm_bndry[:, 1, i]) --> roughly(0.0, atol=1e-12)
+    end
+  end
+
+  for i=1:mesh.numInterfaces
+    for j=1:mesh.numNodesPerFace
+      @fact norm(mesh.nrm_face[:, j, i] - mesh2.nrm_face[:, 1, i]) --> roughly(0.0, atol=1e-12)
+    end
+  end
+
+  
+
+  for i=1:mesh.numEl
+    for j=1:mesh.numNodesPerElement
+      for k=1:mesh.dim
+        for p=1:mesh.dim
+          @fact mesh.dxidx[p, k, j, i] --> roughly(mesh2.dxidx[p, k, 1, i], atol=1e-12)
+        end
+      end
+
+      @fact mesh.jac[j, i] --> roughly(mesh2.jac[j, i], atol=1e-12)
+    end
+  end
+
+  for i=1:mesh.numBoundaryFaces
+    for j=1:mesh.numNodesPerFace
+      for k=1:mesh.dim
+        @fact mesh.nrm_bndry[k, j, i] --> roughly(nrm_bndry_orig[k, 1, i], atol=1e-12)
+      end
+    end
+  end
+
+  for i=1:mesh.numInterfaces
+    for j=1:mesh.numNodesPerFace
+      for k=1:mesh.dim
+        @fact mesh.nrm_face[k, j, i] --> roughly(nrm_face_orig[k, 1, i], atol=1e-12)
+      end
+    end
+  end
+
+  # test reverse mode
+  PdePumiInterface.copy_data!(mesh2_c, mesh2)
+  test_metric_rev(mesh2, mesh2_c, sbp, opts)
+
+
+ 
 
 end
 

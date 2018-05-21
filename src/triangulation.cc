@@ -2,6 +2,7 @@
 // high order mesh into a low order one
 
 #include "triangulation.h"
+#include "funcs1.h"
 
 namespace tri {
 // given nodenum, the index of a node within an element (zero based), return the MeshEntity
@@ -107,7 +108,7 @@ apf::MeshEntity* getVert(apf::Mesh* m, apf::MeshEntity* verts[], apf::MeshEntity
 // copy all of the Numbering values at a particular node from an old Numbering to a new one.
 int copyNumberingNode(apf::Numbering* n_old, apf::Numbering* n_new, apf::MeshEntity* e_old, apf::MeshEntity* e_new, const int node_old, const int node_new, int ncomp)
 {
-  apf::Mesh* m = getMesh(n_old);
+  apf::Mesh* m = apf::getMesh(n_old);
   apf::FieldShape* nshape = apf::getShape(n_old);
   int type = m->getType(e_old);
   int dim = m->typeDimension[type];
@@ -359,12 +360,12 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
 
   for (int i = 0; i < numnumberings; ++i)
   {
-    std::cout << "Copying Numbering " << i << std::endl;
+//    std::cout << "Copying Numbering " << i << std::endl;
 
     apf::Numbering* numbering_i = m->getNumbering(i);
     int numcomp = apf::countComponents(numbering_i);
     const char* name_i = apf::getName(numbering_i);
-    std::cout << "Numbering name is " << name_i << std::endl;
+//    std::cout << "Numbering name is " << name_i << std::endl;
     apf::FieldShape* numbering_i_shape = apf::getShape(numbering_i);
 //    const char* shape_name = numbering_i_shape->getName();
 //    std::cout << "Numbering Fieldshape name = " << shape_name << std::endl;
@@ -517,8 +518,8 @@ void transferNumberings(apf::Mesh* m, apf::Mesh* m_new, const int numtriangles, 
 */
   } // end loop over numberings
 
-  std::cout << "printing new mesh fields and numberings" << std::endl;
-  printFields(m_new);
+//  std::cout << "printing new mesh fields and numberings" << std::endl;
+//  printFields(m_new);
 }  // end function
 
 } // end namespace tri
@@ -730,6 +731,7 @@ apf::Mesh2* createSubMesh(apf::Mesh* m, const int numtriangles, const int triang
   gmi_register_null();
   gmi_model* g = gmi_load(".null");
   apf::Mesh2* m_new = apf::makeEmptyMdsMesh(g, 2, false);
+  pushMeshRef(m_new);
 
   // step 1: create all vertices of sub-triangles
    

@@ -60,7 +60,7 @@ type PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron only
   mesh.order = order
   mesh.numNodesPerElement = getNumNodes(order)
   mesh.shape_type = shape_type
-  @time mesh.numEntities, mesh.m_ptr, mesh.mshape_ptr = init(dmg_name, smb_name, order, shape_type=shape_type)
+  @time mesh.numEntities, mesh.m_ptr, mesh.mshape_ptr, n_arr = init(dmg_name, smb_name, order, shape_type=shape_type)
   @time mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
 
   mesh.numVert = convert(Int, mesh.numEntities[1])
@@ -82,17 +82,11 @@ type PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron only
   end
 
 
-  println("numEntities = ", mesh.numEntities)
-  println("numNodesPerType = ", mesh.numNodesPerType)
-
-
-
-
   # get pointers to mesh entity numberings
-  mesh.vert_Nptr = getVertNumbering()
-  mesh.edge_Nptr = getEdgeNumbering()
-  mesh.face_Nptr = getFaceNumbering()
-  mesh.el_Nptr = getElNumbering()
+  mesh.vert_Nptr = n_arr[1] #getVertNumbering()
+  mesh.edge_Nptr = n_arr[2] #getEdgeNumbering()
+  mesh.face_Nptr = n_arr[3] #getFaceNumbering()
+  mesh.el_Nptr = n_arr[4] #getElNumbering()
 
    mesh.verts = Array(Ptr{Void}, mesh.numVert)
   mesh.edges = Array(Ptr{Void}, mesh.numEdge)
@@ -105,57 +99,54 @@ type PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron only
 
   # get pointers to all MeshEntities
   # also initilize the field to zero
-  resetAllIts2()
+  resetAllIts2(mesh.m_ptr)
 #  comps = zeros(dofpernode)
+  it = MeshIterator(mesh.m_ptr, 0)
   for i=1:mesh.numVert
-    mesh.verts[i] = getVert()
-    incrementVertIt()
+    mesh.verts[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
+  it = MeshIterator(mesh.m_ptr, 1)
   for i=1:mesh.numEdge
-    mesh.edges[i] = getEdge()
-    incrementEdgeIt()
+    mesh.edges[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
-  println("getting Face pointers")
+  it = MeshIterator(mesh.m_ptr, 2)
   for i=1:mesh.numFace
-    mesh.faces[i] = getFace()
-    incrementFaceIt()
+    mesh.faces[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
-  println("getting region pointers")
+  it = MeshIterator(mesh.m_ptr, 3)
   for i=1:mesh.numEl
-    mesh.elements[i] = getEl()
-    incrementElIt()
+    mesh.elements[i] = iterate(mesh.m_ptr, it)
   end
+  free(mesh.m_ptr, it)
 
   # use partially constructed mesh object to populate arrays
+  checkConnectivity(mesh)
 
-  
 #  numberDofs(mesh)
 
-  @time countBoundaryFaces(mesh)
-   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
-  @time getBoundaryArray(mesh)
-
-  @time numberDofs(mesh)
-  @time getDofNumbers(mesh)
-
-  @time countBoundaryFaces(mesh)
+  countBoundaryFaces(mesh)
   mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
-  @time getBoundaryArray(mesh)
+  getBoundaryArray(mesh)
+
+  numberDofs(mesh)
+  getDofNumbers(mesh)
+
+  countBoundaryFaces(mesh)
+  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
+  getBoundaryArray(mesh)
 
   mesh.numInterfaces = mesh.numFace - mesh.numBoundaryFaces
   mesh.interfaces = Array(Interface, mesh.numInterfaces)
-  @time getInterfaceArray(mesh)
+  getInterfaceArray(mesh)
 
 
-
-
-  @time getCoordinates(mesh, sbp)
-  @time mesh.dxidx = Array(T1, 3, 3, sbp.numnodes, mesh.numEl)
-  @time mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
-  @time mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
+  getCoordinatesAndMetrics(mesh, sbp)
 #
 
 #=
@@ -232,16 +223,17 @@ end
 function countBoundaryFaces(mesh::PumiMesh3)
   # count boundary face
   # store array of [element number, global edge number]
-  resetFaceIt()
+#  resetFaceIt()
   bnd_faces_cnt = 0
   bnd_faces = Array(Int, mesh.numFace, 2)
+  it = MeshIterator(mesh.m_ptr, 2)
   for i=1:mesh.numFace
-    face_i = getFace()
+    face_i = iterate(mesh.m_ptr, it)
     numRegion = countAdjacent(mesh.m_ptr, face_i, 3)  # should be count upward
 
     if numRegion == 1  # if an exterior edge
       elements = getAdjacent(numRegion)
-      elnum = getElNumber2(elements[1]) + 1
+      elnum = getNumberJ(mesh.el_Nptr, elements[1], 0, 0) + 1
 
 #      println("face number ", i, " is part of only one element")
 
@@ -249,8 +241,8 @@ function countBoundaryFaces(mesh::PumiMesh3)
       bnd_faces[bnd_faces_cnt, 1] = elnum
       bnd_faces[bnd_faces_cnt, 2] = i
     end
-    incrementFaceIt()
   end
+  free(mesh.m_ptr, it)
 
 
   mesh.boundary_nums = bnd_faces[1:bnd_faces_cnt, :] # copy, bad but unavoidable
@@ -309,8 +301,6 @@ function numberDofs(mesh::PumiMesh3)
 # assumes mesh elements have already been reordered
 # this method minimizes the assembly/disassembly time
 # because blocks of entries in res go into res_vec
-  println("Entered numberDofs")
-
  
   # calculate total number of nodes
   # Continuous Galerkin only
@@ -321,8 +311,6 @@ function numberDofs(mesh::PumiMesh3)
 
   numDof = mesh.numDofPerNode*numnodes
  
-  println("expected number of dofs = ", numDof)
-
   if (numDof > 2^30)
     println("Warning: too many dofs, renumbering will fail")
   end
@@ -334,24 +322,22 @@ function numberDofs(mesh::PumiMesh3)
   # initally number all dofs as numDof+1 to 2*numDof
   # this allows quick check to see if somthing is labelled or not
 
-  resetAllIts2()
+#  resetAllIts2(mesh.m_ptr)
   # mesh iterator increment, retreval functions
-  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
-  iterators_get = [getVert, getEdge, getFace, getEl]
+#  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
+#  iterators_get = [getVert, getEdge, getFace, getEl]
   num_entities = mesh.numEntities
   num_nodes_entity = mesh.numNodesPerType
 
-  println("num_nodes_entity = ", num_nodes_entity)
-  println("num_entities = ", num_entities)
-  println("\nPerforming initial dof numbering")
   #  curr_dof = 1
   curr_dof = numDof+1
   for etype = 1:length(num_nodes_entity) # loop over entity types
-    println("etype = ", etype)
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
+      it = MeshIterator(mesh.m_ptr, etype - 1)
       for entity = 1:num_entities[etype]  # loop over all entities of this type
 #	println("  entity number: ", entity)
-	entity_ptr = iterators_get[etype]()  # get entity
+        entity_ptr = iterate(mesh.m_ptr, it)
+#	entity_ptr = iterators_get[etype]()  # get entity
 
 	for node = 1:num_nodes_entity[etype]
 #	  println("    node : ", node)
@@ -362,15 +348,13 @@ function numberDofs(mesh::PumiMesh3)
 	  end  # end loop over dof
 	end  # end loop over node
 
-      iterators_inc[etype]()
-      end  # end loop over entitiesa
+#      iterators_inc[etype]()
+      end  # end loop over entitiesaa
+      free(mesh.m_ptr, it)
     end  # end if 
   end  # end loop over entity types
 
-  println("Finished initial numbering of dofs") 
-
-
-  println("Performing final numbering of dofs")
+  # final dof numbering
 # move all if statements out one for loop (check only first dof on each node)
   curr_dof = 1
   for i=1:mesh.numEl
@@ -462,21 +446,13 @@ function numberDofs(mesh::PumiMesh3)
   end  # end loop over elements
 
 
-
-
-  println("finished performing final dof numbering")
-
-  println("number of dofs = ", curr_dof - 1)
   if (curr_dof -1) != numDof 
     println("Warning: number of dofs assigned is not equal to teh expected number")
     println("number of dofs assigned = ", curr_dof-1, " ,expected number = ", numDof)
-  else
-    println("Dof numbering is sane")
   end
 
 
-
-  resetAllIts2()
+#  resetAllIts2(mesh.m_ptr)
   return nothing
 
 end
@@ -485,9 +461,6 @@ end
 
 function getDofNumbers(mesh::PumiMesh3)
 # populate array of dof numbers, in same shape as solution array u (or q)
-
-println("in getDofNumbers")
-println("numNodesPerElement = ", mesh.numNodesPerElement)
 
 mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
 
@@ -544,7 +517,7 @@ for i=1:mesh.numEl  # loop over elements
   
   el_i = mesh.elements[i]
   (sizex, sizey) = size(coords_i)
-  getElCoords(el_i, coords_i, sizex, sizey)  # populate coords
+  getElCoords(mesh.m_ptr, el_i, coords_i, sizex, sizey)  # populate coords
 
 #  println("coords_i = ", coords_i)
 
@@ -607,8 +580,8 @@ function getInterfaceArray(mesh::PumiMesh3)
 
       coords_1 = zeros(3,4)
       coords_2 = zeros(3,4)
-      getElCoords(mesh.elements[element1], coords_1, 3, 4)
-      getElCoords(mesh.elements[element2], coords_2, 3, 4)
+      getElCoords(mesh.m_ptr, mesh.elements[element1], coords_1, 3, 4)
+      getElCoords(mesh.m_ptr, mesh.elements[element2], coords_2, 3, 4)
 
       # calculate centroid
       centroid1 = sum(coords_1, 2)

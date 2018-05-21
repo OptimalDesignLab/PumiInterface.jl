@@ -234,6 +234,29 @@ end
 """
   Type to hold data about 2 elements that share a face, along with some 
   arrays needed by getRelativeOrientation
+
+  **Fields**
+   
+   * elnumL: number of the left element
+   * eL: the MeshEntity * of the left element
+   * elnumR: the number of the right element
+   * elR: the MeshEntity * of the right element
+   * faceL: the local number of the face from the perspective of elL
+   * faceR: the local number of the face from the perspective of elR
+   * vertsL: array of length 4 holding the MeshEntity* for the vertices of
+             elL
+   * vertsR: same as vertsL, but for elR
+   * facevertsL: array holding the MeshEntity* vertices on faceL of elL
+   * facevertsR: same as facevertsL, but for elR
+   * part_nums: array to hold part numbers retrieved from Pumi (length 400?)
+   * matched_entities: array to hold MeshEntity * retrieves from 
+     Pumi (length 400?)
+   * match2: bool indicating if faceL and faceR are matched
+
+  When the type is constructed, the first 6 fields and the match2 field
+  should have the correct values, all the other fields can be empty arrays
+  of the correct size.
+
 """
 immutable FaceData
   elnumL::Int
@@ -275,10 +298,6 @@ function getRelativeOrientation(fdata::FaceData, mesh::PumiMesh3DG)
   # get all vertices of the tet
   getDownward(mesh.m_ptr, fdata.elL, 0, fdata.vertsL)
   getDownward(mesh.m_ptr, fdata.elR, 0, fdata.vertsR)
-  if fdata.match2
-    getMatchedVertsR(fdata, mesh)
-  end
-
   # extract the face vertices 
   # uses the user suppied topology information to order the face verts
   for i=1:3
@@ -286,26 +305,79 @@ function getRelativeOrientation(fdata::FaceData, mesh::PumiMesh3DG)
     fdata.facevertsR[i] = fdata.vertsR[vertmap[i, faceR]]
   end
 
+  if fdata.match2
+    getMatchedVertsR(fdata, mesh)
+  end
+
   return calcRelativeOrientation(fdata.facevertsL, fdata.facevertsR)
 
 end
 
 function getMatchedVertsR(fdata::FaceData, mesh::PumiMesh3DG)
-# do an in place replacement of vertsR with their matches
+# do an in place replacement of facevertsR with their matches
 
+  # temporary arrays
   part_nums = fdata.part_nums
   matched_entities = fdata.matched_entities
 
   # if any have matches, replace with remote pointer
-  for i=1:4
-    n = countMatches(mesh.m_ptr, fdata.vertsR[i])
+  for i=1:3
+    n = countMatches(mesh.m_ptr, fdata.facevertsR[i])
     getMatches(part_nums, matched_entities)
+    # make sure it is possible to correlate the vertices uniquely
+    assertUnique(sview(part_nums, 1:Int(n)), sview(matched_entities, 1:Int(n)), 
+                 mesh.myrank, fdata.facevertsL)
+    foundflag = false
     for j=1:n  # find the match on the same part
-      if part_nums[j] == mesh.myrank && (matched_entities[j] in fdata.vertsL)
-        fdata.vertsR[i] = matched_entities[j]
+      nfound = countin(matched_entities[j], fdata.facevertsL)
+      if part_nums[j] == mesh.myrank && ( nfound == 1)
+        fdata.facevertsR[i] = matched_entities[j]
+        foundflag = true
+        break
       end
     end
+
+    if !foundflag
+      # we get here if either there were no matches or no unique matches
+      @assert false
+    end
   end
+
+  return nothing
+end
+
+"""
+  This function verifies that it is possible to determine the relative
+  orientation of two faces that are matched.
+
+  Specifically,
+  Given two vectors of the same length, part_nums and matched entities, this
+  function assures that for all entities on the same part as myrank, the
+  matched entities appears no more than once in other_entities
+
+  Inputs:
+    part_nums: array of integers containing the MPI ranks of the processes
+               on which the corresponding entries in matched_entities reside
+    matched_entities: the entities with the associated MPI ranks
+    myrank: the MPI rank of the current process
+    other_entities: entities to compare matched_entities against
+
+"""
+function assertUnique(part_nums::AbstractVector,
+                      matched_entities::AbstractVector, myrank::Integer,
+                      other_entities::AbstractVector)
+  
+  n = length(part_nums)
+  numfound = 0
+  for i=1:n
+    if part_nums[i] == myrank
+      numfound += countin(matched_entities[i], other_entities)
+    end
+  end
+
+  # for each vertex, it matches cannot contain more than one vertex of the
+  # other face
+  @assert numfound == 1
 
   return nothing
 end

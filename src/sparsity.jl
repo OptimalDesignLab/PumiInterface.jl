@@ -77,7 +77,7 @@ function getDofConnectivity(mesh::PumiMesh2)
     numel = pos - 1
     
     # count number of non duplicates
-    els_used = view(els_all, 1:numel);
+    els_used = sview(els_all, 1:numel);
     sort!(els_used)
     cnt = 1
     for j=2:length(els_used)
@@ -107,7 +107,7 @@ function getDofConnectivity(mesh::PumiMesh2)
     numel = pos - 1
 
     # de-duplicate whle copying into node_elements
-    els_used = view(els_all, 1:numel);
+    els_used = sview(els_all, 1:numel);
     sort!(els_used)
     els_tmp[1] = els_used[1]
     pos = 2
@@ -141,13 +141,13 @@ function getSparsityBounds(mesh::PumiMesh, sparse_bnds::AbstractArray{Int32, 2};
 # getDofBounds also does not need it because only the minimum and maximum
 # are important, not the order of them
 
-resetAllIts2()
+#resetAllIts2(mesh.m_ptr)
 # mesh iterator increment, retreval functions
 #iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt]
-iterators_inc = (VertIterator(), EdgeIterator(), FaceIterator(), ElIterator())
+#iterators_inc = (VertIterator(), EdgeIterator(), FaceIterator(), ElIterator())
 
 #iterators_get = [getVert, getEdge, getFace]
-iterators_get = (VertGetter(), EdgeGetter(), FaceGetter(), ElGetter)
+#iterators_get = (VertGetter(), EdgeGetter(), FaceGetter(), ElGetter)
 num_entities = mesh.numEntitiesPerType
 #num_entities = [mesh.numVert, mesh.numEdge, mesh.numEl]
 num_nodes_entity = mesh.numNodesPerType  # number of nodes on each type
@@ -165,11 +165,13 @@ end
 
 for etype=1:(mesh.dim+1)  # loop over mesh entity types
  
-  if (num_nodes_entity[etype] != 0)  # there are nodes here
+  if (num_nodes_entity[etype] != 0)  # there are nodes herea
+    it = MeshIterator(mesh.m_ptr, etype-1)
     for entity = 1:num_entities[etype]  # loop over all entities of this type
-      entity_ptr = iterators_get[etype]()  # get pointer to mesh entity
+#      entity_ptr = iterators_get[etype]()  # get pointer to mesh entity
+      entity_ptr = iterate(mesh.m_ptr, it)
 
-      min, max = getDofBounds(mesh, etype, getdofs=getdofs)
+      min, max = getDofBounds(mesh, entity_ptr, getdofs=getdofs)
       for node = 1:num_nodes_entity[etype]  # loop over nodes on each entity
 	# get the minimum, maximum related dof numbers
 	# use the same min, max for all dofs on this node
@@ -181,8 +183,9 @@ for etype=1:(mesh.dim+1)  # loop over mesh entity types
 
 	end  # end loop over dofs
       end  # end loop over nodes on entity
-      iterators_inc[etype]()
+#      iterators_inc[etype]()
     end  # end loops over entities of this type
+    free(mesh.m_ptr, it)
   end  # end if statement
 end  # end loop over entity types
 
@@ -192,14 +195,15 @@ end
 
 # rewrite this because it is terrible
 # this could be generalized 3d?
-function getDofBounds(mesh::PumiMesh2D, etype::Integer; getdofs=true) 
+function getDofBounds(mesh::PumiMesh2D, entity_ptr::Ptr{Void}; getdofs=true) 
 # gets the maximum, minimum dofs associated with the entity currently
 # pointed to by the iterator specified by etype
 # getDofs = true -> get dof numbers, false -> get node numbers
 # this works for distance-0 and 1 colorings
 
-iterators_get = [getVert, getEdge, getFace]
-entity_ptr = iterators_get[etype]()
+#iterators_get = [getVert, getEdge, getFace]
+#it = MeshIterator(mesh.m_ptr, etype - 1)
+#entity_ptr = iterators_get[etype]()
 
 # get associated elements (distance-0 elements)
 num_adj = countAdjacent(mesh.m_ptr, entity_ptr, 2)
@@ -225,7 +229,7 @@ return min, max
   if mesh.coloringDistance >= 2
     edge_arr = Array(Ptr{Void}, num_adj*3)  # enough space for all edges, including repeats
     for i=1:num_adj  # get the edges
-      sub_arr = view(edge_arr, (3*(i-1) + 1):(3*i))
+      sub_arr = sview(edge_arr, (3*(i-1) + 1):(3*i))
       getDownward(mesh.m_ptr, el_arr[i], 1, sub_arr)
     end
 
@@ -255,7 +259,7 @@ return min, max
     end_idx = num_els[1]
     for i=1:length(edge_arr)
       edge_i = edge_arr[i]
-      sub_arr = view(el_arr, start_idx:end_idx)
+      sub_arr = sview(el_arr, start_idx:end_idx)
       countAdjacent(mesh.m_ptr, edge_i, 2)
       getAdjacent(sub_arr)
 
@@ -283,7 +287,7 @@ return min, max
 
   for i=1:num_adj
     elnum_i = getNumberJ(mesh.el_Nptr, el_arr[i], 0, 0) + 1
-    getGlobalNodeNumbers(mesh, elnum_i, view(dofnums, :, :, i), getdofs=getdofs)
+    getGlobalNodeNumbers(mesh, elnum_i, sview(dofnums, :, :, i), getdofs=getdofs)
   end
 
   min, max = getMinandMax(dofnums)
