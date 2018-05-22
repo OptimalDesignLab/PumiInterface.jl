@@ -19,7 +19,7 @@ push!(LOAD_PATH, dirname(@__FILE__))
 
 function declareNames()
 # declare variables that hold the (possible mangled) names of c++ library functions
-global const pumi_libname = "libfuncs1"
+global const pumi_libname = "libpumiInterface"
 global const init_name = "initABC"
 global const init2_name = "initABC2"
 global const pushMeshRef_name = "pushMeshRef"

@@ -36,7 +36,7 @@ MESSAGE( STATUS "Pumi configuration file location: " ${SCOREC_CONFIG})
 
 #this is just example code, do your own thing
 add_executable(test_init test_init.cc)
-add_library(funcs1 funcs1.cc a2.cc adaptFuncsJ.cc apfSBPShape.cc apfSBPShape3.cc dgSBPShape1.cc dgSBPShape2.cc dgSBPShape4.cc dgSBPShape5.cc dgSBPShape6.cc dgSBP3Shape1.cc dgSBP3Shape2.cc dgSBP3Shape4.cc dgSBP3Shape5.cc triangulation.cc triangulationDG.cc submesh_create.cc)
+add_library(pumiInterface funcs1.cc a2.cc adaptFuncsJ.cc apfSBPShape.cc apfSBPShape3.cc dgSBPShape1.cc dgSBPShape2.cc dgSBPShape4.cc dgSBPShape5.cc dgSBPShape6.cc dgSBP3Shape1.cc dgSBP3Shape2.cc dgSBP3Shape4.cc dgSBP3Shape5.cc triangulation.cc triangulationDG.cc submesh_create.cc)
 
 #for any targets that use PUMI, just use this command
 #to it to include the right directories and link to all
@@ -44,8 +44,8 @@ add_library(funcs1 funcs1.cc a2.cc adaptFuncsJ.cc apfSBPShape.cc apfSBPShape3.cc
 #we recommend PUBLIC if the target is a library and
 #PRIVATE if the target is an executable
 #target_link_libraries(mylibrary PUBLIC SCOREC::core)
-target_link_libraries(funcs1 PUBLIC SCOREC::core)
+target_link_libraries(pumiInterface PUBLIC SCOREC::core)
 target_link_libraries(test_init PRIVATE SCOREC::core)
 
-install (TARGETS funcs1 DESTINATION lib)
+install (TARGETS pumiInterface DESTINATION lib)
 install (TARGETS test_init DESTINATION bin)
