@@ -32,7 +32,7 @@ function baryToXY{T2}(bary::AbstractMatrix{T2}, vtx::AbstractMatrix)
 
   # compute xyz coordinates
   for i=1:npoints
-    coords[:, i] = T*bary[:, i] + r1.'
+    coords[:, i] = T*bary[:, i] + r1
   end
 
   return coords

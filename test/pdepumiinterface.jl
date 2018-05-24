@@ -208,8 +208,6 @@ facts("--- Testing PdePumiInterface --- ") do
 
       for i=1:length(data_code)
         data_i = data_code[i]
-        println("data_i = ", data_i)
-        println("data_ref[i] = ", data_ref[i])
         if typeof(data_i) <: Number
           @fact data_i --> roughly(data_ref[i], atol=1e-13)
         else
@@ -344,14 +342,10 @@ facts("--- Testing PdePumiInterface --- ") do
       println("against reference file ", name_ref)
       data_code = readdlm(name_code)
       data_ref = readdlm(name_ref)
-      println("number of points = ", length(data_code))
 
 
       for i=1:length(data_code)
-        println("point ", i)
         data_i = data_code[i]
-        println("data code = ", data_i)
-        println("data ref = ", data_ref[i])
         if typeof(data_i) <: Number
           @fact data_i --> roughly(data_ref[i], atol=1e-13)
         else
@@ -553,6 +547,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
   # test metrics reverse
   test_metric_rev(mesh, mesh_c, sbp, opts)
+
 
    function test_interp{Tmsh}(mesh::AbstractMesh{Tmsh})
      sbpface = mesh.sbpface

@@ -1,16 +1,18 @@
 #!/bin/bash
 
 jj=julia
+jflags="--optimize=3"
+
 err=0
-$jj ./runtests.jl
+$jj $jflags ./runtests.jl
 tmp=$?
 err=$((err + tmp))
 
-mpirun -np 2 $jj ./runtests_parallel.jl
+mpirun -np 2 $jj $jflags ./runtests_parallel.jl
 tmp=$?
 err=$((err + tmp))
 
-mpirun -np 4 $jj ./runtests_parallel4.jl
+mpirun -np 4 $jj $jflags ./runtests_parallel4.jl
 tmp=$?
 err=$((err + tmp))
 

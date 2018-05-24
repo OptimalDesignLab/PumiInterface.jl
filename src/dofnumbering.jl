@@ -458,7 +458,7 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   curr_dof = 1
   # the dreaded while loop
   while (!isempty(que))
-i#    print("\n")
+#    print("\n")
     curr_el = pop!(que)
 
     # only unlabelled entities are added to the que, and they are added 

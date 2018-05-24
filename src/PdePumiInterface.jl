@@ -9,6 +9,7 @@ using ArrayViews
 using MPI
 
 import ODLCommonTools.sview
+import ArrayViews.view
 
 include("nodecalc.jl")
 #include("bary.jl")
