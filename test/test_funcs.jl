@@ -140,7 +140,7 @@ function test_interp_rev(mesh)
       end
 
       fill!(mesh.dxidx_bar, 0.0)
-      fill!(mesh.dxidx_sharedface[peer]. 0.0)
+      fill!(mesh.dxidx_sharedface[peer], 0.0)
     end
    
   end

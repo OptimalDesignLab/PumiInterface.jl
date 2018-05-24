@@ -826,10 +826,7 @@ type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
 
   if opts["write_boundarynums"]
-    rmfile("boundary_nums.dat")
-    f = open("boundary_nums.dat", "a+")
-    println(f, boundary_nums)
-    close(f)
+    writedlm("boundary_nums.dat", boundary_nums)
   end
 
 
@@ -883,7 +880,7 @@ include("adapt.jl")
 include("bary.jl")
 include("coloring.jl")
 include("dofnumbering.jl")
-include("elements.jl")
+#include("elements.jl")
 include("entities.jl")
 include("faces.jl")
 include("interpolation.jl")

@@ -809,10 +809,7 @@ function finishMeshInit{T1}(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
 
 
   if opts["write_boundarynums"]
-    rmfile("boundary_nums_$myrank.dat")
-    f = open("boundary_nums_$myrank.dat", "a+")
-    println(f, boundary_nums)
-    close(f)
+    writedlm("boundary_nums_$myrank.dat", boundary_nums)
   end
 
   if opts["write_dxidx"]
@@ -913,7 +910,7 @@ end
 
  
   
-function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opts; 
+function PumiMeshDG3Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)
 # construct pumi mesh for preconditioner residual evaluations
 # this operates by copying an existing mesh object (hence not loading a new

@@ -886,10 +886,7 @@ function finishMeshInit{T1}(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofp
   end
 
   if opts["write_boundarynums"]
-    rmfile("boundary_nums_$myrank.dat")
-    f = open("boundary_nums_$myrank.dat", "a+")
-    println(f, boundary_nums)
-    close(f)
+    writedlm("boundary_nums_$myrank.dat", boundary_nums)
   end
 
   if opts["write_dxidx"]

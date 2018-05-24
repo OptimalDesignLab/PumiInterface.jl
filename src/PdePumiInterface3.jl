@@ -674,30 +674,6 @@ return rel_rotate
 end  # end function
 
 
-function wrapNumber(num::Integer, lower::Integer, upper::Integer)
-# make num perioid, where upper and lower are the max and min values allowable
-# ie. num can only be in the range [1 3], if num == 0, then it gets mapped to 3
-# similarly, 4 gets mapped to 1
-
-
-
-range = upper - lower + 1
-
-if num < lower
-  diff = lower - num
-  return upper - (diff % range) + 1
-  
-elseif  num > upper
-  diff = num - upper
-  return lower + (diff % range) - 1
-else
-  return num
-end
-
-end
-
-
-
 function constructNodemap(mesh::PumiMesh3, rel_rotate::Integer)
 # calculate node map from elementL in canonical order to the canonical order
 # on elementR
