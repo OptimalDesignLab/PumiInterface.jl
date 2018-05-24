@@ -200,7 +200,6 @@ facts("--- Testing PdePumiInterface --- ") do
     for name in fnames
       name_code = string(name, ".dat")
       name_ref = string(name, "_p", order, "true.dat")
-      cp(name_code, name_ref, remove_destination=true)  # TESTING
       println("checking file ", name_code)
       println("against ", name_ref)
       data_code = readdlm(name_code)
@@ -341,7 +340,6 @@ facts("--- Testing PdePumiInterface --- ") do
     for name in fnames
       name_code = string(name, ".dat")
       name_ref = string(name, "vortex", "_p", order, "true.dat")
-      cp(name_code, name_ref, remove_destination=true)  # TESTING
       println("checking file ", name_code)
       println("against reference file ", name_ref)
       data_code = readdlm(name_code)
