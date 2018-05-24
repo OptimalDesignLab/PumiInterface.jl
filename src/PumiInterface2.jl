@@ -94,7 +94,7 @@ function printEdgeVertNumbers(edgeN_ptr, vertN_ptr; fstream=STDOUT)
     (verts, nverts) = getDownward(m_ptr, edge_i, 0)
     n1 = getNumberJ(vertN_ptr, verts[1], 0, 0)
     n2 = getNumberJ(vertN_ptr, verts[2], 0, 0)
-    println(fstream, "edge ", edge_num, " has vertices ", n1, " , ", n2 )
+    println(fstream, n1, " ", n2)
   end
 
   free(m_ptr, it)
@@ -109,11 +109,11 @@ function printFaceVertNumbers(edges::AbstractArray{Ptr{Void}}, edgeN_ptr, vertN_
   for i=1:m
     edge_i = edges[i]
     edge_num = getNumberJ(edgeN_ptr, edge_i, 0, 0)
-    print(fstream, "face ", edge_num, " has vertices ")
+#    print(fstream, "face ", edge_num, " has vertices ")
     (verts, nverts) = getDownward(m_ptr, edge_i, 0)
     for j=1:nverts
       n = getNumberJ(vert_Nptr, verts[j], 0, 0)
-      print(fstream, n1, ", ")
+      print(fstream, n1, " ")
     end
     print(fstream, "\n")
   end
@@ -125,7 +125,6 @@ function printFaceVertNumbers(faceN_ptr, vertN_ptr; fstream=STDOUT)
   m_ptr = getMesh(faceN_ptr)
   it = MeshIterator(m_ptr, 2)
   m = countJ(m_ptr, 2)  # count number of faces on the mesh
-  println("numFaces = ", m)
 
  for i=1:m  # loop over faces
    face_i = iterate(m_ptr, it)
@@ -134,9 +133,9 @@ function printFaceVertNumbers(faceN_ptr, vertN_ptr; fstream=STDOUT)
    vertnums = zeros(Int, nverts)
    for j=1:nverts
      vertnums[j] = getNumberJ(vertN_ptr, verts[j], 0, 0)
+     print(fstream, vertnums[j], " ")
    end
-
-   println(fstream, "face ", face_num, " has vertices $vertnums")
+   print(fstream, "\n")
  end
 
  free(m_ptr, it)
@@ -156,8 +155,9 @@ function printElementVertNumbers(el_Nptr, vert_Nptr; fstream=STDOUT)
     vertnums = zeros(Int, nverts)
     for j=1:nverts
       vertnums[j] = getNumberJ(vert_Nptr, verts[j], 0, 0)
+      print(fstream, vertnums[j], " ", )
     end
-    println(fstream, "element ", elnum, " has vertices $vertnums")
+    print(fstream, "\n")
   end
 
   free(m_ptr, it)
