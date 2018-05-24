@@ -102,7 +102,7 @@ function printBoundaryFaceNums(mesh::PumiMesh2D)
   return nothing
 end  # end function
 
-
+#=
 function printdxidx(name::AbstractString, mat)
 # print the 4d matrix formatted like dxidx
 
@@ -120,7 +120,7 @@ close(f)
 
 return nothing
 end
-
+=#
 
 function printcoords(name::AbstractString, coords)
 

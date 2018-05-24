@@ -95,7 +95,10 @@ function printEdgeVertNumbers(edgeN_ptr, vertN_ptr; fstream=STDOUT)
     n1 = getNumberJ(vertN_ptr, verts[1], 0, 0)
     n2 = getNumberJ(vertN_ptr, verts[2], 0, 0)
     println(fstream, n1, " ", n2)
+<<<<<<< HEAD
 #    println(fstream, "edge ", edge_num, " has vertices ", n1, " , ", n2 )
+=======
+>>>>>>> dd10019ccabf6b157228d2e942c488053dc77c44
   end
 
   free(m_ptr, it)
@@ -137,8 +140,11 @@ function printFaceVertNumbers(faceN_ptr, vertN_ptr; fstream=STDOUT)
      print(fstream, vertnums[j], " ")
    end
    print(fstream, "\n")
+<<<<<<< HEAD
 
 #   println(fstream, "face ", face_num, " has vertices $vertnums")
+=======
+>>>>>>> dd10019ccabf6b157228d2e942c488053dc77c44
  end
 
  free(m_ptr, it)
@@ -158,10 +164,16 @@ function printElementVertNumbers(el_Nptr, vert_Nptr; fstream=STDOUT)
     vertnums = zeros(Int, nverts)
     for j=1:nverts
       vertnums[j] = getNumberJ(vert_Nptr, verts[j], 0, 0)
+<<<<<<< HEAD
       print(fstream, vertnums[j], " ")
     end
     print(fstream, "\n")
 #    println(fstream, "element ", elnum, " has vertices $vertnums")
+=======
+      print(fstream, vertnums[j], " ", )
+    end
+    print(fstream, "\n")
+>>>>>>> dd10019ccabf6b157228d2e942c488053dc77c44
   end
 
   free(m_ptr, it)

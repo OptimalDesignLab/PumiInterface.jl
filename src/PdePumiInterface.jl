@@ -831,8 +831,7 @@ type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
 
   if opts["write_dxidx"]
-    rmfile("dxidx.dat")
-    printdxidx("dxidx.dat", mesh.dxidx)
+    writedlm("dxidx.dat", mesh.dxidx)
   end
 
 

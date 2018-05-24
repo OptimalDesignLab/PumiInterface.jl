@@ -892,7 +892,6 @@ function finishMeshInit{T1}(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofp
   if opts["write_dxidx"]
     rmfile("dxidx_$myrank.dat")
     writedlm("dxidx_$myrank.dat", mesh.dxidx)
-#    printdxidx("dxidx_$myrank.dat", mesh.dxidx)
   end
 
   if opts["write_jac"]
