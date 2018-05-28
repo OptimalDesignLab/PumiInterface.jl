@@ -15,7 +15,7 @@ global const MPI_URL = "https://github.com/JuliaParallel/MPI.jl.git"
 global const MPI_VER = "v0.5.0"
 
 global const SBP_URL = "https://github.com/OptimalDesignLab/SummationByParts.jl.git"
-global const SBP_VER = "jc_update_0.5"
+global const SBP_VER = "jc_update_0.6"
 
 
 start_dir = pwd()
@@ -44,10 +44,12 @@ if install_mpi
   run(`$cmd_string $arg_str`)
 end
 
+#=
 # install MPI.jl if needed
 if PkgFix.installed("MPI") == nothing
   PkgFix.add(MPI_URL, branch_ish=MPI_VER)
 end
+=#
 
 if install_pumi  # did not find pumi
   installPumi()
