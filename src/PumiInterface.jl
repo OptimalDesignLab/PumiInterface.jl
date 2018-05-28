@@ -306,11 +306,11 @@ end
 
 function pushMeshRef(m_ptr::Ptr{Void})
 
-  ccall ( (pushMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+  ccall( (pushMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
 end
 
 function popMeshRef(m_ptr::Ptr{Void})
-  ccall ( (popMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+  ccall( (popMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
 end
 
 
@@ -347,20 +347,20 @@ end
 
 function free(m_ptr::Ptr{Void}, it::MeshIterator)
 
-  ccall ((:end, pumi_libname), Void, (Ptr{Void}, MeshIterator), m_ptr, it)
+  ccall((:end, pumi_libname), Void, (Ptr{Void}, MeshIterator), m_ptr, it)
 
 end
 
 function iterate(m_ptr::Ptr{Void}, it::MeshIterator)
 
-  me = ccall ((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
+  me = ccall((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
 
   return me
 end
 
 function iteraten(m_ptr::Ptr{Void}, it::MeshIterator, n::Integer)
 
-  me = ccall ((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator, Cint), m_ptr, it, n)
+  me = ccall((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator, Cint), m_ptr, it, n)
 
   return me
 end
@@ -368,7 +368,7 @@ end
 
 function deref(m_ptr::Ptr{Void}, it::MeshIterator)
 
-  me = ccall ((:deref, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
+  me = ccall((:deref, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
 
   return me
 end
@@ -438,7 +438,7 @@ function getDownward(m_ptr, entity, dimension::Integer)
   downwards = Array(Ptr{Void}, 12)
 
 
-  i = ccall ( (getDownward_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Void}), m_ptr, entity, dimension, downwards)
+  i = ccall( (getDownward_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Void}), m_ptr, entity, dimension, downwards)
 
   return downwards[1:i], i
 
@@ -448,7 +448,7 @@ function getDownward(m_ptr, entity, dimension::Integer, arr::AbstractArray{Ptr{V
 # populate arr with the downward entiteis of the specified dimension
 # arr is not checked for size
 
-  i = ccall ( (getDownward_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Ptr{Void}}), m_ptr, entity, dimension, arr)
+  i = ccall( (getDownward_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Ptr{Void}}), m_ptr, entity, dimension, arr)
 
   return  i
 
@@ -525,7 +525,7 @@ end
 function hasNodesIn(mshape_ptr, dimension::Integer)
 # check whether this FieldShape* has nodes on entities of a given dimension
 
-  i = ccall ( (hasNodesIn_name, pumi_libname), Cuchar, (Ptr{Void}, Int32), mshape_ptr, dimension)
+  i = ccall( (hasNodesIn_name, pumi_libname), Cuchar, (Ptr{Void}, Int32), mshape_ptr, dimension)
 
   i_bool = convert(Bool, i)
 #  println("hasNodesIn returned", i_bool)
@@ -536,7 +536,7 @@ end
 
 function countNodesOn(mshape_ptr, entity_type::Integer)
 # count the number of nodes on an entity of the specified type (apf::Mesh::Type)
-  i = ccall ( (countNodesOn_name, pumi_libname), Int32, (Ptr{Void}, Int32), mshape_ptr, entity_type)
+  i = ccall( (countNodesOn_name, pumi_libname), Int32, (Ptr{Void}, Int32), mshape_ptr, entity_type)
 
   return i
 
@@ -545,7 +545,7 @@ end
 function getEntityShape(mshape_ptr, entity_type::Integer)
 # get the EntityShape* (object describing shape functions) ofa given entity type
 
-  eshape_ptr = ccall ( (getEntityShape_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Int32), mshape_ptr, entity_type)
+  eshape_ptr = ccall( (getEntityShape_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Int32), mshape_ptr, entity_type)
 
   return eshape_ptr
 end
@@ -561,7 +561,7 @@ end
 function createMeshElement(m_ptr, entity)
 # creates a MeshElement from a MeshEntity
 
-  mel_ptr = ccall ( ( createMeshElement_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Void}), m_ptr, entity)
+  mel_ptr = ccall( ( createMeshElement_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Void}), m_ptr, entity)
   return mel_ptr
 end
 
@@ -570,7 +570,7 @@ function countIntPoints(mel_ptr, order::Integer)
 # accuracy.  MeshElement can be edges as well as 2D and 3D regions.
 # not sure what happens if it is a vertex.
 
-  i = ccall ( (countIntPoints_name, pumi_libname), Int32, (Ptr{Void}, Int32), mel_ptr, order)
+  i = ccall( (countIntPoints_name, pumi_libname), Int32, (Ptr{Void}, Int32), mel_ptr, order)
   return i
 end
 
@@ -606,7 +606,7 @@ end
 function countNodes(eshape_ptr)
 # get the total number of nodes related to an entity (including downward adjacencies)
 
-  i = ccall ( (countNodes_name, pumi_libname), Int32, (Ptr{Void},), eshape_ptr)
+  i = ccall( (countNodes_name, pumi_libname), Int32, (Ptr{Void},), eshape_ptr)
   return i
 end
 
@@ -617,7 +617,7 @@ function getValues(m_ptr::Ptr{Void},  eshape_ptr, coords::Array{Float64,1}, numN
 # the output is a vector of length numN
 
   vals = zeros(numN)
-  ccall ( (getValues_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Ptr{Float64}), m_ptr, eshape_ptr, coords, vals)
+  ccall( (getValues_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Ptr{Float64}), m_ptr, eshape_ptr, coords, vals)
 
   return vals
 end
@@ -630,7 +630,7 @@ function getLocalGradients(m_ptr::Ptr{Void}, eshape_ptr, coords::Array{Float64,1
 # the output is a matrix of dimension 3 x numN
 
   vals = zeros(3, numN)
-  ccall ( (getLocalGradients_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Ptr{Float64}), m_ptr, eshape_ptr, coords, vals)
+  ccall( (getLocalGradients_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Ptr{Float64}), m_ptr, eshape_ptr, coords, vals)
 
   return vals
 end
@@ -748,21 +748,21 @@ function createNumberingJ(m_ptr, name::AbstractString, field, components::Intege
 # this just passes through to apf::createNumbering
 # field is an apf::FieldShape*
 
-numbering_ptr = ccall ( (createNumberingJ_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{UInt8}, Ptr{Void}, Int32), m_ptr, name, field, components)
+numbering_ptr = ccall( (createNumberingJ_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{UInt8}, Ptr{Void}, Int32), m_ptr, name, field, components)
 
 return numbering_ptr
 end
 
 function destroyNumbering(n_ptr::Ptr{Void})
 
-  ccall ( (destroyNumbering_name, pumi_libname), Void, (Ptr{Void},), n_ptr)
+  ccall( (destroyNumbering_name, pumi_libname), Void, (Ptr{Void},), n_ptr)
 
   return nothing
 end
 
 function findNumbering(m_ptr::Ptr{Void}, name::String)
 
-  n_ptr = ccall ( (findNumbering_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Cstring), m_ptr, name)
+  n_ptr = ccall( (findNumbering_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Cstring), m_ptr, name)
 
   return n_ptr
 end
