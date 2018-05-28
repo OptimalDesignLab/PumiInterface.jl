@@ -1,5 +1,5 @@
 # file for utility functions
-function flattenArray{T}(A::AbstractArray{AbstractArray{T}, 1})
+function flattenArray(A::AbstractArray{AbstractArray{T}, 1}) where T
 # copies array-of-array A into a flattened version B
 
   n = length(A)
@@ -34,7 +34,7 @@ function getElIndex(a::Array, b)
   return 0
 end
 
-function getMinandMax{T}(arr::AbstractArray{T})
+function getMinandMax(arr::AbstractArray{T}) where T
 # need to check this function for type stability
 
 min_entry = typemax(T)

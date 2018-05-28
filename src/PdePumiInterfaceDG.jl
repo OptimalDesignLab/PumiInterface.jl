@@ -122,7 +122,7 @@ export PumiMeshDG2
           The global dof number is the number stored in this array + 
           dof_offset  (even for the non-local elements)
 """->
-type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
+mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to mesh used for visualization, which might be
                        # m_ptr or a subtriangulated mesh (high order only)
@@ -467,9 +467,9 @@ end  # end PumiMeshDG2 declaration
    This outer constructor loads a mesh from a file, according to the options
    specified in the options dictionary
 """
-function PumiMeshDG2{T, Tface}(::Type{T}, sbp::AbstractSBP, opts, 
-                               sbpface::Tface; dofpernode=1, shape_type=2,
-                               comm=MPI.COMM_WORLD)
+function PumiMeshDG2(::Type{T}, sbp::AbstractSBP, opts, 
+                     sbpface::Tface; dofpernode=1, shape_type=2,
+                     comm=MPI.COMM_WORLD) where {T, Tface}
 
   set_defaults(opts)  # get default arguments
 
@@ -513,8 +513,8 @@ end  # end outer constructor
    * mesh: the new mesh object, fully initialized
    * opts: the new options dictionary
 """
-function PumiMeshDG2{T, Tface}(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts_old,
-                              newbc_name::AbstractString, el_list::AbstractVector)
+function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts_old,
+                    newbc_name::AbstractString, el_list::AbstractVector) where {T, Tface}
 
   @assert length(el_list) > 0
 
@@ -591,7 +591,7 @@ end
    * shape_type: integer describing solution field
 
 """
-function finishMeshInit{T1}(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofpernode=1, shape_type=2)
+function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofpernode=1, shape_type=2) where T1
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load

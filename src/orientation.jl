@@ -141,7 +141,7 @@ function getEdgeOrientation(mesh::PumiMesh, elnum::Integer, edgenum::Integer)
  
 end  # end function
 
-immutable EntityOrientation
+struct EntityOrientation
   which::Cint
   flip::Bool
   rotate::Cint
@@ -258,7 +258,7 @@ end
   of the correct size.
 
 """
-immutable FaceData
+struct FaceData
   elnumL::Int
   elL::Ptr{Void}
   elnumR::Int

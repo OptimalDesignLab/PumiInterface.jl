@@ -7,7 +7,7 @@
 """
   Allocates mesh.vert_coords
 """
-function allocateMeshCoordinateArray{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
+function allocateMeshCoordinateArray(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP) where Tmsh
 
   num_coord_nodes = mesh.coord_numNodesPerElement
 
@@ -35,7 +35,7 @@ end
    dxidx_sharedface
    jac_sharedface
 """
-function allocateCurvilinearCoordinateAndMetricArrays{Tmsh}(mesh::PumiMeshDG{Tmsh},                                                         sbp::AbstractSBP)
+function allocateCurvilinearCoordinateAndMetricArrays(mesh::PumiMeshDG{Tmsh},                                                         sbp::AbstractSBP) where Tmsh
 
   dim = mesh.dim
   sbpface = mesh.sbpface
@@ -94,7 +94,7 @@ end
     mesh: a DG mesh
     sbp: an SBP operators
 """
-function getMeshCoordinates{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
+function getMeshCoordinates(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP) where Tmsh
 
   allocateMeshCoordinateArray(mesh, sbp)
 
@@ -114,7 +114,7 @@ end
   face nodes for boundaries, interfaces, and sharedfaces.  This function uses
   smart allocators to allocate the arrays if needed
 """
-function getFaceCoordinatesAndNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
+function getFaceCoordinatesAndNormals(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP) where Tmsh
 
   allocateFaceCoordinates(mesh)
 
@@ -140,8 +140,8 @@ end
   mesh.vert_coords_bar.  mesh.vert_coords_bar is updated (not overwritten)
   with the results.
 """
-function getFaceCoordinatesAndNormals_rev{Tmsh}(mesh::PumiMeshDG{Tmsh},
-                                                sbp::AbstractSBP)
+function getFaceCoordinatesAndNormals_rev(mesh::PumiMeshDG{Tmsh},
+                                          sbp::AbstractSBP) where Tmsh
 
   if length(mesh.bndryfaces) > 0  # debugging: don't call if unneeded
     #TODO: don't allocate this every time
@@ -186,11 +186,11 @@ end
   Aliasing restrictions: none, although it would be weird if coords_face and
                          nrm_face aliased
 """
-function calcFaceCoordinatesAndNormals{Tmsh, I <: Union{Boundary, Interface}}(
+function calcFaceCoordinatesAndNormals(
                     mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP,
                     faces::AbstractArray{I, 1}, 
                     coords_face::AbstractArray{Tmsh, 3}, 
-                    nrm_face::AbstractArray{Tmsh, 3})
+                    nrm_face::AbstractArray{Tmsh, 3}) where {Tmsh, I <: Union{Boundary, Interface}}
 
   blocksize = 1000  # magic parameter: number of faces to do in a group
   nfaces = length(faces)
@@ -275,13 +275,13 @@ end
   This function also recalculates coords_face and nrm_face in the course
   of doing the reverse mode.
 """
-function calcFaceCoordinatesAndNormals_rev{Tmsh, I <: Union{Boundary, Interface}}(
+function calcFaceCoordinatesAndNormals_rev(
                     mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP,
                     faces::AbstractArray{I, 1},
                     coords_face::AbstractArray{Tmsh, 3},
                     coords_face_bar::AbstractArray{Tmsh, 3},
                     nrm_face::AbstractArray{Tmsh, 3},
-                    nrm_face_bar::AbstractArray{Tmsh, 3})
+                    nrm_face_bar::AbstractArray{Tmsh, 3}) where {Tmsh, I <: Union{Boundary, Interface}}
 
   blocksize = 1000  # magic parameter: number of faces to do in a group
   nfaces = length(faces)
@@ -416,9 +416,9 @@ end
               containing the normal vector at each node of each face.
               Updated in place to make normal vector point outward
 """
-function fixOutwardNormal{I <: Union{Boundary, Interface}, Tmsh}(mesh, 
-                          faces::AbstractArray{I, 1},
-                          nrm_face::AbstractArray{Tmsh, 3})
+function fixOutwardNormal(mesh, 
+faces::AbstractArray{I, 1},
+nrm_face::AbstractArray{Tmsh, 3}) where {I <: Union{Boundary, Interface}, Tmsh}
 
 
   nfaces = length(faces)
@@ -452,10 +452,10 @@ end
     nrm_face
     nrm_face_bar: adjoint part of nrm_face
 """
-function fixOutwardNormal_rev{Tmsh, I <: Union{Boundary, Interface}}(mesh,
+function fixOutwardNormal_rev(mesh,
                           faces::AbstractArray{I, 1},
                           nrm_face::AbstractArray{Tmsh, 3},
-                          nrm_face_bar::AbstractArray{Tmsh, 3})
+                          nrm_face_bar::AbstractArray{Tmsh, 3}) where {Tmsh, I <: Union{Boundary, Interface}}
 
   nfaces = length(faces)
   should_flip_node = Array(Bool, mesh.numNodesPerFace)
@@ -498,9 +498,9 @@ end
     should_flip_node: an Bool array of length numNodesPerFace specifying whether
                       the normal vector at each node is pointing inward
 """
-function is_inward_normal{Tmsh}(mesh, iface::Union{Boundary, Interface},
-                          nrm_face::AbstractMatrix{Tmsh},
-                          should_flip_node::AbstractVector{Bool})
+function is_inward_normal(mesh, iface::Union{Boundary, Interface},
+                    nrm_face::AbstractMatrix{Tmsh},
+                    should_flip_node::AbstractVector{Bool}) where Tmsh
 
   tmp = zeros(3)  # temporary vector to hold coordinates
   topo = mesh.topo
@@ -600,8 +600,8 @@ end
     mesh: a DG mesh object
     sbp: an SBP operator
 """
-function getCurvilinearCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh}, 
-                                                  sbp::AbstractSBP)
+function getCurvilinearCoordinatesAndMetrics(mesh::PumiMeshDG{Tmsh}, 
+                                            sbp::AbstractSBP) where Tmsh
 
   allocateCurvilinearCoordinateAndMetricArrays(mesh, sbp)
 
@@ -656,8 +656,8 @@ end
           updated with the results
     sbp:
 """
-function getCurvilinearCoordinatesAndMetrics_rev{Tmsh}(mesh::PumiMeshDG{Tmsh},
-                                                       sbp::AbstractSBP)
+function getCurvilinearCoordinatesAndMetrics_rev(mesh::PumiMeshDG{Tmsh},
+                                                 sbp::AbstractSBP) where Tmsh
 
   # we have to compute E1_bar for both 2d and 3D
   blocksize = 1000  # number of elements per block
@@ -702,8 +702,8 @@ end
   This function calculates the metrics and coordinates for one block of 
   elements.  Used by getCurvilinearMetricsAndCoordinates
 """
-function getCurvilinearMetricsAndCoordinates_inner{T}(mesh, sbp, 
-                             element_range::UnitRange, Eone::AbstractArray{T, 3})
+function getCurvilinearMetricsAndCoordinates_inner(mesh, sbp, 
+                             element_range::UnitRange, Eone::AbstractArray{T, 3}) where T
 
   # calculate Eone for current range
 
@@ -747,8 +747,8 @@ end
   This function calculates the metrics and coordinates for one block of 
   elements.  Used by getCurvilinearMetricsAndCoordinates
 """
-function getCurvilinearMetricsAndCoordinates_inner_rev{T}(mesh, sbp, 
-                             element_range::UnitRange, Eone_bar::AbstractArray{T, 3})
+function getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp, 
+                             element_range::UnitRange, Eone_bar::AbstractArray{T, 3}) where T
 
 
   vert_coords_block = sview(mesh.vert_coords, :, :, element_range)
@@ -778,8 +778,8 @@ function getCurvilinearMetricsAndCoordinates_inner_rev{T}(mesh, sbp,
   return nothing
 end
 
-function calcEone{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range, 
-                        Eone::AbstractArray{Tmsh, 3})
+function calcEone(mesh::PumiMeshDG{Tmsh}, sbp, element_range, 
+                  Eone::AbstractArray{Tmsh, 3}) where Tmsh
 
   # search interfaces and bndryfaces
 
@@ -880,8 +880,8 @@ end
     element range: range of elements to compute
     Eone_bar: the adjoint part of Eone, see the primal method for details
 """
-function calcEone_rev{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp, element_range, 
-                            Eone_bar::AbstractArray{Tmsh, 3})
+function calcEone_rev(mesh::PumiMeshDG{Tmsh}, sbp, element_range, 
+                      Eone_bar::AbstractArray{Tmsh, 3}) where Tmsh
 
   # search interfaces and bndryfaces
 
@@ -1121,9 +1121,9 @@ end
     Eone: a numNodesPerElement x dim x blocksize array to store E1 for a
           range of elements, updated with the new contribution
 """
-function assembleEone{Tmsh}(sbpface::AbstractFace, elnum::Integer, 
-                      facenum_local::Integer, Eone_el::AbstractMatrix{Tmsh}, 
-                      Eone::AbstractArray{Tmsh, 3})
+function assembleEone(sbpface::AbstractFace, elnum::Integer, 
+                facenum_local::Integer, Eone_el::AbstractMatrix{Tmsh}, 
+                Eone::AbstractArray{Tmsh, 3}) where Tmsh
 
   dim = size(Eone, 2)
   for d=1:dim
@@ -1148,10 +1148,10 @@ end
   Inputs/Outputs:
     Eone_el_bar: the adjoint part
 """
-function assembleEone_rev{Tmsh}(sbpface::AbstractFace, elnum::Integer, 
+function assembleEone_rev(sbpface::AbstractFace, elnum::Integer, 
                       facenum_local::Integer,
                       Eone_el_bar::AbstractMatrix{Tmsh},
-                      Eone_bar::AbstractArray{Tmsh, 3})
+                      Eone_bar::AbstractArray{Tmsh, 3}) where Tmsh
 
   dim = size(Eone_bar, 2)
   for d=1:dim  # TODO: switch loops: turn an indexed store into a strided store

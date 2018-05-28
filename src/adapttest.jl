@@ -23,7 +23,7 @@ getComponents(f_ptr, vert_ptr, 0, comps_retrieved)
 println("comps_retrieved = ", comps_retrieved)
 =#
 
-function func2{T}(entity_ptr, m_ptr, u_::Ptr{T})
+function func2(entity_ptr, m_ptr, u_::Ptr{T}) where T
 # determine the mesh size at a vertex
 # this function can have arbitrary arguments, but can only access data that is passed in as an argument (cannot violate trival closure condition)
 
@@ -38,7 +38,7 @@ function func2{T}(entity_ptr, m_ptr, u_::Ptr{T})
   return h_value  # a Cdouble
 end
 
-function func3{T}(entity_ptr, r_::Ptr{T}, h_::Ptr{T}, m_ptr, u_::Ptr{T})
+function func3(entity_ptr, r_::Ptr{T}, h_::Ptr{T}, m_ptr, u_::Ptr{T}) where T
 # an anisotropic function
 # populates h with the desired mesh size in all three dimension
 

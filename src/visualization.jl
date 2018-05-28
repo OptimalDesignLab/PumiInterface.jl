@@ -85,7 +85,7 @@ function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
   end
 end
 
-function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
+function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector) where T
 # interpolate solution stored in u to the field mesh.fnew_ptr which resides on
 # mesh.mnew_ptr 
 # u is the vector containing the solution, even though for DG the vector and 

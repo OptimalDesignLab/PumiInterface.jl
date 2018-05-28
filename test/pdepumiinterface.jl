@@ -549,7 +549,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   test_metric_rev(mesh, mesh_c, sbp, opts)
 
 
-   function test_interp{Tmsh}(mesh::AbstractMesh{Tmsh})
+   function test_interp(mesh::AbstractMesh{Tmsh}) where Tmsh
      sbpface = mesh.sbpface
      dxdxi_element = zeros(2, 2, mesh.numNodesPerElement, 1)
      dxdxi_face = zeros(4, sbpface.numnodes, 1)
@@ -639,7 +639,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     @fact y_i --> roughly(slope*x_i + b, atol=1e-13)
    end
 
-   function test_normal_orientation{I <: Union{Boundary, Interface}, T}(mesh, ifaces::AbstractArray{I}, nrm::AbstractArray{T, 3})
+   function test_normal_orientation(mesh, ifaces::AbstractArray{I}, nrm::AbstractArray{T, 3}) where {I <: Union{Boundary, Interface}, T}
      println("-----entered test_normal_orientation-----")
      topo = mesh.topo
      numVertPerElement = mesh.numTypePerElement[1]

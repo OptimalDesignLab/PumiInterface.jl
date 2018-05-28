@@ -1,6 +1,6 @@
 # a type to hold data related to coloring the mesh
 #TODO: reverse dimensions of revadj
-type ColoringData
+mutable struct ColoringData
   adj_dict::Dict{Int, Array{Int, 1}}  # map local element to non-locals
   revadj::Array{Int32, 2}  # map non-local elements to local elements
 
@@ -419,7 +419,7 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
   return numc
 end
 
-immutable LocalNeighborMatches
+struct LocalNeighborMatches
   faces::Array{Ptr{Void}, 1}
   part_nums::Array{Cint, 1}
   matched_entities::Array{Ptr{Void}, 1}
@@ -577,7 +577,7 @@ function getNonLocalColors(mesh, adj::AbstractArray{Ptr{Void}}, colordata::Color
 end
 
 
-function getMinColor{T}(adj::AbstractArray{T})
+function getMinColor(adj::AbstractArray{T}) where T
 # adj contains colors of adjacent elements
   min_color = 1
   sort!(adj)  # adj must be in increasing order for this to work
@@ -593,7 +593,7 @@ function getMinColor{T}(adj::AbstractArray{T})
 end
 
 #TODO: see if output can be removed
-function getMinColor2{T}(adj::AbstractArray{T}, numc::Integer)
+function getMinColor2(adj::AbstractArray{T}, numc::Integer) where T
 # ensure uniqueness of neighboring colors
 # adj is array of colors of adjacent faces
 # numc is the current number of colors
@@ -643,7 +643,7 @@ function getColors0(mesh, masks::AbstractArray{BitArray{1}, 1})
 end
 
 
-function getColors1{T, T2}(mesh, masks::AbstractArray{BitArray{1}, 1}, neighbor_colors::AbstractArray{T, 2}, neighbor_nums::AbstractArray{T2, 2}; verify=true )
+function getColors1(mesh, masks::AbstractArray{BitArray{1}, 1}, neighbor_colors::AbstractArray{T, 2}, neighbor_nums::AbstractArray{T2, 2}; verify=true ) where {T, T2}
 # verify edge neighbor faces have different colors (ie. distance-1 coloring
 # of graph where elements are the vertices connected by edges if 
 # there is a mesh edge connecting them
@@ -736,7 +736,7 @@ return cnt
 
 end
 
-function getColors1{T, T2}(mesh, colordata::ColoringData, masks::AbstractArray{BitArray{1}, 1}, neighbor_colors::AbstractArray{T, 2}, neighbor_nums::AbstractArray{T2, 2}; verify=true )
+function getColors1(mesh, colordata::ColoringData, masks::AbstractArray{BitArray{1}, 1}, neighbor_colors::AbstractArray{T, 2}, neighbor_nums::AbstractArray{T2, 2}; verify=true ) where {T, T2}
 # verify edge neighbor faces have different colors (ie. distance-1 coloring
 # of graph where elements are the vertices connected by edges if 
 # there is a mesh edge connecting them

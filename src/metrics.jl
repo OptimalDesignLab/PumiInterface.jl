@@ -179,7 +179,7 @@ end
 
   For interfaces, the normal is calculated for elementL
 """
-function allocateNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
+function allocateNormals(mesh::PumiMeshDG{Tmsh}, sbp) where Tmsh
 
   dim = mesh.dim
   numfacenodes = mesh.numNodesPerFace
@@ -227,7 +227,7 @@ end
 
    * mesh: a DG mesh. mesh.remote_metrics is populated by this function
 """
-function exchangeMetricInfo{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
+function exchangeMetricInfo(mesh::PumiMeshDG{Tmsh}, sbp) where Tmsh
 
   remote_metrics = Array(RemoteMetrics{Tmsh}, mesh.npeers)  # receive buffers
   local_metrics = Array(RemoteMetrics{Tmsh}, mesh.npeers)  # send buffers

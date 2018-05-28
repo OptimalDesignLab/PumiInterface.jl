@@ -279,7 +279,7 @@ function getNodeEntities(m_ptr, mshape_ptr, entity,
 #  return downward_entities
 end
 
-function insertN{T}(vec::AbstractArray{T}, element::T,  index::Integer, n::Integer)
+function insertN(vec::AbstractArray{T}, element::T,  index::Integer, n::Integer) where T
 # insert element into the vector n times, starting at index
 
   for i=index:(index+n-1)

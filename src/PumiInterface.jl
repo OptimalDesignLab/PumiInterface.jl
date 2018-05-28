@@ -334,7 +334,7 @@ end
 
   This grants some type safety to the interface
 """
-immutable MeshIterator
+struct MeshIterator
   p::Ptr{Void}
 end
 
@@ -1250,7 +1250,7 @@ end
 """
   Type to encapsulate a pointer to a SubMeshData class
 """
-immutable SubMeshData
+struct SubMeshData
   pobj::Ptr{Void}
 end
 

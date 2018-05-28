@@ -144,7 +144,7 @@ end
                           boundary conditions applied to them
 
 """
-function popBCEdges{I <: Integer}(geo_edge_nums::AbstractArray{I, 1}, opts)
+function popBCEdges(geo_edge_nums::AbstractArray{I, 1}, opts) where I <: Integer
 
   numBC = opts["numBC"]
 
@@ -219,7 +219,7 @@ function getBoundaryArray(mesh::PumiMesh, boundary_nums::AbstractArray{Int, 2})
 end
 
 # deprecated
-function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2D, sbp::AbstractSBP, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3})
+function getBoundaryFaceNormals(mesh::PumiMesh2D, sbp::AbstractSBP, bndry_faces::AbstractArray{Boundary, 1}, face_normals::Array{Tmsh, 3}) where Tmsh
 
   nfaces = length(bndry_faces)
 
@@ -249,7 +249,7 @@ function getBoundaryFaceNormals{Tmsh}(mesh::PumiMesh2D, sbp::AbstractSBP, bndry_
 end
 
 # deprecated
-function getInternalFaceNormals{Tmsh}(mesh::PumiMesh2D, sbp::AbstractSBP, internal_faces::AbstractArray{Interface, 1}, face_normals::Array{Tmsh, 4})
+function getInternalFaceNormals(mesh::PumiMesh2D, sbp::AbstractSBP, internal_faces::AbstractArray{Interface, 1}, face_normals::Array{Tmsh, 4}) where Tmsh
 
   nfaces = length(internal_faces)
 

@@ -18,7 +18,7 @@
                              is one more than the number of nodes
 
 """
-function getNodeInfo{I <: Integer}(fshape::Ptr{Void}, dim::Integer, numTypePerElement::Array{I, 1})
+function getNodeInfo(fshape::Ptr{Void}, dim::Integer, numTypePerElement::Array{I, 1}) where I <: Integer
 
   num_nodes_v = countNodesOn(fshape, 0)  # number of nodes on a vertex
   num_nodes_e = countNodesOn(fshape, 1) # on edge

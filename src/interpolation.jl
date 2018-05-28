@@ -4,7 +4,7 @@
 """
   Holds all the temporary arrays needed to interpolate the metrics
 """
-type Interpolation{Tmsh, Tdim}
+mutable struct Interpolation{Tmsh, Tdim}
   dxdxi_el::Array{Tmsh, 3}
   dxdxi_el_bar::Array{Tmsh, 3}
 
@@ -20,7 +20,7 @@ type Interpolation{Tmsh, Tdim}
   bndry_arr::Array{Boundary, 1}
 end
 
-function Interpolation{Tmsh}(mesh::PumiMesh2D{Tmsh})
+function Interpolation(mesh::PumiMesh2D{Tmsh}) where Tmsh
   dxdxi_el = zeros(Tmsh, 4, mesh.numNodesPerElement, 1)
   dxdxi_el_bar = zeros(dxdxi_el)
 
@@ -41,7 +41,7 @@ function Interpolation{Tmsh}(mesh::PumiMesh2D{Tmsh})
                                 bndry_arr)
 end
 
-function Interpolation{Tmsh}(mesh::PumiMesh2D, ::Type{Tmsh})
+function Interpolation(mesh::PumiMesh2D, ::Type{Tmsh}) where Tmsh
   dxdxi_el = zeros(Tmsh, 4, mesh.numNodesPerElement, 1)
   dxdxi_el_bar = zeros(dxdxi_el)
 
@@ -63,7 +63,7 @@ function Interpolation{Tmsh}(mesh::PumiMesh2D, ::Type{Tmsh})
 end
 
 
-function Interpolation{Tmsh}(mesh::PumiMesh3D{Tmsh})
+function Interpolation(mesh::PumiMesh3D{Tmsh}) where Tmsh
   dxdxi_el = zeros(Tmsh, 9, mesh.numNodesPerElement, 1)
   dxdxi_el_bar = zeros(dxdxi_el)
 
@@ -84,7 +84,7 @@ function Interpolation{Tmsh}(mesh::PumiMesh3D{Tmsh})
                                 bndry_arr)
 end
 
-function Interpolation{Tmsh}(mesh::PumiMesh3D, ::Type{Tmsh})
+function Interpolation(mesh::PumiMesh3D, ::Type{Tmsh}) where Tmsh
   dxdxi_el = zeros(Tmsh, 9, mesh.numNodesPerElement, 1)
   dxdxi_el_bar = zeros(dxdxi_el)
 
@@ -148,7 +148,7 @@ end
       mesh.dxidx_bndry_bar, mesh.jac_bndry_bar
       mesh.dxidx_sharedface_bar, mesh.jac_sharedface_bar
 """
-function allocateInterpolatedMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh})
+function allocateInterpolatedMetrics(mesh::PumiMeshDG{Tmsh}) where Tmsh
 
   dim = mesh.dim
   sbpface = mesh.sbpface
@@ -204,7 +204,7 @@ end
     mesh.coords_bndry
     mesh.coords_sharedface (and its internal arrays)
 """
-function allocateFaceCoordinates{Tmsh}(mesh::PumiMeshDG{Tmsh})
+function allocateFaceCoordinates(mesh::PumiMeshDG{Tmsh}) where Tmsh
 
   sbpface = mesh.sbpface
 
@@ -242,7 +242,7 @@ end
   See allocateInterpolatedMetrics for the fields that are populated by this
   function.
 """
-function interpolateMapping{Tmsh}(mesh::PumiMeshDG{Tmsh})
+function interpolateMapping(mesh::PumiMeshDG{Tmsh}) where Tmsh
 
   allocateInterpolatedMetrics(mesh)
 
@@ -326,7 +326,7 @@ end  # end function
   out jac has no effect on the computation.
 
 """
-function interpolateMapping_rev{Tmsh}(mesh::PumiMeshDG{Tmsh})
+function interpolateMapping_rev(mesh::PumiMeshDG{Tmsh}) where Tmsh
 
   sbpface = mesh.sbpface
   dim = mesh.dim
@@ -435,11 +435,11 @@ end
 
 
 # 2D version
-function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 2}, sbpface, 
-                               dxidx_hat_in::AbstractArray{Tmsh, 3}, 
-                               jac_in::AbstractVector{Tmsh}, 
-                               dxidx_hat_out::AbstractArray{Tmsh, 3}, 
-                               jac_out::AbstractVector{Tmsh})
+function interpolateFace(interp_data::Interpolation{Tmsh, 2}, sbpface, 
+                         dxidx_hat_in::AbstractArray{Tmsh, 3}, 
+                         jac_in::AbstractVector{Tmsh}, 
+                         dxidx_hat_out::AbstractArray{Tmsh, 3}, 
+                         jac_out::AbstractVector{Tmsh}) where Tmsh
 
   # unpack argumetns
   dxdxi_el = interp_data.dxdxi_el
@@ -522,16 +522,16 @@ end
 
   Aliasing restrictions: please don't
 """
-function interpolateFace_rev{Tmsh}(interp_data::Interpolation{Tmsh, 2}, 
-                               sbpface, 
-                               dxidx_hat_in::AbstractArray{Tmsh, 3}, 
-                               dxidx_hat_in_bar::AbstractArray{Tmsh, 3},
-                               jac_in::AbstractVector{Tmsh}, 
-                               jac_in_bar::AbstractVector{Tmsh},
-                               dxidx_hat_out::AbstractArray{Tmsh, 3}, 
-                               dxidx_hat_out_bar::AbstractArray{Tmsh, 3},
-                               jac_out::AbstractVector{Tmsh}, 
-                               jac_out_bar::AbstractVector{Tmsh})
+function interpolateFace_rev(interp_data::Interpolation{Tmsh, 2}, 
+                         sbpface, 
+                         dxidx_hat_in::AbstractArray{Tmsh, 3}, 
+                         dxidx_hat_in_bar::AbstractArray{Tmsh, 3},
+                         jac_in::AbstractVector{Tmsh}, 
+                         jac_in_bar::AbstractVector{Tmsh},
+                         dxidx_hat_out::AbstractArray{Tmsh, 3}, 
+                         dxidx_hat_out_bar::AbstractArray{Tmsh, 3},
+                         jac_out::AbstractVector{Tmsh}, 
+                         jac_out_bar::AbstractVector{Tmsh}) where Tmsh
 
   #----------------------------------------------------------------------------
   # forward sweep
@@ -745,11 +745,11 @@ end
 
   Aliasing restrictions: do not alias
 """
-function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 3}, sbpface, 
-                               dxidx_hat_in::AbstractArray{Tmsh, 3}, 
-                               jac_in::AbstractVector{Tmsh}, 
-                               dxidx_hat_out::AbstractArray{Tmsh, 3}, 
-                               jac_out::AbstractVector{Tmsh})
+function interpolateFace(interp_data::Interpolation{Tmsh, 3}, sbpface, 
+                         dxidx_hat_in::AbstractArray{Tmsh, 3}, 
+                         jac_in::AbstractVector{Tmsh}, 
+                         dxidx_hat_out::AbstractArray{Tmsh, 3}, 
+                         jac_out::AbstractVector{Tmsh}) where Tmsh
 # herein, dxidx_hat is dxidx/|J|, and dxidx is the true dxidx
 
   dxdxi_el = interp_data.dxdxi_el
@@ -812,16 +812,16 @@ function interpolateFace{Tmsh}(interp_data::Interpolation{Tmsh, 3}, sbpface,
 
 end
 
-function interpolateFace_rev{Tmsh}(interp_data::Interpolation{Tmsh, 3}, 
-                               sbpface, 
-                               dxidx_hat_in::AbstractArray{Tmsh, 3}, 
-                               dxidx_hat_in_bar::AbstractArray{Tmsh, 3},
-                               jac_in::AbstractVector{Tmsh}, 
-                               jac_in_bar::AbstractVector{Tmsh},
-                               dxidx_hat_out::AbstractArray{Tmsh, 3}, 
-                               dxidx_hat_out_bar::AbstractArray{Tmsh, 3},
-                               jac_out::AbstractVector{Tmsh}, 
-                               jac_out_bar::AbstractVector{Tmsh})
+function interpolateFace_rev(interp_data::Interpolation{Tmsh, 3}, 
+                         sbpface, 
+                         dxidx_hat_in::AbstractArray{Tmsh, 3}, 
+                         dxidx_hat_in_bar::AbstractArray{Tmsh, 3},
+                         jac_in::AbstractVector{Tmsh}, 
+                         jac_in_bar::AbstractVector{Tmsh},
+                         dxidx_hat_out::AbstractArray{Tmsh, 3}, 
+                         dxidx_hat_out_bar::AbstractArray{Tmsh, 3},
+                         jac_out::AbstractVector{Tmsh}, 
+                         jac_out_bar::AbstractVector{Tmsh}) where Tmsh
 
   #----------------------------------------------------------------------------
   # forward sweep

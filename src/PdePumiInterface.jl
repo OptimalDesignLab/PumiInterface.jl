@@ -62,7 +62,7 @@ export PumiMesh
   The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
   jac).
 """->
-abstract PumiMesh2CG{T1} <: AbstractCGMesh{T1}
+abstract type PumiMesh2CG{T1} <: AbstractCGMesh{T1} end
 
 @doc """
 ### PdePumiInterface.PumiMeshDG
@@ -73,7 +73,7 @@ abstract PumiMesh2CG{T1} <: AbstractCGMesh{T1}
   The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
   jac).
 """->
-abstract PumiMesh2DG{T1} <: AbstractDGMesh{T1}
+abstract type PumiMesh2DG{T1} <: AbstractDGMesh{T1} end
 
 """
 ### PdePumiInterface.PumiMesh3CG
@@ -81,7 +81,7 @@ abstract PumiMesh2DG{T1} <: AbstractDGMesh{T1}
   This abstract type is the supertype for all 3D Pumi Mesh object for 
   continuous Galrerkin type meshes
 """
-abstract PumiMesh3CG{T1} <: AbstractCGMesh{T1}
+abstract type PumiMesh3CG{T1} <: AbstractCGMesh{T1} end
 
 """
 ### PdePumiInterface.PumiMesh3CG
@@ -89,7 +89,7 @@ abstract PumiMesh3CG{T1} <: AbstractCGMesh{T1}
   This abstract type is the supertype of all 3D Pumi mesh object for discontinuous 
   Galerkin type meshes
 """
-abstract PumiMesh3DG{T1} <: AbstractDGMesh{T1}
+abstract type PumiMesh3DG{T1} <: AbstractDGMesh{T1} end
 
 @doc """
 ### PumiInterface.PumiMesh
@@ -104,28 +104,28 @@ typealias PumiMesh{T1} Union{PumiMesh2CG{T1}, PumiMesh2DG{T1}, PumiMesh3CG{T1}, 
 
   This type is the union of all 2D Pumi mesh types
 """
-typealias PumiMesh2D{T1} Union{PumiMesh2CG{T1}, PumiMesh2DG{T1}}
+PumiMesh2D{T1} =  Union{PumiMesh2CG{T1}, PumiMesh2DG{T1}}
 
 """
 ### PumiInterface.PumiMesh3D
 
   This type is the union of all 3D Pumi mesh types
 """
-typealias PumiMesh3D{T1} Union{PumiMesh3CG{T1}, PumiMesh3DG{T1}}
+PumiMesh3D{T1} =  Union{PumiMesh3CG{T1}, PumiMesh3DG{T1}}
 
 """
 ### PumiInterface.PumiMeshCG
 
   This type is the union of all CG Pumi meshes
 """
-typealias PumiMeshCG{T1} Union{PumiMesh2CG{T1}, PumiMesh3CG{T1}}
+PumiMeshCG{T1} =  Union{PumiMesh2CG{T1}, PumiMesh3CG{T1}}
 
 """
 ### PumiInterface.PumiMeshDG
 
   This type is the union of all DG Pumi meshes
 """
-typealias PumiMeshDG{T1} Union{PumiMesh2DG{T1}, PumiMesh3DG{T1}}
+PumiMeshDG{T1} =  Union{PumiMesh2DG{T1}, PumiMesh3DG{T1}}
 
 """
   Holds data describing vertices shared between parts
@@ -145,7 +145,7 @@ typealias PumiMeshDG{T1} Union{PumiMesh2DG{T1}, PumiMesh3DG{T1}}
                  this vertex is shared with and the second vector is the index
                  of vertex in vert_nums
 """
-type VertSharing
+mutable struct VertSharing
   npeers::Int  # number of peers this process shares verts with
   peer_nums::Array{Cint, 1}  # the Part numbers of the peer processes
   counts::Array{Int, 1}  # the number of vertices shared with each peer
@@ -182,7 +182,7 @@ end
     * dxidx: scaled mapping jacobian at the bolume nodes, dim x dim x
              numNodesPerElement x number of elements on the interface.
 """
-type RemoteMetrics{Tmsh}
+mutable struct RemoteMetrics{Tmsh}
   peer_num::Int  # MPI rank of other process
   peer_idx::Int  # index in mesh.peer_parts
   islocal::Bool
@@ -208,7 +208,7 @@ end
             the local side of the part boundary, otherwise sizes the array
             for the number of elements on the remote side
 """
-function RemoteMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh}, peer_idx::Int; islocal=true)
+function RemoteMetrics(mesh::PumiMeshDG{Tmsh}, peer_idx::Int; islocal=true) where Tmsh
 
   if islocal
     numEl = mesh.local_element_counts[peer_idx]
@@ -430,7 +430,7 @@ include("interface.jl")
                       color the elements (graph vertices are elements and graph
                       edges exist where elements share an edge)
 """->
-type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
+mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape

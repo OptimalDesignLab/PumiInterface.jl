@@ -8,8 +8,8 @@
   the mesh vertex coordinates and assigns them to the corresponding field of
   the mesh object.
 """
-function allocateCoordinateArrays{Tmsh}(mesh::PumiMeshDG{Tmsh}, 
-                                                 sbp::AbstractSBP)
+function allocateCoordinateArrays(mesh::PumiMeshDG{Tmsh}, 
+                                           sbp::AbstractSBP) where Tmsh
 
   num_coord_nodes = mesh.coord_numNodesPerElement
 
@@ -30,7 +30,7 @@ end
   This function allocates the arrays that store the dxidx and jac and
   assigns them to the corresponding field of the mesh object.
 """
-function allocateMetricsArrays{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP)
+function allocateMetricsArrays(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP) where Tmsh
 
   if !isFieldDefined(mesh, :jac, :dxidx)
     mesh.dxidx = Array(Tmsh, mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
@@ -128,7 +128,7 @@ end
 
     sbp: an SBP operator
 """
-function getVertCoords_rev{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
+function getVertCoords_rev(mesh::PumiMeshDG{Tmsh}, sbp) where Tmsh
 #  @assert mesh.dim == 2
   @assert mesh.coord_order == 1
 
@@ -243,7 +243,7 @@ end
   This function calculates the node coordinates, dxidx, jac, for a 
   CG mesh
 """
-function getCoordinatesAndMetrics{Tmsh}(mesh::PumiMeshCG{Tmsh}, sbp::AbstractSBP)
+function getCoordinatesAndMetrics(mesh::PumiMeshCG{Tmsh}, sbp::AbstractSBP) where Tmsh
 # populate the coords array of the mesh object
 mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
 
@@ -283,9 +283,9 @@ end
     coords_bndry: an array dim x numfacenodes x length(bndryfaces) to populate
                   with the coordinates of the nodes on the faces
 """
-function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh}, 
-                             bndryfaces::Array{Boundary}, 
-                             coords_bndry::Array{Tmsh, 3})
+function getBndryCoordinates(mesh::PumiMeshDG2{Tmsh}, 
+                       bndryfaces::Array{Boundary}, 
+                       coords_bndry::Array{Tmsh, 3}) where Tmsh
 # calculate the coordinates on the boundary for the specified faces
 # and store in coords_bndry
 
@@ -324,7 +324,7 @@ function getBndryCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh},
 
 end
 
-function getBndryCoordinates{Tmsh}(mesh::PumiMesh3DG{Tmsh}, bndryfaces::Array{Boundary}, coords_bndry::Array{Tmsh, 3})
+function getBndryCoordinates(mesh::PumiMesh3DG{Tmsh}, bndryfaces::Array{Boundary}, coords_bndry::Array{Tmsh, 3}) where Tmsh
 
 #  println("----- entered getBndryCoordinates -----")
   sbpface = mesh.sbpface
@@ -360,9 +360,9 @@ end
 
   I think this can be combined with getBndryCoordinates
 """
-function getInterfaceCoordinates{Tmsh}(mesh::PumiMeshDG2{Tmsh}, 
+function getInterfaceCoordinates(mesh::PumiMeshDG2{Tmsh}, 
                              bndryfaces::Array{Interface}, 
-                             coords_bndry::Array{Tmsh, 3})
+                             coords_bndry::Array{Tmsh, 3}) where Tmsh
 # calculate the coordinates on the boundary for the specified faces
 # and store in coords_bndry
 
@@ -403,7 +403,7 @@ end
 
 
 
-function getInterfaceCoordinates{Tmsh}(mesh::PumiMesh3DG{Tmsh}, bndryfaces::Array{Interface}, coords_bndry::Array{Tmsh, 3})
+function getInterfaceCoordinates(mesh::PumiMesh3DG{Tmsh}, bndryfaces::Array{Interface}, coords_bndry::Array{Tmsh, 3}) where Tmsh
 
 #  println("----- entered getInterfaceCoordinates -----")
   sbpface = mesh.sbpface
@@ -478,10 +478,10 @@ end
 
   Aliasing restrictions: none
 """
-function calcFaceNormal{Tmsh, Tbndry <: Union{Boundary, Interface}}(
-                        mesh::PumiMeshDG, sbp, faces::AbstractArray{Tbndry, 1},
-                        dxidx::AbstractArray{Tmsh, 4}, 
-                        nrm::AbstractArray{Tmsh, 3})
+function calcFaceNormal(
+mesh::PumiMeshDG, sbp, faces::AbstractArray{Tbndry, 1},
+dxidx::AbstractArray{Tmsh, 4}, 
+nrm::AbstractArray{Tmsh, 3}) where {Tmsh, Tbndry <: Union{Boundary, Interface}}
 
   nfaces = length(faces)
   Tdim = mesh.dim

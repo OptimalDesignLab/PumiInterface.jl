@@ -1,6 +1,6 @@
 export PumiMesh3
 
-type PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron only
+mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron only
   m_ptr::Ptr{Void}  # pointer to mesh
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
   f_ptr::Ptr{Void} # pointer to apf::field for storing solution during mesh adaptation

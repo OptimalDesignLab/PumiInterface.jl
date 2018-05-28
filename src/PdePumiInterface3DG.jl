@@ -106,7 +106,7 @@ export PumiMeshDG3
           The global dof number is the number stored in this array + 
           dof_offset  (even for the non-local elements)
 """->
-type PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
+mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mshape_ptr::Ptr{Void} # pointer to the FieldShape of the node field
   coordshape_ptr::Ptr{Void}  # pointer to FieldShape of the coordinate 
@@ -455,10 +455,10 @@ end  # end PumiMeshDG3 type declaration
    * comm: the MPI Communicator the mesh is to be loaded on, must have the 
            same number of processes as the mesh
 """
-function PumiMeshDG3{T, Tface}(::Type{T}, sbp::AbstractSBP, opts,
-                               sbpface::Tface,
-                               topo::ElementTopology{3}; 
-                               dofpernode=1, shape_type=2, comm=MPI.COMM_WORLD)
+function PumiMeshDG3(::Type{T}, sbp::AbstractSBP, opts,
+                     sbpface::Tface,
+                     topo::ElementTopology{3}; 
+                     dofpernode=1, shape_type=2, comm=MPI.COMM_WORLD) where {T, Tface}
 
   
   set_defaults(opts)
@@ -507,9 +507,9 @@ end
 
 
 """
-function finishMeshInit{T1}(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
-                            topo::ElementTopology{3};
-                            dofpernode=1, shape_type=2)
+function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
+                        topo::ElementTopology{3};
+                        dofpernode=1, shape_type=2) where T1
 #function finishMeshInit(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface, topo::ElementTopology{3}; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
