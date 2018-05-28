@@ -1,5 +1,4 @@
-# testing using FactCheck
-# because PUMI is not available on Travis, all tests are run locally
+# Unit tests
 
 push!(LOAD_PATH, "../src")
 ENV["PDEPUMIINTERFACE_TESTING"] = true

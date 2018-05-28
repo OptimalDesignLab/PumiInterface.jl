@@ -1,5 +1,5 @@
 push!(LOAD_PATH, joinpath(Pkg.dir("PumiInterface"), "src"))
-using FactCheck
+using Base.Test
 using PdePumiInterface
 using ODLCommonTools
 using SummationByParts

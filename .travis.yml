@@ -13,18 +13,15 @@ notifications:
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install build-essential gfortran perl g++ gcc cmake m4 git
-  - sudo apt-get install -y liblapack-dev liblapack-doc liblapack3gf
-  - sudo apt-get install -y libblas-dev libblas-doc libblas3gf
-script:
-  - echo `pwd`
-  - ls
-  - ls $HOME
-  - ls ~/.julia/
+  - sudo apt-get install -y liblapack-dev liblapack3gf
+  - sudo apt-get install -y libblas-dev libblas3gf
   - sudo ./deps/travis-install-mpi.sh mpich3
-  # hopefully setting these variables will help cmake find MPI
+  # setting these variables will help cmake find MPI
   - export CC=mpicc
   - export FC=mpif90
   - export CXX=mpicxx
+
+script:
   -  if [[ -a .git/shallow ]]; then git fetch --unshallow; fi 
   - julia --check-bounds=yes -e 'versioninfo(); Pkg.clone(pwd())'
 #  - cd ~/.julia/v0.4/PumiInterface/deps
