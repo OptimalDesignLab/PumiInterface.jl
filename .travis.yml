@@ -18,7 +18,7 @@ before_install:
 script:
   - pwd
   - ls
-  - ls ~
+  - ls $HOME
   - ls ~/.julia/
   - sudo ~/.julia/v0.6/PumiInterface/deps/travis-install-mpi.sh mpich3
   # hopefully setting these variables will help cmake find MPI
@@ -32,9 +32,9 @@ script:
 #  - ./install_cmake3.sh
 #  - source ./use_cmake.sh 
   - julia --check-bounds=yes -e 'Pkg.build("PumiInterface")'
-  - cd ~/.julia/v0.4/PumiInterface/src
+  - cd ~/.julia/v0.6/PumiInterface/src
   - source ./use_julialib.sh
-  - cd ~/.julia/v0.4/PumiInterface/test
+  - cd ~/.julia/v0.6/PumiInterface/test
   - ./runtests.sh
 #  - julia ./runtests.jl
 #  - cd ./Advection
