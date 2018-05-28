@@ -16,11 +16,11 @@ before_install:
   - sudo apt-get install -y liblapack-dev liblapack-doc liblapack3gf
   - sudo apt-get install -y libblas-dev libblas-doc libblas3gf
 script:
-  - pwd
+  - echo `pwd`
   - ls
   - ls $HOME
   - ls ~/.julia/
-  - sudo ~/.julia/v0.6/PumiInterface/deps/travis-install-mpi.sh mpich3
+  - sudo ./deps/travis-install-mpi.sh mpich3
   # hopefully setting these variables will help cmake find MPI
   - export CC=mpicc
   - export FC=mpif90
