@@ -703,7 +703,7 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
     mesh.numColors = numc
     mesh.maxColors = MPI.Allreduce(numc, MPI.MAX, mesh.comm)
     println(mesh.f, "max colors = ", mesh.maxColors)
-    mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
+    mesh.color_masks = Array{BitArray{1}}(numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, mesh.numFacesPerElement+1, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, mesh.numFacesPerElement+1, mesh.numEl)
     cnt, mesh.shared_element_colormasks = getColors1(mesh, colordata, mesh.color_masks, 
@@ -715,7 +715,7 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
     @assert numc == 1
     mesh.numColors = numc
     mesh.maxColors = numc
-    mesh.color_masks = Array(BitArray{1}, numc)
+    mesh.color_masks = Array{BitArray{1}}(numc)
     mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
     getColors0(mesh, mesh.color_masks)
@@ -930,7 +930,7 @@ function PumiMeshDG3Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
     numc = colorMesh2(mesh)
     mesh.numColors = numc
 
-    mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
+    mesh.color_masks = Array{BitArray{1}}(numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
     getColors1(mesh, colordata, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
@@ -940,7 +940,7 @@ function PumiMeshDG3Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
     numc = colorMesh0(mesh)
     @assert numc == 1
     mesh.numColors = numc
-    mesh.color_masks = Array(BitArray{1}, numc)
+    mesh.color_masks = Array{BitArray{1}}(numc)
     mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
     getColors0(mesh, mesh.color_masks)

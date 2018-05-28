@@ -191,9 +191,9 @@ function init(dmg_name::AbstractString, smb_name::AbstractString, order::Integer
 #mshape_ptr = Ptr{Void}
 num_Entities = zeros(Int32, 4)
 
-m_ptr_array = Array(Ptr{Void}, 1)
-mshape_ptr_array = Array(Ptr{Void}, 1)
-n_arr = Array(Ptr{Void}, 4)
+m_ptr_array = Array{Ptr{Void}}(1)
+mshape_ptr_array = Array{Ptr{Void}}(1)
+n_arr = Array{Ptr{Void}}(4)
 
 i = ccall( (init_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Ptr{Ptr{Void}}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, n_arr, order, load_mesh, shape_type )  # call init in interface library
 
@@ -225,10 +225,10 @@ function init2(dmg_name::AbstractString, smb_name::AbstractString, order::Intege
 #downward_counts = zeros(Int32, 3,3);
 num_Entities = zeros(Int32, 4, 1)
 
-m_ptr_array = Array(Ptr{Void}, 1)
-mshape_ptr_array = Array(Ptr{Void}, 1)
+m_ptr_array = Array{Ptr{Void}}(1)
+mshape_ptr_array = Array{Ptr{Void}}(1)
 dim = Ref{Cint}()
-n_arr = Array(Ptr{Void}, 4)
+n_arr = Array{Ptr{Void}}(4)
 
 i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Ptr{Cint}, Ptr{Ptr{Void}}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, dim, n_arr, order, load_mesh, shape_type )  # call init in interface library
 
@@ -264,7 +264,7 @@ end
 function loadMesh(dmg_name::AbstractString, smb_name::AbstractString,
                   order::Integer; shape_type::Integer=0)
 
-  dim_ret = Array(Cint, 1)
+  dim_ret = Array{Cint}(1)
   m_ptr = ccall( (:loadMesh, pumi_libname), Ptr{Void},
                  (Cstring, Cstring, Cint, Cint, Ptr{Cint}),
                  dmg_name, smb_name, shape_type, order, dim_ret)
@@ -292,9 +292,9 @@ end
 """
 function initMesh(m_ptr::Ptr{Void})
 
-  mshape_ptr_array = Array(Ptr{Void}, 1)
-  num_entities = Array(Cint, 4)
-  n_arr = Array(Ptr{Void}, 4)
+  mshape_ptr_array = Array{Ptr{Void}}(1)
+  num_entities = Array{Cint}(4)
+  n_arr = Array{Ptr{Void}}(4)
 
   ccall( (:initMesh, pumi_libname), Void,
     (Ptr{Void}, Ptr{Cint}, Ptr{Ptr{Void}}, Ptr{Ptr{Void}}),
@@ -435,7 +435,7 @@ end
 function getDownward(m_ptr, entity, dimension::Integer)
   
   # create array that can fit max number of downward adjacencies
-  downwards = Array(Ptr{Void}, 12)
+  downwards = Array{Ptr{Void}}(12)
 
 
   i = ccall( (getDownward_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Void}), m_ptr, entity, dimension, downwards)
@@ -469,7 +469,7 @@ end
 function getAdjacent(num_adjacent::Integer)
 # returns an array of MeshEntity* that are the upward adjacencies fetched by countAdjacent
 # this could be made  more efficient by taking in an array and resizing it if it is too small
-  adjacencies_ret = Array(Ptr{Void}, num_adjacent)  # create the array
+  adjacencies_ret = Array{Ptr{Void}}(num_adjacent)  # create the array
 
 #  ccall( (getAdjacent_name, pumi_libname), Void, (Ptr{Void},), adjacencies_ret)
    getAdjacent(adjacencies_ret)
@@ -512,9 +512,9 @@ which = convert(Int32, 42)
 flip = convert(UInt8, 42)
 rotate = convert(Int32, 42)
 =#
-which = Array(Int32, 1)
-flip = Array(UInt8, 1)
-rotate = Array(Int32, 1)
+which = Array{Int32}(1)
+flip = Array{UInt8}(1)
+rotate = Array{Int32}(1)
 
   ccall( (getAlignment_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}), m_ptr, elem, elem_boundary, which, flip, rotate)
 
@@ -663,7 +663,7 @@ function getVertCoords(m_ptr::Ptr{Void}, entity, coords::Array{Float64, 2}, m::I
 # coords is array to put coordsinates in, must be 3 by 1,
 # m, n are number of rows, columns in coords, respectively
 
-#coords = Array(Float64, 3, 2)   # pass an array 3 by n (3 coordinates each for n points)
+#coords = Array{Float64}(3, 2)   # pass an array 3 by n (3 coordinates each for n points)
 #(m,n) = size(coords)
 # pass reversed m,n because C arrays are row-major
 ccall( (getVertCoords2_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Int32, Int32), m_ptr, entity, coords, n, m) 
@@ -1237,9 +1237,9 @@ end
 """
 function getTopologyMaps()
 
-  tri_edge_verts = Array(Cint, 3, 2)
-  tet_edge_verts = Array(Cint, 6, 2)
-  tet_tri_verts = Array(Cint, 4, 3)
+  tri_edge_verts = Array{Cint}(3, 2)
+  tet_edge_verts = Array{Cint}(6, 2)
+  tet_tri_verts = Array{Cint}(4, 3)
 
   ccall( (:getTopologyMaps, pumi_libname), Void, (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}), tri_edge_verts, tet_edge_verts, tet_tri_verts)
 

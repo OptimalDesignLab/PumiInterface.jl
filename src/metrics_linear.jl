@@ -14,8 +14,8 @@ function allocateCoordinateArrays(mesh::PumiMeshDG{Tmsh},
   num_coord_nodes = mesh.coord_numNodesPerElement
 
   if !isFieldDefined(mesh, :coords, :vert_coords)
-    mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
-    mesh.vert_coords = Array(Float64, mesh.dim, num_coord_nodes, mesh.numEl)
+    mesh.coords = Array{Float64}(mesh.dim, sbp.numnodes, mesh.numEl)
+    mesh.vert_coords = Array{Float64}(mesh.dim, num_coord_nodes, mesh.numEl)
     mesh.vert_coords_bar = zeros(mesh.vert_coords)
 
   else
@@ -33,8 +33,8 @@ end
 function allocateMetricsArrays(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP) where Tmsh
 
   if !isFieldDefined(mesh, :jac, :dxidx)
-    mesh.dxidx = Array(Tmsh, mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
-    mesh.jac = Array(Tmsh, sbp.numnodes, mesh.numEl)
+    mesh.dxidx = Array{Tmsh}(mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
+    mesh.jac = Array{Tmsh}(sbp.numnodes, mesh.numEl)
   else
     fill!(mesh.dxidx, 0.0)
     fill!(mesh.jac, 0.0)
@@ -62,8 +62,8 @@ end
 function getCoordinates(mesh::PumiMeshDG, sbp::AbstractSBP)
 # populate the coords array of the mesh object
 
-#  mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
-#  mesh.vert_coords = Array(Float64, mesh.dim, nvert_per_el, mesh.numEl)
+#  mesh.coords = Array{Float64}(mesh.dim, sbp.numnodes, mesh.numEl)
+#  mesh.vert_coords = Array{Float64}(mesh.dim, nvert_per_el, mesh.numEl)
 
   allocateCoordinateArrays(mesh, sbp)
 
@@ -245,7 +245,7 @@ end
 """
 function getCoordinatesAndMetrics(mesh::PumiMeshCG{Tmsh}, sbp::AbstractSBP) where Tmsh
 # populate the coords array of the mesh object
-mesh.coords = Array(Float64, mesh.dim, sbp.numnodes, mesh.numEl)
+mesh.coords = Array{Float64}(mesh.dim, sbp.numnodes, mesh.numEl)
 
 #println("entered getCoordinates")
 
@@ -260,8 +260,8 @@ for i=1:mesh.numEl  # loop over elements
   mesh.coords[:, :, i] = calcnodes(sbp, coords_it)
 end
 
-  mesh.dxidx = Array(Tmsh, mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
-  mesh.jac = Array(Tmsh, sbp.numnodes, mesh.numEl)
+  mesh.dxidx = Array{Tmsh}(mesh.dim, mesh.dim, sbp.numnodes, mesh.numEl)
+  mesh.jac = Array{Tmsh}(sbp.numnodes, mesh.numEl)
   mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
 
 

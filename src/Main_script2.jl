@@ -42,7 +42,7 @@ resetEdgeIt();
 resetFaceIt();
 resetElIt();
 
-coords = Array(Float64, 3, 1)   # pass an array 3 by n (3 coordinates each for n points)
+coords = Array{Float64}(3, 1)   # pass an array 3 by n (3 coordinates each for n points)
 (m,n) = size(coords)
 getVertCoords(coords, m, n)
 

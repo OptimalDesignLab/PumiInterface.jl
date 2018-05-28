@@ -2,7 +2,7 @@
 
 function writeCounts(mesh::PumiMeshDG2; fname="counts")
 # write values needed for memory usage estimate
-vals = Array(Int, 8)
+vals = Array{Int}(8)
 vals[1] = mesh.numVert
 vals[2] = mesh.numEdge
 vals[3] = mesh.numEl
@@ -35,7 +35,7 @@ end
 
 function writeCounts(mesh::PumiMesh3D; fname="counts")
 # write values needed for memory usage estimate
-vals = Array(Int, 9)
+vals = Array{Int}(9)
 vals[1] = mesh.numVert
 vals[2] = mesh.numEdge
 vals[3] = mesh.numFace
@@ -74,7 +74,7 @@ function printBoundaryFaceNums(mesh::PumiMesh2D)
   n = mesh.numBC
 
   bndry = 1
-  edges = Array(Ptr{Void}, 12)
+  edges = Array{Ptr{Void}}(12)
   for i=1:n
     fname = string("boundary_edge_verts", i, ".dat")
     println("printing ", fname)
@@ -83,7 +83,7 @@ function printBoundaryFaceNums(mesh::PumiMesh2D)
     start_index = mesh.bndry_offsets[i]
     end_index = mesh.bndry_offsets[i+1] - 1
     num_edge = end_index - start_index + 1
-    arr = Array(Ptr{Void}, num_edge)
+    arr = Array{Ptr{Void}}(num_edge)
 
 
     for i=1:num_edge  # get the mesh edge pointers
@@ -145,7 +145,7 @@ end
 
 function writeCounts(mesh::PumiMesh2; fname="counts_0.txt")
 # write values needed for memory usage estimate
-vals = Array(Int, 9)
+vals = Array{Int}(9)
 vals[1] = mesh.numVert
 vals[2] = mesh.numEdge
 vals[3] = mesh.numEl

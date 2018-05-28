@@ -23,7 +23,7 @@ function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractArra
 #  @assert size(coords_new, 1) == mesh.dim
 #  @assert (size(coords_new, 2) == mesh.dim + 1 || size(coords_new, 2) == mesh.dim+1 + mesh.numTypePerElement[2]) # number of verts or number of verts + edges
 
-  verts = Array(Ptr{Void}, 12)
+  verts = Array{Ptr{Void}}(12)
   coords_j = zeros(Float64, 3)
   
   el_i = mesh.elements[elnum]

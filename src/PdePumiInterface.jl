@@ -1,5 +1,5 @@
 module PdePumiInterface
-#push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
+#push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl2")
 #push!(LOAD_PATH, "/users/creanj/.julia/v0.4/PDESolver/src/common")
 using PumiInterface
 using SummationByParts
@@ -11,10 +11,10 @@ using MPI
 import ODLCommonTools.sview
 import ArrayViews.view
 
-include("nodecalc.jl")
-#include("bary.jl")
-include("options.jl")
-#include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
+include("nodecalc.jl2")
+#include("bary.jl2")
+include("options.jl2")
+#include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl2"))
 
 # export types
 export PumiMesh2CG, PumiMesh2DG, PumiMesh3CG, PumiMesh3DG, PumiMesh, PumiMeshCG,
@@ -217,10 +217,10 @@ function RemoteMetrics(mesh::PumiMeshDG{Tmsh}, peer_idx::Int; islocal=true) wher
   end
 
   peer_num = mesh.peer_parts[peer_idx]
-  vert_coords = Array(Tmsh, mesh.dim, mesh.coord_numNodesPerElement, numEl)
-  coords = Array(Tmsh, mesh.dim, mesh.numNodesPerElement, numEl)
-  dxidx = Array(Tmsh, mesh.dim, mesh.dim, mesh.numNodesPerElement, numEl)
-  jac = Array(Tmsh, mesh.numNodesPerElement, numEl)
+  vert_coords = Array{Tmsh}(mesh.dim, mesh.coord_numNodesPerElement, numEl)
+  coords = Array{Tmsh}(mesh.dim, mesh.numNodesPerElement, numEl)
+  dxidx = Array{Tmsh}(mesh.dim, mesh.dim, mesh.numNodesPerElement, numEl)
+  jac = Array{Tmsh}(mesh.numNodesPerElement, numEl)
 
   return RemoteMetrics{Tmsh}(peer_num, peer_idx, islocal, vert_coords, coords,
                              dxidx, jac)
@@ -371,11 +371,11 @@ function finalizeMesh(mesh::PumiMesh)
 end
 
 
-include("elements.jl")
-include("./PdePumiInterface3.jl")
-include("PdePumiInterfaceDG.jl")
-include("PdePumiInterface3DG.jl")
-include("interface.jl")
+include("elements.jl2")
+include("./PdePumiInterface3.jl2")
+include("PdePumiInterfaceDG.jl2")
+include("PdePumiInterface3DG.jl2")
+include("interface.jl2")
 
 @doc """
 ### PumiInterface.PumiMesh2
@@ -729,7 +729,7 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
     mesh.numColors = numc
     mesh.maxColors = numc
 
-    mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
+    mesh.color_masks = Array{BitArray{1}}(numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
     getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
@@ -741,7 +741,7 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
 
     mesh.numColors = numc
     mesh.maxColors = numc
-    mesh.color_masks = Array(BitArray{1}, numc)
+    mesh.color_masks = Array{BitArray{1}}(numc)
     mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
     getColors0(mesh, mesh.color_masks)
@@ -772,12 +772,12 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
 
   mesh.min_el_size = getMinElementSize(mesh)
   # get face normals
-  mesh.bndry_normals = Array(T1, 0, 0, 0)
-#  mesh.bndry_normals = Array(T1, 2, sbp.numfacenodes, mesh.numBoundaryFaces)
+  mesh.bndry_normals = Array{T1}(0, 0, 0)
+#  mesh.bndry_normals = Array{T1}(2, sbp.numfacenodes, mesh.numBoundaryFaces)
 #  getBoundaryFaceNormals(mesh, sbp, mesh.bndryfaces, mesh.bndry_normals)
 
-  mesh.interface_normals = Array(T1, 0, 0, 0, 0)
-#  mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
+  mesh.interface_normals = Array{T1}(0, 0, 0, 0)
+#  mesh.interface_normals = Array{T1}(2, 2, sbp.numfacenodes, mesh.numInterfaces)
 #  getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   # create subtriangulated mesh
@@ -876,25 +876,25 @@ end
   
 end
 
-include("adapt.jl")
-include("bary.jl")
-include("coloring.jl")
-include("dofnumbering.jl")
-#include("elements.jl")
-include("entities.jl")
-include("faces.jl")
-include("interpolation.jl")
-include("metrics.jl")
-include("model.jl")
-include("orientation.jl")
-include("output.jl")
-include("parallel.jl")
-include("sparsity.jl")
-include("utils.jl")
-include("visualization.jl")
-include("warp.jl")
-include("verify.jl")
-include("submesh.jl")
+include("adapt.jl2")
+include("bary.jl2")
+include("coloring.jl2")
+include("dofnumbering.jl2")
+#include("elements.jl2")
+include("entities.jl2")
+include("faces.jl2")
+include("interpolation.jl2")
+include("metrics.jl2")
+include("model.jl2")
+include("orientation.jl2")
+include("output.jl2")
+include("parallel.jl2")
+include("sparsity.jl2")
+include("utils.jl2")
+include("visualization.jl2")
+include("warp.jl2")
+include("verify.jl2")
+include("submesh.jl2")
 
 function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)
@@ -918,7 +918,7 @@ function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts;
     mesh.numColors = numc
     mesh.maxColors = numc
 
-    mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
+    mesh.color_masks = Array{BitArray{1}}(numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
     getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
@@ -929,7 +929,7 @@ function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts;
     @assert numc == 1
     mesh.numColors = numc
     mesh.maxColors = numc
-    mesh.color_masks = Array(BitArray{1}, numc)
+    mesh.color_masks = Array{BitArray{1}}(numc)
     mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
     getColors0(mesh, mesh.color_masks)
@@ -997,9 +997,9 @@ function reinitPumiMesh2(mesh::PumiMesh2)
 
 
 
-  verts = Array(Ptr{Void}, numVert)
-  edges = Array(Ptr{Void}, numEdge)
-  elements = Array(Ptr{Void}, numEl)
+  verts = Array{Ptr{Void}}(numVert)
+  edges = Array{Ptr{Void}}(numEdge)
+  elements = Array{Ptr{Void}}(numEl)
   dofnums_Nptr = mesh.dofnums_Nptr  # use existing dof pointers
 
   # get pointers to all MeshEntities
@@ -1050,7 +1050,7 @@ function reinitPumiMesh2(mesh::PumiMesh2)
 
   # count boundary edges
   bnd_edges_cnt = 0
-  bnd_edges = Array(Int, numEdge, 2)
+  bnd_edges = Array{Int}(numEdge, 2)
   it = MeshIterator(mesh.m_ptr, it)
   for i=1:numEdge
     edge_i = iterate(mesh.m_ptr, it)

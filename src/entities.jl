@@ -49,7 +49,7 @@ function getBoundaryElements(mesh::PumiMeshDG2, bndry_edges::AbstractArray{Int, 
 # get the faces corresponding to the boundary edges
 
 bndry_faces = zeros(bndry_edges)
-faces = Array(Ptr{Void}, 400)  # equivilent to apf::Up
+faces = Array{Ptr{Void}}(400)  # equivilent to apf::Up
 numbering = mesh.entity_Nptrs[mesh.dim + 1]
 for i=1:bndry_edges
   edgenum_i = bndry_edges[i]
@@ -73,9 +73,9 @@ function getEntityPointers(mesh::PumiMesh)
 # entity
 
 
-  verts = Array(Ptr{Void}, mesh.numVert)
-  edges = Array(Ptr{Void}, mesh.numEdge)
-  elements = Array(Ptr{Void}, mesh.numEl)
+  verts = Array{Ptr{Void}}(mesh.numVert)
+  edges = Array{Ptr{Void}}(mesh.numEdge)
+  elements = Array{Ptr{Void}}(mesh.numEl)
   entity = Ptr{Void}(0)
   idx = 0
   # get pointers to all MeshEntities
@@ -103,7 +103,7 @@ function getEntityPointers(mesh::PumiMesh)
   free(mesh.m_ptr, it)
 
   if mesh.dim == 3
-    faces = Array(Ptr{Void}, mesh.numFace)
+    faces = Array{Ptr{Void}}(mesh.numFace)
     it = MeshIterator(mesh.m_ptr, 2)
     for i=1:mesh.numFace
       entity = iterate(mesh.m_ptr, it)
@@ -233,14 +233,14 @@ if typeof(mesh) <: Union{PumiMeshDG2, PumiMesh2}
 
   array1 = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
   #array2 = [mesh.verts; mesh.edges; mesh.elements]  # array of arrays
-  array2 = Array(Array{Ptr{Void},1}, 3)
+  array2 = Array{Array{Ptr{Void},1}}(3)
   array2[1] = mesh.verts
   array2[2] = mesh.edges
   array2[3] = mesh.elements
 else # 3d mesh
    array1 = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.face_Nptr,  mesh.el_Nptr]
   #array2 = [mesh.verts; mesh.edges; mesh.elements]  # array of arrays
-  array2 = Array(Array{Ptr{Void},1}, 4)
+  array2 = Array{Array{Ptr{Void},1}}(4)
   array2[1] = mesh.verts
   array2[2] = mesh.edges
   array2[3] = mesh.faces
@@ -305,7 +305,7 @@ function getBoundaryFaceLocalNum(mesh::PumiMesh, edge_num::Integer)
 
 #  elnum_i = getNumberJ(mesh.el_Nptr, face, 0, 0) + 1
 #  facenum_i = getFaceNumber2(face) + 1  # convert to 1 based indexing
-  down_faces = Array(Ptr{Void}, 12)
+  down_faces = Array{Ptr{Void}}(12)
   numedges = getDownward(mesh.m_ptr, el, mesh.dim-1, down_faces)
   facenum_local = 0
   for j = 1:mesh.numFacesPerElement  # find which local edge is edge_i
@@ -325,7 +325,7 @@ function getFaceLocalNum(mesh::PumiMesh, edge_num::Integer, element_num::Integer
   edge = mesh.faces[edge_num]
   element = mesh.elements[element_num]
 
-  down_edges = Array(Ptr{Void}, 12)
+  down_edges = Array{Ptr{Void}}(12)
    numedges = getDownward(mesh.m_ptr, element, mesh.dim-1, down_edges)
 
   edgenum_local = 0
@@ -345,7 +345,7 @@ function getElementVertMap(mesh::PumiMesh)
   numVertPerElement = mesh.numTypePerElement[1]
 
   elvertmap = zeros(Int32, numVertPerElement, mesh.numEl)
-  verts = Array(Ptr{Void}, 12)  # apf::Downward
+  verts = Array{Ptr{Void}}(12)  # apf::Downward
   vert_dim = 0
 
   for i=1:mesh.numEl

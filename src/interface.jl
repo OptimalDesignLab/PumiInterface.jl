@@ -49,9 +49,9 @@ function numberSurfacePoints(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglo
                              mesh.coordshape_ptr, 1)
   topo = mesh.topo
   num_i = 1
-  verts = Array(Ptr{Void}, 4)
-  edges = Array(Ptr{Void}, 12)  # all edges of the element
-  face_verts = Array(Ptr{Void}, 0)  # TODO: add sizehint
+  verts = Array{Ptr{Void}}(4)
+  edges = Array{Ptr{Void}}(12)  # all edges of the element
+  face_verts = Array{Ptr{Void}}(0)  # TODO: add sizehint
 #  coords = zeros(Float64, 3)
   for i in bc_nums
     start_idx = mesh.bndry_offsets[i]

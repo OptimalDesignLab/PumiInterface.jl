@@ -33,7 +33,7 @@ function Interpolation(mesh::PumiMesh2D{Tmsh}) where Tmsh
   dxdxi_node = zeros(Tmsh, 2, 2)
   dxdxi_node_bar = zeros(dxdxi_node)
 
-  bndry_arr = Array(Boundary, 1)
+  bndry_arr = Array{Boundary}(1)
   return Interpolation{Tmsh, 2}(dxdxi_el, dxdxi_el_bar,
                                 dxdxi_elface, dxdxi_elface_bar,
                                 dxidx_node, dxidx_node_bar,
@@ -54,7 +54,7 @@ function Interpolation(mesh::PumiMesh2D, ::Type{Tmsh}) where Tmsh
   dxdxi_node = zeros(Tmsh, 2, 2)
   dxdxi_node_bar = zeros(dxdxi_node)
 
-  bndry_arr = Array(Boundary, 1)
+  bndry_arr = Array{Boundary}(1)
   return Interpolation{Tmsh, 2}(dxdxi_el, dxdxi_el_bar,
                                 dxdxi_elface, dxdxi_elface_bar,
                                 dxidx_node, dxidx_node_bar,
@@ -76,7 +76,7 @@ function Interpolation(mesh::PumiMesh3D{Tmsh}) where Tmsh
   dxdxi_node = zeros(Tmsh, 3, 3)
   dxdxi_node_bar = zeros(dxdxi_node)
 
-  bndry_arr = Array(Boundary, 1)
+  bndry_arr = Array{Boundary}(1)
   return Interpolation{Tmsh, 3}(dxdxi_el, dxdxi_el_bar,
                                 dxdxi_elface, dxdxi_elface_bar,
                                 dxidx_node, dxidx_node_bar,
@@ -97,7 +97,7 @@ function Interpolation(mesh::PumiMesh3D, ::Type{Tmsh}) where Tmsh
   dxdxi_node = zeros(Tmsh, 3, 3)
   dxdxi_node_bar = zeros(dxdxi_node)
 
-  bndry_arr = Array(Boundary, 1)
+  bndry_arr = Array{Boundary}(1)
   return Interpolation{Tmsh, 3}(dxdxi_el, dxdxi_el_bar,
                                 dxdxi_elface, dxdxi_elface_bar,
                                 dxidx_node, dxidx_node_bar,
@@ -169,15 +169,15 @@ function allocateInterpolatedMetrics(mesh::PumiMeshDG{Tmsh}) where Tmsh
     mesh.jac_bndry_bar = zeros(mesh.jac_bndry)
 
     # parallel shared faces
-    mesh.dxidx_sharedface = Array(Array{Tmsh, 4}, mesh.npeers)
-    mesh.jac_sharedface = Array(Array{Tmsh, 2}, mesh.npeers)
-    mesh.dxidx_sharedface_bar = Array(Array{Tmsh, 4}, mesh.npeers)
-    mesh.jac_sharedface_bar = Array(Array{Tmsh, 2}, mesh.npeers)
+    mesh.dxidx_sharedface = Array{Array{Tmsh, 4}}(mesh.npeers)
+    mesh.jac_sharedface = Array{Array{Tmsh, 2}}(mesh.npeers)
+    mesh.dxidx_sharedface_bar = Array{Array{Tmsh, 4}}(mesh.npeers)
+    mesh.jac_sharedface_bar = Array{Array{Tmsh, 2}}(mesh.npeers)
     for i=1:mesh.npeers
       mesh.dxidx_sharedface[i] = zeros(Tmsh, dim, dim, sbpface.numnodes, 
                                        mesh.peer_face_counts[i])
 
-      mesh.jac_sharedface[i] = Array(Tmsh, sbpface.numnodes, mesh.peer_face_counts[i])
+      mesh.jac_sharedface[i] = Array{Tmsh}(sbpface.numnodes, mesh.peer_face_counts[i])
       mesh.dxidx_sharedface_bar[i] = zeros(mesh.dxidx_sharedface[i])
       mesh.jac_sharedface_bar[i] = zeros(mesh.jac_sharedface[i])
 
@@ -212,7 +212,7 @@ function allocateFaceCoordinates(mesh::PumiMeshDG{Tmsh}) where Tmsh
     mesh.coords_bndry = zeros(Tmsh, mesh.dim, sbpface.numnodes, 
                                   mesh.numBoundaryFaces)
     mesh.coords_interface = zeros(Tmsh, mesh.dim, sbpface.numnodes, mesh.numInterfaces)
-    mesh.coords_sharedface = Array(Array{Tmsh, 3}, mesh.npeers)
+    mesh.coords_sharedface = Array{Array{Tmsh, 3}}(mesh.npeers)
     for i=1:mesh.npeers
       mesh.coords_sharedface[i] = zeros(Tmsh, mesh.dim, sbpface.numnodes, 
                                              mesh.peer_face_counts[i])

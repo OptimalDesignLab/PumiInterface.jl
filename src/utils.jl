@@ -221,7 +221,7 @@ function accumulateAtVerts(mesh::PumiMeshDG, u_volume::Abstract3DArray, u_verts:
   @assert size(u_volume, 1) == size(u_verts, 1)
 
   n = size(u_volume, 1)
-  down_verts = Array(Ptr{Void}, 12)
+  down_verts = Array{Ptr{Void}}(12)
   
   fill!(u_verts, 0.0)
   for i=1:mesh.numEl

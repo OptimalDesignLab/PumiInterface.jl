@@ -88,10 +88,10 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
   mesh.face_Nptr = n_arr[3] #getFaceNumbering()
   mesh.el_Nptr = n_arr[4] #getElNumbering()
 
-   mesh.verts = Array(Ptr{Void}, mesh.numVert)
-  mesh.edges = Array(Ptr{Void}, mesh.numEdge)
-  mesh.faces = Array(Ptr{Void}, mesh.numFace)
-  mesh.elements = Array(Ptr{Void}, mesh.numEl)
+   mesh.verts = Array{Ptr{Void}}(mesh.numVert)
+  mesh.edges = Array{Ptr{Void}}(mesh.numEdge)
+  mesh.faces = Array{Ptr{Void}}(mesh.numFace)
+  mesh.elements = Array{Ptr{Void}}(mesh.numEl)
   mesh.dofnums_Nptr = createNumberingJ(mesh.m_ptr, "reordered dof numbers", mesh.mshape_ptr, dofpernode)  # 1 dof per node
 
 
@@ -131,18 +131,18 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
 #  numberDofs(mesh)
 
   countBoundaryFaces(mesh)
-  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
+  mesh.bndryfaces = Array{Boundary}(mesh.numBoundaryFaces)
   getBoundaryArray(mesh)
 
   numberDofs(mesh)
   getDofNumbers(mesh)
 
   countBoundaryFaces(mesh)
-  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
+  mesh.bndryfaces = Array{Boundary}(mesh.numBoundaryFaces)
   getBoundaryArray(mesh)
 
   mesh.numInterfaces = mesh.numFace - mesh.numBoundaryFaces
-  mesh.interfaces = Array(Interface, mesh.numInterfaces)
+  mesh.interfaces = Array{Interface}(mesh.numInterfaces)
   getInterfaceArray(mesh)
 
 
@@ -150,18 +150,18 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
 #
 
 #=
-  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
+  mesh.bndryfaces = Array{Boundary}(mesh.numBoundaryFaces)
   getBoundaryArray(mesh)
 
   mesh.numInterfaces = mesh.numEdge - mesh.numBoundaryFaces
-  mesh.interfaces = Array(Interface, mesh.numInterfaces)
+  mesh.interfaces = Array{Interface}(mesh.numInterfaces)
   getInterfaceArray(mesh)
 
   getCoordinates(mesh, sbp)  # store coordinates of all nodes into array
   getDofNumbers(mesh)  # store dof numbers
 
-  mesh.dxidx = Array(T1, 2, 2, sbp.numnodes, mesh.numEl)
-  mesh.jac = Array(T1, sbp.numnodes, mesh.numEl)
+  mesh.dxidx = Array{T1}(2, 2, sbp.numnodes, mesh.numEl)
+  mesh.jac = Array{T1}(sbp.numnodes, mesh.numEl)
   mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
 =#
 #=
@@ -225,7 +225,7 @@ function countBoundaryFaces(mesh::PumiMesh3)
   # store array of [element number, global edge number]
 #  resetFaceIt()
   bnd_faces_cnt = 0
-  bnd_faces = Array(Int, mesh.numFace, 2)
+  bnd_faces = Array{Int}(mesh.numFace, 2)
   it = MeshIterator(mesh.m_ptr, 2)
   for i=1:mesh.numFace
     face_i = iterate(mesh.m_ptr, it)
@@ -258,7 +258,7 @@ function getBoundaryArray(mesh::PumiMesh3)
 # creating an an array of a user defined type seems like a waste of memory operations
 # bnd_array is a vector of type Boundary with length equal to the number of edges on the boundary of the mesh
 
-#  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
+#  mesh.bndryfaces = Array{Boundary}(mesh.numBoundaryFaces)
 
   for i=1:mesh.numBoundaryFaces
     elnum = mesh.boundary_nums[i,1]
@@ -462,7 +462,7 @@ end
 function getDofNumbers(mesh::PumiMesh3)
 # populate array of dof numbers, in same shape as solution array u (or q)
 
-mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
+mesh.dofs = Array{Int}(mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
 
 for i=1:mesh.numEl
   dofnums = getGlobalNodeNumbers(mesh, i)
@@ -507,7 +507,7 @@ end
 function getCoordinates(mesh::PumiMesh3, sbp::AbstractSBP)
 # populate the coords array of the mesh object
 
-mesh.coords = Array(Float64, 3, sbp.numnodes, mesh.numEl)
+mesh.coords = Array{Float64}(3, sbp.numnodes, mesh.numEl)
 
 println("entered getCoordinates")
 
@@ -557,7 +557,7 @@ function getInterfaceArray(mesh::PumiMesh3)
   # store whether the node map has been calculated for each case
   # index = relative rotation of faces + 1
   nodemap_mask = zeros(Bool, 3)
-  nodemaps = Array(Array{Uint8,1}, 3)
+  nodemaps = Array{Array{Uint8,1}}(3)
   
 
 #  nodemap = Array(num_edge_nodes:(-1):1)

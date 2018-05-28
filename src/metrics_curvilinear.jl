@@ -12,8 +12,8 @@ function allocateMeshCoordinateArray(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP) w
   num_coord_nodes = mesh.coord_numNodesPerElement
 
   if !isFieldDefined(mesh, :vert_coords)
-    mesh.vert_coords = Array(Tmsh, mesh.dim, num_coord_nodes, mesh.numEl)
-    mesh.vert_coords_bar = Array(Tmsh, mesh.dim, num_coord_nodes, mesh.numEl)
+    mesh.vert_coords = Array{Tmsh}(mesh.dim, num_coord_nodes, mesh.numEl)
+    mesh.vert_coords_bar = Array{Tmsh}(mesh.dim, num_coord_nodes, mesh.numEl)
   else
     fill!(mesh.vert_coords, 0.0)
   end
@@ -65,11 +65,11 @@ function allocateCurvilinearCoordinateAndMetricArrays(mesh::PumiMeshDG{Tmsh},   
     mesh.jac_bndry_bar = zeros(mesh.jac_bndry)
 
     # parallel shared faces
-    mesh.dxidx_sharedface = Array(Array{Tmsh, 4}, 0)
-    mesh.jac_sharedface = Array(Array{Tmsh, 2}, 0)
+    mesh.dxidx_sharedface = Array{Array{Tmsh, 4}}(0)
+    mesh.jac_sharedface = Array{Array{Tmsh, 2}}(0)
 
-    mesh.dxidx_sharedface_bar = Array(Array{Tmsh, 4}, 0)
-    mesh.jac_sharedface_bar = Array(Array{Tmsh, 2}, 0)
+    mesh.dxidx_sharedface_bar = Array{Array{Tmsh, 4}}(0)
+    mesh.jac_sharedface_bar = Array{Array{Tmsh, 2}}(0)
   else
     fill!(mesh.coords, 0.0)
     fill!(mesh.dxidx, 0.0)
@@ -203,8 +203,8 @@ function calcFaceCoordinatesAndNormals(
   numNodesPerFace = mesh.coord_numNodesPerType[mesh.dim]
 
   # some temporary arrays
-  down_faces = Array(Ptr{Void}, 12)
-  coords_lag_face = Array(Tmsh, mesh.dim, mesh.coord_numNodesPerFace, blocksize)
+  down_faces = Array{Ptr{Void}}(12)
+  coords_lag_face = Array{Tmsh}(mesh.dim, mesh.coord_numNodesPerFace, blocksize)
 
   # get the parametic coordinates of the face nodes
   face_xi = mesh.coord_facexi
@@ -294,8 +294,8 @@ function calcFaceCoordinatesAndNormals_rev(
   numNodesPerFace = mesh.coord_numNodesPerType[mesh.dim]
 
   # some temporary arrays
-  down_faces = Array(Ptr{Void}, 12)
-  coords_lag_face = Array(Tmsh, mesh.dim, mesh.coord_numNodesPerFace, blocksize)
+  down_faces = Array{Ptr{Void}}(12)
+  coords_lag_face = Array{Tmsh}(mesh.dim, mesh.coord_numNodesPerFace, blocksize)
   coords_lag_face_bar = zeros(coords_lag_face)
 
   # get the parametic coordinates of the face nodes
@@ -422,7 +422,7 @@ nrm_face::AbstractArray{Tmsh, 3}) where {I <: Union{Boundary, Interface}, Tmsh}
 
 
   nfaces = length(faces)
-  should_flip_node = Array(Bool, mesh.numNodesPerFace)
+  should_flip_node = Array{Bool}(mesh.numNodesPerFace)
   for i=1:nfaces
     is_inward_normal(mesh, faces[i], sview(nrm_face, :, :, i), should_flip_node)
 
@@ -458,7 +458,7 @@ function fixOutwardNormal_rev(mesh,
                           nrm_face_bar::AbstractArray{Tmsh, 3}) where {Tmsh, I <: Union{Boundary, Interface}}
 
   nfaces = length(faces)
-  should_flip_node = Array(Bool, mesh.numNodesPerFace)
+  should_flip_node = Array{Bool}(mesh.numNodesPerFace)
   for i=1:nfaces
     is_inward_normal(mesh, faces[i], sview(nrm_face, :, :, i), should_flip_node)
 
@@ -508,9 +508,9 @@ function is_inward_normal(mesh, iface::Union{Boundary, Interface},
   numVertPerFace = numVertPerElement - 1
 
   # temporary arrays
-#  el_verts = Array(Ptr{Void}, numVertPerElement)
+#  el_verts = Array{Ptr{Void}}(numVertPerElement)
   other_vert_coords = zeros(Tmsh, mesh.dim)
-#  face_verts = Array(Ptr{Void}, numVertPerElement - 1)
+#  face_verts = Array{Ptr{Void}}(numVertPerElement - 1)
   face_vert_coords = zeros(Tmsh, mesh.dim, numVertPerFace)
 
   elnum = getElementL(iface)

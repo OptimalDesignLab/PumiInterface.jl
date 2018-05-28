@@ -61,7 +61,7 @@ function getAllFaceData(mesh::PumiMesh, opts)
   # populate mesh.bndry_faces from options dictionary
   mesh.numBC = opts["numBC"]
   allocateBoundaryAndInterfaceArrays(mesh, opts)
-  boundary_nums = Array(Int, mesh.numBoundaryFaces, 2)
+  boundary_nums = Array{Int}(mesh.numBoundaryFaces, 2)
 
   # get the element number, global face number of the mesh edges that have BCs
   offset = 1
@@ -70,7 +70,7 @@ function getAllFaceData(mesh::PumiMesh, opts)
     model_edges = opts[key_i]
     # record geometric edges
     ngeo = length(model_edges)
-    mesh.bndry_geo_nums[i] = Array(Int, ngeo)
+    mesh.bndry_geo_nums[i] = Array{Int}(ngeo)
     copy!(mesh.bndry_geo_nums[i], model_edges)
     mesh.bndry_offsets[i] = offset
     offset, print_warning = getMeshEdgesFromModel(mesh, model_edges, offset, boundary_nums)  # get the mesh edges on the model edge
@@ -113,13 +113,13 @@ function allocateBoundaryAndInterfaceArrays(mesh, opts)
   if !isFieldDefined(mesh, :bndry_offsets, :bndry_funcs, :bndry_funcs_revm,
                      :bndry_geo_nums, :bndryfaces, :interfaces)
 
-    mesh.bndry_offsets = Array(Int, mesh.numBC + 1)
-    mesh.bndry_funcs = Array(BCType, mesh.numBC)
-    mesh.bndry_funcs_revm = Array(BCType_revm, mesh.numBC)
-    mesh.bndry_geo_nums = Array(Array{Int, 1}, mesh.numBC)
+    mesh.bndry_offsets = Array{Int}(mesh.numBC + 1)
+    mesh.bndry_funcs = Array{BCType}(mesh.numBC)
+    mesh.bndry_funcs_revm = Array{BCType_revm}(mesh.numBC)
+    mesh.bndry_geo_nums = Array{Array{Int, 1}}(mesh.numBC)
 
-    mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
-    mesh.interfaces = Array(Interface, mesh.numInterfaces)
+    mesh.bndryfaces = Array{Boundary}(mesh.numBoundaryFaces)
+    mesh.interfaces = Array{Interface}(mesh.numInterfaces)
   else
     fill!(mesh.bndry_offsets, 0)
     fill!(mesh.bndry_geo_nums, 0)
@@ -149,7 +149,7 @@ function popBCEdges(geo_edge_nums::AbstractArray{I, 1}, opts) where I <: Integer
   numBC = opts["numBC"]
 
   # create array of all model edges that have a boundary condition
-  bndry_edges_BC = Array(Int, 0)
+  bndry_edges_BC = Array{Int}(0)
   for i=1:numBC
     key_i = string("BC", i)
     bndry_edges_i = opts[key_i]
@@ -170,7 +170,7 @@ function popBCEdges(geo_edge_nums::AbstractArray{I, 1}, opts) where I <: Integer
     end
   end
 
-  unused_geo_edge_nums = Array(Int, 0)
+  unused_geo_edge_nums = Array{Int}(0)
 
   for i=1:length(geo_edge_nums)
     edge_i = geo_edge_nums[i]
@@ -206,7 +206,7 @@ function getBoundaryArray(mesh::PumiMesh, boundary_nums::AbstractArray{Int, 2})
 # get an array of type Boundary for SBP
 # bnd_array is a vector of type Boundary with length equal to the number of edges on the boundary of the mesh
 
-#  mesh.bndryfaces = Array(Boundary, mesh.numBoundaryFaces)
+#  mesh.bndryfaces = Array{Boundary}(mesh.numBoundaryFaces)
 
   for i=1:mesh.numBoundaryFaces
     facenum = boundary_nums[i, 1]
@@ -313,8 +313,8 @@ function getInterfaceArray(mesh::PumiMesh2D)
 
   # unused variable?
   nodemap = Array(num_edge_nodes:(-1):1)
-  part_nums = Array(Cint, 1)
-  matched_entities = Array(Ptr{Void}, 1)
+  part_nums = Array{Cint}(1)
+  matched_entities = Array{Ptr{Void}}(1)
   seen_entities = Set{Ptr{Void}}()
   sizehint!(seen_entities, mesh.numPeriodicInterfaces)
 
@@ -431,20 +431,20 @@ end  # end function
 function getInterfaceArray(mesh::PumiMesh3D)
 # Interface.orient is calculated using the *SBP* topology of the faces
 
-  adj_elements = Array(Ptr{Void}, 2)
+  adj_elements = Array{Ptr{Void}}(2)
   coords1 = zeros(3, 4)
   coords2 = zeros(3, 4)
   centroid1 = zeros(3)
   centroid2 = zeros(3)
-  vertsL = Array(Ptr{Void}, 4)
-  vertsR = Array(Ptr{Void}, 4)
-  facevertsL = Array(Ptr{Void}, 3)
-  facevertsR = Array(Ptr{Void}, 3)
+  vertsL = Array{Ptr{Void}}(4)
+  vertsR = Array{Ptr{Void}}(4)
+  facevertsL = Array{Ptr{Void}}(3)
+  facevertsR = Array{Ptr{Void}}(3)
   # there can be up to 400 elements using a vertex + 8 
   # corners of the domain, so in the worst case a parallel partition could
   # generate 400 + 8 matches
-  part_nums = Array(Cint, 400 + 8)
-  matched_entities = Array(Ptr{Void}, 400 + 8)  # there can be up to 400
+  part_nums = Array{Cint}(400 + 8)
+  matched_entities = Array{Ptr{Void}}(400 + 8)  # there can be up to 400
                                            
   pos = 1 # position in mesh.interfaces
   seen_entities = Set{Ptr{Void}}()

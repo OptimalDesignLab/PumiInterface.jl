@@ -42,7 +42,7 @@ end
 """
 function checkVertConnectivity(mesh::PumiMesh)
 
-  down_verts = Array(Ptr{Void}, 12)
+  down_verts = Array{Ptr{Void}}(12)
 
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
@@ -73,7 +73,7 @@ end
 """
 function checkEdgeConnectivity(mesh::PumiMesh)
 
-  down_edges = Array(Ptr{Void}, 12)
+  down_edges = Array{Ptr{Void}}(12)
 
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
@@ -104,7 +104,7 @@ end
 """
 function checkFaceConnectivity(mesh::PumiMesh)
 
-  down_faces = Array(Ptr{Void}, 12)
+  down_faces = Array{Ptr{Void}}(12)
 
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
@@ -209,7 +209,7 @@ function checkContiguity(mesh::PumiMesh)
   curr_elnum = getNumberJ(el_Nptr, curr_el, 0, 0) + 1
 
   # temporary array for getBridgeAdjacent
-  adjacent_els = Array(Ptr{Void}, mesh.numFacesPerElement)
+  adjacent_els = Array{Ptr{Void}}(mesh.numFacesPerElement)
 
   seen_els = falses(mesh.numEl)  # record whether or not an element either is
                                  # or has previously been in the queue
