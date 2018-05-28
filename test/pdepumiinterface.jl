@@ -1,32 +1,32 @@
 # test 2D PdePumiInterface
 
-facts("--- Testing PdePumiInterface --- ") do
+@testset "--- Testing PdePumiInterface --- " begin
 
   # test masked copy
   mask = [1, 3]
   a = rand(4)
   a2 = zeros(2)
   PdePumiInterface.copy_masked(a2, a, mask)
-  @fact a2 --> a[mask]
+  @test ( a2 )== a[mask]
 
   a = rand(3, 4)
   a2 = rand(3, 2)
   PdePumiInterface.copy_masked(a2, a, mask)
-  @fact a2 --> a[:, mask]
+  @test ( a2 )== a[:, mask]
 
   a = rand(3, 2, 4)
   a2 = rand(3, 2,  2)
   PdePumiInterface.copy_masked(a2, a, mask)
-  @fact a2 --> a[:, :, mask]
+  @test ( a2 )== a[:, :, mask]
   
   a = rand(3,2, 5, 4)
   a2 = rand(3, 2, 5, 2)
   PdePumiInterface.copy_masked(a2, a, mask)
-  @fact a2 --> a[:, :, :, mask]
+  @test ( a2 )== a[:, :, :, mask]
 
   a = rand(2, 3)
   a2 = rand(1, 3)
-  @fact_throws PdePumiInterface.copy_masked(a2, a, mask)
+  @test_throws Exception  PdePumiInterface.copy_masked(a2, a, mask)
 
 
 
@@ -69,47 +69,47 @@ facts("--- Testing PdePumiInterface --- ") do
 
 
     mesh =  PumiMesh2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
-    @fact mesh.numVert --> 4
-    @fact mesh.numEdge --> 5
-    @fact mesh.numFace --> mesh.numEdge
-    @fact mesh.numEl --> 2
-    @fact mesh.numEntitiesPerType --> [4, 5, 2]
-    @fact mesh.numTypePerElement --> [3, 3, 1]
-    @fact mesh.numDofPerNode --> 4
-    @fact mesh.numBoundaryFaces --> 4
-    @fact mesh.numInterfaces --> 1
+    @test ( mesh.numVert )== 4
+    @test ( mesh.numEdge )== 5
+    @test ( mesh.numFace )== mesh.numEdge
+    @test ( mesh.numEl )== 2
+    @test ( mesh.numEntitiesPerType )== [4, 5, 2]
+    @test ( mesh.numTypePerElement )== [3, 3, 1]
+    @test ( mesh.numDofPerNode )== 4
+    @test ( mesh.numBoundaryFaces )== 4
+    @test ( mesh.numInterfaces )== 1
 
-    @fact mesh.bndryfaces[1].element --> 1
-    @fact mesh.bndryfaces[1].face --> 3
-    @fact mesh.bndryfaces[2].element --> 2
-    @fact mesh.bndryfaces[2].face --> 1
-    @fact mesh.bndryfaces[3].element --> 1
-    @fact mesh.bndryfaces[3].face --> 2
-    @fact mesh.bndryfaces[4].element --> 2
-    @fact mesh.bndryfaces[4].face --> 2
+    @test ( mesh.bndryfaces[1].element )== 1
+    @test ( mesh.bndryfaces[1].face )== 3
+    @test ( mesh.bndryfaces[2].element )== 2
+    @test ( mesh.bndryfaces[2].face )== 1
+    @test ( mesh.bndryfaces[3].element )== 1
+    @test ( mesh.bndryfaces[3].face )== 2
+    @test ( mesh.bndryfaces[4].element )== 2
+    @test ( mesh.bndryfaces[4].face )== 2
 
   #  println("mesh.interfaces = ",  mesh.interfaces)
-    @fact mesh.interfaces[1].elementL --> 1
-    @fact mesh.interfaces[1].elementR --> 2
-    @fact mesh.interfaces[1].faceL --> 1
-    @fact mesh.interfaces[1].faceR --> 3
+    @test ( mesh.interfaces[1].elementL )== 1
+    @test ( mesh.interfaces[1].elementR )== 2
+    @test ( mesh.interfaces[1].faceL )== 1
+    @test ( mesh.interfaces[1].faceR )== 3
 
-    @fact mesh.order --> order
-    @fact length(mesh.bndry_funcs) --> 1
-    @fact mesh.bndry_offsets --> [1, 5]
-    @fact mesh.bndry_geo_nums[1] --> opts["BC1"]
+    @test ( mesh.order )== order
+    @test ( length(mesh.bndry_funcs) )== 1
+    @test ( mesh.bndry_offsets )== [1, 5]
+    @test ( mesh.bndry_geo_nums[1] )== opts["BC1"]
 
 #=
     for i=1:mesh.numBoundaryFaces
       for j=1:(sum(mesh.numNodesPerType[1:2]))
         if i == 1
-          @fact mesh.bndry_normals[:, j, i] --> roughly([-1.0, 1.0], atol=1e-13)
+          @test isapprox( mesh.bndry_normals[:, j, i], [-1.0, 1.0]) atol=1e-13
         elseif i == 2
-          @fact mesh.bndry_normals[:, j, i] --> roughly([1.0, -1.0], atol=1e-13)
+          @test isapprox( mesh.bndry_normals[:, j, i], [1.0, -1.0]) atol=1e-13
         elseif i == 3
-          @fact mesh.bndry_normals[:, j, i] --> roughly([0.0, 1.0], atol=1e-13)
+          @test isapprox( mesh.bndry_normals[:, j, i], [0.0, 1.0]) atol=1e-13
         elseif i == 4
-          @fact mesh.bndry_normals[:, j, i] --> roughly([1.0, 0.0], atol=1e-13)
+          @test isapprox( mesh.bndry_normals[:, j, i], [1.0, 0.0]) atol=1e-13
         end
       end
     end
@@ -117,8 +117,8 @@ facts("--- Testing PdePumiInterface --- ") do
 #=
     for i=1:mesh.numInterfaces
       for j=1:sbp.numfacenodes
-        @fact mesh.interface_normals[:, 1, j, i] --> roughly([1.0, -2.0], atol=1e-13)
-        @fact mesh.interface_normals[:, 2, j, i] --> roughly([-2.0, 1.0], atol=1e-13)
+        @test isapprox( mesh.interface_normals[:, 1, j, i], [1.0, -2.0]) atol=1e-13
+        @test isapprox( mesh.interface_normals[:, 2, j, i], [-2.0, 1.0]) atol=1e-13
       end
     end
 =#
@@ -127,73 +127,73 @@ facts("--- Testing PdePumiInterface --- ") do
       for j=1:mesh.numNodesPerElement
         start_dof = mesh.dofs[1, j, i]
         for k=1:mesh.numDofPerNode
-          @fact mesh.dofs[k, j, i] --> start_dof + k - 1 
+          @test ( mesh.dofs[k, j, i] )== start_dof + k - 1 
         end
       end
     end
 
-    @fact mesh.color_masks[1][1] --> 1
-    @fact mesh.color_masks[1][2] --> 0
-    @fact mesh.color_masks[2][1] --> 0
-    @fact mesh.color_masks[2][2] --> 1
+    @test ( mesh.color_masks[1][1] )== 1
+    @test ( mesh.color_masks[1][2] )== 0
+    @test ( mesh.color_masks[2][1] )== 0
+    @test ( mesh.color_masks[2][2] )== 1
 
-    @fact mesh.neighbor_colors[1,1] --> 2
-    @fact mesh.neighbor_colors[2,1] --> 1
-    @fact mesh.neighbor_colors[1,2] --> 1
-    @fact mesh.neighbor_colors[2,2] --> 2
+    @test ( mesh.neighbor_colors[1,1] )== 2
+    @test ( mesh.neighbor_colors[2,1] )== 1
+    @test ( mesh.neighbor_colors[1,2] )== 1
+    @test ( mesh.neighbor_colors[2,2] )== 2
 
-    @fact mesh.neighbor_nums[1,1] --> 2
-    @fact mesh.neighbor_nums[2,1] --> 1
-    @fact mesh.neighbor_nums[2,1] --> 1
-    @fact mesh.neighbor_nums[2,2] --> 2
+    @test ( mesh.neighbor_nums[1,1] )== 2
+    @test ( mesh.neighbor_nums[2,1] )== 1
+    @test ( mesh.neighbor_nums[2,1] )== 1
+    @test ( mesh.neighbor_nums[2,2] )== 2
 
-    @fact mesh.pertNeighborEls[1, 1] --> 1
-    @fact mesh.pertNeighborEls[2, 1] --> 1
-    @fact mesh.pertNeighborEls[1, 2] --> 2
-    @fact mesh.pertNeighborEls[2, 2] --> 2
+    @test ( mesh.pertNeighborEls[1, 1] )== 1
+    @test ( mesh.pertNeighborEls[2, 1] )== 1
+    @test ( mesh.pertNeighborEls[1, 2] )== 2
+    @test ( mesh.pertNeighborEls[2, 2] )== 2
 
-    @fact mesh.color_cnt --> [1,1,0, 0]
+    @test ( mesh.color_cnt )== [1,1,0, 0]
     if order == 1
-      @fact mesh.numDof --> 16
-      @fact mesh.numNodes --> 4
-      @fact mesh.numNodesPerElement --> 3
-      @fact mesh.numNodesPerType --> [1, 0 , 0]
-      @fact mesh.typeOffsetsPerElement --> [1, 4, 4, 4]
+      @test ( mesh.numDof )== 16
+      @test ( mesh.numNodes )== 4
+      @test ( mesh.numNodesPerElement )== 3
+      @test ( mesh.numNodesPerType )== [1, 0 , 0]
+      @test ( mesh.typeOffsetsPerElement )== [1, 4, 4, 4]
     elseif order == 2
-      @fact mesh.numNodes --> 11
-      @fact mesh.numDof --> 44
-      @fact mesh.numNodesPerElement --> 7
-      @fact mesh.numNodesPerType --> [1, 1, 1]
-      @fact mesh.typeOffsetsPerElement --> [1, 4, 7, 8]
+      @test ( mesh.numNodes )== 11
+      @test ( mesh.numDof )== 44
+      @test ( mesh.numNodesPerElement )== 7
+      @test ( mesh.numNodesPerType )== [1, 1, 1]
+      @test ( mesh.typeOffsetsPerElement )== [1, 4, 7, 8]
     elseif order == 3
-      @fact mesh.numNodes --> 20
-      @fact mesh.numDof --> 80
-      @fact mesh.numNodesPerElement --> 12
-      @fact mesh.numNodesPerType --> [1, 2, 3]
-      @fact mesh.typeOffsetsPerElement --> [1, 4, 10, 13]
+      @test ( mesh.numNodes )== 20
+      @test ( mesh.numDof )== 80
+      @test ( mesh.numNodesPerElement )== 12
+      @test ( mesh.numNodesPerType )== [1, 2, 3]
+      @test ( mesh.typeOffsetsPerElement )== [1, 4, 10, 13]
       # check orientation of 3rd edge
 #      println("mesh.dofs = ", mesh.dofs)
-      @fact reshape(mesh.dofs[1, 4:5, 1], 2) --> reshape(mesh.dofs[1, 8:9, 2], 2)
+      @test ( reshape(mesh.dofs[1, 4:5, 1], 2) )== reshape(mesh.dofs[1, 8:9, 2], 2)
     elseif order == 4
-      @fact mesh.numNodes --> 31
-      @fact mesh.numDof --> 124
-      @fact mesh.numNodesPerElement --> 18
-      @fact mesh.numNodesPerType --> [1, 3, 6]
-      @fact mesh.typeOffsetsPerElement --> [1, 4, 13, 19]
+      @test ( mesh.numNodes )== 31
+      @test ( mesh.numDof )== 124
+      @test ( mesh.numNodesPerElement )== 18
+      @test ( mesh.numNodesPerType )== [1, 3, 6]
+      @test ( mesh.typeOffsetsPerElement )== [1, 4, 13, 19]
 #      println("mesh.dofs = ", mesh.dofs)
       # check orientation of 3rd edge
-      @fact reshape(mesh.dofs[1, 10:12, 2], 3) -->reshape(mesh.dofs[1, 4:6, 1], 3)
+      @test ( reshape(mesh.dofs[1, 10:12, 2], 3) )==reshape(mesh.dofs[1, 4:6, 1], 3)
     end
 
-    @fact mesh.typeOffsetsPerElement_ --> mesh.typeOffsetsPerElement
+    @test ( mesh.typeOffsetsPerElement_ )== mesh.typeOffsetsPerElement
 
-    @fact length(mesh.verts) --> mesh.numVert
-    @fact length(mesh.edges) --> mesh.numEdge
-    @fact length(mesh.elements) --> mesh.numEl
+    @test ( length(mesh.verts) )== mesh.numVert
+    @test ( length(mesh.edges) )== mesh.numEdge
+    @test ( length(mesh.elements) )== mesh.numEl
 
 #    println("mesh.coords = ", mesh.coords)
     
-    @fact mesh.jac --> roughly(ones(mesh.numNodesPerElement ,2))
+    @test isapprox( mesh.jac, ones(mesh.numNodesPerElement ,2)) 
 
 
     fnames = ["boundary_nums", "face_vertnums", "edge_vertnums"]
@@ -209,9 +209,9 @@ facts("--- Testing PdePumiInterface --- ") do
       for i=1:length(data_code)
         data_i = data_code[i]
         if typeof(data_i) <: Number
-          @fact data_i --> roughly(data_ref[i], atol=1e-13)
+          @test isapprox( data_i, data_ref[i]) atol=1e-13
         else
-          @fact data_i --> data_ref[i]
+          @test ( data_i )== data_ref[i]
         end
       end
     end
@@ -223,8 +223,8 @@ facts("--- Testing PdePumiInterface --- ") do
   for i=1:mesh.numEl
     vertnums_i = mesh.element_vertnums[:, i]
     for j=1:3
-      @fact vertnums_i[j] --> greater_than(0)
-      @fact vertnums_i[j] --> less_than(mesh.numVert + 1)
+      @test  vertnums_i[j]  > 0
+      @test  vertnums_i[j]  < mesh.numVert + 1
     end
 
     # test there are exactly 3 elements the current element shares 2 vertices
@@ -238,11 +238,11 @@ facts("--- Testing PdePumiInterface --- ") do
       end
     end
 
-    @fact nedges --> less_than(4)
-    @fact nedges --> greater_than(0)
+    @test  nedges  < 4
+    @test  nedges  > 0
   end  # end loop i
 
-  @fact nedges_interior --> 2*(mesh.numEdge - mesh.numBoundaryFaces)
+  @test ( nedges_interior )== 2*(mesh.numEdge - mesh.numBoundaryFaces)
 
 
   # test getNodeXi
@@ -255,9 +255,9 @@ facts("--- Testing PdePumiInterface --- ") do
       vals = getValues(mesh.m_ptr, eshape, nodexi[:, i], numnodes)
       for j=1:numnodes
         if i == j
-          @fact abs(vals[j] - 1) --> less_than(1e-12)
+          @test  abs(vals[j] - 1)  < 1e-12
         else
-          @fact abs(vals[j]) --> less_than(1e-12)
+          @test  abs(vals[j])  < 1e-12
         end  # end if else
       end   # end loop j
     end  # end loop i
@@ -268,12 +268,12 @@ facts("--- Testing PdePumiInterface --- ") do
   geo_bndries = opts["BC1"]
   bndries = getBoundaries(mesh, geo_bndries)
   bndries_range = mesh.bndry_offsets[1]:(mesh.bndry_offsets[2]-1)
-  @fact length(bndries) --> length(bndries_range)
+  @test ( length(bndries) )== length(bndries_range)
   for i=1:length(bndries)
     bndry1 = bndries[i]
     bndry2 = mesh.bndryfaces[bndries_range[i]]
-    @fact bndry1.face --> bndry2.face
-    @fact bndry1.element --> bndry2.element
+    @test ( bndry1.face )== bndry2.face
+    @test ( bndry1.element )== bndry2.element
   end
 
   end  # end loop over p=1:4
@@ -282,17 +282,17 @@ facts("--- Testing PdePumiInterface --- ") do
   for i=1:10  # 10 random matrices
     A2 = rand(2,2)
     d = det(A2)
-    @fact PdePumiInterface.det2(A2) --> roughly(d, atol=1e-12)
+    @test isapprox( PdePumiInterface.det2(A2), d) atol=1e-12
     B2 = zeros(A2)
     PdePumiInterface.adjugate2(A2, B2)
-    @fact B2./d --> roughly(inv(A2), atol=1e-12)
+    @test isapprox( B2./d, inv(A2)) atol=1e-12
 
     A3 = rand(3,3)
     d = det(A3)
-    @fact PdePumiInterface.det3(A3) --> roughly(d, atol=1e-12)
+    @test isapprox( PdePumiInterface.det3(A3), d) atol=1e-12
     B3 = zero(A3)
     PdePumiInterface.adjugate3(A3, B3)
-    @fact B3/d --> roughly(inv(A3), atol=1e-12)
+    @test isapprox( B3/d, inv(A3)) atol=1e-12
   end
 
   # now test on a fully unstructured mesh
@@ -347,9 +347,9 @@ facts("--- Testing PdePumiInterface --- ") do
       for i=1:length(data_code)
         data_i = data_code[i]
         if typeof(data_i) <: Number
-          @fact data_i --> roughly(data_ref[i], atol=1e-13)
+          @test isapprox( data_i, data_ref[i]) atol=1e-13
         else
-          @fact data_i --> data_ref[i]
+          @test ( data_i )== data_ref[i]
         end
       end
     end
@@ -359,7 +359,7 @@ facts("--- Testing PdePumiInterface --- ") do
 
 end
 
-facts("----- Testing PdePumiInterfaceDG -----") do
+@testset "----- Testing PdePumiInterfaceDG -----" begin
 
   order = 1
   smb_name = "tri2l.smb"
@@ -410,82 +410,82 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
 #    mesh =  PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
-   @fact mesh.m_ptr --> not(C_NULL)
-   @fact mesh.mnew_ptr --> not(C_NULL)
-   @fact mesh.numVert --> 4
-   @fact mesh.numEdge --> 5
-   @fact mesh.numFace --> mesh.numEdge
-   @fact mesh.numEl --> 2
-   @fact mesh.numDof --> 24
-   @fact mesh.numNodes --> 6
-   @fact mesh.numDofPerNode --> 4
-   @fact mesh.numBoundaryFaces --> 4
-   @fact mesh.numInterfaces --> 1
-   @fact mesh.numNodesPerElement --> 3
-   @fact mesh.numNodesPerType --> [0, 0, 3]
-   @fact mesh.numEntitiesPerType --> [4, 5, 2]
-   @fact mesh.numTypePerElement --> [3, 3, 1]
-   @fact mesh.typeOffsetsPerElement --> [1, 1, 1, 4]
-   @fact mesh.typeOffsetsPerElement_ --> mesh.typeOffsetsPerElement
-   @fact mesh.volume --> roughly(4.0, atol=1e-12)
+   @test ( mesh.m_ptr )!=C_NULL
+   @test ( mesh.mnew_ptr )!=C_NULL
+   @test ( mesh.numVert )== 4
+   @test ( mesh.numEdge )== 5
+   @test ( mesh.numFace )== mesh.numEdge
+   @test ( mesh.numEl )== 2
+   @test ( mesh.numDof )== 24
+   @test ( mesh.numNodes )== 6
+   @test ( mesh.numDofPerNode )== 4
+   @test ( mesh.numBoundaryFaces )== 4
+   @test ( mesh.numInterfaces )== 1
+   @test ( mesh.numNodesPerElement )== 3
+   @test ( mesh.numNodesPerType )== [0, 0, 3]
+   @test ( mesh.numEntitiesPerType )== [4, 5, 2]
+   @test ( mesh.numTypePerElement )== [3, 3, 1]
+   @test ( mesh.typeOffsetsPerElement )== [1, 1, 1, 4]
+   @test ( mesh.typeOffsetsPerElement_ )== mesh.typeOffsetsPerElement
+   @test isapprox( mesh.volume, 4.0) atol=1e-12
    volume2 = PdePumiInterface.calcVolume(mesh)
-   @fact volume2 --> roughly(mesh.volume, atol=1e-12)
-   @fact mesh.dim --> 2
-   @fact mesh.isDG --> true
-   @fact mesh.coloringDistance --> 2
-   @fact mesh.numColors --> 4
-   @fact mesh.numBC --> 1
-   @fact mesh.bndry_geo_nums[1] --> opts["BC1"]
-   @fact mesh.elementNodeOffsets --> zeros(mesh.numNodesPerElement, mesh.numEl)
-   @fact mesh.typeNodeFlags[1] --> trues(3, mesh.numEl)
+   @test isapprox( volume2, mesh.volume) atol=1e-12
+   @test ( mesh.dim )== 2
+   @test ( mesh.isDG )== true
+   @test ( mesh.coloringDistance )== 2
+   @test ( mesh.numColors )== 4
+   @test ( mesh.numBC )== 1
+   @test ( mesh.bndry_geo_nums[1] )== opts["BC1"]
+   @test ( mesh.elementNodeOffsets )== zeros(mesh.numNodesPerElement, mesh.numEl)
+   @test ( mesh.typeNodeFlags[1] )== trues(3, mesh.numEl)
    tmp = trues(3, 2); tmp[1, 1] = false
-   @fact mesh.typeNodeFlags[2] --> tmp
-   @fact mesh.bndry_offsets --> [1, 5]
+   @test ( mesh.typeNodeFlags[2] )== tmp
+   @test ( mesh.bndry_offsets )== [1, 5]
    iface = mesh.interfaces[1]
-   @fact iface.elementL --> 1
-   @fact iface.elementR --> 2
-   @fact iface.faceL --> 1
-   @fact iface.faceR --> 3
-   @fact mesh.coords[:, :, 1] --> roughly([-2/3 -2/3 1/3; 2/3 -1/3 2/3], atol=1e-13)
-   @fact mesh.coords[:, :, 2] --> roughly([2/3 -1/3 2/3; 1/3 -2/3 -2/3], atol=1e-13)
-   @fact sort(unique(mesh.dofs)) --> collect(1:mesh.numDof)
+   @test ( iface.elementL )== 1
+   @test ( iface.elementR )== 2
+   @test ( iface.faceL )== 1
+   @test ( iface.faceR )== 3
+   @test isapprox( mesh.coords[:, :, 1], [-2/3 -2/3 1/3; 2/3 -1/3 2/3]) atol=1e-13
+   @test isapprox( mesh.coords[:, :, 2], [2/3 -1/3 2/3; 1/3 -2/3 -2/3]) atol=1e-13
+   @test ( sort(unique(mesh.dofs)) )== collect(1:mesh.numDof)
 
-   @fact mesh.color_masks[1][1] --> true
-   @fact mesh.color_masks[1][2] --> false
-   @fact mesh.color_masks[2][1] --> false
-   @fact mesh.color_masks[2][2] --> true
-   @fact mesh.neighbor_colors[1, 1] --> 2
-   @fact mesh.neighbor_colors[2, 1] --> 1
-   @fact mesh.neighbor_colors[1, 2] --> 1
-   @fact mesh.neighbor_colors[2, 2] --> 2
+   @test ( mesh.color_masks[1][1] )== true
+   @test ( mesh.color_masks[1][2] )== false
+   @test ( mesh.color_masks[2][1] )== false
+   @test ( mesh.color_masks[2][2] )== true
+   @test ( mesh.neighbor_colors[1, 1] )== 2
+   @test ( mesh.neighbor_colors[2, 1] )== 1
+   @test ( mesh.neighbor_colors[1, 2] )== 1
+   @test ( mesh.neighbor_colors[2, 2] )== 2
 
-   @fact mesh.neighbor_nums[1, 1] --> 2
-   @fact mesh.neighbor_nums[2, 1] --> 1
-   @fact mesh.neighbor_nums[1, 2] --> 1
-   @fact mesh.neighbor_nums[2, 2] --> 2
+   @test ( mesh.neighbor_nums[1, 1] )== 2
+   @test ( mesh.neighbor_nums[2, 1] )== 1
+   @test ( mesh.neighbor_nums[1, 2] )== 1
+   @test ( mesh.neighbor_nums[2, 2] )== 2
 
-   @fact mesh.pertNeighborEls[1, 1] --> 1
-   @fact mesh.pertNeighborEls[2, 1] --> 1
-   @fact mesh.pertNeighborEls[1, 2] --> 2
-   @fact mesh.pertNeighborEls[2, 2] --> 2
+   @test ( mesh.pertNeighborEls[1, 1] )== 1
+   @test ( mesh.pertNeighborEls[2, 1] )== 1
+   @test ( mesh.pertNeighborEls[1, 2] )== 2
+   @test ( mesh.pertNeighborEls[2, 2] )== 2
 
-   @fact mesh.color_cnt[1] --> 1
-   @fact mesh.color_cnt[2] --> 1
+   @test ( mesh.color_cnt[1] )== 1
+   @test ( mesh.color_cnt[2] )== 1
 
-   @fact mesh.coord_order --> 1
-   @fact mesh.coord_numNodesPerElement --> 3
-   @fact length(mesh.typeOffsetsPerElement) --> 4
-   @fact size(mesh.coord_xi, 1) --> 2
-   @fact size(mesh.coord_xi, 2) --> 3
+   @test ( mesh.coord_order )== 1
+   @test ( mesh.coord_numNodesPerElement )== 3
+   @test ( length(mesh.typeOffsetsPerElement) )== 4
+   @test ( size(mesh.coord_xi, 1) )== 2
+   @test ( size(mesh.coord_xi, 2) )== 3
      
    # check that adjoint variables are right size
-  @fact size(mesh.dxidx) --> size(mesh.dxidx_bar)
-  @fact size(mesh.dxidx_bndry) --> size(mesh.dxidx_bndry_bar)
-  @fact size(mesh.dxidx_face) --> size(mesh.dxidx_face_bar)
-  @fact size(mesh.dxidx_sharedface_bar) --> size(mesh.dxidx_sharedface_bar)
+  @test ( size(mesh.dxidx) )== size(mesh.dxidx_bar)
+  @test ( size(mesh.dxidx_bndry) )== size(mesh.dxidx_bndry_bar)
+  @test ( size(mesh.dxidx_face) )== size(mesh.dxidx_face_bar)
+  @test ( size(mesh.dxidx_sharedface_bar) )== size(mesh.dxidx_sharedface_bar)
 
 
-  @fact mesh.jac --> roughly(ones(mesh.numNodesPerElement ,2))
+  @test isapprox( mesh.jac, ones(mesh.numNodesPerElement ,2)) 
 
   # check if dxidx is consistent with the old way of calculating it
   dxidx2 = zeros(mesh.dxidx)
@@ -493,11 +493,11 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
   SummationByParts.mappingjacobian!(sbp, mesh.coords, dxidx2, jac2)
 
-  @fact norm(mesh.jac - jac2)/length(mesh.jac) --> roughly(0.0, atol=1e-13)
+  @test isapprox( norm(mesh.jac - jac2)/length(mesh.jac), 0.0) atol=1e-13
 
   for i=1:mesh.numEl
     for j=1:mesh.numNodesPerElement
-      @fact norm(mesh.dxidx[:, :, j, i]  - dxidx2[:, :, j, i]) --> roughly(0.0, atol=1e-13)
+      @test isapprox( norm(mesh.dxidx[:, :, j, i]  - dxidx2[:, :, j, i]), 0.0) atol=1e-13
     end
   end
 
@@ -516,7 +516,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     vert_i = mesh.verts[i]
     nel = countAdjacent(mesh.m_ptr, vert_i, mesh.dim)
     for j=1:6
-      @fact u_verts[j, i] --> nel
+      @test ( u_verts[j, i] )== nel
     end
   end
 
@@ -531,7 +531,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
 
   for i=1:mesh.numEl
-    @fact norm(mesh.vert_coords_bar[:, :, i]) --> greater_than(0.0)
+    @test  norm(mesh.vert_coords_bar[:, :, i])  > 0.0
   end
 
   # make sure the data fields are the same
@@ -542,7 +542,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   # test zero_bar_arrays
   fill!(mesh.vert_coords_bar, 1.0)
   zeroBarArrays(mesh)
-  @fact vecnorm(mesh.vert_coords_bar) --> 0.0
+  @test ( vecnorm(mesh.vert_coords_bar) )== 0.0
 
 
   # test metrics reverse
@@ -576,8 +576,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
       jac_face[j] = det(dxidx)
       dxidx_face[:, :, j] = dxidx/det(dxidx)
 
-      @fact jac_face[j] --> roughly(mesh.jac_face[j, i], atol=1e-13)
-      @fact dxidx_face[:, :, j] --> roughly(mesh.dxidx_face[:, :, j, i], atol=1e-13)
+      @test isapprox( jac_face[j], mesh.jac_face[j, i]) atol=1e-13
+      @test isapprox( dxidx_face[:, :, j], mesh.dxidx_face[:, :, j, i]) atol=1e-13
     end
 
     end  # end loop over interfaces
@@ -603,8 +603,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
        for j=1:mesh.sbpface.numnodes
          dxidx_code = mesh.dxidx_bndry[:, :, j, i]
          jac_code = mesh.jac_bndry[j, i]
-         @fact dxidx_code --> roughly(dxidx_test, atol=1e-13)
-         @fact jac_code --> roughly(jac_test, atol=1e-13)
+         @test isapprox( dxidx_code, dxidx_test) atol=1e-13
+         @test isapprox( jac_code, jac_test) atol=1e-13
        end
      end
    end
@@ -636,7 +636,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
    for i=1:mesh.sbpface.numnodes
      x_i = mesh.coords_bndry[1, i, idx]
      y_i = mesh.coords_bndry[2, i, idx]
-    @fact y_i --> roughly(slope*x_i + b, atol=1e-13)
+    @test isapprox( y_i, slope*x_i + b) atol=1e-13
    end
 
    function test_normal_orientation(mesh, ifaces::AbstractArray{I}, nrm::AbstractArray{T, 3}) where {I <: Union{Boundary, Interface}, T}
@@ -688,7 +688,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
            r1 = other_vert_coords - face_vert_coords[:, k]
 
            val = dot(nrm[:, j, i], r1)
-           @fact val --> less_than(0.0)
+           @test  val  < 0.0
          end
        end
 
@@ -725,10 +725,10 @@ facts("----- Testing PdePumiInterfaceDG -----") do
         dxidx_face = mesh.dxidx_face[:, :, j, i]
         for k=1:2
           for p=1:2
-            @fact dxidx_face[p, k] --> roughly(dxidx_el[p, k], atol=1e-13)
+            @test isapprox( dxidx_face[p, k], dxidx_el[p, k]) atol=1e-13
           end
         end
-        @fact jac_face[j] --> roughly(jac_el[j], atol=1e-13)
+        @test isapprox( jac_face[j], jac_el[j]) atol=1e-13
       end
     end  # end loop over interfaces
   end
@@ -756,7 +756,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
 #  PdePumiInterface.getCoordinatesAndMetrics(mesh, sbp)
   for i = 1:length(mesh.vert_coords)
-    @fact abs(2*coords_orig[i] - mesh.vert_coords[i]) --> less_than(1e-10)
+    @test  abs(2*coords_orig[i] - mesh.vert_coords[i])  < 1e-10
   end
 
   # test vertmap
@@ -765,8 +765,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   for i=1:mesh.numEl
     vertnums_i = mesh.element_vertnums[:, i]
     for j=1:3
-      @fact vertnums_i[j] --> greater_than(0)
-      @fact vertnums_i[j] --> less_than(mesh.numVert + 1)
+      @test  vertnums_i[j]  > 0
+      @test  vertnums_i[j]  < mesh.numVert + 1
     end
 
     # test there are exactly 3 elements the current element shares 2 vertices
@@ -780,11 +780,11 @@ facts("----- Testing PdePumiInterfaceDG -----") do
       end
     end
 
-    @fact nedges --> less_than(4)
-    @fact nedges --> greater_than(0)
+    @test  nedges  < 4
+    @test  nedges  > 0
   end  # end loop i
 
-  @fact nedges_interior --> 2*(mesh.numEdge - mesh.numBoundaryFaces)
+  @test ( nedges_interior )== 2*(mesh.numEdge - mesh.numBoundaryFaces)
 
   # test saveSolutionToMesh interpolation
   println("testing saveSolutionToMesh interpolation")
@@ -826,7 +826,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
       val_expected = x^order + y^order + 1
       for k=1:mesh.numDofPerNode
-        @fact abs(interp_vals[k] - val_expected) --> less_than(1e-12)
+        @test  abs(interp_vals[k] - val_expected)  < 1e-12
       end
     end
   end
@@ -841,28 +841,28 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
   # test periodic
   println("testing periodic")
-  @fact mesh.numPeriodicInterfaces --> 0
+  @test ( mesh.numPeriodicInterfaces )== 0
 
   opts["smb_name"] = "tri3_px.smb"
   opts["BC1"] = [0, 2]
   mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
 #  mesh = PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
-  @fact mesh.numPeriodicInterfaces --> 3
-  @fact length(mesh.interfaces) --> 24
-  @fact mesh.numInterfaces --> 24
-  @fact mesh.numBoundaryFaces --> 6
-  @fact opts["numBC"] --> 1  # the default BC should not be created for periodic
+  @test ( mesh.numPeriodicInterfaces )== 3
+  @test ( length(mesh.interfaces) )== 24
+  @test ( mesh.numInterfaces )== 24
+  @test ( mesh.numBoundaryFaces )== 6
+  @test ( opts["numBC"] )== 1  # the default BC should not be created for periodic
 
   for i=1:mesh.numInterfaces
     iface_i = mesh.interfaces[i]
-    @fact iface_i.elementL --> greater_than(0)
-    @fact iface_i.elementL --> less_than(mesh.numEl + 1)
-    @fact iface_i.elementR --> greater_than(0)
-    @fact iface_i.elementR --> less_than(mesh.numEl + 1)
-    @fact iface_i.faceL --> less_than(4)
-    @fact iface_i.faceR --> greater_than(0)
-    @fact iface_i.faceR --> less_than(4)
+    @test  iface_i.elementL  > 0
+    @test  iface_i.elementL  < mesh.numEl + 1
+    @test  iface_i.elementR  > 0
+    @test  iface_i.elementR  < mesh.numEl + 1
+    @test  iface_i.faceL  < 4
+    @test  iface_i.faceR  > 0
+    @test  iface_i.faceR  < 4
   end
 
   
@@ -878,8 +878,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
 
   for i=1:mesh.numInterfaces
     for j=1:mesh.numNodesPerFace
-      @fact mesh.coords_interface[:, j, i] --> roughly(coords_face_orig[:, j, i], atol=1e-12)
-      @fact mesh.nrm_face[:, j, i] --> roughly(nrm_face_orig[:, j, i], atol=1e-12)
+      @test isapprox( mesh.coords_interface[:, j, i], coords_face_orig[:, j, i]) atol=1e-12
+      @test isapprox( mesh.nrm_face[:, j, i], nrm_face_orig[:, j, i]) atol=1e-12
     end
   end
 
@@ -909,7 +909,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     end
 
     println("volume = ", volume)
-    @fact volume --> roughly(25.0, atol=1e-12)
+    @test isapprox( volume, 25.0) atol=1e-12
   end  # end function
 
   test_volume_curvilinear(mesh, sbp)
@@ -933,18 +933,18 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     for j=1:mesh.numNodesPerElement
       for k=1:mesh.dim
         for p=1:mesh.dim
-          @fact mesh.dxidx[p, k, j, i] --> roughly(dxidx_orig[p, k, j, i], atol=1e-12)
+          @test isapprox( mesh.dxidx[p, k, j, i], dxidx_orig[p, k, j, i]) atol=1e-12
         end
       end
 
-      @fact mesh.jac[j, i] --> roughly(jac_orig[j, i], atol=1e-12)
+      @test isapprox( mesh.jac[j, i], jac_orig[j, i]) atol=1e-12
     end
   end
 
   for i=1:mesh.numBoundaryFaces
     for j=1:mesh.numNodesPerFace
       for k=1:mesh.dim
-        @fact mesh.nrm_bndry[k, j, i] --> roughly(nrm_bndry_orig[k, j, i], atol=1e-12)
+        @test isapprox( mesh.nrm_bndry[k, j, i], nrm_bndry_orig[k, j, i]) atol=1e-12
       end
     end
   end
@@ -952,7 +952,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   for i=1:mesh.numInterfaces
     for j=1:mesh.numNodesPerFace
       for k=1:mesh.dim
-        @fact mesh.nrm_face[k, j, i] --> roughly(nrm_face_orig[k, j, i], atol=1e-12)
+        @test isapprox( mesh.nrm_face[k, j, i], nrm_face_orig[k, j, i]) atol=1e-12
       end
     end
   end
@@ -964,18 +964,18 @@ facts("----- Testing PdePumiInterfaceDG -----") do
     for j=1:mesh.numNodesPerElement
       for k=1:mesh.dim
         for p=1:mesh.dim
-          @fact mesh.dxidx[p, k, j, i] --> roughly(dxidx_orig[p, k, j, i], atol=1e-12)
+          @test isapprox( mesh.dxidx[p, k, j, i], dxidx_orig[p, k, j, i]) atol=1e-12
         end
       end
 
-      @fact mesh.jac[j, i] --> roughly(jac_orig[j, i], atol=1e-12)
+      @test isapprox( mesh.jac[j, i], jac_orig[j, i]) atol=1e-12
     end
   end
 
   for i=1:mesh.numBoundaryFaces
     for j=1:mesh.numNodesPerFace
       for k=1:mesh.dim
-        @fact mesh.nrm_bndry[k, j, i] --> roughly(nrm_bndry_orig[k, j, i], atol=1e-12)
+        @test isapprox( mesh.nrm_bndry[k, j, i], nrm_bndry_orig[k, j, i]) atol=1e-12
       end
     end
   end
@@ -983,7 +983,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   for i=1:mesh.numInterfaces
     for j=1:mesh.numNodesPerFace
       for k=1:mesh.dim
-        @fact mesh.nrm_face[k, j, i] --> roughly(nrm_face_orig[k, j, i], atol=1e-12)
+        @test isapprox( mesh.nrm_face[k, j, i], nrm_face_orig[k, j, i]) atol=1e-12
       end
     end
   end

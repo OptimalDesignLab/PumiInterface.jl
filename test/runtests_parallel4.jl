@@ -1,14 +1,19 @@
 push!(LOAD_PATH, "../src")
-using FactCheck
+using Base.Test
 using PumiInterface
 using ODLCommonTools
 using SummationByParts
 using PdePumiInterface
+
+function not_isapprox(args...; kwargs...)
+  return !isapprox(args...; kwargs...)
+end
+
 include("defs.jl")
 include("common_functions.jl")
 include("test_funcs.jl")
 
-facts("----- Testing 4 process PDEPumiInterface3DG -----") do
+@testset "----- Testing 4 process PDEPumiInterface3DG -----" begin
   degree = 1
   Tsbp = Float64
   sbp = getTetSBPOmega(degree=degree)
@@ -36,14 +41,14 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
 #  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
 
   # check coloring
-  @fact mesh.maxColors --> less_than(18)
-  @fact mesh.numColors --> less_than(mesh.maxColors+1)
-  @fact mesh.numColors --> greater_than(6)
+  @test  mesh.maxColors  < 18
+  @test  mesh.numColors  < mesh.maxColors+1
+  @test  mesh.numColors  > 6
 
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
     cnt = countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
-    @fact countnz(mesh.pertNeighborEls[i, :]) --> greater_than(cnt)
+    @test  countnz(mesh.pertNeighborEls[i, :])  > cnt
   end
 
   # check mapping interpolation
@@ -62,10 +67,10 @@ facts("----- Testing 4 process PDEPumiInterface3DG -----") do
         dxidx_face = dxidx_peer[:, :, k, j]
         for p=1:3
           for n=1:3
-            @fact dxidx_face[n, p] --> roughly(dxidx_el[n, p], atol=1e-13)
+            @test isapprox( dxidx_face[n, p], dxidx_el[n, p]) atol=1e-13
           end
         end
-        @fact jac_face[k] --> roughly(jac_el[k], atol=1e-13)
+        @test isapprox( jac_face[k], jac_el[k]) atol=1e-13
       end
     end   # end loop over peer faces
   end  # end loop over peers
