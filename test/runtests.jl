@@ -202,8 +202,8 @@ facts("Testing PUMIInterface.jl") do
   in_dim = 1
   out_dim = 0
   cnt = countBridgeAdjacent(m_ptr, vert, in_dim, out_dim) 
-  adj = Array(Ptr{Void}, cnt)
-  adj_num = Array(Int, cnt)
+  adj = Array{Ptr{Void}}(cnt)
+  adj_num = Array{Int}(cnt)
   getBridgeAdjacent(adj)
   for i=1:cnt
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
@@ -215,8 +215,8 @@ facts("Testing PUMIInterface.jl") do
   in_dim = 1
   out_dim = 2
   cnt = countBridgeAdjacent(m_ptr, vert, in_dim, out_dim) 
-  adj = Array(Ptr{Void}, cnt)
-  adj_num = Array(Int, cnt)
+  adj = Array{Ptr{Void}}(cnt)
+  adj_num = Array{Int}(cnt)
   getBridgeAdjacent(adj)
   for i=1:cnt
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
@@ -228,8 +228,8 @@ facts("Testing PUMIInterface.jl") do
   in_dim = 0
   out_dim = 1
   cnt = countBridgeAdjacent(m_ptr, edge, in_dim, out_dim) 
-  adj = Array(Ptr{Void}, cnt)
-  adj_num = Array(Int, cnt)
+  adj = Array{Ptr{Void}}(cnt)
+  adj_num = Array{Int}(cnt)
   getBridgeAdjacent(adj)
   for i=1:cnt
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
@@ -241,8 +241,8 @@ facts("Testing PUMIInterface.jl") do
   in_dim = 2
   out_dim = 1
   cnt = countBridgeAdjacent(m_ptr, edge, in_dim, out_dim) 
-  adj = Array(Ptr{Void}, cnt)
-  adj_num = Array(Int, cnt)
+  adj = Array{Ptr{Void}}(cnt)
+  adj_num = Array{Int}(cnt)
   getBridgeAdjacent(adj)
   for i=1:cnt
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
@@ -254,8 +254,8 @@ facts("Testing PUMIInterface.jl") do
   in_dim = 0
   out_dim = 1
   cnt = countBridgeAdjacent(m_ptr, face, in_dim, out_dim) 
-  adj = Array(Ptr{Void}, cnt)
-  adj_num = Array(Int, cnt)
+  adj = Array{Ptr{Void}}(cnt)
+  adj_num = Array{Int}(cnt)
   getBridgeAdjacent(adj)
   for i=1:cnt
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
@@ -269,8 +269,8 @@ facts("Testing PUMIInterface.jl") do
   in_dim = 0
   out_dim = 2
   cnt = countBridgeAdjacent(m_ptr, face, in_dim, out_dim) 
-  adj = Array(Ptr{Void}, cnt)
-  adj_num = Array(Int, cnt)
+  adj = Array{Ptr{Void}}(cnt)
+  adj_num = Array{Int}(cnt)
   getBridgeAdjacent(adj)
   for i=1:cnt
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
@@ -282,8 +282,8 @@ facts("Testing PUMIInterface.jl") do
   in_dim = 1
   out_dim = 2
   cnt = countBridgeAdjacent(m_ptr, face, in_dim, out_dim) 
-  adj = Array(Ptr{Void}, cnt)
-  adj_num = Array(Int, cnt)
+  adj = Array{Ptr{Void}}(cnt)
+  adj_num = Array{Int}(cnt)
   getBridgeAdjacent(adj)
   for i=1:cnt
     adj_num[i] = getNumberJ(numberings[out_dim + 1], adj[i], 0, 0)
@@ -438,9 +438,9 @@ facts("Testing PUMIInterface.jl") do
 
   ncopies = zeros(Int, 2)
   nmatches = zeros(Int, 2)
-  part_nums = Array(Cint, 1)
-  copies = Array(Ptr{Void}, 1)
-  matches = Array(Ptr{Void}, 1)
+  part_nums = Array{Cint}(1)
+  copies = Array{Ptr{Void}}(1)
+  matches = Array{Ptr{Void}}(1)
 #  resetAllIts2(m_ptr)
   it = MeshIterator(m_ptr, 1)
   for i=1:numEdge

@@ -1,5 +1,5 @@
 module PdePumiInterface
-#push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl2")
+#push!(LOAD_PATH, "/users/creanj/julialib_fork/PUMI.jl")
 #push!(LOAD_PATH, "/users/creanj/.julia/v0.4/PDESolver/src/common")
 using PumiInterface
 using SummationByParts
@@ -11,10 +11,10 @@ using MPI
 import ODLCommonTools.sview
 import ArrayViews.view
 
-include("nodecalc.jl2")
-#include("bary.jl2")
-include("options.jl2")
-#include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl2"))
+include("nodecalc.jl")
+#include("bary.jl")
+include("options.jl")
+#include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
 # export types
 export PumiMesh2CG, PumiMesh2DG, PumiMesh3CG, PumiMesh3DG, PumiMesh, PumiMeshCG,
@@ -97,7 +97,7 @@ abstract type PumiMesh3DG{T1} <: AbstractDGMesh{T1} end
   This type is the union of all Pumi mesh types
 
 """->
-typealias PumiMesh{T1} Union{PumiMesh2CG{T1}, PumiMesh2DG{T1}, PumiMesh3CG{T1}, PumiMesh3DG{T1}}
+PumiMesh{T1} =  Union{PumiMesh2CG{T1}, PumiMesh2DG{T1}, PumiMesh3CG{T1}, PumiMesh3DG{T1}}
 
 """
 ### PumiInterface.PumiMesh2D
@@ -371,11 +371,11 @@ function finalizeMesh(mesh::PumiMesh)
 end
 
 
-include("elements.jl2")
-include("./PdePumiInterface3.jl2")
-include("PdePumiInterfaceDG.jl2")
-include("PdePumiInterface3DG.jl2")
-include("interface.jl2")
+include("elements.jl")
+include("./PdePumiInterface3.jl")
+include("PdePumiInterfaceDG.jl")
+include("PdePumiInterface3DG.jl")
+include("interface.jl")
 
 @doc """
 ### PumiInterface.PumiMesh2
@@ -566,7 +566,7 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
                             # corresponds to each face node
                             # this is a temporary hack to keep the PDESolver
                             # test running
- function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface; dofpernode=1, shape_type=1, coloring_distance=2)
+ function PumiMesh2{T1, Tface}(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface; dofpernode=1, shape_type=1, coloring_distance=2) where {T1, Tface}
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -584,7 +584,7 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   end
   @assert MPI.Comm_size(MPI.COMM_WORLD) == 1
 
-  mesh = new()
+  mesh = new{T1, Tface}()
   mesh.isDG = false
   mesh.isInterpolated = false
   mesh.dim = 2
@@ -876,25 +876,25 @@ end
   
 end
 
-include("adapt.jl2")
-include("bary.jl2")
-include("coloring.jl2")
-include("dofnumbering.jl2")
-#include("elements.jl2")
-include("entities.jl2")
-include("faces.jl2")
-include("interpolation.jl2")
-include("metrics.jl2")
-include("model.jl2")
-include("orientation.jl2")
-include("output.jl2")
-include("parallel.jl2")
-include("sparsity.jl2")
-include("utils.jl2")
-include("visualization.jl2")
-include("warp.jl2")
-include("verify.jl2")
-include("submesh.jl2")
+include("adapt.jl")
+include("bary.jl")
+include("coloring.jl")
+include("dofnumbering.jl")
+#include("elements.jl")
+include("entities.jl")
+include("faces.jl")
+include("interpolation.jl")
+include("metrics.jl")
+include("model.jl")
+include("orientation.jl")
+include("output.jl")
+include("parallel.jl")
+include("sparsity.jl")
+include("utils.jl")
+include("visualization.jl")
+include("warp.jl")
+include("verify.jl")
+include("submesh.jl")
 
 function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)

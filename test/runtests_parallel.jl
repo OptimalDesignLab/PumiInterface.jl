@@ -23,15 +23,15 @@ facts("Testing PUMIInterface.jl") do
   @fact num_Entities[3] --> 4
 
   @fact countPeers(m_ptr, apfVERTEX) --> 1
-  peers = Array(Int32, 1)
+  peers = Array{Int32}(1)
   getPeers(m_ptr, peers)
 
 
   @fact peers[1] --> 1-myrank
 
-  verts = Array(Ptr{Void}, num_Entities[1])
-  edges = Array(Ptr{Void}, num_Entities[2])
-  faces = Array(Ptr{Void}, num_Entities[3])
+  verts = Array{Ptr{Void}}(num_Entities[1])
+  edges = Array{Ptr{Void}}(num_Entities[2])
+  faces = Array{Ptr{Void}}(num_Entities[3])
 
   it = MeshIterator(m_ptr, 0)
   for i=1:length(verts)
@@ -55,8 +55,8 @@ facts("Testing PUMIInterface.jl") do
   # the only thing that can really be tested is the number of total remotes
   remote_cnt = 0 # count the total number of remotes
   remote_sum = 0 # sum of the remote values
-  part_nums = Array(Cint, 1)
-  entities = Array(Ptr{Void}, 1)
+  part_nums = Array{Cint}(1)
+  entities = Array{Ptr{Void}}(1)
 
   sleep(5*myrank)
   for i=1:length(verts)
@@ -162,8 +162,8 @@ facts("----- Testing PdePumiInterfaceDG -----") do
       for k=1:3
         if isShared(mesh.m_ptr, down[k])
           nremotes = PumiInterface.countRemotes(mesh.m_ptr, down[k])
-          partnums = Array(Cint, nremotes)
-          entities = Array(Ptr{Void}, nremotes)
+          partnums = Array{Cint}(nremotes)
+          entities = Array{Ptr{Void}}(nremotes)
           PumiInterface.getRemotes(partnums, entities)
           for p=1:nremotes
             if partnums[p] == peernum

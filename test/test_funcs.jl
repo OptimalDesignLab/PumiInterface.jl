@@ -372,7 +372,7 @@ function test_metric2_rev(mesh, mesh_c, sbp, opts)
 
     end  # end loop j
 
-    @fact maximum(abs(jac - jac2)) --> roughly(0.0, atol=1e-12)
+    @fact maximum(abs.(jac - jac2)) --> roughly(0.0, atol=1e-12)
   end  # end facts block
 
   return nothing
@@ -582,7 +582,7 @@ function test_metrics3_rev(mesh, mesh_c, sbp, opts)
     end  # end loop j
 
 
-    @fact maximum(abs(jac - jac2)) --> roughly(0.0, atol=1e-5)
+    @fact maximum(abs.(jac - jac2)) --> roughly(0.0, atol=1e-5)
   end
 
   return nothing
@@ -709,7 +709,7 @@ function test_metrics4_rev(mesh, mesh_c, sbp, opts)
     end
 
      
-    diffnorm = maximum(abs(jac - jac2))
+    diffnorm = maximum(abs.(jac - jac2))
     @fact diffnorm --> roughly(0.0, atol=1e-5)
   end
 
@@ -863,7 +863,7 @@ function test_metrics5_rev(mesh, mesh_c, sbp, opts)
       end
     end
 
-    @fact maximum(abs(jac - jac2)) --> roughly(0.0, atol=1e-12)
+    @fact maximum(abs.(jac - jac2)) --> roughly(0.0, atol=1e-12)
   end
 
   return nothing
@@ -1223,7 +1223,7 @@ function testSurfaceNumbering(mesh, sbp, opts)
 
     @fact length(face_verts) --> numFacePts
 
-    geo_tags = Array(Int, 0)
+    geo_tags = Array{Int}(0)
     for bc in bc_nums
       geo_tags_bc = opts["BC$bc"]
       for j=1:length(geo_tags_bc)
@@ -1250,7 +1250,7 @@ function testSurfaceNumbering(mesh, sbp, opts)
     # check that all entities with number numFacePts + 1 are not on the geometry
 
     seen_nums = zeros(Int, numFacePts)
-    entities = Array(Vector{Ptr{Void}}, 2)
+    entities = Array{Vector{Ptr{Void}}}(2)
     entities[1] = mesh.verts
     entities[2] = mesh.edges
     for edim = 1:length(entities)

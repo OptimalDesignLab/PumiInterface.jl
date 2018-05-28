@@ -388,14 +388,14 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
             number of processes as the mesh
 
   """
-  function PumiMeshDG3(dmg_name::AbstractString, smb_name::AbstractString;
+  function PumiMeshDG3{T1, Tface}(dmg_name::AbstractString, smb_name::AbstractString;
                        order::Integer=1, shape_type::Integer=-1,
-                       comm=MPI.COMM_WORLD)
+                       comm=MPI.COMM_WORLD) where {T1, Tface <: AbstractFace{Float64}}
     if !MPI.Initialized()
       MPI.Init()
     end
 
-    mesh = new()
+    mesh = new{T1, Tface}()
     mesh.isDG = true
     mesh.dim = 3
 
@@ -426,8 +426,8 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
   """
     This inner constructor returns an uninitailized mesh object.
   """
-  function PumiMeshDG3()
-    return new()
+  function PumiMeshDG3{T1, Tface}() where {T1, Tface}
+    return new{T1, Tface}()
   end
 
 end  # end PumiMeshDG3 type declaration

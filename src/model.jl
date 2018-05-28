@@ -182,7 +182,7 @@ end  # end function
    * an array of Boundary objects
 """
 function getBoundaries(mesh::PumiMesh, geo_face_nums::Array{Int, 1},
-                       geo_region_nums::Array{Int, 1} = Array(Int, 0))
+                       geo_region_nums::Array{Int, 1} = Array{Int}(0))
 
   bndries = Array{Boundary}(0)
   adjacent_els = Array{Ptr{Void}}(400)  # apf::Up

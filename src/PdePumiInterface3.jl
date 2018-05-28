@@ -47,7 +47,7 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
 
 
 
- function PumiMesh3(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP; dofpernode=1, shape_type=0)
+ function PumiMesh3{T1}(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP; dofpernode=1, shape_type=0)  where {T1}
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -55,7 +55,7 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
   # dofpernode = number of dof per node, default = 1
   # shape_type = type of shape functions to use, 0 = lagrange, 1 = SBP
 
-  mesh = new()
+  mesh = new{T1}()
   mesh.numDofPerNode = dofpernode
   mesh.order = order
   mesh.numNodesPerElement = getNumNodes(order)
@@ -550,7 +550,7 @@ function getInterfaceArray(mesh::PumiMesh3)
 
 #   println("num_int_edges = ", num_int_edges)
 
-#  interfaces = Array(typeof(new_interface), num_int_edges)
+#  interfaces = Array{typeof(new_interface}(num_int_edges)
   # get number of nodes affecting an edge
   num_face_nodes = countAllNodes(mesh.mshape_ptr, 2)
 
@@ -560,7 +560,7 @@ function getInterfaceArray(mesh::PumiMesh3)
   nodemaps = Array{Array{Uint8,1}}(3)
   
 
-#  nodemap = Array(num_edge_nodes:(-1):1)
+#  nodemap = collect(num_edge_nodes:(-1):1)
 
   pos = 1 # current position in interfaces
   for i=1:mesh.numFace

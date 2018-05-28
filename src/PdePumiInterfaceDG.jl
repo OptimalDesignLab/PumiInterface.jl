@@ -415,9 +415,10 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
    * mesh
 
   """
-  function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString;
+  function PumiMeshDG2{T1, Tface}(dmg_name::AbstractString,
+                       smb_name::AbstractString;
                        order::Integer=1, shape_type::Integer=-1,
-                       comm=MPI.COMM_WORLD)
+                       comm=MPI.COMM_WORLD) where {T1, Tface <: AbstractFace{Float64}}
     # this constructor does all the low-level Pumi initialization
     # shape_type should be the *coordinate* shape type
     # order should be the shape function order
@@ -427,7 +428,7 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
     end
 
 
-    mesh = new()
+    mesh = new{T1, Tface}()
     mesh.isDG = true
     mesh.dim = 2
 
@@ -458,8 +459,8 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
   """
     Returns uninitialized PumiMeshDG2 object.
   """
-  function PumiMeshDG2()
-    return new()
+  function PumiMeshDG2{T1, Tface}() where {T1, Tface}
+    return new{T1, Tface}()
   end
 end  # end PumiMeshDG2 declaration
 

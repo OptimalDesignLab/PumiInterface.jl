@@ -645,9 +645,9 @@ facts("----- Testing PdePumiInterfaceDG -----") do
      numVertPerElement = mesh.numTypePerElement[1]
      numVertPerFace = numVertPerElement - 1 
      println("numVertPerFace = ", numVertPerFace)
-     el_verts = Array(Ptr{Void}, numVertPerElement)
+     el_verts = Array{Ptr{Void}}(numVertPerElement)
      other_vert_coords = zeros(mesh.dim)
-     face_verts = Array(Ptr{Void}, numVertPerElement - 1)
+     face_verts = Array{Ptr{Void}}(numVertPerElement - 1)
      face_vert_coords = zeros(mesh.dim, numVertPerFace)
 
      println("face_verts = ", topo.face_verts)
@@ -806,7 +806,7 @@ facts("----- Testing PdePumiInterfaceDG -----") do
   writeVisFiles(mesh, "dg_vis_test")
 
   # check that the solution is interpolated exactly
-  down_verts = Array(Ptr{Void}, mesh.numTypePerElement[1])
+  down_verts = Array{Ptr{Void}}(mesh.numTypePerElement[1])
   coords_vert = zeros(Float64, 3)
   interp_vals = zeros(mesh.numDofPerNode)
   for i=1:mesh.numEl

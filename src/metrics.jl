@@ -229,8 +229,8 @@ end
 """
 function exchangeMetricInfo(mesh::PumiMeshDG{Tmsh}, sbp) where Tmsh
 
-  remote_metrics = Array(RemoteMetrics{Tmsh}, mesh.npeers)  # receive buffers
-  local_metrics = Array(RemoteMetrics{Tmsh}, mesh.npeers)  # send buffers
+  remote_metrics = Array{RemoteMetrics{Tmsh}}(mesh.npeers)  # receive buffers
+  local_metrics = Array{RemoteMetrics{Tmsh}}(mesh.npeers)  # send buffers
   send_reqs = Array{MPI.Request}(4, mesh.npeers)
   recv_reqs = Array{MPI.Request}(4, mesh.npeers)
 
