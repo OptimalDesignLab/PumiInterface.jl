@@ -22,6 +22,11 @@ script:
 #  - ./install_gcc_4.8.sh
 #  - ./install_cmake3.sh
 #  - source ./use_cmake.sh 
+  - sudo ./travis-install-mpi.sh mpich3
+  # hopefully setting these variables will help cmake find MPI
+  - export CC=mpicc
+  - export FC=mpif90
+  - export CXX=mpicxx
   - julia --check-bounds=yes -e 'Pkg.build("PumiInterface")'
   - cd ~/.julia/v0.4/PumiInterface/src
   - source ./use_julialib.sh
