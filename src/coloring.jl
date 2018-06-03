@@ -373,12 +373,12 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
   for i=1:nfaces-1
     # local d2 neighbor + d1 neighbor
     section_start = nfaces + pos
-    local_d2_neighbors[i] = sview(colors, pos:(section_start-1))
+    local_d2_neighbors[i] = aview(colors, pos:(section_start-1))
 
     # nonloca d2 neighbors
     pos = section_start
     section_start = nfaces - 1 + pos
-    nonlocal_d2_neighbors[i] = sview(colors, pos:(section_start-1))
+    nonlocal_d2_neighbors[i] = aview(colors, pos:(section_start-1))
     pos = section_start
   end
 
