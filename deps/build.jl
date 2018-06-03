@@ -12,6 +12,10 @@ include("./stringmatch.jl")
 include("install_pumi.jl")
 
 # package URLs and versions
+
+global const ARRAYVIEWS_URL = "https://github.com/JaredCrean2/ArrayViews.jl.git"
+global const ARRAYVIEWS_VER = "fix_depwarn"
+
 global const MPI_URL = "https://github.com/JuliaParallel/MPI.jl.git"
 global const MPI_VER = "v0.5.0"
 
@@ -62,6 +66,10 @@ pkg_dict = PkgFix.installed()  # get dictionary of installed package names to ve
 if !haskey(pkg_dict, "SummationByParts")
   PkgFix.add(SBP_URL, branch_ish=SBP_VER)
   # SBP installs ODLCommonTools
+end
+
+if !haskey(pkg_dict, "ArrayViews")
+  PkgFix.add(ARRAYVIEWS_URL, branch_ish=ARRAYVIEWS_VER)
 end
 
 # now that all dependencies exist, install this package
