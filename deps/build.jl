@@ -14,7 +14,7 @@ include("install_pumi.jl")
 # package URLs and versions
 
 global const ARRAYVIEWS_URL = "https://github.com/JaredCrean2/ArrayViews.jl.git"
-global const ARRAYVIEWS_VER = "fix_depwarn"
+global const ARRAYVIEWS_VER = "work"
 
 global const MPI_URL = "https://github.com/JuliaParallel/MPI.jl.git"
 global const MPI_VER = "v0.5.0"
