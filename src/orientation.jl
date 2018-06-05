@@ -21,7 +21,7 @@ function getEntityOrientations(mesh::PumiMesh)
 
   # the elementNodeOffsets array is internal, therefore should be 
   # stored in Pumi node order, not SBP order
-  flags = Array(BitArray{2}, 3)
+  flags = Array{BitArray{2}}(3)
   # create the arrays
   for i=1:3
     flags[i] = trues(mesh.numTypePerElement[i], mesh.numEl)
@@ -30,7 +30,7 @@ function getEntityOrientations(mesh::PumiMesh)
   # now do edges
 
   edge_flags = flags[2]
-  edges_i = Array(Ptr{Void}, 12)
+  edges_i = Array{Ptr{Void}}(12)
   edges_start = mesh.typeOffsetsPerElement[2]
   nnodes_per_edge = mesh.numNodesPerType[2]
   for i=1:mesh.numEl
@@ -141,7 +141,7 @@ function getEdgeOrientation(mesh::PumiMesh, elnum::Integer, edgenum::Integer)
  
 end  # end function
 
-immutable EntityOrientation
+struct EntityOrientation
   which::Cint
   flip::Bool
   rotate::Cint
@@ -152,7 +152,7 @@ function getEntityOrientations(mesh::PumiMesh3DG)
 # for DG (without subtriangulation), these shouldn't ever be needed
 
   offsets = zeros(UInt8, mesh.numNodesPerElement, mesh.numEl)
-  flags = Array(BitArray{2}, 4)  # on array for Verts, edges, faces, regiosn
+  flags = Array{BitArray{2}}(4)  # on array for Verts, edges, faces, regiosn
   for i=1:4
     flags[i] = falses(mesh.numTypePerElement[i], mesh.numEl)
   end
@@ -258,7 +258,7 @@ end
   of the correct size.
 
 """
-immutable FaceData
+struct FaceData
   elnumL::Int
   elL::Ptr{Void}
   elnumR::Int

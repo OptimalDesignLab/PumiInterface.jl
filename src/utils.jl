@@ -1,5 +1,5 @@
 # file for utility functions
-function flattenArray{T}(A::AbstractArray{AbstractArray{T}, 1})
+function flattenArray(A::AbstractArray{AbstractArray{T}, 1}) where T
 # copies array-of-array A into a flattened version B
 
   n = length(A)
@@ -34,7 +34,7 @@ function getElIndex(a::Array, b)
   return 0
 end
 
-function getMinandMax{T}(arr::AbstractArray{T})
+function getMinandMax(arr::AbstractArray{T}) where T
 # need to check this function for type stability
 
 min_entry = typemax(T)
@@ -221,7 +221,7 @@ function accumulateAtVerts(mesh::PumiMeshDG, u_volume::Abstract3DArray, u_verts:
   @assert size(u_volume, 1) == size(u_verts, 1)
 
   n = size(u_volume, 1)
-  down_verts = Array(Ptr{Void}, 12)
+  down_verts = Array{Ptr{Void}}(12)
   
   fill!(u_verts, 0.0)
   for i=1:mesh.numEl

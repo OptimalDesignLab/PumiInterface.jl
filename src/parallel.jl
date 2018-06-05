@@ -36,7 +36,7 @@ function getParallelInfo(mesh::PumiMeshDG)
 
   # count the number of edges shared with each peer
   partnums = zeros(Cint, 1)
-  remotes = Array(Ptr{Void}, 1)
+  remotes = Array{Ptr{Void}}(1)
   counts = zeros(Int, npeers)  # hold the counts of the number of edges shared
                                # with each peer
   for i=1:mesh.numFace
@@ -62,12 +62,12 @@ function getParallelInfo(mesh::PumiMeshDG)
 
   mesh.peer_parts = peer_nums
   mesh.npeers =  npeers
-  mesh.send_reqs = Array(MPI.Request, npeers)  # array of Requests for sends
-  mesh.send_waited = Array(Bool, npeers)
-  mesh.recv_reqs = Array(MPI.Request, npeers)  # array of Requests for receives
-  mesh.recv_waited = Array(Bool, npeers)
-  mesh.send_stats = Array(MPI.Status, npeers)
-  mesh.recv_stats = Array(MPI.Status, npeers)
+  mesh.send_reqs = Array{MPI.Request}(npeers)  # array of Requests for sends
+  mesh.send_waited = Array{Bool}(npeers)
+  mesh.recv_reqs = Array{MPI.Request}(npeers)  # array of Requests for receives
+  mesh.recv_waited = Array{Bool}(npeers)
+  mesh.send_stats = Array{MPI.Status}(npeers)
+  mesh.recv_stats = Array{MPI.Status}(npeers)
 
   # for matching meshes, it is possible for one vertex to have several 
   # Copies on a given remote process, so we send them all and sort it 
@@ -79,20 +79,20 @@ function getParallelInfo(mesh::PumiMeshDG)
   end
 
   # allocate memory
-  edges_local = Array(Array{Ptr{Void}, 1}, npeers)
-  edges_remote = Array(Array{Ptr{Void}, 1}, npeers)  # is this still used?
-  mesh.bndries_local = bndries_local = Array(Array{Boundary,1}, npeers)
-  mesh.bndries_remote = bndries_remote = Array(Array{Boundary,1}, npeers)
-  mesh.shared_interfaces = shared_interfaces = Array(Array{Interface,1}, npeers)
-  orientations_send = Array(Array{Ptr{Void}, 2}, npeers)
-  orientations_recv = Array(Array{Ptr{Void}, 2}, npeers)
+  edges_local = Array{Array{Ptr{Void}, 1}}(npeers)
+  edges_remote = Array{Array{Ptr{Void}, 1}}(npeers)  # is this still used?
+  mesh.bndries_local = bndries_local = Array{Array{Boundary,1}}(npeers)
+  mesh.bndries_remote = bndries_remote = Array{Array{Boundary,1}}(npeers)
+  mesh.shared_interfaces = shared_interfaces = Array{Array{Interface,1}}(npeers)
+  orientations_send = Array{Array{Ptr{Void}, 2}}(npeers)
+  orientations_recv = Array{Array{Ptr{Void}, 2}}(npeers)
   for i=1:npeers
-    edges_local[i] = Array(Ptr{Void}, counts[i])
-    edges_remote[i] = Array(Ptr{Void}, counts[i])
-    bndries_local[i] = Array(Boundary, counts[i])
-    bndries_remote[i] = Array(Boundary, counts[i])
-    orientations_send[i] = Array(Ptr{Void}, num_orientation_verts, counts[i])
-    orientations_recv[i] = Array(Ptr{Void}, num_orientation_verts, counts[i])
+    edges_local[i] = Array{Ptr{Void}}(counts[i])
+    edges_remote[i] = Array{Ptr{Void}}(counts[i])
+    bndries_local[i] = Array{Boundary}(counts[i])
+    bndries_remote[i] = Array{Boundary}(counts[i])
+    orientations_send[i] = Array{Ptr{Void}}(num_orientation_verts, counts[i])
+    orientations_recv[i] = Array{Ptr{Void}}(num_orientation_verts, counts[i])
     fill!(orientations_send[i], C_NULL)
     fill!(orientations_recv[i], C_NULL)
   end
@@ -129,7 +129,7 @@ function getParallelInfo(mesh::PumiMeshDG)
   dtype = MPI.mpitype(Int)
   MPI.mpitype_dict[Ptr{Void}] = dtype
   myrank = mesh.myrank
-  down = Array(Ptr{Void}, 12)  # hold downward edges
+  down = Array{Ptr{Void}}(12)  # hold downward edges
   nrecvs = 0
   for i=1:npeers
     edges_i = edges_remote[i]  # array to hold the remote edge pointers
@@ -158,8 +158,8 @@ function getParallelInfo(mesh::PumiMeshDG)
   end  # end loop over peers
   
   # get arrays of Requests
-  recv_reqs_reduced = Array(MPI.Request, nrecvs)
-  recv_peers = Array(Int, nrecvs)  # which process they came from
+  recv_reqs_reduced = Array{MPI.Request}(nrecvs)
+  recv_peers = Array{Int}(nrecvs)  # which process they came from
   pos = 1
   for i=1:npeers
     if mesh.myrank < peer_nums[i]
@@ -191,8 +191,8 @@ function getParallelInfo(mesh::PumiMeshDG)
   end
 
   # now send Boundary and orientation info
-  send_reqs2 = Array(MPI.Request, npeers)
-  recv_reqs2 = Array(MPI.Request, npeers)
+  send_reqs2 = Array{MPI.Request}(npeers)
+  recv_reqs2 = Array{MPI.Request}(npeers)
   MPI.type_create(Boundary)
   MPI.type_create(EntityOrientation)
   for i=1:npeers
@@ -208,9 +208,9 @@ function getParallelInfo(mesh::PumiMeshDG)
   end
 
   # now create Interfaces from the two Boundary arrays
-  peer_offsets = Array(Int, npeers+1)  # record the starting element number
+  peer_offsets = Array{Int}(npeers+1)  # record the starting element number
                                        # of the elements belonging to each peer
-  mesh.local_element_lists = Array(Array{Int32, 1}, mesh.npeers)
+  mesh.local_element_lists = Array{Array{Int32, 1}}(mesh.npeers)
   curr_elnum = mesh.numEl + 1
   myrank = mesh.myrank
 
@@ -229,8 +229,8 @@ function getParallelInfo(mesh::PumiMeshDG)
   mesh.numGlobalEl = curr_elnum - 1
   mesh.numSharedEl = curr_elnum -1 - mesh.numEl  # number of non-local shared
                                                  # elnums
-  mesh.local_element_counts = Array(Int, mesh.npeers)
-  mesh.remote_element_counts = Array(Int, mesh.npeers)
+  mesh.local_element_counts = Array{Int}(mesh.npeers)
+  mesh.remote_element_counts = Array{Int}(mesh.npeers)
   for i=1:mesh.npeers
     mesh.remote_element_counts[i] = peer_offsets[i+1] - peer_offsets[i]
     mesh.local_element_counts[i] = length(mesh.local_element_lists[i])
@@ -261,7 +261,7 @@ function getEdgeBoundaries(mesh::PumiMeshDG, edges::Array{Ptr{Void}},
 # edges is the array of the edge MeshEnities
 # bndries is the array to be populated with the Boundaryies
 
-  faces = Array(Ptr{Void}, 1)
+  faces = Array{Ptr{Void}}(1)
 
   for i=1:length(edges)
     edge_i = edges[i]
@@ -318,10 +318,10 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
 
   nfaces = length(bndries)
   myrank = mesh.myrank
-  downward_verts = Array(Ptr{Void}, 4)
-  downward_faces = Array(Ptr{Void}, 12)
-  remote_partnums = Array(Cint, 400)  # equivalent of apf::up
-  remote_ptrs = Array(Ptr{Void}, 400)  
+  downward_verts = Array{Ptr{Void}}(4)
+  downward_faces = Array{Ptr{Void}}(12)
+  remote_partnums = Array{Cint}(400)  # equivalent of apf::up
+  remote_ptrs = Array{Ptr{Void}}(400)  
   vertmap = mesh.topo.face_verts
 
   for i=1:nfaces
@@ -486,13 +486,13 @@ function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary},
 # the elementR field of the Interface
 
   ninterfaces = length(bndries_local)
-  interfaces = Array(Interface, ninterfaces)
+  interfaces = Array{Interface}(ninterfaces)
   curr_elnum = startnum  # counter for 
   new_elR = 0 # number of new element to create
   face_vertmap = mesh.topo.face_verts
-  el_verts = Array(Ptr{Void}, 4)
-  face_verts = Array(Ptr{Void}, 3)
-  facevertsR = Array(Ptr{Void}, 3)
+  el_verts = Array{Ptr{Void}}(4)
+  face_verts = Array{Ptr{Void}}(3)
+  facevertsR = Array{Ptr{Void}}(3)
   for i=1:ninterfaces
     bndry_l = bndries_local[i]
     bndry_r = bndries_remote[i]
@@ -533,7 +533,7 @@ end
 function getBoundaryElList(bndries_local::Array{Boundary}, f=STDOUT)
 # get the list of elemements on the boundary
   nfaces = length(bndries_local)
-  elnums = Array(Int32, nfaces)  # nfaces is the upper bound on 
+  elnums = Array{Int32}(nfaces)  # nfaces is the upper bound on 
                                  # the number of elements
   pos = 1 # current position in elnums
   for i=1:nfaces
@@ -625,7 +625,7 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
   getPeers(mesh.m_ptr, peer_nums)  # get the identifiers of the peers
   # storage for all shares of a vertex
   partnums = zeros(Cint, 400 + Max_Vert_Matches[mesh.dim])
-  remotes = Array(Ptr{Void}, 400 + Max_Vert_Matches[mesh.dim])
+  remotes = Array{Ptr{Void}}(400 + Max_Vert_Matches[mesh.dim])
   counts = zeros(Int, npeers)  # count number of verts shared with each peer
 
   for i=1:mesh.numVert
@@ -657,18 +657,18 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
 
   # now we know how many vertices are shared with whom
   # allocate arrays of the right size
-  verts_local = Array(Array{Ptr{Void}, 1}, npeers)  # local pointers to shared
+  verts_local = Array{Array{Ptr{Void}, 1}}(npeers)  # local pointers to shared
                                                     # verts
-  verts_remote = Array(Array{Ptr{Void}, 1}, npeers) # remote pointers to shared
+  verts_remote = Array{Array{Ptr{Void}, 1}}(npeers) # remote pointers to shared
                                                     # verts
   for i=1:npeers
-    verts_local[i] = Array(Ptr{Void}, counts[i])
+    verts_local[i] = Array{Ptr{Void}}(counts[i])
     #TODO: dont allocate unneeded arrays in verts_remote
-    verts_remote[i] = Array(Ptr{Void}, counts[i])
+    verts_remote[i] = Array{Ptr{Void}}(counts[i])
   end
   curr_pos = ones(Int, npeers)  # current position in each array inside
                                 # verts_local
-#  verts_remotes = Array(Array{Ptr{Void}, 1}, npeers)
+#  verts_remotes = Array{Array{Ptr{Void}, 1}}(npeers)
   for j=1:mesh.numVert
     vert_j = mesh.verts[j]
     nshares = countCopies(mesh.shr_ptr, vert_j)
@@ -694,7 +694,7 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
   # hold the MPI.Requests for the send/recive
   # either process either sends or receives to each peer, so store all
   # send and receive requests in the same array
-  all_reqs = Array(MPI.Request, npeers)
+  all_reqs = Array{MPI.Request}(npeers)
 
   # tell MPI the Ptr{Voids} are really Ints
   dtype = MPI.mpitype(Int)
@@ -744,7 +744,7 @@ end
 function getVertReverseMapping(mesh::PumiMeshDG, peer_nums::Array{Cint, 1}, counts::Array{Int, 1}, verts_local::Array{Array{Ptr{Void}, 1}, 1})
 
   npeers = length(peer_nums)
-  vert_nums = Array(Array{Int, 1}, npeers)
+  vert_nums = Array{Array{Int, 1}}(npeers)
   rev_mapping = Dict{Int, Pair{Array{Cint, 1}, Array{Int, 1}}}()
 
   if npeers == 0
@@ -755,7 +755,7 @@ function getVertReverseMapping(mesh::PumiMeshDG, peer_nums::Array{Cint, 1}, coun
                               # way to know the upper bound until after the
                               # dictionary is populated
   for i=1:npeers
-    vert_nums[i] = Array(Int, counts[i])
+    vert_nums[i] = Array{Int}(counts[i])
     vert_nums_i = vert_nums[i]
     verts_local_i = verts_local[i]
     for j=1:counts[i]

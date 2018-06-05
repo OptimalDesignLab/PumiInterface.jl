@@ -4,6 +4,10 @@
 if !isdir(joinpath(Pkg.dir(), "PkgFix"))
   Pkg.clone("https://github.com/OptimalDesignLab/PkgFix.jl.git")
 end
+start_dir=pwd()
+cd(Pkg.dir("PkgFix"))
+run(`git checkout upgrade_0.6`)
+cd(start_dir)
 
 using PkgFix  # from now on, use PkgFix instead of Pkg for everything
 
@@ -11,11 +15,15 @@ include("./stringmatch.jl")
 include("install_pumi.jl")
 
 # package URLs and versions
+
+global const ARRAYVIEWS_URL = "https://github.com/JaredCrean2/ArrayViews.jl.git"
+global const ARRAYVIEWS_VER = "work"
+
 global const MPI_URL = "https://github.com/JuliaParallel/MPI.jl.git"
 global const MPI_VER = "v0.5.0"
 
 global const SBP_URL = "https://github.com/OptimalDesignLab/SummationByParts.jl.git"
-global const SBP_VER = "jc_v0.1"
+global const SBP_VER = "jc_v0.3"
 
 
 start_dir = pwd()
@@ -44,10 +52,12 @@ if install_mpi
   run(`$cmd_string $arg_str`)
 end
 
+#=
 # install MPI.jl if needed
 if PkgFix.installed("MPI") == nothing
   PkgFix.add(MPI_URL, branch_ish=MPI_VER)
 end
+=#
 
 if install_pumi  # did not find pumi
   installPumi()
@@ -59,6 +69,10 @@ pkg_dict = PkgFix.installed()  # get dictionary of installed package names to ve
 if !haskey(pkg_dict, "SummationByParts")
   PkgFix.add(SBP_URL, branch_ish=SBP_VER)
   # SBP installs ODLCommonTools
+end
+
+if !haskey(pkg_dict, "ArrayViews")
+  PkgFix.add(ARRAYVIEWS_URL, branch_ish=ARRAYVIEWS_VER)
 end
 
 # now that all dependencies exist, install this package

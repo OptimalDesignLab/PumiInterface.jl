@@ -191,9 +191,9 @@ function init(dmg_name::AbstractString, smb_name::AbstractString, order::Integer
 #mshape_ptr = Ptr{Void}
 num_Entities = zeros(Int32, 4)
 
-m_ptr_array = Array(Ptr{Void}, 1)
-mshape_ptr_array = Array(Ptr{Void}, 1)
-n_arr = Array(Ptr{Void}, 4)
+m_ptr_array = Array{Ptr{Void}}(1)
+mshape_ptr_array = Array{Ptr{Void}}(1)
+n_arr = Array{Ptr{Void}}(4)
 
 i = ccall( (init_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Ptr{Ptr{Void}}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, n_arr, order, load_mesh, shape_type )  # call init in interface library
 
@@ -225,10 +225,10 @@ function init2(dmg_name::AbstractString, smb_name::AbstractString, order::Intege
 #downward_counts = zeros(Int32, 3,3);
 num_Entities = zeros(Int32, 4, 1)
 
-m_ptr_array = Array(Ptr{Void}, 1)
-mshape_ptr_array = Array(Ptr{Void}, 1)
+m_ptr_array = Array{Ptr{Void}}(1)
+mshape_ptr_array = Array{Ptr{Void}}(1)
 dim = Ref{Cint}()
-n_arr = Array(Ptr{Void}, 4)
+n_arr = Array{Ptr{Void}}(4)
 
 i = ccall( (init2_name, pumi_libname), Int32, (Ptr{UInt8}, Ptr{UInt8},Ptr{Int32}, Ptr{Void}, Ptr{Void}, Ptr{Cint}, Ptr{Ptr{Void}}, Int32, Int32, Int32), dmg_name, smb_name, num_Entities, m_ptr_array, mshape_ptr_array, dim, n_arr, order, load_mesh, shape_type )  # call init in interface library
 
@@ -264,7 +264,7 @@ end
 function loadMesh(dmg_name::AbstractString, smb_name::AbstractString,
                   order::Integer; shape_type::Integer=0)
 
-  dim_ret = Array(Cint, 1)
+  dim_ret = Array{Cint}(1)
   m_ptr = ccall( (:loadMesh, pumi_libname), Ptr{Void},
                  (Cstring, Cstring, Cint, Cint, Ptr{Cint}),
                  dmg_name, smb_name, shape_type, order, dim_ret)
@@ -292,9 +292,9 @@ end
 """
 function initMesh(m_ptr::Ptr{Void})
 
-  mshape_ptr_array = Array(Ptr{Void}, 1)
-  num_entities = Array(Cint, 4)
-  n_arr = Array(Ptr{Void}, 4)
+  mshape_ptr_array = Array{Ptr{Void}}(1)
+  num_entities = Array{Cint}(4)
+  n_arr = Array{Ptr{Void}}(4)
 
   ccall( (:initMesh, pumi_libname), Void,
     (Ptr{Void}, Ptr{Cint}, Ptr{Ptr{Void}}, Ptr{Ptr{Void}}),
@@ -306,11 +306,11 @@ end
 
 function pushMeshRef(m_ptr::Ptr{Void})
 
-  ccall ( (pushMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+  ccall( (pushMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
 end
 
 function popMeshRef(m_ptr::Ptr{Void})
-  ccall ( (popMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+  ccall( (popMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
 end
 
 
@@ -334,7 +334,7 @@ end
 
   This grants some type safety to the interface
 """
-immutable MeshIterator
+struct MeshIterator
   p::Ptr{Void}
 end
 
@@ -347,20 +347,20 @@ end
 
 function free(m_ptr::Ptr{Void}, it::MeshIterator)
 
-  ccall ((:end, pumi_libname), Void, (Ptr{Void}, MeshIterator), m_ptr, it)
+  ccall((:end, pumi_libname), Void, (Ptr{Void}, MeshIterator), m_ptr, it)
 
 end
 
 function iterate(m_ptr::Ptr{Void}, it::MeshIterator)
 
-  me = ccall ((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
+  me = ccall((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
 
   return me
 end
 
 function iteraten(m_ptr::Ptr{Void}, it::MeshIterator, n::Integer)
 
-  me = ccall ((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator, Cint), m_ptr, it, n)
+  me = ccall((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator, Cint), m_ptr, it, n)
 
   return me
 end
@@ -368,7 +368,7 @@ end
 
 function deref(m_ptr::Ptr{Void}, it::MeshIterator)
 
-  me = ccall ((:deref, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
+  me = ccall((:deref, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
 
   return me
 end
@@ -435,10 +435,10 @@ end
 function getDownward(m_ptr, entity, dimension::Integer)
   
   # create array that can fit max number of downward adjacencies
-  downwards = Array(Ptr{Void}, 12)
+  downwards = Array{Ptr{Void}}(12)
 
 
-  i = ccall ( (getDownward_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Void}), m_ptr, entity, dimension, downwards)
+  i = ccall( (getDownward_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Void}), m_ptr, entity, dimension, downwards)
 
   return downwards[1:i], i
 
@@ -448,7 +448,7 @@ function getDownward(m_ptr, entity, dimension::Integer, arr::AbstractArray{Ptr{V
 # populate arr with the downward entiteis of the specified dimension
 # arr is not checked for size
 
-  i = ccall ( (getDownward_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Ptr{Void}}), m_ptr, entity, dimension, arr)
+  i = ccall( (getDownward_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Ptr{Void}}), m_ptr, entity, dimension, arr)
 
   return  i
 
@@ -469,7 +469,7 @@ end
 function getAdjacent(num_adjacent::Integer)
 # returns an array of MeshEntity* that are the upward adjacencies fetched by countAdjacent
 # this could be made  more efficient by taking in an array and resizing it if it is too small
-  adjacencies_ret = Array(Ptr{Void}, num_adjacent)  # create the array
+  adjacencies_ret = Array{Ptr{Void}}(num_adjacent)  # create the array
 
 #  ccall( (getAdjacent_name, pumi_libname), Void, (Ptr{Void},), adjacencies_ret)
    getAdjacent(adjacencies_ret)
@@ -512,9 +512,9 @@ which = convert(Int32, 42)
 flip = convert(UInt8, 42)
 rotate = convert(Int32, 42)
 =#
-which = Array(Int32, 1)
-flip = Array(UInt8, 1)
-rotate = Array(Int32, 1)
+which = Array{Int32}(1)
+flip = Array{UInt8}(1)
+rotate = Array{Int32}(1)
 
   ccall( (getAlignment_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}), m_ptr, elem, elem_boundary, which, flip, rotate)
 
@@ -525,7 +525,7 @@ end
 function hasNodesIn(mshape_ptr, dimension::Integer)
 # check whether this FieldShape* has nodes on entities of a given dimension
 
-  i = ccall ( (hasNodesIn_name, pumi_libname), Cuchar, (Ptr{Void}, Int32), mshape_ptr, dimension)
+  i = ccall( (hasNodesIn_name, pumi_libname), Cuchar, (Ptr{Void}, Int32), mshape_ptr, dimension)
 
   i_bool = convert(Bool, i)
 #  println("hasNodesIn returned", i_bool)
@@ -536,7 +536,7 @@ end
 
 function countNodesOn(mshape_ptr, entity_type::Integer)
 # count the number of nodes on an entity of the specified type (apf::Mesh::Type)
-  i = ccall ( (countNodesOn_name, pumi_libname), Int32, (Ptr{Void}, Int32), mshape_ptr, entity_type)
+  i = ccall( (countNodesOn_name, pumi_libname), Int32, (Ptr{Void}, Int32), mshape_ptr, entity_type)
 
   return i
 
@@ -545,7 +545,7 @@ end
 function getEntityShape(mshape_ptr, entity_type::Integer)
 # get the EntityShape* (object describing shape functions) ofa given entity type
 
-  eshape_ptr = ccall ( (getEntityShape_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Int32), mshape_ptr, entity_type)
+  eshape_ptr = ccall( (getEntityShape_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Int32), mshape_ptr, entity_type)
 
   return eshape_ptr
 end
@@ -561,7 +561,7 @@ end
 function createMeshElement(m_ptr, entity)
 # creates a MeshElement from a MeshEntity
 
-  mel_ptr = ccall ( ( createMeshElement_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Void}), m_ptr, entity)
+  mel_ptr = ccall( ( createMeshElement_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Void}), m_ptr, entity)
   return mel_ptr
 end
 
@@ -570,7 +570,7 @@ function countIntPoints(mel_ptr, order::Integer)
 # accuracy.  MeshElement can be edges as well as 2D and 3D regions.
 # not sure what happens if it is a vertex.
 
-  i = ccall ( (countIntPoints_name, pumi_libname), Int32, (Ptr{Void}, Int32), mel_ptr, order)
+  i = ccall( (countIntPoints_name, pumi_libname), Int32, (Ptr{Void}, Int32), mel_ptr, order)
   return i
 end
 
@@ -606,7 +606,7 @@ end
 function countNodes(eshape_ptr)
 # get the total number of nodes related to an entity (including downward adjacencies)
 
-  i = ccall ( (countNodes_name, pumi_libname), Int32, (Ptr{Void},), eshape_ptr)
+  i = ccall( (countNodes_name, pumi_libname), Int32, (Ptr{Void},), eshape_ptr)
   return i
 end
 
@@ -617,7 +617,7 @@ function getValues(m_ptr::Ptr{Void},  eshape_ptr, coords::Array{Float64,1}, numN
 # the output is a vector of length numN
 
   vals = zeros(numN)
-  ccall ( (getValues_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Ptr{Float64}), m_ptr, eshape_ptr, coords, vals)
+  ccall( (getValues_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Ptr{Float64}), m_ptr, eshape_ptr, coords, vals)
 
   return vals
 end
@@ -630,7 +630,7 @@ function getLocalGradients(m_ptr::Ptr{Void}, eshape_ptr, coords::Array{Float64,1
 # the output is a matrix of dimension 3 x numN
 
   vals = zeros(3, numN)
-  ccall ( (getLocalGradients_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Ptr{Float64}), m_ptr, eshape_ptr, coords, vals)
+  ccall( (getLocalGradients_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Ptr{Float64}), m_ptr, eshape_ptr, coords, vals)
 
   return vals
 end
@@ -663,7 +663,7 @@ function getVertCoords(m_ptr::Ptr{Void}, entity, coords::Array{Float64, 2}, m::I
 # coords is array to put coordsinates in, must be 3 by 1,
 # m, n are number of rows, columns in coords, respectively
 
-#coords = Array(Float64, 3, 2)   # pass an array 3 by n (3 coordinates each for n points)
+#coords = Array{Float64}(3, 2)   # pass an array 3 by n (3 coordinates each for n points)
 #(m,n) = size(coords)
 # pass reversed m,n because C arrays are row-major
 ccall( (getVertCoords2_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}, Int32, Int32), m_ptr, entity, coords, n, m) 
@@ -748,21 +748,21 @@ function createNumberingJ(m_ptr, name::AbstractString, field, components::Intege
 # this just passes through to apf::createNumbering
 # field is an apf::FieldShape*
 
-numbering_ptr = ccall ( (createNumberingJ_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{UInt8}, Ptr{Void}, Int32), m_ptr, name, field, components)
+numbering_ptr = ccall( (createNumberingJ_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{UInt8}, Ptr{Void}, Int32), m_ptr, name, field, components)
 
 return numbering_ptr
 end
 
 function destroyNumbering(n_ptr::Ptr{Void})
 
-  ccall ( (destroyNumbering_name, pumi_libname), Void, (Ptr{Void},), n_ptr)
+  ccall( (destroyNumbering_name, pumi_libname), Void, (Ptr{Void},), n_ptr)
 
   return nothing
 end
 
-function findNumbering(m_ptr::Ptr{Void}, name::ASCIIString)
+function findNumbering(m_ptr::Ptr{Void}, name::String)
 
-  n_ptr = ccall ( (findNumbering_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Cstring), m_ptr, name)
+  n_ptr = ccall( (findNumbering_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Cstring), m_ptr, name)
 
   return n_ptr
 end
@@ -1053,27 +1053,6 @@ function createSubMesh(m_ptr, triangulation::AbstractArray{Int32, 2}, elementNod
 end
 
 
-@doc """
-### PumiInterface.transferField
-
-  Transfers the specified field from the hold mesh to the new mesh.
-
-  See createSubMesh for the meanings of the arguments
-"""->
-function transferField(m_ptr, mnew_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{UInt8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, numberings::AbstractArray{Ptr{Void}, 1}, field_old, field_new)
-
-  # check the the triangulation array is oriented correctly
-  @assert size(triangulation, 1) == 3
-#  @assert size(interp_op, 2) == 3  # the interpolation operator must be 
-                                   # 3 x numnodesperlement in row major land
-                                   # so, make sure it is numnodesperelement x 3
-  
- ccall( (transferField_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Int32, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}, Ptr{Ptr{Void}}, Ptr{Void}, Ptr{Void}), m_ptr, mnew_ptr, size(triangulation, 2), triangulation, elementNodeOffsets, typeOffsetsPerElement, numberings, field_old, field_new)
-
- return nothing
-end
-
-
 # DG version of the above functions
 
 function createSubMeshDG(m_ptr, mshape_ptr, triangulation::AbstractArray{Int32, 2}, elementNodeOffsets::AbstractArray{UInt8, 2}, typeOffsetsPerElement::AbstractArray{Int32, 1}, nodemapPumiToSbp::Array{UInt8, 1}, numberings::AbstractArray{Ptr{Void}, 1}, coords::AbstractArray{Float64, 3})
@@ -1258,9 +1237,9 @@ end
 """
 function getTopologyMaps()
 
-  tri_edge_verts = Array(Cint, 3, 2)
-  tet_edge_verts = Array(Cint, 6, 2)
-  tet_tri_verts = Array(Cint, 4, 3)
+  tri_edge_verts = Array{Cint}(3, 2)
+  tet_edge_verts = Array{Cint}(6, 2)
+  tet_tri_verts = Array{Cint}(4, 3)
 
   ccall( (:getTopologyMaps, pumi_libname), Void, (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}), tri_edge_verts, tet_edge_verts, tet_tri_verts)
 
@@ -1271,7 +1250,7 @@ end
 """
   Type to encapsulate a pointer to a SubMeshData class
 """
-immutable SubMeshData
+struct SubMeshData
   pobj::Ptr{Void}
 end
 

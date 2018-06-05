@@ -15,9 +15,9 @@ function getSparsityCounts(mesh::PumiMeshDG, sparse_bnds::AbstractArray{Int32, 2
     add_factor = 1
   end
 
-  edges = Array(Ptr{Void}, 4)
-  part_nums = Array(Cint, 4)
-  shared_edges = Array(Ptr{Void}, 4)
+  edges = Array{Ptr{Void}}(4)
+  part_nums = Array{Cint}(4)
+  shared_edges = Array{Ptr{Void}}(4)
   for i=1:mesh.numEl
     el_ptr = mesh.elements[i]
     getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, edges)
@@ -57,11 +57,11 @@ function getDofConnectivity(mesh::PumiMesh2)
   # find the maximum number of elements a dof is related to
   max_el = 0
   up_cnt = 400 # maximum number of upward adjacencies
-  up = Array(Ptr{Void}, up_cnt)  # equivalent of apf::Up
-  verts = Array(Ptr{Void}, 3)
+  up = Array{Ptr{Void}}(up_cnt)  # equivalent of apf::Up
+  verts = Array{Ptr{Void}}(3)
   nel = 0
-  els_all = Array(Ptr{Void}, 3*up_cnt)
-  els_tmp = Array(Ptr{Void}, 3*up_cnt)
+  els_all = Array{Ptr{Void}}(3*up_cnt)
+  els_tmp = Array{Ptr{Void}}(3*up_cnt)
   for i=1:mesh.numEl
     getDownward(mesh.m_ptr, 0, verts)
     pos = 1
@@ -227,7 +227,7 @@ return min, max
   # get distance-2 elements
   # this is really distance-1 
   if mesh.coloringDistance >= 2
-    edge_arr = Array(Ptr{Void}, num_adj*3)  # enough space for all edges, including repeats
+    edge_arr = Array{Ptr{Void}}(num_adj*3)  # enough space for all edges, including repeats
     for i=1:num_adj  # get the edges
       sub_arr = sview(edge_arr, (3*(i-1) + 1):(3*i))
       getDownward(mesh.m_ptr, el_arr[i], 1, sub_arr)
@@ -254,7 +254,7 @@ return min, max
 
     # now get the elements
     num_adj = sum(num_els)
-    el_arr = Array(Ptr{Void}, num_adj)  # rebind el_arr to new array
+    el_arr = Array{Ptr{Void}}(num_adj)  # rebind el_arr to new array
     start_idx = 1
     end_idx = num_els[1]
     for i=1:length(edge_arr)

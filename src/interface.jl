@@ -27,7 +27,7 @@
    * face_verts: array of apf::MeshEntity* in the order they appear in the
                  surface numbering, length numFaceNodes
 """
-function numberSurfacePoints{I<:Integer}(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglobal::Bool=false, numbering_name::AbstractString="warp_surf_nums")
+function numberSurfacePoints(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglobal::Bool=false, numbering_name::AbstractString="warp_surf_nums") where I<:Integer
 
   #TODO: should face_verts be only the MeshEntities owned by this part, or
   #      all the ones present on this part?
@@ -49,9 +49,9 @@ function numberSurfacePoints{I<:Integer}(mesh::PumiMeshDG, bc_nums::AbstractVect
                              mesh.coordshape_ptr, 1)
   topo = mesh.topo
   num_i = 1
-  verts = Array(Ptr{Void}, 4)
-  edges = Array(Ptr{Void}, 12)  # all edges of the element
-  face_verts = Array(Ptr{Void}, 0)  # TODO: add sizehint
+  verts = Array{Ptr{Void}}(4)
+  edges = Array{Ptr{Void}}(12)  # all edges of the element
+  face_verts = Array{Ptr{Void}}(0)  # TODO: add sizehint
 #  coords = zeros(Float64, 3)
   for i in bc_nums
     start_idx = mesh.bndry_offsets[i]

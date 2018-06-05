@@ -106,7 +106,7 @@ export PumiMeshDG3
           The global dof number is the number stored in this array + 
           dof_offset  (even for the non-local elements)
 """->
-type PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
+mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mshape_ptr::Ptr{Void} # pointer to the FieldShape of the node field
   coordshape_ptr::Ptr{Void}  # pointer to FieldShape of the coordinate 
@@ -388,14 +388,14 @@ type PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1}   # 2d p
             number of processes as the mesh
 
   """
-  function PumiMeshDG3(dmg_name::AbstractString, smb_name::AbstractString;
+  function PumiMeshDG3{T1, Tface}(dmg_name::AbstractString, smb_name::AbstractString;
                        order::Integer=1, shape_type::Integer=-1,
-                       comm=MPI.COMM_WORLD)
+                       comm=MPI.COMM_WORLD) where {T1, Tface <: AbstractFace{Float64}}
     if !MPI.Initialized()
       MPI.Init()
     end
 
-    mesh = new()
+    mesh = new{T1, Tface}()
     mesh.isDG = true
     mesh.dim = 3
 
@@ -426,8 +426,8 @@ type PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1}   # 2d p
   """
     This inner constructor returns an uninitailized mesh object.
   """
-  function PumiMeshDG3()
-    return new()
+  function PumiMeshDG3{T1, Tface}() where {T1, Tface}
+    return new{T1, Tface}()
   end
 
 end  # end PumiMeshDG3 type declaration
@@ -455,10 +455,10 @@ end  # end PumiMeshDG3 type declaration
    * comm: the MPI Communicator the mesh is to be loaded on, must have the 
            same number of processes as the mesh
 """
-function PumiMeshDG3{T, Tface}(::Type{T}, sbp::AbstractSBP, opts,
-                               sbpface::Tface,
-                               topo::ElementTopology{3}; 
-                               dofpernode=1, shape_type=2, comm=MPI.COMM_WORLD)
+function PumiMeshDG3(::Type{T}, sbp::AbstractSBP, opts,
+                     sbpface::Tface,
+                     topo::ElementTopology{3}; 
+                     dofpernode=1, shape_type=2, comm=MPI.COMM_WORLD) where {T, Tface}
 
   
   set_defaults(opts)
@@ -507,9 +507,9 @@ end
 
 
 """
-function finishMeshInit{T1}(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
-                            topo::ElementTopology{3};
-                            dofpernode=1, shape_type=2)
+function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
+                        topo::ElementTopology{3};
+                        dofpernode=1, shape_type=2) where T1
 #function finishMeshInit(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface, topo::ElementTopology{3}; dofpernode=1, shape_type=2, coloring_distance=2, comm=MPI.COMM_WORLD)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
@@ -703,7 +703,7 @@ function finishMeshInit{T1}(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
     mesh.numColors = numc
     mesh.maxColors = MPI.Allreduce(numc, MPI.MAX, mesh.comm)
     println(mesh.f, "max colors = ", mesh.maxColors)
-    mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
+    mesh.color_masks = Array{BitArray{1}}(numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, mesh.numFacesPerElement+1, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, mesh.numFacesPerElement+1, mesh.numEl)
     cnt, mesh.shared_element_colormasks = getColors1(mesh, colordata, mesh.color_masks, 
@@ -715,7 +715,7 @@ function finishMeshInit{T1}(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
     @assert numc == 1
     mesh.numColors = numc
     mesh.maxColors = numc
-    mesh.color_masks = Array(BitArray{1}, numc)
+    mesh.color_masks = Array{BitArray{1}}(numc)
     mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
     getColors0(mesh, mesh.color_masks)
@@ -809,15 +809,11 @@ function finishMeshInit{T1}(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
 
 
   if opts["write_boundarynums"]
-    rmfile("boundary_nums_$myrank.dat")
-    f = open("boundary_nums_$myrank.dat", "a+")
-    println(f, boundary_nums)
-    close(f)
+    writedlm("boundary_nums_$myrank.dat", boundary_nums)
   end
 
   if opts["write_dxidx"]
-    rmfile("dxidx_$myrank.dat")
-    printdxidx("dxidx_$myrank.dat", mesh.dxidx)
+    writedlm("dxidx_$myrank.dat", mesh.dxidx)
   end
 #=
   if opts["write_jac2"]
@@ -913,7 +909,7 @@ end
 
  
   
-function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opts; 
+function PumiMeshDG3Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)
 # construct pumi mesh for preconditioner residual evaluations
 # this operates by copying an existing mesh object (hence not loading a new
@@ -934,7 +930,7 @@ function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
     numc = colorMesh2(mesh)
     mesh.numColors = numc
 
-    mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
+    mesh.color_masks = Array{BitArray{1}}(numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
     getColors1(mesh, colordata, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
@@ -944,7 +940,7 @@ function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
     numc = colorMesh0(mesh)
     @assert numc == 1
     mesh.numColors = numc
-    mesh.color_masks = Array(BitArray{1}, numc)
+    mesh.color_masks = Array{BitArray{1}}(numc)
     mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
     getColors0(mesh, mesh.color_masks)

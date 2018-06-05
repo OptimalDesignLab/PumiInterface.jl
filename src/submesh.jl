@@ -140,19 +140,19 @@ function count_entities(mesh::PumiMesh, oldmesh::PumiMesh, el_list::AbstractVect
 
   mesh.numEl = length(el_list)
 
-  mesh.verts = verts = Array(Ptr{Void}, 0)
-  mesh.edges = edges = Array(Ptr{Void}, 0)
+  mesh.verts = verts = Array{Ptr{Void}}(0)
+  mesh.edges = edges = Array{Ptr{Void}}(0)
 
   if mesh.dim == 2
     mesh.faced = edges
     entity_arrays = [verts, edges]
   else
-    mesh.faces = faces = Array(Ptr{Void}, 0)
+    mesh.faces = faces = Array{Ptr{Void}}(0)
     entity_arrays = [verts, edges, faces]
   end
 
   # apf::Up
-  up_adj = Array(Ptr{Void}, 400)
+  up_adj = Array{Ptr{Void}}(400)
 
   # count vertices, edges, and faces with an element as a parent
   for dim=0:(mesh.dim - 1)
@@ -180,7 +180,7 @@ function count_entities(mesh::PumiMesh, oldmesh::PumiMesh, el_list::AbstractVect
   end  # end loop dim
 
   # get the elements array
-  els = Array(Ptr{Void}, mesh.numEl)
+  els = Array{Ptr{Void}}(mesh.numEl)
   copy_masked(els, mesh.elements, el_list)
 
   mesh.numVert = length(mesh.verts)
@@ -335,11 +335,11 @@ end
 function getBoundaryInterpArray(oldmesh::PumiMesh2D, newmesh::PumiMesh2D)
 
   rng = newmesh.bndry_offsets[end-1]:(newmesh.bndry_offsets[end]-1)
-  interface_arr = Array(Interface, length(rng))
+  interface_arr = Array{Interface}(length(rng))
 
   parent_N = getParentNumbering(newmesh.subdata)
-  edges = Array(Ptr{Void}, 12)  # apf::Downward
-  el_arr = Array(Ptr{Void}, 2)  # number of elements that share an edge
+  edges = Array{Ptr{Void}}(12)  # apf::Downward
+  el_arr = Array{Ptr{Void}}(2)  # number of elements that share an edge
   pos = 1  # position in interface_arr
 
   for i in rng

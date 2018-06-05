@@ -21,15 +21,15 @@ function compare_meshes(mesh, mesh_c)
 
   # check that the real parts of the field are the same and the imaginary
   # parts are zero
-  facts("----- Comparing meshes -----") do
+  @testset "----- Comparing meshes -----" begin
     for i in fieldnames
 
       f_real = getfield(mesh, i)
       f_imag = getfield(mesh_c, i)
 
       if length(f_real) != 0
-        @fact vecnorm(f_real - real(f_imag))/sqrt(length(f_real)) --> roughly(0.0, atol=1e-14)
-        @fact vecnorm(imag(f_imag)) --> roughly(0.0, atol=1e-14)
+        @test isapprox( vecnorm(f_real - real(f_imag))/sqrt(length(f_real)), 0.0) atol=1e-14
+        @test isapprox( vecnorm(imag(f_imag)), 0.0) atol=1e-14
       end
     end
 
@@ -42,8 +42,8 @@ function compare_meshes(mesh, mesh_c)
         f_real_peer = f_real[peer]
         f_imag_peer = f_imag[peer]
         
-        @fact vecnorm(f_real_peer - real(f_imag_peer))/sqrt(length(f_real_peer)) --> roughly(0.0, atol=1e-14)
-        @fact vecnorm(imag(f_imag_peer)) --> roughly(0.0, atol=1e-14)
+        @test isapprox( vecnorm(f_real_peer - real(f_imag_peer))/sqrt(length(f_real_peer)), 0.0) atol=1e-14
+        @test isapprox( vecnorm(imag(f_imag_peer)), 0.0) atol=1e-14
       end
     end
   end

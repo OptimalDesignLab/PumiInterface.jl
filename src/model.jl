@@ -31,7 +31,7 @@
   TOOD: use sview to remove this machinery
 
 """
-function getMeshEdgesFromModel{T, I<:Integer}(mesh::PumiMesh, medges::AbstractArray{I, 1}, offset::Integer, boundary_nums::AbstractArray{T, 2})
+function getMeshEdgesFromModel(mesh::PumiMesh, medges::AbstractArray{I, 1}, offset::Integer, boundary_nums::AbstractArray{T, 2}) where {T, I<:Integer}
 # get the global numbers of the mesh edges lying on the model edges in medges
 # medges typically coresponds to all the model edges that have a particular
 # boundary condition applied to them
@@ -41,7 +41,7 @@ function getMeshEdgesFromModel{T, I<:Integer}(mesh::PumiMesh, medges::AbstractAr
 
 #  bndry_edges = zeros(Int, mesh.numBoundaryFaces)
   index = 0  # relative index in bndry_edges
-  faces = Array(Ptr{Void}, 2)  # an edge can have maximum 2 faces using it
+  faces = Array{Ptr{Void}}(2)  # an edge can have maximum 2 faces using it
   print_warning = false
   for i=1:mesh.numFace
     edge_i = mesh.faces[i]
@@ -110,12 +110,12 @@ function countBoundaryEdges(mesh::PumiMesh)
   bnd_edges_cnt = 0  # number of edges with boundary conditions
   internal_edge_cnt = 0 # count the number of internal interfaces
   periodic_edge_cnt = 0  # number of *pairs* of periodic BCs
-  geo_edge_nums = Array(Int, 0)
+  geo_edge_nums = Array{Int}(0)
 
   # temporary arrays
-  elements = Array(Ptr{Void}, 2)  # edge has maximum 2 faces
-  part_nums = Array(Cint, 1)
-  matched_entities = Array(Ptr{Void}, 1)
+  elements = Array{Ptr{Void}}(2)  # edge has maximum 2 faces
+  part_nums = Array{Cint}(1)
+  matched_entities = Array{Ptr{Void}}(1)
   seen_matches = Set{Ptr{Void}}()
   for i=1:mesh.numFace
     edge_i = mesh.faces[i]
@@ -182,10 +182,10 @@ end  # end function
    * an array of Boundary objects
 """
 function getBoundaries(mesh::PumiMesh, geo_face_nums::Array{Int, 1},
-                       geo_region_nums::Array{Int, 1} = Array(Int, 0))
+                       geo_region_nums::Array{Int, 1} = Array{Int}(0))
 
-  bndries = Array(Boundary, 0)
-  adjacent_els = Array(Ptr{Void}, 400)  # apf::Up
+  bndries = Array{Boundary}(0)
+  adjacent_els = Array{Ptr{Void}}(400)  # apf::Up
 
   #TODO: check input arrays for uniqueness
 

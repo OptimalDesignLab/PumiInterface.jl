@@ -15,7 +15,7 @@ end
   Test reverse mode of metric interpolation function
 """
 function test_interp_rev(mesh)
-  facts("\n ----- Testing interp rev -----") do
+  @testset "\n ----- Testing interp rev -----" begin
 
     dim = mesh.dim
 
@@ -98,7 +98,7 @@ function test_interp_rev(mesh)
     end
 
 
-    @fact norm(jac_forward - jac_rev) --> roughly(0.0, atol=1e-11)
+    @test isapprox( norm(jac_forward - jac_rev), 0.0) atol=1e-11
 
     # now test the full routine
     fill!(mesh.dxidx_bar, 0.0)
@@ -110,7 +110,7 @@ function test_interp_rev(mesh)
     for i=1:mesh.numInterfaces
       el = mesh.interfaces[i].elementL
       for j=1:mesh.numNodesPerFace
-        @fact norm(mesh.dxidx_bar[:, :, j, el]) --> greater_than(0.0)
+        @test  norm(mesh.dxidx_bar[:, :, j, el])  > 0.0
       end
     end
     
@@ -121,7 +121,7 @@ function test_interp_rev(mesh)
     for i=1:mesh.numBoundaryFaces
       el = mesh.bndryfaces[i].element
       for j=1:mesh.numNodesPerFace
-        @fact norm(mesh.dxidx_bar[:, :, j, el]) --> greater_than(0.0)
+        @test  norm(mesh.dxidx_bar[:, :, j, el])  > 0.0
       end
     end
  
@@ -135,12 +135,12 @@ function test_interp_rev(mesh)
       for i=1:mesh.numBoundaryFaces
         el = mesh.shared_interfacesfaces[p][i].elementL
         for j=1:mesh.numNodesPerFace
-          @fact norm(mesh.dxidx_bar[:, :, j, el]) --> greater_than(0.0)
+          @test  norm(mesh.dxidx_bar[:, :, j, el])  > 0.0
         end
       end
 
       fill!(mesh.dxidx_bar, 0.0)
-      fill!(mesh.dxidx_sharedface[peer]. 0.0)
+      fill!(mesh.dxidx_sharedface[peer], 0.0)
     end
    
   end
@@ -155,7 +155,7 @@ end  # end function
 """
 function test_metric_rev(mesh, mesh_c, sbp, opts)
 
-  facts("----- testing metric reverse mode -----") do
+  @testset "----- testing metric reverse mode -----" begin
     sbpface = mesh.sbpface
     nrm = rand(Complex128, mesh.dim, mesh.numNodesPerFace)
     nrm[:, :] = real(nrm)
@@ -204,7 +204,7 @@ function test_metric_rev(mesh, mesh_c, sbp, opts)
       Eone_el_bar[j] = 0
     end
 
-    @fact norm(jac - jac2)/length(jac2) --> roughly(0.0, atol=1e-12)
+    @test isapprox( norm(jac - jac2)/length(jac2), 0.0) atol=1e-12
 
 
     # test assembleEone
@@ -249,13 +249,14 @@ function test_metric_rev(mesh, mesh_c, sbp, opts)
       Eone_bar[j] = 0
     end
 
-    @fact norm(jac - jac2) --> roughly(0.0, atol=1e-12)
+    @test isapprox( norm(jac - jac2), 0.0) atol=1e-12
 
 
     test_metric2_rev(mesh, mesh_c, sbp, opts)
     test_metrics3_rev(mesh, mesh_c, sbp, opts)
     test_metrics4_rev(mesh, mesh_c, sbp, opts)
     test_metrics5_rev(mesh, mesh_c, sbp, opts)
+
 
   end  # end facts block
 
@@ -267,7 +268,7 @@ end
 """
 function test_metric2_rev(mesh, mesh_c, sbp, opts)
 
-  facts("----- Testing second part of Metric reverse mode -----") do
+  @testset "----- Testing second part of Metric reverse mode -----" begin
 
     # test calcEone_rev
     # use finite differences because the perturbation is applied to the fields
@@ -371,7 +372,7 @@ function test_metric2_rev(mesh, mesh_c, sbp, opts)
 
     end  # end loop j
 
-    @fact maximum(abs(jac - jac2)) --> roughly(0.0, atol=1e-12)
+    @test isapprox( maximum(abs.(jac - jac2)), 0.0) atol=1e-12
   end  # end facts block
 
   return nothing
@@ -382,7 +383,7 @@ end
 """
 function test_metrics3_rev(mesh, mesh_c, sbp, opts)
 
-  facts("----- testing metrics reverse mode 3 -----") do
+  @testset "----- testing metrics reverse mode 3 -----" begin
 #    nout = mesh.dim*mesh.numNodesPerElement*2
     nout = length(mesh.dxidx) + length(mesh.jac)
     nin = length(mesh.vert_coords) + length(mesh.nrm_face) + length(mesh.nrm_bndry)
@@ -581,7 +582,7 @@ function test_metrics3_rev(mesh, mesh_c, sbp, opts)
     end  # end loop j
 
 
-    @fact maximum(abs(jac - jac2)) --> roughly(0.0, atol=1e-5)
+    @test isapprox( maximum(abs.(jac - jac2)), 0.0) atol=1e-5
   end
 
   return nothing
@@ -600,7 +601,7 @@ function test_metrics4_rev(mesh, mesh_c, sbp, opts)
     fill!(mesh.nrm_sharedface_bar[i], 0.0)
   end
 
-  facts("----- Testing metrics4_rev -----") do
+  @testset "----- Testing metrics4_rev -----" begin
     nin = length(mesh.vert_coords)
     nout = length(mesh.nrm_bndry) + length(mesh.nrm_face)
     for i=1:mesh.npeers
@@ -708,8 +709,8 @@ function test_metrics4_rev(mesh, mesh_c, sbp, opts)
     end
 
      
-    diffnorm = maximum(abs(jac - jac2))
-    @fact diffnorm --> roughly(0.0, atol=1e-5)
+    diffnorm = maximum(abs.(jac - jac2))
+    @test isapprox( diffnorm, 0.0) atol=1e-5
   end
 
   return nothing
@@ -721,7 +722,7 @@ end
 """
 function test_metrics5_rev(mesh, mesh_c, sbp, opts)
   
-  facts("----- testing metrics5_rev -----") do
+  @testset "----- testing metrics5_rev -----" begin
 
     nin = length(mesh.vert_coords)
 
@@ -862,7 +863,7 @@ function test_metrics5_rev(mesh, mesh_c, sbp, opts)
       end
     end
 
-    @fact maximum(abs(jac - jac2)) --> roughly(0.0, atol=1e-12)
+    @test isapprox( maximum(abs.(jac - jac2)), 0.0) atol=1e-12
   end
 
   return nothing
@@ -885,7 +886,7 @@ function test_coords_rev(mesh, sbp)
   idx1(dim, vert, el) = dim + mesh.dim*(vert-1) + (el-1)*numVertsPerElement*mesh.dim
   idx2(dim, node, el) = dim + mesh.dim*(node-1) + (el-1)*mesh.numNodesPerElement*mesh.dim
 
-  facts("----- Testing coordiate reverse mode -----") do
+  @testset "----- Testing coordiate reverse mode -----" begin
   # compute the jacobian with forward mode
   nin = mesh.dim*numVertsPerElement*mesh.numEl
   nout = mesh.dim*mesh.numNodesPerElement*mesh.numEl
@@ -948,7 +949,7 @@ function test_coords_rev(mesh, sbp)
 
   for i=1:nout
     for j=1:nin
-      @fact jac[j, i] --> roughly(jac2[j, i], atol=1e-13)
+      @test isapprox( jac[j, i], jac2[j, i]) atol=1e-13
     end
   end
 
@@ -960,7 +961,7 @@ end
 
 function test_submesh()
 
-  facts("----- Testing SubMesh -----") do
+  @testset "----- Testing SubMesh -----" begin
     order = 1
     sbp = getTriSBPOmega(degree=order)
     vtx = sbp.vtx
@@ -981,22 +982,22 @@ function test_submesh()
 
     submesh, subopts = PumiMeshDG2(mesh, sbp, opts, "resolveBC", el_list)
 
-    @fact submesh.order --> mesh.order
-    @fact submesh.numEl --> length(el_list)
-    @fact subopts["numBC"] --> 2
-    @fact subopts["BC2_name"] --> "resolveBC"
-    @fact (subopts["BC2"][1] in subopts["BC1"]) --> false
+    @test ( submesh.order )== mesh.order
+    @test ( submesh.numEl )== length(el_list)
+    @test ( subopts["numBC"] )== 2
+    @test ( subopts["BC2_name"] )== "resolveBC"
+    @test ( (subopts["BC2"][1] in subopts["BC1"]) )== false
 
     # do a a dangling mesh
     el_list = Cint[1, 2, 5, 6]
 
     submesh, subopts = PumiMeshDG2(mesh, sbp, opts, "resolveBC", el_list)
 
-    @fact submesh.order --> mesh.order
-    @fact submesh.numEl --> length(el_list)
-    @fact subopts["numBC"] --> 2
-    @fact subopts["BC2_name"] --> "resolveBC"
-    @fact (subopts["BC2"][1] in subopts["BC1"]) --> false
+    @test ( submesh.order )== mesh.order
+    @test ( submesh.numEl )== length(el_list)
+    @test ( subopts["numBC"] )== 2
+    @test ( subopts["BC2_name"] )== "resolveBC"
+    @test ( (subopts["BC2"][1] in subopts["BC1"]) )== false
 
 
     # test injection and rejection
@@ -1033,11 +1034,11 @@ function test_submesh()
         for k=1:mesh.numDofPerNode
           dof = mesh.dofs[k, j, i]
           if i in el_list
-            @fact qold3[dof] --> i + j + k + 1
-            @fact qold4[k, j, i] --> i + j + k + 1
+            @test ( qold3[dof] )== i + j + k + 1
+            @test ( qold4[k, j, i] )== i + j + k + 1
           else
-            @fact qold3[dof] --> 0.0
-            @fact qold4[k, j, i] --> 0.0
+            @test ( qold3[dof] )== 0.0
+            @test ( qold4[k, j, i] )== 0.0
           end
         end
       end
@@ -1047,9 +1048,9 @@ function test_submesh()
     interp_arr = getBoundaryInterpArray(mesh, submesh)
 
     for iface in interp_arr
-      @fact iface.elementL in el_list --> true
-      @fact iface.elementR in el_list --> false
-      @fact iface.elementL == iface.elementR --> false
+      @test ( iface.elementL in el_list )== true
+      @test ( iface.elementR in el_list )== false
+      @test ( iface.elementL == iface.elementR )== false
     end
 
 
@@ -1078,7 +1079,7 @@ function test_parallel_metrics(mesh, sbp, opts)
     end
   end
   # do one peer at a time in case a single element is shared with multiple peers
-  facts("----- Testing exchangeMetricInfo -----") do 
+  @testset "----- Testing exchangeMetricInfo -----" begin
     for peer=1:mesh.npeers
       # vert_coords
       numel = mesh.local_element_counts[peer]
@@ -1164,7 +1165,7 @@ function test_parallel_metrics(mesh, sbp, opts)
           for k=1:mesh.dim
             tmp = obj.vert_coords[k, j, i]
             if tmp >= 0 
-              @fact tmp --> val
+              @test ( tmp )== val
             end
             val += 1
           end
@@ -1175,7 +1176,7 @@ function test_parallel_metrics(mesh, sbp, opts)
           for k=1:mesh.dim
             tmp = obj.coords[k, j, i]
             if tmp >= 0
-              @fact tmp --> val
+              @test ( tmp )== val
             end
             val += 1
           end
@@ -1187,7 +1188,7 @@ function test_parallel_metrics(mesh, sbp, opts)
             for d1=1:mesh.dim
               tmp = obj.dxidx[d1, d2, j, i]
               if tmp >= 0
-                @fact tmp --> val
+                @test ( tmp )== val
               end
               val += 1
             end
@@ -1198,7 +1199,7 @@ function test_parallel_metrics(mesh, sbp, opts)
         for j=1:mesh.numNodesPerElement
           tmp = obj.jac[j, i]
           if tmp >= 0
-            @fact tmp --> val
+            @test ( tmp )== val
           end
           val += 1
         end
@@ -1214,15 +1215,15 @@ end
 
 function testSurfaceNumbering(mesh, sbp, opts)
 
-  facts("----- Testing Surface Numbering -----") do
+  @testset "----- Testing Surface Numbering -----" begin
     nBCs = opts["numBC"]
     bc_nums =  [nBCs]  # only do the last BC  #TODO: re-enable this
 #    bc_nums = 1:nBCs
     numFacePts, n_face, face_verts = numberSurfacePoints(mesh, bc_nums)
 
-    @fact length(face_verts) --> numFacePts
+    @test ( length(face_verts) )== numFacePts
 
-    geo_tags = Array(Int, 0)
+    geo_tags = Array{Int}(0)
     for bc in bc_nums
       geo_tags_bc = opts["BC$bc"]
       for j=1:length(geo_tags_bc)
@@ -1241,7 +1242,7 @@ function testSurfaceNumbering(mesh, sbp, opts)
       me_tag = getModelTag(mesh.m_ptr, me)
 
       if me_type == mesh.dim - 1
-        @fact me_tag in geo_tags --> true
+        @test ( me_tag in geo_tags )== true
       end
 
     end
@@ -1249,7 +1250,7 @@ function testSurfaceNumbering(mesh, sbp, opts)
     # check that all entities with number numFacePts + 1 are not on the geometry
 
     seen_nums = zeros(Int, numFacePts)
-    entities = Array(Vector{Ptr{Void}}, 2)
+    entities = Array{Vector{Ptr{Void}}}(2)
     entities[1] = mesh.verts
     entities[2] = mesh.edges
     for edim = 1:length(entities)
@@ -1262,20 +1263,20 @@ function testSurfaceNumbering(mesh, sbp, opts)
 
           if n_v > numFacePts
             if me_type == mesh.dim - 1
-              @fact !(me_tag in geo_tags) --> true
+              @test ( !(me_tag in geo_tags) )== true
             end
           else 
             seen_nums[n_v] += 1  # for uniqueness check
             if me_type == mesh.dim - 1
-              @fact me_tag in geo_tags --> true
+              @test ( me_tag in geo_tags )== true
             end
           end
         end  # end loop vert
       end  # end if
     end  # end loop edim
 
-    @fact maximum(seen_nums) --> 1
-    @fact minimum(seen_nums) --> 1
+    @test ( maximum(seen_nums) )== 1
+    @test ( minimum(seen_nums) )== 1
   end  # end facts block
 
   return nothing

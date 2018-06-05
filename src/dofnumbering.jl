@@ -90,7 +90,7 @@ function getDofNumbers(mesh::PumiMeshDG)
 #println("in getDofNumbers")
 #println("numNodesPerElement = ", mesh.numNodesPerElement)
 
-  mesh.dofs = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.shared_element_offsets[end] - 1)
+  mesh.dofs = Array{Int}(mesh.numDofPerNode, mesh.numNodesPerElement, mesh.shared_element_offsets[end] - 1)
 
   for i=1:mesh.numEl
     #TODO: use the non-allocating version
@@ -118,11 +118,11 @@ function getDofNumbers(mesh::PumiMeshDG)
   end
 
   # now send data
-  dof_sendbuf = Array(Array{Int, 3}, mesh.npeers)
+  dof_sendbuf = Array{Array{Int, 3}}(mesh.npeers)
   for i=1:mesh.npeers
     elnums_i = mesh.local_element_lists[i]
     numel = length(elnums_i)
-    dof_sendbuf[i] = Array(Int, mesh.numDofPerNode, mesh.numNodesPerElement, numel)
+    dof_sendbuf[i] = Array{Int}(mesh.numDofPerNode, mesh.numNodesPerElement, numel)
     sendbuf_i = dof_sendbuf[i]
     for j=1:length(elnums_i)
       elnum_j = elnums_i[j]
@@ -155,7 +155,7 @@ function getDofNumbers(mesh::PumiMeshDG)
   mesh.dof_offset = dof_offset
 
   # figure out peer dof_offsets
-  peer_dof_offsets = Array(Int, mesh.npeers)
+  peer_dof_offsets = Array{Int}(mesh.npeers)
   for i=1:mesh.npeers
     dof_offset_i = 0
     for j=1:mesh.peer_parts[i]
@@ -236,8 +236,8 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
   end
 
 
-  verts_i = Array(Ptr{Void}, 12)
-  edges_i = Array(Ptr{Void}, 12)
+  verts_i = Array{Ptr{Void}}(12)
+  edges_i = Array{Ptr{Void}}(12)
 #  resetAllIts2(mesh.m_ptr)
   el_i_ptr = Ptr{Void}(0)  # hold current element
 # TODO: move all if statements out one for loop (check only first dof on each node)
@@ -388,7 +388,7 @@ end
 function getDofNumbers(mesh::PumiMesh2)
 # populate array of dof numbers, in same shape as solution array u (or q)
 
-mesh.dofs = Array(Int32, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
+mesh.dofs = Array{Int32}(mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
 
 for i=1:mesh.numEl
   dofnums = getGlobalNodeNumbers(mesh, i)
@@ -431,7 +431,7 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   end
   dim = mesh.dim
   el_Nptr = mesh.el_Nptr
-  adj_els = Array(Ptr{Void}, mesh.numFacesPerElement)
+  adj_els = Array{Ptr{Void}}(mesh.numFacesPerElement)
   nodemap = mesh.nodemapSbpToPumi
   
   # initially number all components in range (numEl+1):(2*numEl)
@@ -458,7 +458,7 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   curr_dof = 1
   # the dreaded while loop
   while (!isempty(que))
-i#    print("\n")
+#    print("\n")
     curr_el = pop!(que)
 
     # only unlabelled entities are added to the que, and they are added 

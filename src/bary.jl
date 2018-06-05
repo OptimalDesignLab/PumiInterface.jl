@@ -13,7 +13,7 @@
     coords: a dim x numpoints array of xyz coordinates corresponding to 
             the barycentric coordinates
 """
-function baryToXY{T2}(bary::AbstractMatrix{T2}, vtx::AbstractMatrix)
+function baryToXY(bary::AbstractMatrix{T2}, vtx::AbstractMatrix) where T2
 
   @assert (size(bary, 1) >= 1 && size(bary, 1) <= 3)
   @assert (size(vtx, 2) >= 1 && size(vtx, 2) <= 3)
@@ -32,7 +32,7 @@ function baryToXY{T2}(bary::AbstractMatrix{T2}, vtx::AbstractMatrix)
 
   # compute xyz coordinates
   for i=1:npoints
-    coords[:, i] = T*bary[:, i] + r1.'
+    coords[:, i] = T*bary[:, i] + r1
   end
 
   return coords

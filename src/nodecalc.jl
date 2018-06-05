@@ -21,7 +21,7 @@ function nodecalc(sbp::TriSBP, isDG::Bool)
   xi = zeros(coords)
 
   for i=1:size(coords,2)
-    xi[:, i] = T\(coords[:, i] - r1.')
+    xi[:, i] = T\(coords[:, i] - r1)
   end
 
   return xi, coords
@@ -53,7 +53,7 @@ function nodecalc(sbp::TetSBP, isDG::Bool)
   xi = zeros(coords)
 
   for i=1:size(coords,2)
-    xi[:, i] = T\(coords[:, i] - r1.')
+    xi[:, i] = T\(coords[:, i] - r1)
   end
 
   return xi, coords

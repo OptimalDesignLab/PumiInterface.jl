@@ -5,7 +5,7 @@ os:
   - linux
 #  - osx
 julia:
-  - 0.4
+  - 0.6
 #  - nightly
 notifications:
   email: false
@@ -13,19 +13,25 @@ notifications:
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install build-essential gfortran perl g++ gcc cmake m4 git
-  - sudo apt-get install -y liblapack-dev liblapack-doc liblapack3gf
-  - sudo apt-get install -y libblas-dev libblas-doc libblas3gf
+  - sudo apt-get install -y liblapack-dev liblapack3gf
+  - sudo apt-get install -y libblas-dev libblas3gf
+  - sudo ./deps/travis-install-mpi.sh mpich3
+  # setting these variables will help cmake find MPI
+  - export CC=mpicc
+  - export FC=mpif90
+  - export CXX=mpicxx
+
 script:
   -  if [[ -a .git/shallow ]]; then git fetch --unshallow; fi 
   - julia --check-bounds=yes -e 'versioninfo(); Pkg.clone(pwd())'
-  - cd ~/.julia/v0.4/PumiInterface/deps
+#  - cd ~/.julia/v0.4/PumiInterface/deps
 #  - ./install_gcc_4.8.sh
 #  - ./install_cmake3.sh
 #  - source ./use_cmake.sh 
   - julia --check-bounds=yes -e 'Pkg.build("PumiInterface")'
-  - cd ~/.julia/v0.4/PumiInterface/src
+  - cd ~/.julia/v0.6/PumiInterface/src
   - source ./use_julialib.sh
-  - cd ~/.julia/v0.4/PumiInterface/test
+  - cd ~/.julia/v0.6/PumiInterface/test
   - ./runtests.sh
 #  - julia ./runtests.jl
 #  - cd ./Advection

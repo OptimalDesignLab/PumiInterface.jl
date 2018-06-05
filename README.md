@@ -344,4 +344,6 @@ v0.6: fix bug in in 3D metric calculation, also introduce asserts to make sure
 
 v0.7: change mesh constructors to be outer constructors, add submesh creation
 
+v0.8: upgrade from Julia 0.4 to Julia 0.6
+
 [![Build Status](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl.svg?branch=build_system)](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl)

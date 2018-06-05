@@ -179,24 +179,24 @@ end
 
   For interfaces, the normal is calculated for elementL
 """
-function allocateNormals{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
+function allocateNormals(mesh::PumiMeshDG{Tmsh}, sbp) where Tmsh
 
   dim = mesh.dim
   numfacenodes = mesh.numNodesPerFace
 
   if !isFieldDefined(mesh, :nrm_bndry, :nrm_face, :nrm_sharedface)
-    mesh.nrm_bndry = Array(Tmsh, dim, numfacenodes, mesh.numBoundaryFaces )
-    mesh.nrm_face = Array(Tmsh, mesh.dim, numfacenodes, mesh.numInterfaces)
-    mesh.nrm_sharedface = Array(Array{Tmsh, 3}, mesh.npeers)
+    mesh.nrm_bndry = Array{Tmsh}(dim, numfacenodes, mesh.numBoundaryFaces)
+    mesh.nrm_face = Array{Tmsh}(mesh.dim, numfacenodes, mesh.numInterfaces)
+    mesh.nrm_sharedface = Array{Array{Tmsh, 3}}(mesh.npeers)
 
     for i=1:mesh.npeers
-      mesh.nrm_sharedface[i] = Array(Tmsh, mesh.dim, numfacenodes, mesh.peer_face_counts[i])
+      mesh.nrm_sharedface[i] = Array{Tmsh}(mesh.dim, numfacenodes, mesh.peer_face_counts[i])
     end
 
     # adjoint parts
     mesh.nrm_bndry_bar = zeros(mesh.nrm_bndry)
     mesh.nrm_face_bar = zeros(mesh.nrm_face)
-    mesh.nrm_sharedface_bar = Array(Array{Tmsh, 3}, mesh.npeers)
+    mesh.nrm_sharedface_bar = Array{Array{Tmsh, 3}}(mesh.npeers)
     for i=1:mesh.npeers
       mesh.nrm_sharedface_bar[i] = zeros(mesh.nrm_sharedface[i])
     end
@@ -227,12 +227,12 @@ end
 
    * mesh: a DG mesh. mesh.remote_metrics is populated by this function
 """
-function exchangeMetricInfo{Tmsh}(mesh::PumiMeshDG{Tmsh}, sbp)
+function exchangeMetricInfo(mesh::PumiMeshDG{Tmsh}, sbp) where Tmsh
 
-  remote_metrics = Array(RemoteMetrics{Tmsh}, mesh.npeers)  # receive buffers
-  local_metrics = Array(RemoteMetrics{Tmsh}, mesh.npeers)  # send buffers
-  send_reqs = Array(MPI.Request, 4, mesh.npeers)
-  recv_reqs = Array(MPI.Request, 4, mesh.npeers)
+  remote_metrics = Array{RemoteMetrics{Tmsh}}(mesh.npeers)  # receive buffers
+  local_metrics = Array{RemoteMetrics{Tmsh}}(mesh.npeers)  # send buffers
+  send_reqs = Array{MPI.Request}(4, mesh.npeers)
+  recv_reqs = Array{MPI.Request}(4, mesh.npeers)
 
 
   # allocate the arrays and post the MPI receives

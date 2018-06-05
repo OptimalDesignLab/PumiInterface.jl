@@ -122,7 +122,7 @@ export PumiMeshDG2
           The global dof number is the number stored in this array + 
           dof_offset  (even for the non-local elements)
 """->
-type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
+mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to mesh used for visualization, which might be
                        # m_ptr or a subtriangulated mesh (high order only)
@@ -415,9 +415,10 @@ type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d p
    * mesh
 
   """
-  function PumiMeshDG2(dmg_name::AbstractString, smb_name::AbstractString;
+  function PumiMeshDG2{T1, Tface}(dmg_name::AbstractString,
+                       smb_name::AbstractString;
                        order::Integer=1, shape_type::Integer=-1,
-                       comm=MPI.COMM_WORLD)
+                       comm=MPI.COMM_WORLD) where {T1, Tface <: AbstractFace{Float64}}
     # this constructor does all the low-level Pumi initialization
     # shape_type should be the *coordinate* shape type
     # order should be the shape function order
@@ -427,7 +428,7 @@ type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d p
     end
 
 
-    mesh = new()
+    mesh = new{T1, Tface}()
     mesh.isDG = true
     mesh.dim = 2
 
@@ -458,8 +459,8 @@ type PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1}   # 2d p
   """
     Returns uninitialized PumiMeshDG2 object.
   """
-  function PumiMeshDG2()
-    return new()
+  function PumiMeshDG2{T1, Tface}() where {T1, Tface}
+    return new{T1, Tface}()
   end
 end  # end PumiMeshDG2 declaration
 
@@ -467,9 +468,9 @@ end  # end PumiMeshDG2 declaration
    This outer constructor loads a mesh from a file, according to the options
    specified in the options dictionary
 """
-function PumiMeshDG2{T, Tface}(::Type{T}, sbp::AbstractSBP, opts, 
-                               sbpface::Tface; dofpernode=1, shape_type=2,
-                               comm=MPI.COMM_WORLD)
+function PumiMeshDG2(::Type{T}, sbp::AbstractSBP, opts, 
+                     sbpface::Tface; dofpernode=1, shape_type=2,
+                     comm=MPI.COMM_WORLD) where {T, Tface}
 
   set_defaults(opts)  # get default arguments
 
@@ -513,8 +514,8 @@ end  # end outer constructor
    * mesh: the new mesh object, fully initialized
    * opts: the new options dictionary
 """
-function PumiMeshDG2{T, Tface}(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts_old,
-                              newbc_name::AbstractString, el_list::AbstractVector)
+function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts_old,
+                    newbc_name::AbstractString, el_list::AbstractVector) where {T, Tface}
 
   @assert length(el_list) > 0
 
@@ -541,7 +542,7 @@ function PumiMeshDG2{T, Tface}(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts_old,
 
   # construct new mesh
   if eltype(el_list) != Cint
-    _el_list = Array(Cint, length(el_list))
+    _el_list = Array{Cint}(length(el_list))
     copy!(_el_list, el_list)
   else
     _el_list = el_list
@@ -591,7 +592,7 @@ end
    * shape_type: integer describing solution field
 
 """
-function finishMeshInit{T1}(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofpernode=1, shape_type=2)
+function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofpernode=1, shape_type=2) where T1
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -792,7 +793,7 @@ function finishMeshInit{T1}(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofp
     mesh.numColors = numc
     mesh.maxColors = MPI.Allreduce(numc, MPI.MAX, mesh.comm)
     println(mesh.f, "max colors = ", mesh.maxColors)
-    mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
+    mesh.color_masks = Array{BitArray{1}}(numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
     cnt, mesh.shared_element_colormasks = getColors1(mesh, colordata, mesh.color_masks, 
@@ -804,7 +805,7 @@ function finishMeshInit{T1}(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofp
     @assert numc == 1
     mesh.numColors = numc
     mesh.maxColors = numc
-    mesh.color_masks = Array(BitArray{1}, numc)
+    mesh.color_masks = Array{BitArray{1}}(numc)
     mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
     getColors0(mesh, mesh.color_masks)
@@ -886,16 +887,12 @@ function finishMeshInit{T1}(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofp
   end
 
   if opts["write_boundarynums"]
-    rmfile("boundary_nums_$myrank.dat")
-    f = open("boundary_nums_$myrank.dat", "a+")
-    println(f, boundary_nums)
-    close(f)
+    writedlm("boundary_nums_$myrank.dat", boundary_nums)
   end
 
   if opts["write_dxidx"]
     rmfile("dxidx_$myrank.dat")
     writedlm("dxidx_$myrank.dat", mesh.dxidx)
-#    printdxidx("dxidx_$myrank.dat", mesh.dxidx)
   end
 
   if opts["write_jac"]
@@ -1063,15 +1060,15 @@ function PumiMeshDG2(oldmesh::PumiMeshDG, el_list::AbstractArray)
   mesh.myrank = oldmesh.myrank
   mesh.commsize = oldmesh.commsize
   @assert mesh.commisze == 1
-  mesh.peer_parts = Array(Int, 0)
+  mesh.peer_parts = Array{Int}(0)
   mesh.npeers = 0
-  mesh.peer_face_counts = Array(Int, 0)
-  mesh.send_waited = Array(Bool, 0)
-  mesh.send_reqs = Array(MPI.Request, 0)
-  mesh.send_stats = Array(MPI.Status, 0)
-  mesh.recv_waited = Array(Bool, 0)
-  mesh.recv_reqs = Array(MPI.Request, 0)
-  mesh.recv_stats = Array(MPI.Status, 0)
+  mesh.peer_face_counts = Array{Int}(0)
+  mesh.send_waited = Array{Bool}(0)
+  mesh.send_reqs = Array{MPI.Request}(0)
+  mesh.send_stats = Array{MPI.Status}(0)
+  mesh.recv_waited = Array{Bool}(0)
+  mesh.recv_reqs = Array{MPI.Request}(0)
+  mesh.recv_stats = Array{MPI.Status}(0)
 
   mesh.ref_verts = copy(oldmesh.ref_verts)
   mesh.dim = oldmesh.dim
@@ -1097,14 +1094,14 @@ function PumiMeshDG2(oldmesh::PumiMeshDG, el_list::AbstractArray)
   mesh.interp_op = copy(oldmesh.interp_op)
 
   #TODO: update this section when parallelizing
-  mesh.bndries_local = Array(Array{Boundary, 1}, 0)
-  mesh.bndries_remote = Array(Array{Boundary, 1}, 0)
-  mesh.shared_interfaces = Array(Array{Interface, 1}, 0)
-  mesh.shared_element_offsets = Array(Int, 0)
-  mesh.local_element_counts = Array(Int, 0)
-  mesh.remote_element_counts = Array(Int, 0)
-  mesh.local_element_list = Array(Array{Int32, 1}, 0)
-  mesh.shared_element_colormasks = Array(Array{BitArray{1}, 1}, 0)
+  mesh.bndries_local = Array{Array{Boundary, 1}}(0)
+  mesh.bndries_remote = Array{Array{Boundary, 1}}(0)
+  mesh.shared_interfaces = Array{Array{Interface, 1}}(0)
+  mesh.shared_element_offsets = Array{Int}(0)
+  mesh.local_element_counts = Array{Int}(0)
+  mesh.remote_element_counts = Array{Int}(0)
+  mesh.local_element_list = Array{Array{Int32, 1}}(0)
+  mesh.shared_element_colormasks = Array{Array{BitArray{1}, 1}}(0)
 
   mesh.sbpface = oldmesh.sbpface
   mesh.topo = oldmesh.topo
@@ -1158,7 +1155,7 @@ function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
     numc = colorMesh2(mesh)
     mesh.numColors = numc
 
-    mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
+    mesh.color_masks = Array{BitArray{1}}(numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
     getColors1(mesh, colordata, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
@@ -1168,7 +1165,7 @@ function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
     numc = colorMesh0(mesh)
     @assert numc == 1
     mesh.numColors = numc
-    mesh.color_masks = Array(BitArray{1}, numc)
+    mesh.color_masks = Array{BitArray{1}}(numc)
     mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
     getColors0(mesh, mesh.color_masks)
@@ -1231,9 +1228,9 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
 
 
 
-  verts = Array(Ptr{Void}, numVert)
-  edges = Array(Ptr{Void}, numEdge)
-  elements = Array(Ptr{Void}, numEl)
+  verts = Array{Ptr{Void}}(numVert)
+  edges = Array{Ptr{Void}}(numEdge)
+  elements = Array{Ptr{Void}}(numEl)
   dofnums_Nptr = mesh.dofnums_Nptr  # use existing dof pointers
 
   # get pointers to all MeshEntities
@@ -1284,7 +1281,7 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
 
   # count boundary edges
   bnd_edges_cnt = 0
-  bnd_edges = Array(Int, numEdge, 2)
+  bnd_edges = Array{Int}(numEdge, 2)
   it = MeshIterator(mesh.m_ptr, 1)
   for i=1:numEdge
     edge_i = iterate(mesh.m_ptr, it)

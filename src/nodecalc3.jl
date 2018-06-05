@@ -1,6 +1,6 @@
 using SummationByParts
 
-
+#=
 function nodecalc(sbp::TetSBP, isDG::Bool)
   vtx = [0.0 0 0; 1 0 0; 0 1 0; 0 0 1]
   r1 = vtx[1, :]
@@ -28,6 +28,7 @@ function nodecalc(sbp::TetSBP, isDG::Bool)
 
   return xi, coords
 end
+=#
 
 function printCaseStatement(xi)
   nnodes = size(xi, 2)

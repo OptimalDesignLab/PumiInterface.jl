@@ -56,7 +56,7 @@ end  # end function saveSolutionToMesh
 function saveNodalSolution(mesh::PumiMesh, u::AbstractArray{Float64, 3})
 # u must be a nodal solution
 
-  down_verts = Array(Ptr{Void}, 12)
+  down_verts = Array{Ptr{Void}}(12)
   for el = 1:mesh.numEl
     el_i = mesh.elements[el]
     nverts = getDownward(mesh.m_ptr, el_i, 0, down_verts)
@@ -85,7 +85,7 @@ function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
   end
 end
 
-function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
+function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector) where T
 # interpolate solution stored in u to the field mesh.fnew_ptr which resides on
 # mesh.mnew_ptr 
 # u is the vector containing the solution, even though for DG the vector and 
@@ -109,7 +109,7 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
   jac_verts = zeros(T, size(interp, 1))
   u_node = zeros(Float64, mesh.numDofPerNode)  # hold new node values
   u_node2 = zeros(u_node)  # hold existing node values
-  node_entities = Array(Ptr{Void}, mesh.coord_numNodesPerElement)
+  node_entities = Array{Ptr{Void}}(mesh.coord_numNodesPerElement)
   dofs = mesh.dofs
   numTypePerElement = mesh.numTypePerElement
   numEntitiesPerType = mesh.numEntitiesPerType
@@ -119,10 +119,10 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
   match_data = zeros(mesh.numDofPerNode + 1, mesh.numVert)
 
   matches_partnums = zeros(Cint, 400 + 8)  # upper bound
-  matches_entities = Array(Ptr{Void}, 400 + 8)
+  matches_entities = Array{Ptr{Void}}(400 + 8)
 
   # count nodes on solution field 
-  numNodesPerType = Array(Int, mesh.dim + 1)
+  numNodesPerType = Array{Int}(mesh.dim + 1)
   numNodesPerType[1] = countNodesOn(fshape_ptr, 0)
   numNodesPerType[2] = countNodesOn(fshape_ptr, 1)
   numNodesPerType[3] = countNodesOn(fshape_ptr, 2)
@@ -135,8 +135,8 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
   # data for MPI
   # values solution values in first n indices of inner array, followed
   # by the weighting factor
-  peer_vals_send = Array(Array{Float64, 2}, vshare.npeers)
-  peer_vals_recv = Array(Array{Float64, 2}, vshare.npeers)
+  peer_vals_send = Array{Array{Float64, 2}}(vshare.npeers)
+  peer_vals_recv = Array{Array{Float64, 2}}(vshare.npeers)
   for i=1:vshare.npeers
     peer_vals_send[i] = zeros(Float64, mesh.numDofPerNode + 1, vshare.counts[i])
     peer_vals_recv[i] = zeros(peer_vals_send[i])
@@ -244,8 +244,8 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
   end  # end loop over elements
 
   # send the data
-  send_reqs = Array(MPI.Request, vshare.npeers)
-  recv_reqs = Array(MPI.Request, vshare.npeers)
+  send_reqs = Array{MPI.Request}(vshare.npeers)
+  recv_reqs = Array{MPI.Request}(vshare.npeers)
   for i=1:vshare.npeers
     # use the tag 20 in case any other parts of the program have active
     # communications
@@ -294,7 +294,7 @@ function interpolateToMesh{T}(mesh::PumiMesh{T}, u::AbstractVector)
 
 
 
-  up_els = Array(Ptr{Void}, 400)  # equivalent of apf::Up
+  up_els = Array{Ptr{Void}}(400)  # equivalent of apf::Up
   # divide by the total volume of elements that contributed to each node
   # so the result is the average value
   for dim=1:(mesh.dim + 1)

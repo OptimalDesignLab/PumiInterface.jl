@@ -9,6 +9,7 @@ using ArrayViews
 using MPI
 
 import ODLCommonTools.sview
+import ArrayViews.view
 
 include("nodecalc.jl")
 #include("bary.jl")
@@ -61,7 +62,7 @@ export PumiMesh
   The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
   jac).
 """->
-abstract PumiMesh2CG{T1} <: AbstractCGMesh{T1}
+abstract type PumiMesh2CG{T1} <: AbstractCGMesh{T1} end
 
 @doc """
 ### PdePumiInterface.PumiMeshDG
@@ -72,7 +73,7 @@ abstract PumiMesh2CG{T1} <: AbstractCGMesh{T1}
   The static parameter T1 is the datatype of the mesh variables (coords, dxidx,
   jac).
 """->
-abstract PumiMesh2DG{T1} <: AbstractDGMesh{T1}
+abstract type PumiMesh2DG{T1} <: AbstractDGMesh{T1} end
 
 """
 ### PdePumiInterface.PumiMesh3CG
@@ -80,7 +81,7 @@ abstract PumiMesh2DG{T1} <: AbstractDGMesh{T1}
   This abstract type is the supertype for all 3D Pumi Mesh object for 
   continuous Galrerkin type meshes
 """
-abstract PumiMesh3CG{T1} <: AbstractCGMesh{T1}
+abstract type PumiMesh3CG{T1} <: AbstractCGMesh{T1} end
 
 """
 ### PdePumiInterface.PumiMesh3CG
@@ -88,7 +89,7 @@ abstract PumiMesh3CG{T1} <: AbstractCGMesh{T1}
   This abstract type is the supertype of all 3D Pumi mesh object for discontinuous 
   Galerkin type meshes
 """
-abstract PumiMesh3DG{T1} <: AbstractDGMesh{T1}
+abstract type PumiMesh3DG{T1} <: AbstractDGMesh{T1} end
 
 @doc """
 ### PumiInterface.PumiMesh
@@ -96,35 +97,35 @@ abstract PumiMesh3DG{T1} <: AbstractDGMesh{T1}
   This type is the union of all Pumi mesh types
 
 """->
-typealias PumiMesh{T1} Union{PumiMesh2CG{T1}, PumiMesh2DG{T1}, PumiMesh3CG{T1}, PumiMesh3DG{T1}}
+PumiMesh{T1} =  Union{PumiMesh2CG{T1}, PumiMesh2DG{T1}, PumiMesh3CG{T1}, PumiMesh3DG{T1}}
 
 """
 ### PumiInterface.PumiMesh2D
 
   This type is the union of all 2D Pumi mesh types
 """
-typealias PumiMesh2D{T1} Union{PumiMesh2CG{T1}, PumiMesh2DG{T1}}
+PumiMesh2D{T1} =  Union{PumiMesh2CG{T1}, PumiMesh2DG{T1}}
 
 """
 ### PumiInterface.PumiMesh3D
 
   This type is the union of all 3D Pumi mesh types
 """
-typealias PumiMesh3D{T1} Union{PumiMesh3CG{T1}, PumiMesh3DG{T1}}
+PumiMesh3D{T1} =  Union{PumiMesh3CG{T1}, PumiMesh3DG{T1}}
 
 """
 ### PumiInterface.PumiMeshCG
 
   This type is the union of all CG Pumi meshes
 """
-typealias PumiMeshCG{T1} Union{PumiMesh2CG{T1}, PumiMesh3CG{T1}}
+PumiMeshCG{T1} =  Union{PumiMesh2CG{T1}, PumiMesh3CG{T1}}
 
 """
 ### PumiInterface.PumiMeshDG
 
   This type is the union of all DG Pumi meshes
 """
-typealias PumiMeshDG{T1} Union{PumiMesh2DG{T1}, PumiMesh3DG{T1}}
+PumiMeshDG{T1} =  Union{PumiMesh2DG{T1}, PumiMesh3DG{T1}}
 
 """
   Holds data describing vertices shared between parts
@@ -144,7 +145,7 @@ typealias PumiMeshDG{T1} Union{PumiMesh2DG{T1}, PumiMesh3DG{T1}}
                  this vertex is shared with and the second vector is the index
                  of vertex in vert_nums
 """
-type VertSharing
+mutable struct VertSharing
   npeers::Int  # number of peers this process shares verts with
   peer_nums::Array{Cint, 1}  # the Part numbers of the peer processes
   counts::Array{Int, 1}  # the number of vertices shared with each peer
@@ -181,7 +182,7 @@ end
     * dxidx: scaled mapping jacobian at the bolume nodes, dim x dim x
              numNodesPerElement x number of elements on the interface.
 """
-type RemoteMetrics{Tmsh}
+mutable struct RemoteMetrics{Tmsh}
   peer_num::Int  # MPI rank of other process
   peer_idx::Int  # index in mesh.peer_parts
   islocal::Bool
@@ -207,7 +208,7 @@ end
             the local side of the part boundary, otherwise sizes the array
             for the number of elements on the remote side
 """
-function RemoteMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh}, peer_idx::Int; islocal=true)
+function RemoteMetrics(mesh::PumiMeshDG{Tmsh}, peer_idx::Int; islocal=true) where Tmsh
 
   if islocal
     numEl = mesh.local_element_counts[peer_idx]
@@ -216,10 +217,10 @@ function RemoteMetrics{Tmsh}(mesh::PumiMeshDG{Tmsh}, peer_idx::Int; islocal=true
   end
 
   peer_num = mesh.peer_parts[peer_idx]
-  vert_coords = Array(Tmsh, mesh.dim, mesh.coord_numNodesPerElement, numEl)
-  coords = Array(Tmsh, mesh.dim, mesh.numNodesPerElement, numEl)
-  dxidx = Array(Tmsh, mesh.dim, mesh.dim, mesh.numNodesPerElement, numEl)
-  jac = Array(Tmsh, mesh.numNodesPerElement, numEl)
+  vert_coords = Array{Tmsh}(mesh.dim, mesh.coord_numNodesPerElement, numEl)
+  coords = Array{Tmsh}(mesh.dim, mesh.numNodesPerElement, numEl)
+  dxidx = Array{Tmsh}(mesh.dim, mesh.dim, mesh.numNodesPerElement, numEl)
+  jac = Array{Tmsh}(mesh.numNodesPerElement, numEl)
 
   return RemoteMetrics{Tmsh}(peer_num, peer_idx, islocal, vert_coords, coords,
                              dxidx, jac)
@@ -429,7 +430,7 @@ include("interface.jl")
                       color the elements (graph vertices are elements and graph
                       edges exist where elements share an edge)
 """->
-type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
+mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   m_ptr::Ptr{Void}  # pointer to mesh
   mnew_ptr::Ptr{Void}  # pointer to subtriangulated mesh (high order only)
   mshape_ptr::Ptr{Void} # pointer to mesh's FieldShape
@@ -565,7 +566,7 @@ type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
                             # corresponds to each face node
                             # this is a temporary hack to keep the PDESolver
                             # test running
- function PumiMesh2(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface; dofpernode=1, shape_type=1, coloring_distance=2)
+ function PumiMesh2{T1, Tface}(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface; dofpernode=1, shape_type=1, coloring_distance=2) where {T1, Tface}
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
   # smb_name = name of .smb (mesh) file to load
@@ -583,7 +584,7 @@ type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
   end
   @assert MPI.Comm_size(MPI.COMM_WORLD) == 1
 
-  mesh = new()
+  mesh = new{T1, Tface}()
   mesh.isDG = false
   mesh.isInterpolated = false
   mesh.dim = 2
@@ -728,7 +729,7 @@ type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
     mesh.numColors = numc
     mesh.maxColors = numc
 
-    mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
+    mesh.color_masks = Array{BitArray{1}}(numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
     getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
@@ -740,7 +741,7 @@ type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
     mesh.numColors = numc
     mesh.maxColors = numc
-    mesh.color_masks = Array(BitArray{1}, numc)
+    mesh.color_masks = Array{BitArray{1}}(numc)
     mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
     getColors0(mesh, mesh.color_masks)
@@ -771,12 +772,12 @@ type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
   mesh.min_el_size = getMinElementSize(mesh)
   # get face normals
-  mesh.bndry_normals = Array(T1, 0, 0, 0)
-#  mesh.bndry_normals = Array(T1, 2, sbp.numfacenodes, mesh.numBoundaryFaces)
+  mesh.bndry_normals = Array{T1}(0, 0, 0)
+#  mesh.bndry_normals = Array{T1}(2, sbp.numfacenodes, mesh.numBoundaryFaces)
 #  getBoundaryFaceNormals(mesh, sbp, mesh.bndryfaces, mesh.bndry_normals)
 
-  mesh.interface_normals = Array(T1, 0, 0, 0, 0)
-#  mesh.interface_normals = Array(T1, 2, 2, sbp.numfacenodes, mesh.numInterfaces)
+  mesh.interface_normals = Array{T1}(0, 0, 0, 0)
+#  mesh.interface_normals = Array{T1}(2, 2, sbp.numfacenodes, mesh.numInterfaces)
 #  getInternalFaceNormals(mesh, sbp, mesh.interfaces, mesh.interface_normals)
 
   # create subtriangulated mesh
@@ -826,16 +827,12 @@ type PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangle only
 
 
   if opts["write_boundarynums"]
-    rmfile("boundary_nums.dat")
-    f = open("boundary_nums.dat", "a+")
-    println(f, boundary_nums)
-    close(f)
+    writedlm("boundary_nums.dat", boundary_nums)
   end
 
 
   if opts["write_dxidx"]
-    rmfile("dxidx.dat")
-    printdxidx("dxidx.dat", mesh.dxidx)
+    writedlm("dxidx.dat", mesh.dxidx)
   end
 
 
@@ -883,7 +880,7 @@ include("adapt.jl")
 include("bary.jl")
 include("coloring.jl")
 include("dofnumbering.jl")
-include("elements.jl")
+#include("elements.jl")
 include("entities.jl")
 include("faces.jl")
 include("interpolation.jl")
@@ -921,7 +918,7 @@ function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts;
     mesh.numColors = numc
     mesh.maxColors = numc
 
-    mesh.color_masks = Array(BitArray{1}, numc)  # one array for every color
+    mesh.color_masks = Array{BitArray{1}}(numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
     getColors1(mesh, mesh.color_masks, mesh.neighbor_colors, mesh.neighbor_nums; verify=opts["verify_coloring"] )
@@ -932,7 +929,7 @@ function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts;
     @assert numc == 1
     mesh.numColors = numc
     mesh.maxColors = numc
-    mesh.color_masks = Array(BitArray{1}, numc)
+    mesh.color_masks = Array{BitArray{1}}(numc)
     mesh.neighbor_colors = zeros(UInt8, 0, 0)  # unneeded array for distance-0
     mesh.neighbor_nums = zeros(Int32, 0, 0)  # unneeded for distance-0
     getColors0(mesh, mesh.color_masks)
@@ -1000,9 +997,9 @@ function reinitPumiMesh2(mesh::PumiMesh2)
 
 
 
-  verts = Array(Ptr{Void}, numVert)
-  edges = Array(Ptr{Void}, numEdge)
-  elements = Array(Ptr{Void}, numEl)
+  verts = Array{Ptr{Void}}(numVert)
+  edges = Array{Ptr{Void}}(numEdge)
+  elements = Array{Ptr{Void}}(numEl)
   dofnums_Nptr = mesh.dofnums_Nptr  # use existing dof pointers
 
   # get pointers to all MeshEntities
@@ -1053,7 +1050,7 @@ function reinitPumiMesh2(mesh::PumiMesh2)
 
   # count boundary edges
   bnd_edges_cnt = 0
-  bnd_edges = Array(Int, numEdge, 2)
+  bnd_edges = Array{Int}(numEdge, 2)
   it = MeshIterator(mesh.m_ptr, it)
   for i=1:numEdge
     edge_i = iterate(mesh.m_ptr, it)
