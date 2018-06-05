@@ -13,9 +13,26 @@ function installPumi()
 #    println("deleting existing Core repo in /deps")
 #    rm("./core", recursive=true)
 #  end
-  if !isdir("./core")
-    run(`./download.sh`)
+
+  # download files (if tarballs not present)
+  run(`./download.sh`)
+
+  # extract files
+  if isdir("core")
+    try
+      run(`rm -rf ./core`)
+    end
   end
+  run(`tar xfvz ./core.tar.gz`)
+ 
+  if isdir("pumi-meshes")
+    try
+      run(`rm -rf ./pumi-meshes`)
+    end
+  end
+  run(`tar xfvz ./pumi-meshes.tar.gz`)
+
+  # config, make, make install
   cd("./core")
 #  run(`git pull`)
   run(`git checkout $pumi_version`)
@@ -28,7 +45,7 @@ function installPumi()
   str1 = joinpath( pwd(), "install/lib")
   str3 = joinpath(str1, "pkgconfig")
 
-  # update ENV in preparatoin for building files in /src
+  # update ENV in preparation for building files in /src
   if haskey(ENV, "LD_LIBRARY_PATH")
     ld_path = ENV["LD_LIBRARY_PATH"]
     ld_path = string(str1, ":", ld_path)
