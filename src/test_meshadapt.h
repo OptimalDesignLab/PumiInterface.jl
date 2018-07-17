@@ -9,7 +9,7 @@
 #include <ma.h>
 #include <cmath>
 
-#ifndef TEST_MESHYADAPT_H
+#ifndef TEST_MESHADAPT_H
 #define TEST_MESHADAPT_H
 
 class IsotropicFunctionJ : public ma::IsotropicFunction

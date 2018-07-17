@@ -91,9 +91,14 @@ global const getDoubleTag_name = "getDoubleTag"
 global const reorder_name = "reorder"
 
 global const createIsoFunc_name = "createIsoFunc"
-global const createAnisoFunc_name = "createAnisoFunc"
-global const runIsoAdapt_name = "runIsoAdapt"
-global const runAnisoAdapt_name = "runAnisoAdapt"
+global const deleteIsoFunc_name = "deleteIsoFunc"
+global const createSolutionTransfers_name = "createSolutionTransfers"
+global const deleteSolutionTransfers_name = "deleteSolutionTransfers"
+global const addSolutionTransfer_name = "addSolutionTransfer"
+global const configureMAInput_name = "configureMAInput"
+global const runMA_name = "runMA"
+
+#global const createAnisoFunc_name = "createAnisoFunc"
 
 #apf::field related functions
 global const createPackedField_name = "createPackedField"
@@ -144,7 +149,10 @@ export declareNames, init, loadMesh, initMesh, pushMeshRef, popMeshRef,
        getNumberingShape, numberJ, getNumberJ, isNumbered, getDofNumbers,
        getElementNumbers, getMesh, printNumberingName, createDoubleTag,
        setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc,
-       runIsoAdapt, runAnisoAdapt, createPackedField, setComponents,
+       deleteIsoFunc, createSolutionTransfers, deleteSolutionTransfers,
+       addSolutionTransfer, configureMAInput, runMA, IsoFuncJ,
+       SolutionTransfers, MAInput
+       createPackedField, setComponents,
        getComponents, zeroField, getCoordinateField, countBridgeAdjacent,
        getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
@@ -164,6 +172,37 @@ export hasMatching, getSharing, isOwned, countCopies, getCopies, countMatches, g
 # SubMesh creation
 export createSubMesh, getNewMesh, getOldMesh, writeNewMesh, getParentNumbering, 
        getNewMeshData, getGeoTag, SubMeshData
+
+
+# struct declarations
+# these have same memory layout as their contents, so they can be passed in
+# in place of a Ptr{Void}
+
+"""
+  Isotropic mesh size function used for mesh adapation
+
+  In reality, it is just a (typed) container for a pointer to a C++ 
+  IsotropicFunctionJ.
+"""
+struct IsoFuncJ
+  p::Ptr{Void}
+end
+
+"""
+  A ma::SolutionTransfers*
+"""
+struct SolutionTransfers
+  p::Ptr{Void}
+end
+
+"""
+  A ma::Input*
+"""
+struct MAInput
+  p::Ptr{Void}
+end
+
+
 
 @doc """
   initilize the state of the interface library
@@ -923,51 +962,34 @@ function reorder(m_ptr, ndof::Integer, ncomp::Integer, node_statusN_ptr, nodeNum
 
 end
 
+#------------------------------------------------------------------------------
+# mesh adapation functions
 
-# mesh adapatation functions
-function createIsoFunc(m_ptr, sizefunc, u::AbstractVector)
-# creates a function that describes how to refine the mesh isotropically
-# m_ptr is pointer to the mesh
-# sizefunc is a pointer to a c callable function
+"""
+  Create an [`IsoFuncJ`](@ref)
 
-  ccall((createIsoFunc_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}), m_ptr, sizefunc, u)
+  **Inputs**
 
-  return nothing
+   * m_ptr: an apf::Mesh2*
+   * f: an apf::Field* specifying the desired mesh size at each coordinate
+        node of mesh (note: coordinate node, not solution node)
+"""
+function createIsoFunc(m_ptr::Ptr{Void}, f::Ptr{Void})
+
+  ptr = ccall( (createIsoFunc_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Void}), m_ptr, f)
+
+  return IsoFuncJ(ptr)
 end
 
-function createAnisoFunc(m_ptr, sizefunc, f_ptr, operator)
-# creates a function that describes how to refine the mesh anisotropically
-# m_ptr is a pointer to the mesh
-# sizefunc is a pointer to a c callable function
-# u is the solution vector
-# operator is an SBP operator
 
-operator_ptr = pointer_from_objref(operator)
-println("in PumiInterface, operator_ptr = ", operator_ptr)
+function deleteIsoFunc(func::IsoFuncJ)
 
-  ccall( (createAnisoFunc_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}), m_ptr, sizefunc, f_ptr, operator_ptr)
-
-return nothing
-
-end
-
-function runIsoAdapt(m_ptr)
-# run mesh adaptation using previously created isofunc
-
-  ccall( (runIsoAdapt_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+  ccall( (deleteIsoFunc_name, pumi_libname), Void, (Ptr{Void},), func)
 
   return nothing
 end
 
 
-function runAnisoAdapt(m_ptr)
-# run mesh adaptation using previously defines anisotropic function
-
-  ccall( (runAnisoAdapt_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
-
-  return nothing
-
-end
 
 # apf::Field related function
 # needed for automagical solution transfer

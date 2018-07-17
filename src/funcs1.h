@@ -19,7 +19,8 @@
 #include <math.h>
 #include <string.h>
 
-#include "adaptFuncsJ.h"
+//#include "adaptFuncsJ.h"
+#include "adaptJ.h"
 #include "apfSBPShape.h"
 #include "apfSBPShape3.h"
 #include "dgSBPShape1.h"
@@ -149,10 +150,16 @@ extern void getDoubleTag(apf::Mesh2* m_local, apf::MeshEntity* e, apf::MeshTag* 
 
 
 // mesh adaptation functions
-extern void createIsoFunc(apf::Mesh2* m_local, double(*sizefunc)(apf::MeshEntity*vert, apf::Mesh2* m_local, double *u), double *u);
-extern void runIsoAdapt(apf::Mesh2* m_local);
-extern void createAnisoFunc(apf::Mesh2* m_local,  void (*sizefunc)(apf::MeshEntity* vert, double r[3][3], double h[3], apf::Mesh2* m_ptr, void *f_ptr, double *operator_ptr), apf::Field *f_ptr, double *operator_ptr);
-void runAnisoAdapt(apf::Mesh2* m_local);
+
+extern IsotropicFunctionJ* createIsoFunc(apf::Mesh* m, apf::Field* f);
+extern void deleteIsoFunc(IsotropicFunctionJ* isofunc);
+extern ma::SolutionTransfers* createSolutionTransfers();
+extern void deleteSolutionTransfers(ma::SolutionTransfers* soltrans);
+extern void addSolutionTransfer(ma::SolutionTransfers* soltrans, apf::Field* f);
+extern ma::Input* configureMAInput(apf::Mesh* m, IsotropicFunctionJ* isofunc, 
+                            ma::SolutionTransfer* soltrans);
+
+extern void runMA(ma::Input* in);
 
 
 // apf::Field functions (needed for automagical solution transfer)
