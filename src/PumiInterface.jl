@@ -73,6 +73,7 @@ global const getAllEntityCoords_name = "getAllEntityCoords"
 global const createNumberingJ_name = "createNumberingJ"
 global const destroyNumbering_name = "destroyNumbering"
 global const findNumbering_name = "findNumbering"
+global const destroyNumberings_name = "destroyNumberings"
 global const getNumberingShape_name = "getNumberingShape"
 global const numberJ_name = "numberJ"
 global const getNumberJ_name = "getNumberJ"
@@ -106,6 +107,8 @@ global const setComponents_name = "setComponents"
 global const getComponents_name = "getComponents"
 global const zeroField_name = "zeroField"
 global const getCoordinateField_name = "getCoordinateField"
+global const destroyField_name = "destroyField"
+global const destroyFields_name = "destroyFields"
 
 
 global const createSubMesh_name = "createSubMesh"
@@ -146,14 +149,16 @@ export declareNames, init, loadMesh, initMesh, pushMeshRef, popMeshRef,
        getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes,
        getVertCoords, getEdgeCoords, getFaceCoords, getElCoords,
        getAllEntityCoords, createNumberingJ, destroyNumbering, findNumbering,
+       destroyNumberings,
        getNumberingShape, numberJ, getNumberJ, isNumbered, getDofNumbers,
        getElementNumbers, getMesh, printNumberingName, createDoubleTag,
        setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc,
        deleteIsoFunc, createSolutionTransfers, deleteSolutionTransfers,
        addSolutionTransfer, configureMAInput, runMA, IsoFuncJ,
-       SolutionTransfers, MAInput
+       SolutionTransfers, MAInput,
        createPackedField, setComponents,
-       getComponents, zeroField, getCoordinateField, countBridgeAdjacent,
+       getComponents, zeroField, getCoordinateField, destroyField, destroyFields,
+       countBridgeAdjacent,
        getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
 # iterator functors
@@ -806,6 +811,21 @@ function findNumbering(m_ptr::Ptr{Void}, name::String)
   return n_ptr
 end
 
+"""
+  Destroys all apf::Numberings associated with a given mesh, except
+  those specified
+
+  **Inputs**
+
+   * m_ptr: apf::Mesh*
+   * n_save: array of apf::Numbering* objects to not destroy (optional)
+"""
+function destroyNumberings(m_ptr::Ptr{Void}, n_save=Array{Ptr{Void}}(0))
+
+  ccall( (destroyNumberings_name, pumi_libname), Void, (Ptr{Void}, Ptr{Ptr{Void}}, Cint), m_ptr, n_save, length(n_save))
+
+  return nothing
+end
 
 function getNumberingShape(n_ptr::Ptr{Void})
 
@@ -981,7 +1001,17 @@ function createIsoFunc(m_ptr::Ptr{Void}, f::Ptr{Void})
   return IsoFuncJ(ptr)
 end
 
+"""
+  Free an [`IsoFuncj`](@ref)
 
+  **Inputs**
+
+   * func: an IsoFuncJ
+
+  **Outputs**
+
+    none
+"""
 function deleteIsoFunc(func::IsoFuncJ)
 
   ccall( (deleteIsoFunc_name, pumi_libname), Void, (Ptr{Void},), func)
@@ -989,10 +1019,113 @@ function deleteIsoFunc(func::IsoFuncJ)
   return nothing
 end
 
+"""
+  Create an object that manages the transfer of fields from the original
+  mesh to the adapted mesh.  Use [`addSolutionTransfer`](@ref) to add
+  fields to be transfered one by one.
 
+  **Inputs**
 
+    * none
+
+  **Outputs**
+
+   * a [`SolutionTransfers`](@ref)
+"""
+function createSolutionTransfers()
+
+  ptr = ccall( (createSolutionTransfers_name, pumi_libname), Ptr{Void}, () )
+
+  return SolutionTransfers(ptr)
+end
+
+"""
+  Frees a [`SolutionTransfers`](@ref) object.
+
+  **Inputs**
+
+   * soltrans: the object to be deleted
+
+  **Outputs**
+
+   * none
+
+  **Implementation Notes**
+
+   This actually deletes the `SolutionTransfers` object as well as all the
+   `SolutionTransfer` object inside of it.  Currently the individual
+   `SolutionTransfer` objects are not exposed to Julia, so this is a
+   non-issue.
+"""
+function deleteSolutionTransfer(soltrans::SolutionTransfers)
+
+  ccall( (deleteSolutionTransfers, pumi_libname), Void, (Ptr{Void},), soltrans)
+
+  return nothing
+end
+
+"""
+  Add an apf::Field* to be transferred to the new mesh
+
+  **Inputs**
+
+   * soltrans: the [`SolutionTransfers`](@ref) object
+   * f: the apf::Field*
+
+  **Outputs**
+
+   none
+"""
+function addSolutionTransfer(soltrans::SolutionTransfers, f::Ptr{Void})
+
+  ccall( (addSolutionTransfer_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}), soltrans, f)
+
+  return nothing
+end
+
+"""
+  Create the input configuration object for MeshAdapt
+
+  **Inputs**
+
+   * m_ptr: an apf::Mesh2*
+   * isofunc: an [`IsoFuncJ`](@ref)
+   * soltrans: a [`SolutionTransfers`](@ref)
+
+  **Outputs**
+
+   * an [`MAInput`](@ref)
+"""
+function configureMAInput(m_ptr::Ptr{Void}, isofunc::IsoFuncJ, soltrans::SolutionTransfers)
+
+  ptr = ccall( (configureMAInput_name, pumi_libname), Ptr{Void},
+               (Ptr{Void}, Ptr{Void}, Ptr{Void}), m_ptr, isofunc, soltrans)
+
+  return MAInput(ptr)
+end
+
+"""
+  Run MeshAdapt
+
+  **Inputs**
+
+   * input: an [`MAInput](@ref)
+
+  **Outputs**
+
+   none
+"""
+function runMA(input::MAInput)
+
+  ccall( (runMA_name, pumi_libname), Void, (Ptr{Void},), input)
+
+  return nothing
+end
+
+#------------------------------------------------------------------------------
 # apf::Field related function
 # needed for automagical solution transfer
+
 function createPackedField(m_ptr, fieldname::AbstractString, numcomponents::Integer, fshape=C_NULL)
 # create a field with the specified number of componenets per node
 # returns a pointer to the field
@@ -1023,6 +1156,30 @@ function getCoordinateField(m_ptr::Ptr{Void})
 
   ccall( (getCoordinateField_name, pumi_libname), Ptr{Void}, (Ptr{Void},), m_ptr)
 end
+
+function destroyField(f_ptr::Ptr{Void})
+
+  ccall( (destroyField_name, pumi_libname), Void, (Ptr{Void},), f_ptr)
+
+  return nothing
+end
+
+"""
+  Destroys all apf::Fields associated with a given mesh, except
+  those specified
+
+  **Inputs**
+
+   * m_ptr: apf::Mesh*
+   * n_save: array of apf::Field* objects to not destroy (optional)
+"""
+function destroyFields(m_ptr::Ptr{Void}, n_save=Array{Ptr{Void}}(0))
+
+  ccall( (destroyFields_name, pumi_libname), Void, (Ptr{Void}, Ptr{Ptr{Void}}, Cint), m_ptr, n_save, length(n_save))
+
+  return nothing
+end
+
 
 @doc """
 ###PumiInterface.createSubMesh

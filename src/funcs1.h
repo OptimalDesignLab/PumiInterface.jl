@@ -55,7 +55,6 @@ void initMesh(apf::Mesh* m, int number_entities[],
 
 // these functions are not user accessible
 void cleanup(apf::Mesh* m_local);
-void destroyNumberings(int dim); 
 
 void pushMeshRef(apf::Mesh* m);
 void popMeshRef(apf::Mesh* m);
@@ -128,6 +127,7 @@ void getAllEntityCoords(apf::Mesh* m, apf::MeshEntity* e, double* coords);
 extern  apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShape* field, int components);
 extern void destroyNumbering(apf::Numbering* n);
 apf::Numbering* findNumbering(apf::Mesh* m, const char* name);
+extern void destroyNumberings(apf::Mesh* m, apf::Numbering* save_n[], int n_save);
 
 apf::FieldShape* getNumberingShape(apf::Numbering* n);
 extern int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number);
@@ -172,6 +172,9 @@ void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components
 
 void zeroField(apf::Field* f);
 apf::Field* getCoordinateField(apf::Mesh* m_ptr);
+
+void destroyField(apf::Field* f);
+void destroyFields(apf::Mesh* m, apf::Field* save_n[], int n_save);
 
 apf::FieldShape* getSBPShapes(int type, int order);
 

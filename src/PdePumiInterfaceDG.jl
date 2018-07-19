@@ -393,7 +393,7 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
 
   """
     This inner constructor loads a Pumi mesh from files and sets a few
-    fields that must be consistent with how the mesh was loaded
+    essential fields that must be consistent with how the mesh was loaded
 
     **Inputs**
 
@@ -462,7 +462,34 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
   function PumiMeshDG2{T1, Tface}() where {T1, Tface}
     return new{T1, Tface}()
   end
+
 end  # end PumiMeshDG2 declaration
+
+  
+"""
+  This outer constructor populates the essential fields of the mesh
+  that are populated when a mesh is loaded from a file, but instead
+  of loading a mesh from a file, it copies the fields from the old mesh.
+
+  The mesh.m_ptr field is not populated because this function is used
+  for creating submeshes.
+"""
+function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}) where {T, Tface}
+
+  mesh = PumiMeshDG2{T, Tface}()  # get uninitailized object
+
+  # set essential fields from old_mesh
+  mesh.isDG = true
+  mesh.dim = 2
+  mesh.comm = old_mesh.comm
+  mesh.topo_pumi = old_mesh.topo_pumi
+  mesh.sbpface = old_mesh.sbpface
+  mesh.myrank = old_mesh.myrank
+  mesh.commsize = old_mesh.commsize
+
+  return mesh
+end
+
 
 """
    This outer constructor loads a mesh from a file, according to the options
@@ -527,18 +554,9 @@ function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts_old,
     throw(ErrorException("numberNodesWindy not supported for submesh"))
   end
 
-  mesh = PumiMeshDG2{T, Tface}()  # get uninitailized object
+  # get new mesh with essential fields populated
 
-  # set essential fields from old_mesh
-  mesh.isDG = true
-  mesh.dim = 2
-  mesh.comm = old_mesh.comm
-  mesh.topo_pumi = old_mesh.topo_pumi
-  mesh.sbpface = old_mesh.sbpface
-
-  #TODO: revise this when parallelizing
-  mesh.myrank = old_mesh.myrank
-  mesh.commsize = old_mesh.commsize
+  mesh = PumiMeshDG2(old_mesh)
 
   # construct new mesh
   if eltype(el_list) != Cint
@@ -564,6 +582,34 @@ function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts_old,
   return mesh, opts
 end
 
+"""
+  This constructor creates a new mesh object after mesh adaptation has
+  run.
+
+  **Inputs**
+
+   * old_mesh: old mesh object, mesh.m_ptr points to the adapted mesh (
+               which means that mesh.m_ptr and the mesh object are inconsistent
+               while this constructor runs
+   * sbp: SBP operator
+   * opts: options dictionary
+
+  **Outputs**
+
+   * mesh: new mesh object
+"""
+function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts) where {T, Tface}
+
+  mesh = PumiMeshDG2(old_mesh)
+  mesh.m_ptr = old_mesh.m_ptr
+  pushMeshRef(mesh.m_ptr)
+  mesh.subdata = SubMeshData(C_NULL)
+
+  finishMeshInit(mesh, sbp, opts, dofpernode=old_mesh.numDofPerNode,
+                 shape_type=old_mesh.shape_type)
+
+  return mesh
+end
 
 """
   This function finishes initializing the mesh object.  This does the
@@ -989,6 +1035,7 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
 end
 
 
+#=
 """
 
   This constructor makes a new mesh object containing the specified elements
@@ -1132,7 +1179,7 @@ function PumiMeshDG2(oldmesh::PumiMeshDG, el_list::AbstractArray)
 
   return submesh
 end
-
+=#
 
 function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)

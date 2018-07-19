@@ -1,105 +1,148 @@
-function retrieveSolutionFromMesh(mesh::PumiMeshDG2, u::AbstractVector)
-# retrieve solution from mesh (after mesh adaptation)
-# mesh needs to have been reinitilized after mesh adaptation, u needs to be the right size for the new mesh
+# mesh adaptation functions
 
+"""
+  This function takes a vector containing the desired size for each element
+  and turns in into an apf::Field for mesh adaptation.
 
+  This is required because MeshAdapt runs several passes, so for all passes
+  after the first, some of the mesh entities it will query will not exist
+  on the original mesh.  Using the apf::Field allows the size field to be
+  interpolated to the new mesh after each pass.
 
+  The apf::Field has the same apf::FieldShape as the *coordinate* field
+  of the mesh (not the solution field).
 
-  num_entities = [3, 3, 1] # number of vertices, edges, faces
+  **Inputs**
 
-  q_vals = zeros(4)
+   * mesh: a mesh object
+   * el_sizes: desired size for each element
 
-  for el=1:mesh.numEl
-    el_i = mesh.elements[el]
-    node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
-    col = 1 # current node of the element
-    for i=1:3  # loop over verts, edges, faces
-      for j=1:num_entities[i]  # loop over all entities of this type
-	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
-	  entity = node_entities[col]  # current entity
-	  offset_k = mesh.elementNodeOffsets[col, el]
-         
-	  # get values from mesh
-          getComponents(mesh.f_ptr, entity, abs(offset_k - k) - 1, q_vals)
+  **Outputs*
 
-          # put solution values into vector u
-	  for p=1:mesh.numDofPerNode  # loop over all dofs
-	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, abs(offset_k - k) -1, p-1)
-	    u[dofnum_p] = q_vals[p]
-	  end
-	  col += 1
-	end  # end loop over nodes on curren entity
-      end  # end loop over entities of current type
-    end  # end loop over entity types
-  end  # end loop over elements
+   * an apf::Field object
+"""
+function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
 
-  
+  # create apf::Field
 
-  return nothing
-end  # end function saveSolutionToMesh
+  # assign size to field
 
-#=
-function retrieveNodeSolution(f_ptr, entity, u_node::AbstractVector)
-# retrieve solution on a particular entity, stores it in u_node
-# u_node must be a vector of length mesh.numDofPerNode
-# used during mesh adaptation
-# this is a low level function because t takes in f_ptr, entity rather than the mesh object and an index
-
-  getComponents(f_ptr, entity, 0, u_node)
-
-end
-=#
-
-
-function retrieveSolutionFromMesh(mesh::PumiMesh2, u::AbstractVector)
-# retrieve solution from mesh (after mesh adaptation)
-# mesh needs to have been reinitilized after mesh adaptation, u needs to be the right size for the new mesh
-
-
-
-
-  num_entities = [3, 3, 1] # number of vertices, edges, faces
-
-  q_vals = zeros(4)
-
-  for el=1:mesh.numEl
-    el_i = mesh.elements[el]
-    node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
-    col = 1 # current node of the element
-    for i=1:3  # loop over verts, edges, faces
-      for j=1:num_entities[i]  # loop over all entities of this type
-	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
-	  entity = node_entities[col]  # current entity
-	  offset_k = mesh.elementNodeOffsets[col, el]
-         
-	  # get values from mesh
-          getComponents(mesh.f_ptr, entity, abs(offset_k - k) - 1, q_vals)
-
-          # put solution values into vector u
-	  for p=1:mesh.numDofPerNode  # loop over all dofs
-	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, abs(offset_k - k) -1, p-1)
-	    u[dofnum_p] = q_vals[p]
-	  end
-	  col += 1
-	end  # end loop over nodes on curren entity
-      end  # end loop over entities of current type
-    end  # end loop over entity types
-  end  # end loop over elements
-
-  
-
-  return nothing
-end  # end function saveSolutionToMesh
-
-
-function retrieveNodeSolution(f_ptr, entity, u_node::AbstractVector)
-# retrieve solution on a particular entity, stores it in u_node
-# u_node must be a vector of length mesh.numDofPerNode
-# used during mesh adaptation
-# this is a low level function because t takes in f_ptr, entity rather than the mesh object and an index
-
-  getComponents(f_ptr, entity, 0, u_node)
+  # return field
 
 end
 
 
+"""
+  This is the main entry point for runing mesh adaptation (h refinement).
+  
+  This function takes in a mesh and a vector describing the desired size
+  for each element and returns a new mesh object.  The original mesh object
+  is finalized.
+
+  **Inputs**
+
+   * mesh: a mesh object
+   * sbp: SBP operator (must be the same operator used to construct
+          `mesh`
+   * opts: options dictionary
+   * el_sizes: desired size for each element (vector)
+   * u_vec: solution field to interpolate to the adapted mesh (optional)
+
+  **Outputs**
+
+   * mesh_new: a new mesh object
+   * u_vec_new: `u_vec` interpolated to the new mesh.  A vector of length
+                 zero if `u_vec` was not supplied
+
+  **Implementation Notes**
+
+    The original and new mesh objects have the same apf::Mesh*.
+
+    TODO: figure out reference count
+"""
+function adaptMesh(mesh::PumiMesh, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0))
+
+  # run the mesh adaptation
+  _adaptMesh(mesh, el_sizes, u_vec)
+
+  # now construct new mesh object
+  # To avoid the mesh reference count reaching zero and destroying the
+  # mesh, we have to create the new mesh object before finalizing the
+  # old one
+
+  newmesh = PumiMeshDG(mesh, sbp, opts)
+  finalize(oldmesh)
+
+
+  return mesh_new
+end
+
+"""
+  This does most of the work involved in mesh adaptation.  Specifically,
+  it does all of the work that does not require knowing exactly which
+  type of mesh object is being adapted (so, basically constructing the
+  new mesh object)
+
+  This function deletes most of the existing Numberings and Fields on the
+  mesh in preparation for mesh re-initialization.
+
+  **Inputs**
+
+   * mesh: a mesh object
+   * el_sizes: desired size for each element (vector)
+   * u_vec: solution field to interpolate to the adapted mesh (optional)
+
+"""
+function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVector)
+
+  # get size function
+  size_f = getSizeField(mesh, el_sizes)
+  isofunc = createIsoFunc(mesh.m_ptr, size_f)
+
+  # interpolate size and possibly the solution to new mesh
+  soltrans = createSolutionTransfers()
+  addSolutionTransfers(size_f)
+  if length(u_vec) > 0
+    saveSolutionToMesh(mesh, u_vec)
+    addSolutionTransfers(mesh.fnew_ptr)
+  end
+
+  # configure input
+  ma_input = configureMAInput(mesh.m_ptr, isofunc, soltrans)
+
+  # run mesh adaptation
+  runMA(ma_input)  # this function deletes ma_input
+
+  # cleanup intermediate data
+  deleteSolutionTransfer(soltrans)
+  deleteIsoFunc(isofunc)
+  destroyField(size_f) 
+
+
+  # because we are going to reinitialize the mesh, and Pumi will return
+  # an existing Numbering (and possibly Field?) if a new one is created
+  # with the same name, we have to delete all existing Numberings/Fields
+  destroyNumberings(mesh.m_ptr)
+  destroyFields(mesh.m_ptr, [mesh.fnew_ptr])
+
+  return nothing
+end
+
+
+"""
+  Returns a vector containing the size of each element.  Useful as
+  the starting point for the size vector required by [`adaptMesh`](@ref)
+
+  **Inputs**
+
+   * mesh: mesh object
+
+  **Outputs**
+
+   * el_sizes: vector of length mesh.numEl, containing the size of each
+               element (really the average edge length)
+"""
+function getElementSizes(mesh::PumiMesh)
+
+  return el_sizes
+end

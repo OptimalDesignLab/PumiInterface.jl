@@ -927,6 +927,29 @@ apf::Numbering* findNumbering(apf::Mesh* m, const char* name)
   return m->findNumbering(name);
 }
 
+// destroy all Numberings on the mesh except those listed
+void destroyNumberings(apf::Mesh* m, apf::Numbering* save_n[], int n_save)
+{
+
+  int n_nums = m->countNumberings();
+  for (int i=0; i < n_nums; ++i)
+  {
+    apf::Numbering* n_i = m->getNumbering(i);
+
+    // delete if not in save_n array
+    bool foundflag = false;
+    for (int j=0; j < n_save; ++j)
+      if ( save_n[j] == n_i )
+      {
+        foundflag = true;
+        break;
+      }
+
+    if (!foundflag)
+      apf::destroyNumbering(n_i);
+  }  // end loop i
+}
+
 // retrieve a number from julia
 int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
 {
@@ -1145,6 +1168,35 @@ apf::Field* getCoordinateField(apf::Mesh* m_ptr)
 {
   return m_ptr->getCoordinateField();
 }
+
+void destroyField(apf::Field* f)
+{
+  apf::destroyField(f);
+}
+
+// destroy all Fields on the mesh except those listed
+void destroyFields(apf::Mesh* m, apf::Field* save_n[], int n_save)
+{
+
+  int n_nums = m->countFields();
+  for (int i=0; i < n_nums; ++i)
+  {
+    apf::Field* n_i = m->getField(i);
+
+    // delete if not in save_n array
+    bool foundflag = false;
+    for (int j=0; j < n_save; ++j)
+      if ( save_n[j] == n_i )
+      {
+        foundflag = true;
+        break;
+      }
+
+    if (!foundflag)
+      apf::destroyField(n_i);
+  }  // end loop i
+}
+
 
 //-----------------------------------------------------------------------------
 // Parallelization function
