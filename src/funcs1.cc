@@ -1138,6 +1138,29 @@ void runMA(ma::Input* in)
   ma::adapt(in); // this function deletes in, but not soltrans or isofunc
 }
 
+// Get the average edge length of every element
+// el_N is the Numbering of the elements
+void getAvgElementSize(apf::Mesh* m, apf::Numbering* el_N, double* el_sizes)
+{
+  apf::Downward edges;
+  apf::MeshIterator* it = m->begin(m->getDimension());
+  apf::MeshEntity* el;
+
+  while ( (el = m->iterate(it)) )
+  {
+    int elnum = apf::getNumber(el_N, el, 0, 0);
+    int nedges = m->getDownward(el, 1, edges);
+
+    double avg_size = 0.0;
+    for (int i=0; i < nedges; ++i)
+      avg_size += apf::measure(m, edges[i]);
+
+    el_sizes[elnum] = avg_size/nedges;
+  }
+
+  m->end(it);
+}
+
 //-----------------------------------------------------------------------------
 // apf::Field functions (needed for automagical solution transfer)
 //

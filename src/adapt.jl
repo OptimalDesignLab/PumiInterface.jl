@@ -24,6 +24,8 @@
 function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
 
   # create apf::Field
+  fsize = createPackedField(mesh.m_ptr, "size_field", 1, mesh.coordshape_ptr)
+
 
   # assign size to field
 
@@ -58,24 +60,31 @@ end
 
     The original and new mesh objects have the same apf::Mesh*.
 
-    TODO: figure out reference count
 """
-function adaptMesh(mesh::PumiMesh, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0))
+function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0))
 
   # run the mesh adaptation
-  _adaptMesh(mesh, el_sizes, u_vec)
+  _adaptMesh(oldmesh, el_sizes, u_vec)
 
   # now construct new mesh object
   # To avoid the mesh reference count reaching zero and destroying the
   # mesh, we have to create the new mesh object before finalizing the
   # old one
 
-  newmesh = PumiMeshDG(mesh, sbp, opts)
+  newmesh = PumiMeshDG2(oldmesh, sbp, opts)
   finalize(oldmesh)
 
+  if length(u_vec) > 0
+    u_vec_new = zeros(Float64, newmesh.numDof)
+    u_vec_new = retrieveSolutionFromMesh(newmesh, u_vec_new)
+  else
+    u_vec_new = u_vec
+  end
 
-  return mesh_new
+  return mesh_new, u_vec_new
 end
+
+#TODO: method for PumiMeshDG3
 
 """
   This does most of the work involved in mesh adaptation.  Specifically,
@@ -143,6 +152,9 @@ end
                element (really the average edge length)
 """
 function getElementSizes(mesh::PumiMesh)
+
+  el_sizes = zeros(Cdouble, mesh.numEl)
+  getAvgElementSize(mesh.m_ptr, mesh.el_Nptr, el_sizes)
 
   return el_sizes
 end

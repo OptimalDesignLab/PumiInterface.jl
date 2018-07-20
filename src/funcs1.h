@@ -160,7 +160,7 @@ extern ma::Input* configureMAInput(apf::Mesh* m, IsotropicFunctionJ* isofunc,
                             ma::SolutionTransfer* soltrans);
 
 extern void runMA(ma::Input* in);
-
+extern void getAvgElementSize(apf::Mesh* m, apf::Numbering* el_N, double* el_sizes);
 
 // apf::Field functions (needed for automagical solution transfer)
 apf::Field* createPackedField(apf::Mesh* m, char* fieldname, int numcomponents, apf::FieldShape* fshape);

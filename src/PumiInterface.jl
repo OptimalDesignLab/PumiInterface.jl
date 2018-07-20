@@ -98,6 +98,7 @@ global const deleteSolutionTransfers_name = "deleteSolutionTransfers"
 global const addSolutionTransfer_name = "addSolutionTransfer"
 global const configureMAInput_name = "configureMAInput"
 global const runMA_name = "runMA"
+global const getAvgElementSize = "getAvgElementSize"
 
 #global const createAnisoFunc_name = "createAnisoFunc"
 
@@ -154,7 +155,7 @@ export declareNames, init, loadMesh, initMesh, pushMeshRef, popMeshRef,
        getElementNumbers, getMesh, printNumberingName, createDoubleTag,
        setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc,
        deleteIsoFunc, createSolutionTransfers, deleteSolutionTransfers,
-       addSolutionTransfer, configureMAInput, runMA, IsoFuncJ,
+       addSolutionTransfer, configureMAInput, runMA, getAvgElementSize, IsoFuncJ,
        SolutionTransfers, MAInput,
        createPackedField, setComponents,
        getComponents, zeroField, getCoordinateField, destroyField, destroyFields,
@@ -1118,6 +1119,25 @@ end
 function runMA(input::MAInput)
 
   ccall( (runMA_name, pumi_libname), Void, (Ptr{Void},), input)
+
+  return nothing
+end
+
+"""
+  Gets the average size of each element (ie. the average edge length)
+
+  **Inputs**
+
+   * m_ptr: apf::Mesh*
+   * el_N: an apf::Numbering* for the elements
+
+  **Inputs/Outputs**
+
+   * el_sizes: vector to be overwritten with the average size of each element
+"""
+function getAvgElementSize(m_ptr::Ptr{Void}, el_N::Ptr{Void}, el_sizes::AbstractVector{Cdouble})
+
+  ccall( (getAvgElementSize_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Cdouble}), m_ptr, el_N, el_sizes)
 
   return nothing
 end

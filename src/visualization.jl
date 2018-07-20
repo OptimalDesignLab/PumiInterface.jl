@@ -294,9 +294,9 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector) where T
 
 
 
-  up_els = Array{Ptr{Void}}(400)  # equivalent of apf::Up
   # divide by the total volume of elements that contributed to each node
   # so the result is the average value
+  up_els = Array{Ptr{Void}}(400)  # equivalent of apf::Up
   for dim=1:(mesh.dim + 1)
     if numNodesPerType[dim] > 0
 #      @assert dim == 1
