@@ -333,9 +333,12 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
 					 # index (ie. edge 1,2, or 3)
   color_cnt::Array{Int32, 1}  # number of elements in each color
 
-  interp_op::Array{Float64, 2}  # 3 x numNodesPerEl matrix that interpolates
+  interp_op::Array{Float64, 2}  # coord_numNodesPerElement x numNodesPerEl
+                                # matrix that interpolates
                                 # solution values to the vertices
-
+  interp_op2::Array{Float64, 2}  # numNodesPerEl x coord_numNodesPerElement
+                                 # array that interpolates from the
+                                 # coordinate field to the solution field
   ###### parallel data #####
 
   # array of arrays of Boundary objects, one array for each peer part
@@ -740,7 +743,8 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
   # build interpolation operator
   ref_coords = baryToXY(mesh.coord_xi, sbp.vtx)
   mesh.interp_op = SummationByParts.buildinterpolation(sbp, ref_coords)
-
+  mesh.interp_op2 = SummationByParts.buildinterpolation(ref_coords, calcnodes(sbp), mesh.coord_order)
+  
   mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
   mesh.numNodesPerElement = mesh.typeOffsetsPerElement[end] - 1

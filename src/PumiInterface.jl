@@ -98,7 +98,7 @@ global const deleteSolutionTransfers_name = "deleteSolutionTransfers"
 global const addSolutionTransfer_name = "addSolutionTransfer"
 global const configureMAInput_name = "configureMAInput"
 global const runMA_name = "runMA"
-global const getAvgElementSize = "getAvgElementSize"
+global const getAvgElementSize_name = "getAvgElementSize"
 
 #global const createAnisoFunc_name = "createAnisoFunc"
 

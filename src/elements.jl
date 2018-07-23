@@ -212,6 +212,9 @@ end
   which is useful because it allows getting the xi coordinates of both element
   coordinates and its faces.
 
+  Note: this matches the ordering of the entities returned by
+  [`getNodeEntities`](@ref)
+
   Inputs:
     order: order of the element
     dim: dimensionality of the entity
