@@ -31,6 +31,9 @@ export injectionOperator, rejectionOperator, getBoundaryInterpArray
 # face identification functions
 export getBoundaries, numberSurfacePoints
 
+# mesh adaptation
+export adaptMesh, getElementSizes
+
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 
@@ -615,7 +618,10 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   end
   mesh.facenodes = Int[1 2 3; 2 3 1]
 
-  mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
+  mesh.f_ptr = findField(mesh.m_ptr, "solution_field")
+  if mesh.f_ptr == C_NULL
+    mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
+  end
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
   mesh.comm = MPI.COMM_WORLD
   mesh.commsize = MPI.Comm_size(MPI.COMM_WORLD)

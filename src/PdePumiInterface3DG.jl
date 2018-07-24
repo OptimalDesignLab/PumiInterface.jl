@@ -436,6 +436,35 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
 end  # end PumiMeshDG3 type declaration
 
 """
+  This outer constructor populates the essential fields of the mesh
+  that are populated when a mesh is loaded from a file, but instead
+  of loading a mesh from a file, it copies the fields from the old mesh.
+
+  The mesh.m_ptr field is not populated because this function could be used
+  for creating submeshes.
+"""
+function PumiMeshDG3(old_mesh::PumiMeshDG3{T, Tface}) where {T, Tface}
+
+  mesh = PumiMeshDG3{T, Tface}()  # get uninitailized object
+
+  # set essential fields from old_mesh
+  mesh.isDG = true
+  mesh.dim = 3
+  mesh.comm = old_mesh.comm
+  topo2 = ElementTopology{2}(PumiInterface.tri_edge_verts.')
+  mesh.topo_pumi = ElementTopology{3}(PumiInterface.tet_tri_verts.',
+                              PumiInterface.tet_edge_verts.', topo2=topo2)
+
+  mesh.sbpface = old_mesh.sbpface
+  mesh.myrank = old_mesh.myrank
+  mesh.commsize = old_mesh.commsize
+
+  return mesh
+end
+
+
+
+"""
   This outer constructor loads a mesh from a file, according to the
   options specified in the options dictionary.  The following keys are used:
 
@@ -481,6 +510,36 @@ function PumiMeshDG3(::Type{T}, sbp::AbstractSBP, opts,
 
   return mesh
 end
+
+
+"""
+  This constructor creates a new mesh object after mesh adaptation has
+  run.
+
+  **Inputs**
+
+   * old_mesh: old mesh object, mesh.m_ptr points to the adapted mesh (
+               which means that mesh.m_ptr and the mesh object are inconsistent
+               while this constructor runs
+   * sbp: SBP operator
+   * opts: options dictionary
+
+  **Outputs**
+
+   * mesh: new mesh object
+"""
+function PumiMeshDG3(old_mesh::PumiMeshDG3{T, Tface}, sbp, opts) where {T, Tface}
+
+  mesh = PumiMeshDG3(old_mesh)
+  mesh.m_ptr = old_mesh.m_ptr
+  pushMeshRef(mesh.m_ptr)
+
+  finishMeshInit(mesh, sbp, opts, old_mesh.topo, dofpernode=old_mesh.numDofPerNode,
+                 shape_type=old_mesh.shape_type)
+
+  return mesh
+end
+
 
 """
   Finish mesh initialization.  Most constructors use this to do the bulk of the
@@ -559,7 +618,12 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   # create the solution field
   mesh.mshape_ptr = getFieldShape(field_shape_type, order, mesh.dim)
   # use coordinate fieldshape for solution, because it will be interpolated
-  mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.coordshape_ptr)
+  # create new field only if it doesn't already exist (re-init after mesh
+  # adapt)
+  mesh.f_ptr = findField(mesh.m_ptr, "solution_field")
+  if mesh.f_ptr == C_NULL
+    mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.coordshape_ptr)
+  end
   mesh.fnew_ptr = mesh.f_ptr
   mesh.mnew_ptr = mesh.m_ptr
   mesh.fnewshape_ptr = mesh.coordshape_ptr

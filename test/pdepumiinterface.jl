@@ -835,9 +835,7 @@ end
   u_vals2 = zeros(u_vals)
   PdePumiInterface.retrieveSolutionFromMesh_interp(mesh, u_vals2)
 
-  println("order = ", order)
   for i=1:length(u_vals2)
-    println("i = ", i, ", u_vals = ", u_vals[i], ", u_vals2 = ", u_vals2[i])
     @test abs(u_vals2[i] - u_vals[i]) < 1e-12
   end
 
@@ -1012,6 +1010,7 @@ end
 
   test_submesh()
 
+  test_adapt_2d()
   println("finished")
 
 end

@@ -61,7 +61,10 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
   mesh.numNodesPerElement = getNumNodes(order)
   mesh.shape_type = shape_type
   @time mesh.numEntities, mesh.m_ptr, mesh.mshape_ptr, n_arr = init(dmg_name, smb_name, order, shape_type=shape_type)
-  @time mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
+  mesh.f_ptr = findField(mesh.m_ptr, "solution_field")
+  if mesh.f_ptr == C_NULL
+    @time mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
+  end
 
   mesh.numVert = convert(Int, mesh.numEntities[1])
   mesh.numEdge = convert(Int,  mesh.numEntities[2])

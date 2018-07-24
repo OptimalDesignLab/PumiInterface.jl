@@ -680,7 +680,12 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
   mesh.order = order
   
   mesh.mshape_ptr = getFieldShape(field_shape_type, order, mesh.dim)
-  mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
+  #TODO: is mesh.f_ptr used for anything? visualization uses mesh.f_new,
+  # which has the same fieldshape?
+  mesh.f_ptr = findField(mesh.m_ptr, "solution_field")
+  if mesh.f_ptr == C_NULL
+    mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
+  end
 
   mesh.shr_ptr = getSharing(mesh.m_ptr)
   # count the number of all the different mesh attributes

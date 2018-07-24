@@ -522,8 +522,9 @@ end
 println("about to test pdepumiinterface")
 include("test_funcs.jl")  # include functions used by both 2d and 3D
 include("common_functions.jl")
-include("pdepumiinterface.jl")
-include("pdepumiinterface3.jl")
+include("test_adapt.jl") # mesh adaptation
+#include("pdepumiinterface.jl")
+#include("pdepumiinterface3.jl")
 
 MPI.Barrier(MPI.COMM_WORLD)
 if MPI.Initialized()

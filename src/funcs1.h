@@ -156,7 +156,7 @@ extern void deleteIsoFunc(IsotropicFunctionJ* isofunc);
 extern ma::SolutionTransfers* createSolutionTransfers();
 extern void deleteSolutionTransfers(ma::SolutionTransfers* soltrans);
 extern void addSolutionTransfer(ma::SolutionTransfers* soltrans, apf::Field* f);
-extern ma::Input* configureMAInput(apf::Mesh* m, IsotropicFunctionJ* isofunc, 
+extern ma::Input* configureMAInput(apf::Mesh2* m, IsotropicFunctionJ* isofunc, 
                             ma::SolutionTransfer* soltrans);
 
 extern void runMA(ma::Input* in);
@@ -173,6 +173,7 @@ void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components
 void zeroField(apf::Field* f);
 apf::Field* getCoordinateField(apf::Mesh* m_ptr);
 
+apf::Field* findField(apf::Mesh* m, char* fieldname);
 void destroyField(apf::Field* f);
 void destroyFields(apf::Mesh* m, apf::Field* save_n[], int n_save);
 

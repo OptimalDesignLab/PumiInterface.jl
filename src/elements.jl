@@ -130,7 +130,13 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
     fshape_new = getFieldShape(0, mesh.coord_order, mesh.dim)
 
     mesh.mnew_ptr = mesh.m_ptr
-    mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field_interp", dofpernode)
+    # create a new field to store the solution if it does not already exist
+    # (reloading mesh after mesh adaptation)
+    mesh.fnew_ptr = findField(mesh.mnew_ptr, "solution_field_interp")
+    println("mesh.fnew_ptr = ", mesh.fnew_ptr)
+    if mesh.fnew_ptr == C_NULL
+      mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field_interp", dofpernode)
+    end
     mesh.fnewshape_ptr = fshape_new
 
     if (mesh.shape_type == 2) && opts["exact_visualization"]

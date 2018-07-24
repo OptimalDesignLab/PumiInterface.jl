@@ -932,9 +932,15 @@ void destroyNumberings(apf::Mesh* m, apf::Numbering* save_n[], int n_save)
 {
 
   int n_nums = m->countNumberings();
+  // first copy Numberings to an array, because after we delete a 
+  // Numbering, the indices in m->getNumbering(i) shift
+  std::vector<apf::Numbering*> old_n(n_nums);
+  for (int i=0; i < n_nums; ++i)
+    old_n[i] = m->getNumbering(i);
+
   for (int i=0; i < n_nums; ++i)
   {
-    apf::Numbering* n_i = m->getNumbering(i);
+    apf::Numbering* n_i = old_n[i];
 
     // delete if not in save_n array
     bool foundflag = false;
@@ -946,7 +952,9 @@ void destroyNumberings(apf::Mesh* m, apf::Numbering* save_n[], int n_save)
       }
 
     if (!foundflag)
+    {
       apf::destroyNumbering(n_i);
+    }
   }  // end loop i
 }
 
@@ -1192,6 +1200,10 @@ apf::Field* getCoordinateField(apf::Mesh* m_ptr)
   return m_ptr->getCoordinateField();
 }
 
+apf::Field* findField(apf::Mesh* m, char* fieldname)
+{
+  return m->findField(fieldname);
+}
 void destroyField(apf::Field* f)
 {
   apf::destroyField(f);

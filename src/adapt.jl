@@ -26,11 +26,40 @@ function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
   # create apf::Field
   fsize = createPackedField(mesh.m_ptr, "size_field", 1, mesh.coordshape_ptr)
 
+  zeroField(fsize)
 
+  # figure out which entities have nodes on them
+  has_nodes = Array{Bool}(mesh.dim+1)
+  for d=0:mesh.dim
+    has_nodes[d+1] = hasNodesIn(mesh.coordshape_ptr, d)
+  end
+
+  vals = zeros(Cdouble, 1)
+  down_entities = Array{Ptr{Void}}(12)  # apf::Downward
   # assign size to field
+  # for each entity, we specify the *minimum* size of any element it
+  # bounds
+  for i=1:mesh.numEl
+    el_i = mesh.elements[i]
+    for d=0:mesh.dim
+      if has_nodes[d+1]
+        ndown = getDownward(mesh.m_ptr, el_i, d, down_entities)
+        for j=1:ndown
+          getComponents(fsize, down_entities[j], 0, vals)
+          if vals[1] == 0
+            vals[1] = el_sizes[i]
+          else
+            vals[1] = min(vals[1], el_sizes[i])
+          end
+
+          setComponents(fsize, down_entities[j], 0, vals)
+        end  # end loop j
+      end  # end if
+    end  # end loop d
+  end  # end loop i
 
   # return field
-
+  return fsize
 end
 
 
@@ -47,7 +76,7 @@ end
    * sbp: SBP operator (must be the same operator used to construct
           `mesh`
    * opts: options dictionary
-   * el_sizes: desired size for each element (vector)
+   * el_sizes: desired size for each element (vector of Float64)
    * u_vec: solution field to interpolate to the adapted mesh (optional)
 
   **Outputs**
@@ -76,15 +105,34 @@ function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_
 
   if length(u_vec) > 0
     u_vec_new = zeros(Float64, newmesh.numDof)
-    u_vec_new = retrieveSolutionFromMesh(newmesh, u_vec_new)
+    retrieveSolutionFromMesh_interp(newmesh, u_vec_new)
   else
     u_vec_new = u_vec
   end
 
-  return mesh_new, u_vec_new
+  return newmesh, u_vec_new
 end
 
-#TODO: method for PumiMeshDG3
+# method for 3D DG meshes
+function adaptMesh(oldmesh::PumiMeshDG3, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0))
+
+  # run the mesh adaptation
+  _adaptMesh(oldmesh, el_sizes, u_vec)
+
+  newmesh = PumiMeshDG3(oldmesh, sbp, opts)
+  finalize(oldmesh)
+
+  if length(u_vec) > 0
+    u_vec_new = zeros(Float64, newmesh.numDof)
+    retrieveSolutionFromMesh_interp(newmesh, u_vec_new)
+  else
+    u_vec_new = u_vec
+  end
+
+  return newmesh, u_vec_new
+end
+
+
 
 """
   This does most of the work involved in mesh adaptation.  Specifically,
@@ -110,10 +158,10 @@ function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVec
 
   # interpolate size and possibly the solution to new mesh
   soltrans = createSolutionTransfers()
-  addSolutionTransfers(size_f)
+  addSolutionTransfer(soltrans, size_f)
   if length(u_vec) > 0
     saveSolutionToMesh(mesh, u_vec)
-    addSolutionTransfers(mesh.fnew_ptr)
+    addSolutionTransfer(soltrans, mesh.fnew_ptr)  # transfer field to new mesh
   end
 
   # configure input
@@ -123,7 +171,7 @@ function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVec
   runMA(ma_input)  # this function deletes ma_input
 
   # cleanup intermediate data
-  deleteSolutionTransfer(soltrans)
+  deleteSolutionTransfers(soltrans)
   deleteIsoFunc(isofunc)
   destroyField(size_f) 
 

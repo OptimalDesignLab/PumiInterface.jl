@@ -108,6 +108,7 @@ global const setComponents_name = "setComponents"
 global const getComponents_name = "getComponents"
 global const zeroField_name = "zeroField"
 global const getCoordinateField_name = "getCoordinateField"
+global const findField_name = "findField"
 global const destroyField_name = "destroyField"
 global const destroyFields_name = "destroyFields"
 
@@ -158,7 +159,7 @@ export declareNames, init, loadMesh, initMesh, pushMeshRef, popMeshRef,
        addSolutionTransfer, configureMAInput, runMA, getAvgElementSize, IsoFuncJ,
        SolutionTransfers, MAInput,
        createPackedField, setComponents,
-       getComponents, zeroField, getCoordinateField, destroyField, destroyFields,
+       getComponents, zeroField, getCoordinateField, findField, destroyField, destroyFields,
        countBridgeAdjacent,
        getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
@@ -1015,7 +1016,7 @@ end
 """
 function deleteIsoFunc(func::IsoFuncJ)
 
-  ccall( (deleteIsoFunc_name, pumi_libname), Void, (Ptr{Void},), func)
+  ccall( (deleteIsoFunc_name, pumi_libname), Void, (IsoFuncJ,), func)
 
   return nothing
 end
@@ -1058,9 +1059,9 @@ end
    `SolutionTransfer` objects are not exposed to Julia, so this is a
    non-issue.
 """
-function deleteSolutionTransfer(soltrans::SolutionTransfers)
+function deleteSolutionTransfers(soltrans::SolutionTransfers)
 
-  ccall( (deleteSolutionTransfers, pumi_libname), Void, (Ptr{Void},), soltrans)
+  ccall( (deleteSolutionTransfers_name, pumi_libname), Void, (SolutionTransfers,), soltrans)
 
   return nothing
 end
@@ -1079,7 +1080,7 @@ end
 """
 function addSolutionTransfer(soltrans::SolutionTransfers, f::Ptr{Void})
 
-  ccall( (addSolutionTransfer_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}), soltrans, f)
+  ccall( (addSolutionTransfer_name, pumi_libname), Void, (SolutionTransfers, Ptr{Void}), soltrans, f)
 
   return nothing
 end
@@ -1100,7 +1101,7 @@ end
 function configureMAInput(m_ptr::Ptr{Void}, isofunc::IsoFuncJ, soltrans::SolutionTransfers)
 
   ptr = ccall( (configureMAInput_name, pumi_libname), Ptr{Void},
-               (Ptr{Void}, Ptr{Void}, Ptr{Void}), m_ptr, isofunc, soltrans)
+               (Ptr{Void}, IsoFuncJ, SolutionTransfers), m_ptr, isofunc, soltrans)
 
   return MAInput(ptr)
 end
@@ -1118,7 +1119,7 @@ end
 """
 function runMA(input::MAInput)
 
-  ccall( (runMA_name, pumi_libname), Void, (Ptr{Void},), input)
+  ccall( (runMA_name, pumi_libname), Void, (MAInput,), input)
 
   return nothing
 end
@@ -1175,6 +1176,13 @@ end
 function getCoordinateField(m_ptr::Ptr{Void})
 
   ccall( (getCoordinateField_name, pumi_libname), Ptr{Void}, (Ptr{Void},), m_ptr)
+end
+
+function findField(m_ptr::Ptr{Void}, fieldname::String)
+
+  f_ptr = ccall( (findField_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Cstring), m_ptr, fieldname)
+
+  return f_ptr
 end
 
 function destroyField(f_ptr::Ptr{Void})
