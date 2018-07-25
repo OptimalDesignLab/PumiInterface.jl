@@ -89,6 +89,8 @@ include("test_adapt.jl")
 
   # this allocates a ton of memory - don't run
 #  test_metric_rev(mesh, mesh_c, sbp)
+
+  test_adapt_3d(parallel=true)
 end
 
 MPI.Barrier(MPI.COMM_WORLD)

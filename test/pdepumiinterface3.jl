@@ -488,6 +488,7 @@ include("defs.jl")
   test_metric_rev(mesh2, mesh2_c, sbp, opts)
 
 
+  test_adapt_3d()
  
 
 end

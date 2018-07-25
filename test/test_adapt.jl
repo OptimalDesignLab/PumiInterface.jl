@@ -119,6 +119,3 @@ function test_adapt_3d(; parallel=false)
 
   return nothing
 end
-
-test_adapt_3d(parallel=true)
-#test_adapt_2d(parallel=true)
