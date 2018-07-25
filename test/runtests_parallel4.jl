@@ -12,6 +12,7 @@ end
 include("defs.jl")
 include("common_functions.jl")
 include("test_funcs.jl")
+include("test_adapt.jl")
 
 @testset "----- Testing 4 process PDEPumiInterface3DG -----" begin
   degree = 1

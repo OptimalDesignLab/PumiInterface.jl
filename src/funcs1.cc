@@ -1195,6 +1195,23 @@ void zeroField(apf::Field* f)
   apf::zeroField(f);
 }
 
+const apf::ReductionSum<double>* Sum = new apf::ReductionSum<double>();
+const apf::ReductionMin<double>* Min = new apf::ReductionMin<double>();
+const apf::ReductionMax<double>* Max = new apf::ReductionMax<double>();
+const apf::ReductionOp<double>* Reductions[3] = {Sum, Min, Max};
+
+void reduceField(apf::Field* f, apf::Sharing* shr, int reduce_op)
+{
+  if (reduce_op < 0 || reduce_op > 2)
+  {
+    std::cerr << "Error: unrecognized reduce_op: " << reduce_op << std::endl;
+    std::abort();
+  }
+
+  apf::reduce(f, shr, false, *Reductions[reduce_op]);
+
+}
+
 apf::Field* getCoordinateField(apf::Mesh* m_ptr)
 {
   return m_ptr->getCoordinateField();

@@ -171,6 +171,7 @@ void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components
 
 
 void zeroField(apf::Field* f);
+void reduceField(apf::Field* f, apf::Sharing* shr, int reduce_op);
 apf::Field* getCoordinateField(apf::Mesh* m_ptr);
 
 apf::Field* findField(apf::Mesh* m, char* fieldname);

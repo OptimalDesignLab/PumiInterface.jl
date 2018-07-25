@@ -1,12 +1,18 @@
 # test mesh adaptation
 
-function test_adapt_2d()
+function test_adapt_2d(;parallel=false)
 
   @testset "Testing 2D mesh adaptation" begin
+
+    if parallel
+      smb_name = "parallel2.smb"
+    else
+      smb_name = "tri8l.smb"
+    end
     order = 1
     opts = Dict{Any, Any}(
       "dmg_name" => ".null",
-      "smb_name" => "tri8l.smb",
+      "smb_name" => smb_name,
       "order" => order,
       "coloring_distance" => 2,
       "numBC" => 1,
@@ -53,12 +59,16 @@ function test_adapt_2d()
 end
 
 
-function test_adapt_3d()
+function test_adapt_3d(; parallel=false)
 
   @testset "Testing 3D mesh adaptation" begin
     degree = 1
     dmg_name = ".null"
-    smb_name = "unitcube.smb"
+    if parallel
+      smb_name = "pcube10.smb"
+    else
+      smb_name = "unitcube.smb"
+    end
 
     opts = PdePumiInterface.get_defaults()
     opts["smb_name"] = smb_name
@@ -109,3 +119,6 @@ function test_adapt_3d()
 
   return nothing
 end
+
+test_adapt_3d(parallel=true)
+#test_adapt_2d(parallel=true)

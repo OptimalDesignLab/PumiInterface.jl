@@ -107,6 +107,7 @@ global const createPackedField_name = "createPackedField"
 global const setComponents_name = "setComponents"
 global const getComponents_name = "getComponents"
 global const zeroField_name = "zeroField"
+global const reduceField_name = "reduceField"
 global const getCoordinateField_name = "getCoordinateField"
 global const findField_name = "findField"
 global const destroyField_name = "destroyField"
@@ -159,7 +160,7 @@ export declareNames, init, loadMesh, initMesh, pushMeshRef, popMeshRef,
        addSolutionTransfer, configureMAInput, runMA, getAvgElementSize, IsoFuncJ,
        SolutionTransfers, MAInput,
        createPackedField, setComponents,
-       getComponents, zeroField, getCoordinateField, findField, destroyField, destroyFields,
+       getComponents, zeroField, reduceField, getCoordinateField, findField, destroyField, destroyFields,
        countBridgeAdjacent,
        getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
@@ -1171,6 +1172,23 @@ end
 
 function zeroField(f_ptr)
   ccall( (zeroField_name, pumi_libname), Void, (Ptr{Void},), f_ptr)
+end
+
+"""
+  Apply a reduction operation along the partition boundaries of a Field
+  to make the field globally consistent.  The field must have values
+  written to it by all processes before this function is applied.
+
+  **Inputs**
+
+   * f_ptr: apf::Field*
+   * shr_ptr:: apf::Sharing*
+   * reduce_op: 0 = sum, 1 = min, 2 = max
+"""
+function reduceField(f_ptr::Ptr{Void}, shr_ptr::Ptr{Void}, reduce_op::Integer)
+
+  ccall( (reduceField_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Cint), f_ptr, shr_ptr, reduce_op)
+
 end
 
 function getCoordinateField(m_ptr::Ptr{Void})

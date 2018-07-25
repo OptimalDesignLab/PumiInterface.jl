@@ -253,7 +253,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 #              println(mesh.f, "u_verts = \n", u_verts)
 
               for p=1:mesh.numDofPerNode
-                arr_peer[p, shared_vert_idx] = reduce_op(u_vertsl[col, p], real(jac_verts[col]), arr_peer[p, shared_vert_idx])
+                arr_peer[p, shared_vert_idx] = reduce_op(u_verts[col, p], real(jac_verts[col]), arr_peer[p, shared_vert_idx])
               end
               arr_peer[mesh.numDofPerNode + 1, shared_vert_idx] += real(jac_verts[col])
             end  # end loop over peers
@@ -331,7 +331,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 #      println(mesh.f, "adding parallel contribution ", peer_vals_p[p, i], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
         # set jac_det to 1 here because both the old and new values have 
         # already been scaled
-        u_node[p] = reduce_op(peer_vals[p, i], 1.0, u_node[p])
+        u_node[p] = reduce_op(peer_vals_p[p, i], 1.0, u_node[p])
       end
 
       # check for local matches

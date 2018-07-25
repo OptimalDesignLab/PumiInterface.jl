@@ -58,6 +58,9 @@ function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
     end  # end loop d
   end  # end loop i
 
+  # take minimum along partition boundaries
+  reduceField(fsize, mesh.shr_ptr, 1);
+
   # return field
   return fsize
 end
