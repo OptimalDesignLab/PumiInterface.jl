@@ -69,8 +69,12 @@ end
   The verify keyword argument determines whether or not to run the Pumi
   verifier on the updated mesh.  It can be expensive, so it is recommended
   to only run it on small meshes.
+
+  The `write_vis` keyword controls whether a vtk file, named `pre_commit` is
+  written just before the metrics are recalculated (if an element is turned 
+  inside out, the metric recalculation is where the error gets thrown).
 """
-function commit_coords(mesh::PumiMesh, sbp, opts; verify=true)
+function commit_coords(mesh::PumiMesh, sbp, opts; verify=true, write_vis=false)
 # users must call this function when they have finished updating the coordinates
 # the verify kwarg determines if the Pumi verifier on the new mesh
 # that should check for negative volumes
@@ -81,7 +85,9 @@ function commit_coords(mesh::PumiMesh, sbp, opts; verify=true)
     # TODO; call our verification code too
   end
 
-  writeVisFiles(mesh, "pre_commit")
+  if write_vis
+    writeVisFiles(mesh, "pre_commit")
+  end
 
   getAllCoordinatesAndMetrics(mesh, sbp, opts)
 

@@ -17,7 +17,7 @@ class IsotropicFunctionJ : public ma::IsotropicFunction
 
   public:
 
-    IsotropicFunctionJ() {};  // default constructor
+//    IsotropicFunctionJ() {};  // default constructor
     IsotropicFunctionJ(apf::Mesh* _m, apf::Numbering* _numberings[4],
                        apf::Field* _f)
     {
@@ -59,7 +59,7 @@ class IsotropicFunctionJ : public ma::IsotropicFunction
 
     apf::Mesh* m = NULL;
     apf::Numbering* numberings[4] = {NULL, NULL, NULL, NULL};
-    apf::Field* f;
+    apf::Field* f = NULL;
 
 };
 #endif
