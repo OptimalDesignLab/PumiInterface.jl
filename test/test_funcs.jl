@@ -1295,18 +1295,14 @@ function test_coordNumbering(mesh)
 
     nums = zeros(mesh.dim*mesh.coord_numNodes)
     # check verts
-    j = 1
-    println("length(mesh.verts) = ", length(mesh.verts))
     for entity in mesh.verts
       for i=1:mesh.dim
         val = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, i-1)
-        println("vertex $j entity $entity val = $val")
         @test val >= 1
         @test val <= mesh.dim*mesh.coord_numNodes
 
         nums[val] += 1
       end
-      j += 1
     end
 
     if mesh.coord_order == 2

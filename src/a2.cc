@@ -283,8 +283,6 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp,
   int elementLabel_i = numEl;  // zero-based indexing
   int numNodes_i;
 
-  std::cout << "starting node labelling from " << nodeLabel_i << std::endl;
-
   // queue initial entity
   que1.push(e);
   
@@ -300,15 +298,9 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp,
       for ( int c = 0; c < comp; ++c) // loop over dof of the node
       {
         if (shouldNumber(node_statusNumbering, e, i, c))
-        {
-          nodeLabel_i -= 1;  // decrement nodelabel
-          std::cout << "numbering entity " << e << " with number " << nodeLabel_i << std::endl;
-          number(nodeNums, e, i, c, nodeLabel_i);
-        } else // give all fixed dofs a label of 0 so they get written to vtk
-        {
+          number(nodeNums, e, i, c, --nodeLabel_i);
+        else // give all fixed dofs a label of 0 so they get written to vtk
            apf::number(nodeNums, e, i, c, 0);
-        }
-
       }
     }  // end for i
 
@@ -345,7 +337,6 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp,
             if ( (nodeNum_j > ndof) && (nodeNum_j <= 2*ndof)) 
             {
               // double node number to show is has been added to queue
-              std::cout << "adding face to queue" << std::endl;
               apf::number(nodeNums, face_j, 0, 0, nodeNum_j*2);
               que1.push(face_j); // add face to que
             }
@@ -375,12 +366,9 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp,
               for (int c = 0; c < comp; ++c) // loop over dofs of node
               {
                if (shouldNumber(node_statusNumbering, edge_i, j, c))
-                {
-                  nodeLabel_i -= 1;
-                  apf::number(nodeNums, edge_i, j, c, nodeLabel_i);
-                } else {
+                  apf::number(nodeNums, edge_i, j, c, --nodeLabel_i);
+               else
                   apf::number(nodeNums, edge_i, j, c, 0);
-                }
               }
             }
           } else { // add edge to queue first, othervertex second (via list)   
@@ -401,7 +389,6 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp,
           if ( (!labeled) && (!queued))  // if otherVertex not labelled
           {
             // double node number to signal this node queued
-            std::cout << "adding vertex " << otherVertex << " to queue" << std::endl;
             apf::number(nodeNums,otherVertex, 0,0, 2*otherVertex_num);
             tmpQue.push(otherVertex);
           }
@@ -435,7 +422,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp,
     std::cerr << "final nodeLabel_i = " << nodeLabel_i << std::endl;
   } else
   {
-    std::cout << "node reordering is sane" << std::endl;
+//    std::cout << "node reordering is sane" << std::endl;
   }
 
   std::cout << std::endl;
