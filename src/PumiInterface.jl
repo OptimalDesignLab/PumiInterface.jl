@@ -899,25 +899,28 @@ end
    node_statusNumbering: apf::Numbering* that tells what the status of a dof
                          is.  If the value for a dof >= 2, then it gets 
 			 labelled.  Must have ncomp components per node.
+                         If C_NULL, all dofs will be numbered.
   nodeNums:  an already created apf::Numbering* that the dof numbers are
              written to. Its apf::Fieldshape must be the same as the mesh.
 	     The numbering is 1-based.  Any dof with status < 2 will be given
 	     the number zero.
 
   elNums: an already created apf::Numbering* that the element numbers are 
-          written to.
-  x, y : x-y coordinates of a point.  The mesh vertex classified on a model
+          written to.  If C_NULL, this numbering will not be used.
+  start_coords: coordinates of a point. The mesh vertex classified on a model
          vertex closest to this point is used as the starting entity for the 
 	 reordering.  Note that the reordering algorithm assigns dof numbers
-	 in reverse order (ie. high to low rather than low to high).
+	 in reverse order (ie. high to low rather than low to high).  Array
+         of length m->getDimension()
 
 """->
-function reorder(m_ptr, ndof::Integer, ncomp::Integer, node_statusN_ptr, nodeNums, elNums, x::AbstractFloat, y::AbstractFloat )
+function reorder(m_ptr, ndof::Integer, ncomp::Integer, node_statusN_ptr,
+                 nodeNums, elNums, start_coords::Vector{Cdouble})
 
   println("ndof = ", ndof)
   println("ncomp = ", ncomp)
  
-  ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}, Cdouble, Cdouble),  m_ptr, ndof,  ncomp, node_statusN_ptr, nodeNums, elNums, x, y)
+  ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Cdouble}),  m_ptr, ndof,  ncomp, node_statusN_ptr, nodeNums, elNums, start_coords)
 
   return nothing
 

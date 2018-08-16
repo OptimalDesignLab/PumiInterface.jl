@@ -1281,3 +1281,52 @@ function testSurfaceNumbering(mesh, sbp, opts)
 
   return nothing
 end
+
+"""
+  Do sanity checks on the coordinate field number.  Currently tests
+
+   * all coordinate field dofs have numbers assigned
+   * all the numbers are in the range 1 to mesh.dim * coord_numNodesPerElement
+   * all numbers from 1 to coord_numNodesPerElement exist exactly once
+"""
+function test_coordNumbering(mesh)
+
+  @testset "Testing coordinate field Numbering" begin
+
+    nums = zeros(mesh.dim*mesh.coord_numNodes)
+    # check verts
+    j = 1
+    println("length(mesh.verts) = ", length(mesh.verts))
+    for entity in mesh.verts
+      for i=1:mesh.dim
+        val = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, i-1)
+        println("vertex $j entity $entity val = $val")
+        @test val >= 1
+        @test val <= mesh.dim*mesh.coord_numNodes
+
+        nums[val] += 1
+      end
+      j += 1
+    end
+
+    if mesh.coord_order == 2
+      for entity in mesh.edges
+        for i=1:mesh.dim
+          val = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, i-1)
+          @test val >= 1
+          @test val <= mesh.dim*mesh.coord_numNodes
+
+          nums[val] += 1
+        end
+      end
+    end
+
+    # every number exists once
+    for val in nums
+      @test val == 1
+    end
+
+  end  # end testset
+
+  return nothing
+end
