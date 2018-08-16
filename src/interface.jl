@@ -121,3 +121,169 @@ function numberSurfacePoints(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglo
 end
 
 
+#------------------------------------------------------------------------------
+# Reduction operations
+
+"""
+  Abstract type for reduction operations
+"""
+abstract type Reduction{T} end
+
+"""
+  Assignment reduction (always returns the right hand value)
+"""
+struct AssignReduction{T} <: Reduction{T}
+  neutral_element::T
+
+  function AssignReduction{T}() where {T}
+    return new(0)
+  end
+end
+
+function (obj::AssignReduction)(valL::Number, valR::Number)
+  return valR
+end
+
+"""
+  Sum reduction
+"""
+struct SumReduction{T} <: Reduction{T}
+  neutral_element::T
+
+  function SumReduction{T}() where {T}
+    return new(0)
+  end
+end
+
+function (obj::SumReduction)(valL::Number, valR::Number)
+  return valL + valR
+end
+
+"""
+  Minimum reduction
+"""
+struct MinReduction{T} <: Reduction{T}
+  neutral_element::T
+
+  function MinReduction{T}() where {T}
+    return new(typemax(T))
+  end
+end
+
+function (obj::MinReduction)(valL::Number, valR::Number)
+  return min(valL, valR)
+end
+
+"""
+  Max reduction
+"""
+struct MaxReduction{T}  <: Reduction{T}
+  neutral_element::T
+
+  function MaxReduction{T}() where {T}
+    return new(typemin(T))
+  end
+end
+
+function (obj::MaxReduction)(valL::Number, valR::Number)
+  return max(valL, valR)
+end
+
+
+
+"""
+  This function applies a user-supplied operation to take an array the same
+  shape as `mesh.vert_coords` and transform it into a vector of length
+  `mesh.dim*mesh.coord_numNodes` (a flattened array of all the coordinates).
+  The user supplied operation is applied pairwise to all the values that are
+  mapped to the same location in the vector.  `mesh.coord_nodenums_Nptr` is
+  used to define the mapping from the array to the vector.
+
+  The user supplied operation must have the signature
+
+  ```
+    val = reduce_op(valL, valR)
+  ```
+
+  where `valL` is the value that is already in the vector, and `valR` is
+  the new value from `coords_arr`.  The vector is initialized with 
+  `reduce_op.neutral_element`
+
+  **Inputs**
+  
+   * mesh: DG mesh object
+   * coords_arr: array, same shape as `mesh.vert_coords`
+   * reduce_op: a [`Reduction`](@ref) object, defaults to [`SumReduction`](@ref)
+
+
+  **Inputs/Outputs**
+
+   * coords_vec: vector to be populated
+
+"""
+function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
+                     coords_vec::AbstractVector, reduce_op::Reduction{T}=SumReduction{T}())  where {T}
+
+  @assert mesh.coord_order <= 2
+  @assert size(coords_arr, 3) == mesh.numEl
+  @assert size(coords_arr, 2) == mesh.coord_numNodesPerElement
+  @assert size(coords_arr, 1) == mesh.dim
+  @assert length(coords_vec) == mesh.coord_numNodes*mesh.dim
+
+  fill!(coords_vec, reduce_op.neutral_element)
+
+  for i=1:mesh.numEl
+    #TODO: it would be faster to create an array for this, but it would use
+    #      more memory
+    node_entities = getNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.elements[i])
+    for j=1:mesh.coord_numNodesPerElement
+      for k=1:mesh.dim
+        idx = getNumberJ(mesh.coord_nodenums_Nptr, node_entities[j], 0, k-1)
+
+        coords_vec[idx] = reduce_op(coords_vec[idx], coords_arr[k, j, i])
+      end
+    end
+  end
+
+  return nothing
+end
+
+"""
+  Like `coords1DTo3D`, but goes from the vector to the 3D array.
+
+  **Inputs**
+
+   * mesh: DG mesh
+   * coords_vec: vector of coordinate-like values
+   * reduce_op: [`Reduction`](@ref) object, default [`AssignmnetReduction`](@ref)
+
+  **Inputs/Outputs**
+
+   * coords_arr: 3D array to be populated
+"""
+function coords1DTo3D(mesh::PumiMeshDG, coords_vec::AbstractVector,
+                      coords_arr::AbstractArray{T, 3},
+                      reduce_op::Reduction{T}=AssignReduction{T}()) where {T}
+
+  @assert mesh.coord_order <= 2
+  @assert size(coords_arr, 3) == mesh.numEl
+  @assert size(coords_arr, 2) == mesh.coord_numNodesPerElement
+  @assert size(coords_arr, 1) == mesh.dim
+  @assert length(coords_vec) == mesh.coord_numNodes*mesh.dim
+
+
+  fill!(coords_arr, reduce_op.neutral_element)
+
+  for i=1:mesh.numEl
+    node_entities = getNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.elements[i])
+    for j=1:mesh.coord_numNodesPerElement
+      for k=1:mesh.dim
+        idx = getNumberJ(mesh.coord_nodenums_Nptr, node_entities[j], 0, k-1)
+
+        coords_arr[k, j, i] = reduce_op(coords_arr[k, j, i], coords_vec[idx])
+      end
+    end
+  end
+
+  return nothing
+end

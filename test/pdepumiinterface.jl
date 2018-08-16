@@ -896,6 +896,8 @@ end
 
   testSurfaceNumbering(mesh, sbp, opts)
   test_coordNumbering(mesh)
+  test_coord_field(mesh)
+
   #TODO: check sizes of arrays
 
   function test_volume_curvilinear(mesh, sbp)
