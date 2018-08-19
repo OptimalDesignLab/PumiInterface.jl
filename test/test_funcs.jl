@@ -1281,3 +1281,71 @@ function testSurfaceNumbering(mesh, sbp, opts)
 
   return nothing
 end
+
+"""
+  Do sanity checks on the coordinate field number.  Currently tests
+
+   * all coordinate field dofs have numbers assigned
+   * all the numbers are in the range 1 to mesh.dim * coord_numNodesPerElement
+   * all numbers from 1 to coord_numNodesPerElement exist exactly once
+"""
+function test_coordNumbering(mesh)
+
+  @testset "Testing coordinate field Numbering" begin
+
+    nums = zeros(mesh.dim*mesh.coord_numNodes)
+    # check verts
+    for entity in mesh.verts
+      for i=1:mesh.dim
+        val = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, i-1)
+        @test val >= 1
+        @test val <= mesh.dim*mesh.coord_numNodes
+
+        nums[val] += 1
+      end
+    end
+
+    if mesh.coord_order == 2
+      for entity in mesh.edges
+        for i=1:mesh.dim
+          val = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, i-1)
+          @test val >= 1
+          @test val <= mesh.dim*mesh.coord_numNodes
+
+          nums[val] += 1
+        end
+      end
+    end
+
+    # every number exists once
+    for val in nums
+      @test val == 1
+    end
+
+  end  # end testset
+
+  return nothing
+end
+
+
+"""
+  Test coordinate field transformation functions
+"""
+function test_coord_field(mesh::PumiMeshDG{T}) where {T}
+  
+  @testset "Testing coordinate field transformation" begin
+
+    # test round tripping the vert_coords array
+    coord_arr = copy(mesh.vert_coords)
+    coord_vec = zeros(T, mesh.dim*mesh.coord_numNodes)
+
+    coords3DTo1D(mesh, coord_arr, coord_vec, PdePumiInterface.AssignReduction{T}())
+    fill!(coord_arr, 0.0)
+    coords1DTo3D(mesh, coord_vec, coord_arr, PdePumiInterface.AssignReduction{T}())
+
+    @test vecnorm(coord_arr - mesh.vert_coords) < 1e-13
+
+  end
+
+  return nothing
+end

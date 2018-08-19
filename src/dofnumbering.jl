@@ -198,26 +198,33 @@ function getDofNumbers(mesh::PumiMeshDG)
 end
 
 
+"""
+  Node numbering algorithm that loops over elements and numbers their downward
+  adjacencies, generating a decent sparsity pattern.  This algorithm is
+  primarily intended for CG meshes, although I think it works for DG meshes too.
+  This probably only works for 2D CG meshes.
 
-# this could be generalized with some clever array bookkeeping tricks
+  **Inputs**
+
+   * mesh: a PumiMesh
+   * number_dofs: Bool, if true, number the dofs (mesh.dofnums_Npts), otherwise
+                  number the nodes (mesh.nodenums_Nptr)
+"""
 function numberNodes(mesh::PumiMesh, number_dofs=false)
 # assign node numbers to entire mesh, or dof numbers if number_dofs=true,
 # using the correct Numbering pointer
 # assumes mesh elements have already been reordered
 # this works for high order elements
 
+  @assert mesh.dim == 2
+
+  # initally number all dofs as numDof+1 to 2*numDof
+  # this allows quick check to see if somthing is labelled or not
   numberNodesElement(mesh, number_dofs=number_dofs, start_at_one=false)
 
   # calculate number of nodes, dofs
   numnodes = mesh.numNodes
 
-  # initally number all dofs as numDof+1 to 2*numDof
-  # this allows quick check to see if somthing is labelled or not
-
-#  resetAllIts2(mesh.m_ptr)
-  # mesh iterator increment, retreval functions
-#  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
-#  iterators_get = [getVert, getEdge, getFace, getEl]
   num_entities = mesh.numEntitiesPerType
   num_nodes_entity = mesh.numNodesPerType
 
@@ -252,7 +259,7 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
 #    println("verts_i = ", verts_i)
 #    println("mesh.verts = ", mesh.verts)
     numEdge = getDownward(mesh.m_ptr, el_i_ptr, 1, edges_i)
-    for j=1:3  # loop over vertices, edges
+    for j=1:3  # loop over vertices, edges  #TODO: why is this 1:3?
       vert_j = verts_i[j]
       edge_j = edges_i[j]
       for k=1:num_nodes_entity[1] # loop over vertex nodes
@@ -299,15 +306,36 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
 #  resetAllIts2(mesh.m_ptr)
 
 
-  if (curr_dof -1) != numDof 
-    println("Warning: number of dofs assigned is not equal to teh expected number")
-    println("number of dofs assigned = ", curr_dof-1, " ,expected number = ", numDof)
+
+  if (curr_dof -1) != numDof
+    error("Warning: number of dofs assigned is not equal to the expected number" *
+          "number of dofs assigned = $(curr_dof-1) ,expected number =  $numDof")
   end
 
   return nothing
 
 end
 
+"""
+  This function numbers the mesh entities using a simple iteration over all
+  entities of each dimension.  This generates a bad sparsity pattern for CG
+  meshes.  For DG meshes the sparsity pattern is ok if Pumi reordered the
+  elements in its database, otherwise the sparsity pattern is bad.
+
+  **Inputs**
+
+   * mesh: a PumiMesh
+   
+  **Keyword Arguments**
+
+   * number_dofs: if true, number the dofs (mesh.dofnums_Nptr), otherwise
+                  number the nodes (mesh.nodenums_Nptr), default false
+   * start_at_one: if true, start numbering dofs at 1, otherwise start at
+                   number of dofs/nodes + 1.  This is useful as an initial
+                   numbering for other algorithms, because any dof/node
+                   with a number greater than the number of dofs/nodes has not
+                   been relabeled yet.
+"""
 function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true)
 # number all nodes (or dofs) by iterating over all entities, from lowest
 # dimension to highest, and numbering the nodes in order
@@ -315,17 +343,8 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
   # calculate number of nodes, dofs
   numnodes = mesh.numNodes
 
-  # initally number all dofs as numDof+1 to 2*numDof
-  # this allows quick check to see if somthing is labelled or not
-
-#  resetAllIts2(mesh.m_ptr)
-  # mesh iterator increment, retreval functions
-#  iterators_inc = [incrementVertIt, incrementEdgeIt, incrementFaceIt, incrementElIt]
-#  iterators_get = [getVert, getEdge, getFace, getEl]
   num_entities = mesh.numEntitiesPerType
   num_nodes_entity = mesh.numNodesPerType
-
-#  mesh.numNodesPerType = num_nodes_entity
 
   if number_dofs
     numbering_ptr = mesh.dofnums_Nptr
@@ -340,7 +359,7 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
   end
 
   if (numDof > 2^30 || numDof < 0)
-    println("Warning: too many dofs, renumbering will fail")
+    error("Warning: too many dofs, renumbering will fail")
   end
 
 
@@ -355,7 +374,10 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
 
   if mesh.isDG
     nodemap =  mesh.nodemapSbpToPumi
-  else
+  else  # fake nodemap: always 1:1, this works because we iterate over the
+        # entities of each dimension, so every entity is visited exactly once
+        # Such an algorith generates a horrible sparsity pattern, but this
+        # is the default algorithm, so whatever
     nodemap = collect(eltype(mesh.nodemapSbpToPumi), 1:mesh.numNodesPerElement)
   end
 
@@ -367,7 +389,10 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
         entity_ptr = iterate(mesh.m_ptr, it)
 
 	for node = 1:num_nodes_entity[etype]
-          pumi_node = nodemap[node]
+          pumi_node = nodemap[node]  # this appears to only work for elements
+                                     # with nodes on the interior, otherwise
+                                     # there would need to be different node
+                                     # maps for entities of different dimension
 	  for dof = 1:dofpernode
 	    numberJ(numbering_ptr, entity_ptr, pumi_node-1, dof-1, curr_dof)
 	    curr_dof += 1
@@ -406,7 +431,30 @@ return nothing
 
 end
 
+"""
+  This function numbers the dof/nodes of the mesh using and adjacency-type
+  algorithm, starting from the mesh element nearest the specified coordinates.
+  The dofs/nodes are numbered in an increasing order.  This only works for
+  DG meshes.  This function overwrites the mesh.el_Nptr numbering with
+  the new element numbering, in addition to numbering the dofs/nodes.
 
+  Note that this function updates the mesh.verts, mesh.edges, mesh.faces,
+  mesh.elements arrays so they match the numbering (ie. mesh.element[1] has
+  the number 0 in mesh.el_Nptr, because the numbering is zero based).
+
+  The numbering of dofs/nodes is 1-based, and the numbering of elements is
+  zero-based.
+
+  **Inputs**
+
+   * mesh: a DG mesh
+   * start_coords: vector of length mesh.dim specifying starting location
+                   of the numbering.  The element with the closests linear
+                   centroid (based on vertex locations only) is selected as
+                   the starting element.
+  * number_dofs: if true, numbers the dofs (mesh.dofnums_Nptr), otherwise
+                 numbers the nodes (mesh.nodenums_Nptr).
+"""
 function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
 # number nodes and elements starting from a particular location
 

@@ -485,7 +485,8 @@ end
   @test ( size(mesh.dxidx_sharedface_bar) )== size(mesh.dxidx_sharedface_bar)
 
 
-  @test isapprox( mesh.jac, ones(mesh.numNodesPerElement ,2)) 
+  @test isapprox( mesh.jac, ones(mesh.numNodesPerElement ,2))
+  test_coordNumbering(mesh)
 
   # check if dxidx is consistent with the old way of calculating it
   dxidx2 = zeros(mesh.dxidx)
@@ -865,6 +866,8 @@ end
     @test  iface_i.faceR  < 4
   end
 
+  test_coordNumbering(mesh)
+
   
   # test curvilinear
   println("testing curvilinear")
@@ -892,6 +895,9 @@ end
 #  mesh =  PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
   testSurfaceNumbering(mesh, sbp, opts)
+  test_coordNumbering(mesh)
+  test_coord_field(mesh)
+
   #TODO: check sizes of arrays
 
   function test_volume_curvilinear(mesh, sbp)
