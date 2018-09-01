@@ -55,11 +55,13 @@ function convertToBary(coords_xy::Array)
     T[:, 3] = r4 - r1
     println("T = \n", T)
     println("r1 = \n", r1)
+    println("size(T) = ", size(T))
+    println("size(r1 = ", size(r1))
   end
 
   xi = zeros(coords_xy)
   for i=1:size(coords_xy,2)
-    xi[:, i] = T\(coords_xy[:, i] - r1.')
+    xi[:, i] = T\(coords_xy[:, i] - r1)
   end
 
   return xi
@@ -114,8 +116,8 @@ end
 #sbp = getTriSBPOmega2(degree=4)
 #sbp = TriSBP{Float64}(degree=1, reorder=false, internal=false)
 #sbp = TetSBP{Float64}(degree=3, reorder=false, internal=true)
-#sbp = getTetSBPDiagE(degree=3)
-sbp = getTriSBPOmega(degree=3)
+sbp = getTetSBPDiagE(degree=4)
+#sbp = getTriSBPOmega(degree=3)
 xi, coords = nodecalc(sbp, true)
 printCaseStatement(xi)
 printBaryCoords(xi, coords)
