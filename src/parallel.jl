@@ -562,7 +562,7 @@ end
 
 # could be generalized with a few constants
 function getLocalAdjacency(mesh::PumiMeshDG)
-
+  
   # map from an element number of all the element numbers of the 
   # non-local elements
   # an element can have a maximum of 2 non-local neighbor elements
@@ -588,7 +588,7 @@ function getLocalAdjacency(mesh::PumiMeshDG)
         old_tuple[idx] = Int(el_nonlocal)
 #        adj_dict[el_local] = (old_tuple[1], Int(el_nonlocal))
       end  # end if-else
-
+      
       nonlocal_idx = el_nonlocal - mesh.numEl
       for k=1:5
         if revadj[nonlocal_idx, k] == 0
