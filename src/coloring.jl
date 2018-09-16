@@ -359,45 +359,53 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
   # (nfaces-1)(nfaces) entries of colors
   # store their nonlocal d1 neighbors in next (nfaces-1)(nfaces-1) entries of
   # colors
+  # It is possible to have a fully occluded element, so the two extreme cases
+  # are nfaces local neighbors and 0 nonlocal neighbor or 0 local neighbors and
+  # nfaces nonlocal neighbors.
+  # There layout of the colors array is:
+  # nfaces (for d1 neighbors), then
+  # nfaces*nfaces (for the d2 local neighbors)
+  # nfaces*nfaces (for the d2 nonlocal neighbors)
+
   revadj = colordata.revadj
-  colors = zeros(Int32, (nfaces-1)*nfaces + (nfaces-1)*(nfaces))
+  colors = zeros(Int32, nfaces + nfaces*nfaces + nfaces*nfaces)
 
-  if mesh.dim == 2
-    @assert length(colors) == nfaces*(nfaces+1)
+  d1_neighbors = aview(colors, 1:nfaces)
+  local_d2_neighbors = Array{ContiguousView{Int32,1, Array{Int32, 1}}}(nfaces)
+  nonlocal_d2_neighbors = Array{ContiguousView{Int32,1, Array{Int32, 1}}}(nfaces)
+  # starting indices for the local and nonlocal sections
+  pos_local = nfaces + 1
+  pos_nonlocal = nfaces + nfaces*nfaces + 1
+
+  for i=1:nfaces
+    # local d2 neighbors
+    local_d2_neighbors[i] = aview(colors, pos_local:(pos_local + nfaces - 1))
+    pos_local += nfaces
+
+    # nonlocal d2 neighbors
+    nonlocal_d2_neighbors[i] = aview(colors, pos_nonlocal:(pos_nonlocal + nfaces - 1))
+    pos_nonlocal += nfaces
   end
+  flush(mesh.f)
 
-  d1_neighbors = Array{Int32}(nfaces-1)
-  local_d2_neighbors = Array{ContiguousView{Int32,1, Array{Int32, 1}}}(nfaces-1)
-  nonlocal_d2_neighbors = Array{ContiguousView{Int32,1, Array{Int32, 1}}}(nfaces-1)
-  pos = 1
-  for i=1:nfaces-1
-    # local d2 neighbor + d1 neighbor
-    section_start = nfaces + pos
-    local_d2_neighbors[i] = aview(colors, pos:(section_start-1))
-
-    # nonloca d2 neighbors
-    pos = section_start
-    section_start = nfaces - 1 + pos
-    nonlocal_d2_neighbors[i] = aview(colors, pos:(section_start-1))
-    pos = section_start
-  end
-
-  if mesh.dim == 2
-    @assert pos-1 == 10
-  end
+  # check the sections don't overlab
+  @assert pos_local == (nfaces + nfaces*nfaces + 1)
+  @assert pos_nonlocal == length(colors) + 1
 
   d1_ptr = Array{Ptr{Void}}(1)
   for i=1:mesh.numSharedEl
-
-    for j=1:(nfaces-1)
+    for j=1:nfaces
       neighbor = revadj[i, j]
       if neighbor != 0
+        # get d1 neighbor color
+        d1_ptr[1] = mesh.elements[neighbor]
+        d1_neighbors[j] = getNumberJ(mesh.coloring_Nptr, d1_ptr[1], 0, 0)
+
+        # get d2 local and nonlocal neighbor colors (by getting the d1
+        # neighbors of neighbor of the d1 neighbor)
         d2_local = local_d2_neighbors[j]
         d2_nonlocal = nonlocal_d2_neighbors[j]
-
         getDistance1Colors(mesh, neighbor, adj, d2_local)
-        d1_ptr[1] = mesh.elements[neighbor]
-        d2_local[end] = getNumberJ(mesh.coloring_Nptr, d1_ptr[1], 0, 0)
         getNonLocalColors(mesh, d1_ptr, colordata, d2_nonlocal)
       end
     end
@@ -431,6 +439,7 @@ function getNeighborMatches(mesh::PumiMesh, el::Ptr{Void}, adj::AbstractArray{Pt
 # elements
 # adj is the partially populated array of neighbor elements
 # num_used is the number of entries in adj already used
+
   faces = Array{Ptr{Void}}(mesh.numFacesPerElement)
   n = getDownward(mesh.m_ptr, el, mesh.dim-1, faces)
 
@@ -438,8 +447,10 @@ function getNeighborMatches(mesh::PumiMesh, el::Ptr{Void}, adj::AbstractArray{Pt
   matched_entities = Array{Ptr{Void}}(1)
   adj_entities = Array{Ptr{Void}}(1)
   for i=1:n
-    nmatches = countMatches(mesh.m_ptr, el)
+    nmatches = countMatches(mesh.m_ptr, faces[i])
+    getMatches(part_nums, matched_entities)
     @assert nmatches <= 1
+
     if nmatches == 1 && part_nums[1] == mesh.myrank
       other_entity = matched_entities[1]
       nel = countAdjacent(mesh.m_ptr, other_entity, mesh.dim)
@@ -486,9 +497,11 @@ function getDistance2Colors(mesh::PumiMesh, elnum::Integer, adj::AbstractArray{P
     num_adj_j = countBridgeAdjacent(mesh.m_ptr, adj[j], mesh.dim-1, mesh.dim)
  #   adj2[j] = Array{Ptr{Void}}(num_adj_j + 1)
     getBridgeAdjacent(adj2[j])
+
     if num_adj_j < mesh.numFacesPerElement
-      num_adj_j = getNeighborMatches(mesh, el_i, adj2[j], num_adj_j, matchdata)
+      num_adj_j = getNeighborMatches(mesh, adj[j], adj2[j], num_adj_j, matchdata)
     end
+
     adj2[j][num_adj_j + 1] = adj[j]  # include the distance-1 neighbor
     adj_cnt[j] = num_adj_j + 1
   end
@@ -748,8 +761,6 @@ function getColors1(mesh, colordata::ColoringData, masks::AbstractArray{BitArray
 # neighbor_nums is 4 by numEl array of integers holding the element numbers
 # of the neighbors + self
 
-println(mesh.f, "entered getColors")
-
 nfaces = mesh.numFacesPerElement
 adj = Array{Ptr{Void}}(nfaces + 1)   # pointers to element i + 3 neighbors
 adj_color = zeros(Int32, nfaces + 1)  # element colors
@@ -781,7 +792,7 @@ for i=1:mesh.numEl
   # get color, element numbers for non-local elements
   pos = 1  #current index in the adj_color, adj_elnum arrays
   if haskey(adj_dict, elnum)
-  nonlocal_els = adj_dict[elnum]
+    nonlocal_els = adj_dict[elnum]
     for j=1:(nfaces-1)
       nonlocal_elnum = nonlocal_els[j]
       if nonlocal_elnum != 0  # if this is a real ghost neighbor

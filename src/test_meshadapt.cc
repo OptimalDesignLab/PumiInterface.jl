@@ -14,6 +14,29 @@
 //#include "dgSBPShape1.h"
 //#include "apfSBPShape.h"
 
+// print the names of all Numbering and Fields on the mesh
+void printAssociatedData(apf::Mesh* m)
+{
+
+  std::cout << "Numberings:" << std::endl;
+  // Numberings
+  int nnumberings = m->countNumberings();
+  for (int i=0; i < nnumberings; ++i)
+  {
+    apf::Numbering* num_i = m->getNumbering(i);
+    std::cout << "  Numbering " << i << " has name " << apf::getName(num_i) << std::endl;
+  }
+
+  std::cout << "Fields:" << std::endl;
+  int nfields = m->countFields();
+  for (int i=0; i < nfields; ++i)
+  {
+    apf::Field* field_i = m->getField(i);
+    std::cout << "  Field " << i << " has name " << apf::getName(field_i) << std::endl;
+
+  }
+
+}
 
 int main (int argc, char** argv)
 {
@@ -71,7 +94,7 @@ int main (int argc, char** argv)
   // create the numberings
   apf::Numbering* numberings[4];
   char name_buff[256];
-  for (int i = 0; i < m->getDimension(); ++i)
+  for (int i = 0; i <= m->getDimension(); ++i)
   {
     sprintf(name_buff, "entity%d", i);
     numberings[i] = apf::numberOwnedNodes(m, name_buff, apf::getConstant(i));
@@ -125,12 +148,22 @@ int main (int argc, char** argv)
 
   std::cout << "isofunc address = " << isofunc << std::endl;
 
-  for (int i=0; i < 10; ++i)
+  // print fields before
+  std::cout << "before mesh adaptation:" << std::endl;
+  printAssociatedData(m);
+
+  apf::writeASCIIVtkFiles("output_pre", m);
+  for (int i=0; i < 1; ++i)
   {
     ma::adapt(m, isofunc, &soltrans);
     sprintf(name_buff, "mesh_iter%d", i);
     apf::writeVtkFiles(name_buff, m);
   }
+
+  // print fields before
+  std::cout << "after mesh adaptation:" << std::endl;
+  printAssociatedData(m);
+  apf::writeASCIIVtkFiles("output_post", m);
 
   // cleanup
   delete isofunc;

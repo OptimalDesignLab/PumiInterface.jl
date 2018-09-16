@@ -15,10 +15,14 @@
     the elements.  The mesh.topo field combined with mesh.element_vertnums
     can be used to figure this out.
 
+  Note that even if `coords_new` is complex valued, this function only uses
+  the real part.  If you need to propigate complex number through the
+  metric calculation, see [`recalcCoordinatesAndMetrics`](@ref).
+
   After completeing all calles the update_coords, users *must* call
   commit_coords()
 """
-function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractArray{Float64, 2})
+function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractMatrix)
 
 #  @assert size(coords_new, 1) == mesh.dim
 #  @assert (size(coords_new, 2) == mesh.dim + 1 || size(coords_new, 2) == mesh.dim+1 + mesh.numTypePerElement[2]) # number of verts or number of verts + edges
@@ -40,7 +44,7 @@ function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractArra
   #TODO: make this a proper master loop construct
   for j=1:(mesh.dim + 1)  # loop over verts
     for k=1:mesh.dim
-      coords_j[k] = coords_new[k, j]
+      coords_j[k] = real(coords_new[k, j])
     end
     setPoint(mesh.m_ptr, verts[j], 0, coords_j)
   end
@@ -50,7 +54,7 @@ function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractArra
     nedges = getDownward(mesh.m_ptr, el_i, 1, verts)
     for j=1:nedges
       for k=1:mesh.dim
-        coords_j[k] = coords_new[k, j + offset]
+        coords_j[k] = real(coords_new[k, j + offset])
       end
       setPoint(mesh.m_ptr, verts[j], 0, coords_j)
     end
@@ -69,8 +73,12 @@ end
   The verify keyword argument determines whether or not to run the Pumi
   verifier on the updated mesh.  It can be expensive, so it is recommended
   to only run it on small meshes.
+
+  The `write_vis` keyword controls whether a vtk file, named `pre_commit` is
+  written just before the metrics are recalculated (if an element is turned 
+  inside out, the metric recalculation is where the error gets thrown).
 """
-function commit_coords(mesh::PumiMesh, sbp, opts; verify=true)
+function commit_coords(mesh::PumiMesh, sbp, opts; verify=true, write_vis=false)
 # users must call this function when they have finished updating the coordinates
 # the verify kwarg determines if the Pumi verifier on the new mesh
 # that should check for negative volumes
@@ -81,7 +89,9 @@ function commit_coords(mesh::PumiMesh, sbp, opts; verify=true)
     # TODO; call our verification code too
   end
 
-  writeVisFiles(mesh, "pre_commit")
+  if write_vis
+    writeVisFiles(mesh, "pre_commit")
+  end
 
   getAllCoordinatesAndMetrics(mesh, sbp, opts)
 

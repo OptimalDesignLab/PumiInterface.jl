@@ -1451,7 +1451,13 @@ apf::FieldShape* getNewShape(apf::FieldShape* fshape_old)
   else if (nnodes_face == 1 && nnodes_edge == 0 && nnodes_vert == 0)
   {
     return apf::getConstant(2);
-  } else
+  } else if (nnodes_vert == 1 && nnodes_edge == 0)
+  {
+    return apf::getLagrange(1);
+  } else if (nnodes_vert == 1 && nnodes_edge == 1)
+  {
+    return apf::getLagrange(2);
+  } else  // don't know what to do
   {
     return apf::getLagrange(1);
   }

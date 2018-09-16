@@ -34,6 +34,10 @@ export getBoundaries, numberSurfacePoints
 # mesh adaptation
 export adaptMesh, getElementSizes
 
+# coordinate field functions
+# not exporting reduction operations because their names are too generic
+export coords1DTo3D, coords3DTo1D
+
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 
