@@ -108,6 +108,7 @@ function test_adapt_3d(; parallel=false)
 
     @test newmesh.numEl == 8*numEl_initial
 
+    # check that the linear field was interpolated exactly
     for i=1:newmesh.numEl
       for j=1:newmesh.numNodesPerElement
         x = newmesh.coords[1, j, i]; y = newmesh.coords[2, j, i]; z = newmesh.coords[3, j, i]

@@ -1208,7 +1208,7 @@ void reduceField(apf::Field* f, apf::Sharing* shr, int reduce_op)
     std::abort();
   }
 
-  apf::reduce(f, shr, false, *Reductions[reduce_op]);
+  apf::sharedReduction(f, shr, false, *Reductions[reduce_op]);
 
 }
 
