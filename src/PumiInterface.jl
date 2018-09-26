@@ -73,6 +73,7 @@ global const getAllEntityCoords_name = "getAllEntityCoords"
 global const createNumberingJ_name = "createNumberingJ"
 global const destroyNumbering_name = "destroyNumbering"
 global const findNumbering_name = "findNumbering"
+global const destroyNumberings_name = "destroyNumberings"
 global const getNumberingShape_name = "getNumberingShape"
 global const numberJ_name = "numberJ"
 global const getNumberJ_name = "getNumberJ"
@@ -91,16 +92,26 @@ global const getDoubleTag_name = "getDoubleTag"
 global const reorder_name = "reorder"
 
 global const createIsoFunc_name = "createIsoFunc"
-global const createAnisoFunc_name = "createAnisoFunc"
-global const runIsoAdapt_name = "runIsoAdapt"
-global const runAnisoAdapt_name = "runAnisoAdapt"
+global const deleteIsoFunc_name = "deleteIsoFunc"
+global const createSolutionTransfers_name = "createSolutionTransfers"
+global const deleteSolutionTransfers_name = "deleteSolutionTransfers"
+global const addSolutionTransfer_name = "addSolutionTransfer"
+global const configureMAInput_name = "configureMAInput"
+global const runMA_name = "runMA"
+global const getAvgElementSize_name = "getAvgElementSize"
+
+#global const createAnisoFunc_name = "createAnisoFunc"
 
 #apf::field related functions
 global const createPackedField_name = "createPackedField"
 global const setComponents_name = "setComponents"
 global const getComponents_name = "getComponents"
 global const zeroField_name = "zeroField"
+global const reduceField_name = "reduceField"
 global const getCoordinateField_name = "getCoordinateField"
+global const findField_name = "findField"
+global const destroyField_name = "destroyField"
+global const destroyFields_name = "destroyFields"
 
 
 global const createSubMesh_name = "createSubMesh"
@@ -141,11 +152,16 @@ export declareNames, init, loadMesh, initMesh, pushMeshRef, popMeshRef,
        getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes,
        getVertCoords, getEdgeCoords, getFaceCoords, getElCoords,
        getAllEntityCoords, createNumberingJ, destroyNumbering, findNumbering,
+       destroyNumberings,
        getNumberingShape, numberJ, getNumberJ, isNumbered, getDofNumbers,
        getElementNumbers, getMesh, printNumberingName, createDoubleTag,
        setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc,
-       runIsoAdapt, runAnisoAdapt, createPackedField, setComponents,
-       getComponents, zeroField, getCoordinateField, countBridgeAdjacent,
+       deleteIsoFunc, createSolutionTransfers, deleteSolutionTransfers,
+       addSolutionTransfer, configureMAInput, runMA, getAvgElementSize, IsoFuncJ,
+       SolutionTransfers, MAInput,
+       createPackedField, setComponents,
+       getComponents, zeroField, reduceField, getCoordinateField, findField, destroyField, destroyFields,
+       countBridgeAdjacent,
        getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
 # iterator functors
@@ -164,6 +180,37 @@ export hasMatching, getSharing, isOwned, countCopies, getCopies, countMatches, g
 # SubMesh creation
 export createSubMesh, getNewMesh, getOldMesh, writeNewMesh, getParentNumbering, 
        getNewMeshData, getGeoTag, SubMeshData
+
+
+# struct declarations
+# these have same memory layout as their contents, so they can be passed in
+# in place of a Ptr{Void}
+
+"""
+  Isotropic mesh size function used for mesh adapation
+
+  In reality, it is just a (typed) container for a pointer to a C++ 
+  IsotropicFunctionJ.
+"""
+struct IsoFuncJ
+  p::Ptr{Void}
+end
+
+"""
+  A ma::SolutionTransfers*
+"""
+struct SolutionTransfers
+  p::Ptr{Void}
+end
+
+"""
+  A ma::Input*
+"""
+struct MAInput
+  p::Ptr{Void}
+end
+
+
 
 @doc """
   initilize the state of the interface library
@@ -767,6 +814,21 @@ function findNumbering(m_ptr::Ptr{Void}, name::String)
   return n_ptr
 end
 
+"""
+  Destroys all apf::Numberings associated with a given mesh, except
+  those specified
+
+  **Inputs**
+
+   * m_ptr: apf::Mesh*
+   * n_save: array of apf::Numbering* objects to not destroy (optional)
+"""
+function destroyNumberings(m_ptr::Ptr{Void}, n_save=Array{Ptr{Void}}(0))
+
+  ccall( (destroyNumberings_name, pumi_libname), Void, (Ptr{Void}, Ptr{Ptr{Void}}, Cint), m_ptr, n_save, length(n_save))
+
+  return nothing
+end
 
 function getNumberingShape(n_ptr::Ptr{Void})
 
@@ -926,54 +988,169 @@ function reorder(m_ptr, ndof::Integer, ncomp::Integer, node_statusN_ptr,
 
 end
 
+#------------------------------------------------------------------------------
+# mesh adapation functions
 
-# mesh adapatation functions
-function createIsoFunc(m_ptr, sizefunc, u::AbstractVector)
-# creates a function that describes how to refine the mesh isotropically
-# m_ptr is pointer to the mesh
-# sizefunc is a pointer to a c callable function
+"""
+  Create an [`IsoFuncJ`](@ref)
 
-  ccall((createIsoFunc_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}), m_ptr, sizefunc, u)
+  **Inputs**
+
+   * m_ptr: an apf::Mesh2*
+   * f: an apf::Field* specifying the desired mesh size at each coordinate
+        node of mesh (note: coordinate node, not solution node)
+"""
+function createIsoFunc(m_ptr::Ptr{Void}, f::Ptr{Void})
+
+  ptr = ccall( (createIsoFunc_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Void}), m_ptr, f)
+
+  return IsoFuncJ(ptr)
+end
+
+"""
+  Free an [`IsoFuncj`](@ref)
+
+  **Inputs**
+
+   * func: an IsoFuncJ
+
+  **Outputs**
+
+    none
+"""
+function deleteIsoFunc(func::IsoFuncJ)
+
+  ccall( (deleteIsoFunc_name, pumi_libname), Void, (IsoFuncJ,), func)
 
   return nothing
 end
 
-function createAnisoFunc(m_ptr, sizefunc, f_ptr, operator)
-# creates a function that describes how to refine the mesh anisotropically
-# m_ptr is a pointer to the mesh
-# sizefunc is a pointer to a c callable function
-# u is the solution vector
-# operator is an SBP operator
+"""
+  Create an object that manages the transfer of fields from the original
+  mesh to the adapted mesh.  Use [`addSolutionTransfer`](@ref) to add
+  fields to be transfered one by one.
 
-operator_ptr = pointer_from_objref(operator)
-println("in PumiInterface, operator_ptr = ", operator_ptr)
+  **Inputs**
 
-  ccall( (createAnisoFunc_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Void}), m_ptr, sizefunc, f_ptr, operator_ptr)
+    * none
 
-return nothing
+  **Outputs**
 
+   * a [`SolutionTransfers`](@ref)
+"""
+function createSolutionTransfers()
+
+  ptr = ccall( (createSolutionTransfers_name, pumi_libname), Ptr{Void}, () )
+
+  return SolutionTransfers(ptr)
 end
 
-function runIsoAdapt(m_ptr)
-# run mesh adaptation using previously created isofunc
+"""
+  Frees a [`SolutionTransfers`](@ref) object.
 
-  ccall( (runIsoAdapt_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+  **Inputs**
+
+   * soltrans: the object to be deleted
+
+  **Outputs**
+
+   * none
+
+  **Implementation Notes**
+
+   This actually deletes the `SolutionTransfers` object as well as all the
+   `SolutionTransfer` object inside of it.  Currently the individual
+   `SolutionTransfer` objects are not exposed to Julia, so this is a
+   non-issue.
+"""
+function deleteSolutionTransfers(soltrans::SolutionTransfers)
+
+  ccall( (deleteSolutionTransfers_name, pumi_libname), Void, (SolutionTransfers,), soltrans)
 
   return nothing
 end
 
+"""
+  Add an apf::Field* to be transferred to the new mesh
 
-function runAnisoAdapt(m_ptr)
-# run mesh adaptation using previously defines anisotropic function
+  **Inputs**
 
-  ccall( (runAnisoAdapt_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
+   * soltrans: the [`SolutionTransfers`](@ref) object
+   * f: the apf::Field*
+
+  **Outputs**
+
+   none
+"""
+function addSolutionTransfer(soltrans::SolutionTransfers, f::Ptr{Void})
+
+  ccall( (addSolutionTransfer_name, pumi_libname), Void, (SolutionTransfers, Ptr{Void}), soltrans, f)
 
   return nothing
-
 end
 
+"""
+  Create the input configuration object for MeshAdapt
+
+  **Inputs**
+
+   * m_ptr: an apf::Mesh2*
+   * isofunc: an [`IsoFuncJ`](@ref)
+   * soltrans: a [`SolutionTransfers`](@ref)
+
+  **Outputs**
+
+   * an [`MAInput`](@ref)
+"""
+function configureMAInput(m_ptr::Ptr{Void}, isofunc::IsoFuncJ, soltrans::SolutionTransfers)
+
+  ptr = ccall( (configureMAInput_name, pumi_libname), Ptr{Void},
+               (Ptr{Void}, IsoFuncJ, SolutionTransfers), m_ptr, isofunc, soltrans)
+
+  return MAInput(ptr)
+end
+
+"""
+  Run MeshAdapt
+
+  **Inputs**
+
+   * input: an [`MAInput](@ref)
+
+  **Outputs**
+
+   none
+"""
+function runMA(input::MAInput)
+
+  ccall( (runMA_name, pumi_libname), Void, (MAInput,), input)
+
+  return nothing
+end
+
+"""
+  Gets the average size of each element (ie. the average edge length)
+
+  **Inputs**
+
+   * m_ptr: apf::Mesh*
+   * el_N: an apf::Numbering* for the elements
+
+  **Inputs/Outputs**
+
+   * el_sizes: vector to be overwritten with the average size of each element
+"""
+function getAvgElementSize(m_ptr::Ptr{Void}, el_N::Ptr{Void}, el_sizes::AbstractVector{Cdouble})
+
+  ccall( (getAvgElementSize_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Cdouble}), m_ptr, el_N, el_sizes)
+
+  return nothing
+end
+
+#------------------------------------------------------------------------------
 # apf::Field related function
 # needed for automagical solution transfer
+
 function createPackedField(m_ptr, fieldname::AbstractString, numcomponents::Integer, fshape=C_NULL)
 # create a field with the specified number of componenets per node
 # returns a pointer to the field
@@ -1000,10 +1177,58 @@ function zeroField(f_ptr)
   ccall( (zeroField_name, pumi_libname), Void, (Ptr{Void},), f_ptr)
 end
 
+"""
+  Apply a reduction operation along the partition boundaries of a Field
+  to make the field globally consistent.  The field must have values
+  written to it by all processes before this function is applied.
+
+  **Inputs**
+
+   * f_ptr: apf::Field*
+   * shr_ptr:: apf::Sharing*
+   * reduce_op: 0 = sum, 1 = min, 2 = max
+"""
+function reduceField(f_ptr::Ptr{Void}, shr_ptr::Ptr{Void}, reduce_op::Integer)
+
+  ccall( (reduceField_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Cint), f_ptr, shr_ptr, reduce_op)
+
+end
+
 function getCoordinateField(m_ptr::Ptr{Void})
 
   ccall( (getCoordinateField_name, pumi_libname), Ptr{Void}, (Ptr{Void},), m_ptr)
 end
+
+function findField(m_ptr::Ptr{Void}, fieldname::String)
+
+  f_ptr = ccall( (findField_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Cstring), m_ptr, fieldname)
+
+  return f_ptr
+end
+
+function destroyField(f_ptr::Ptr{Void})
+
+  ccall( (destroyField_name, pumi_libname), Void, (Ptr{Void},), f_ptr)
+
+  return nothing
+end
+
+"""
+  Destroys all apf::Fields associated with a given mesh, except
+  those specified
+
+  **Inputs**
+
+   * m_ptr: apf::Mesh*
+   * n_save: array of apf::Field* objects to not destroy (optional)
+"""
+function destroyFields(m_ptr::Ptr{Void}, n_save=Array{Ptr{Void}}(0))
+
+  ccall( (destroyFields_name, pumi_libname), Void, (Ptr{Void}, Ptr{Ptr{Void}}, Cint), m_ptr, n_save, length(n_save))
+
+  return nothing
+end
+
 
 @doc """
 ###PumiInterface.createSubMesh

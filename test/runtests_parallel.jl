@@ -14,6 +14,7 @@ end
 include("defs.jl")
 include("common_functions.jl")
 include("test_funcs.jl")
+include("test_adapt.jl")
 
   dmg_name = "parallel2.dmg"
   smb_name = "./parallel2.smb"

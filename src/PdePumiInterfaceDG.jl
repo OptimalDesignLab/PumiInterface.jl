@@ -336,9 +336,12 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
 					 # index (ie. edge 1,2, or 3)
   color_cnt::Array{Int32, 1}  # number of elements in each color
 
-  interp_op::Array{Float64, 2}  # 3 x numNodesPerEl matrix that interpolates
+  interp_op::Array{Float64, 2}  # coord_numNodesPerElement x numNodesPerEl
+                                # matrix that interpolates
                                 # solution values to the vertices
-
+  interp_op2::Array{Float64, 2}  # numNodesPerEl x coord_numNodesPerElement
+                                 # array that interpolates from the
+                                 # coordinate field to the solution field
   ###### parallel data #####
 
   # array of arrays of Boundary objects, one array for each peer part
@@ -396,7 +399,7 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
 
   """
     This inner constructor loads a Pumi mesh from files and sets a few
-    fields that must be consistent with how the mesh was loaded
+    essential fields that must be consistent with how the mesh was loaded
 
     **Inputs**
 
@@ -465,7 +468,34 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
   function PumiMeshDG2{T1, Tface}() where {T1, Tface}
     return new{T1, Tface}()
   end
+
 end  # end PumiMeshDG2 declaration
+
+  
+"""
+  This outer constructor populates the essential fields of the mesh
+  that are populated when a mesh is loaded from a file, but instead
+  of loading a mesh from a file, it copies the fields from the old mesh.
+
+  The mesh.m_ptr field is not populated because this function is used
+  for creating submeshes.
+"""
+function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}) where {T, Tface}
+
+  mesh = PumiMeshDG2{T, Tface}()  # get uninitailized object
+
+  # set essential fields from old_mesh
+  mesh.isDG = true
+  mesh.dim = 2
+  mesh.comm = old_mesh.comm
+  mesh.topo_pumi = old_mesh.topo_pumi
+  mesh.sbpface = old_mesh.sbpface
+  mesh.myrank = old_mesh.myrank
+  mesh.commsize = old_mesh.commsize
+
+  return mesh
+end
+
 
 """
    This outer constructor loads a mesh from a file, according to the options
@@ -530,18 +560,9 @@ function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts_old,
     throw(ErrorException("numberNodesWindy not supported for submesh"))
   end
 
-  mesh = PumiMeshDG2{T, Tface}()  # get uninitailized object
+  # get new mesh with essential fields populated
 
-  # set essential fields from old_mesh
-  mesh.isDG = true
-  mesh.dim = 2
-  mesh.comm = old_mesh.comm
-  mesh.topo_pumi = old_mesh.topo_pumi
-  mesh.sbpface = old_mesh.sbpface
-
-  #TODO: revise this when parallelizing
-  mesh.myrank = old_mesh.myrank
-  mesh.commsize = old_mesh.commsize
+  mesh = PumiMeshDG2(old_mesh)
 
   # construct new mesh
   if eltype(el_list) != Cint
@@ -567,6 +588,34 @@ function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts_old,
   return mesh, opts
 end
 
+"""
+  This constructor creates a new mesh object after mesh adaptation has
+  run.
+
+  **Inputs**
+
+   * old_mesh: old mesh object, mesh.m_ptr points to the adapted mesh (
+               which means that mesh.m_ptr and the mesh object are inconsistent
+               while this constructor runs
+   * sbp: SBP operator
+   * opts: options dictionary
+
+  **Outputs**
+
+   * mesh: new mesh object
+"""
+function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts) where {T, Tface}
+
+  mesh = PumiMeshDG2(old_mesh)
+  mesh.m_ptr = old_mesh.m_ptr
+  pushMeshRef(mesh.m_ptr)
+  mesh.subdata = SubMeshData(C_NULL)
+
+  finishMeshInit(mesh, sbp, opts, dofpernode=old_mesh.numDofPerNode,
+                 shape_type=old_mesh.shape_type)
+
+  return mesh
+end
 
 """
   This function finishes initializing the mesh object.  This does the
@@ -634,7 +683,12 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
   mesh.order = order
   
   mesh.mshape_ptr = getFieldShape(field_shape_type, order, mesh.dim)
-  mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
+  #TODO: is mesh.f_ptr used for anything? visualization uses mesh.f_new,
+  # which has the same fieldshape?
+  mesh.f_ptr = findField(mesh.m_ptr, "solution_field")
+  if mesh.f_ptr == C_NULL
+    mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
+  end
 
   mesh.shr_ptr = getSharing(mesh.m_ptr)
   # count the number of all the different mesh attributes
@@ -697,7 +751,8 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
   # build interpolation operator
   ref_coords = baryToXY(mesh.coord_xi, sbp.vtx)
   mesh.interp_op = SummationByParts.buildinterpolation(sbp, ref_coords)
-
+  mesh.interp_op2 = SummationByParts.buildinterpolation(ref_coords, calcnodes(sbp), mesh.coord_order)
+  
   mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
   mesh.numNodesPerElement = mesh.typeOffsetsPerElement[end] - 1
@@ -1013,6 +1068,7 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
 end
 
 
+#=
 """
 
   This constructor makes a new mesh object containing the specified elements
@@ -1156,7 +1212,7 @@ function PumiMeshDG2(oldmesh::PumiMeshDG, el_list::AbstractArray)
 
   return submesh
 end
-
+=#
 
 function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)

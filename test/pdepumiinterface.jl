@@ -832,6 +832,16 @@ end
     end
   end
 
+  # test retrieveing solution from mesh
+  u_vals2 = zeros(u_vals)
+  PdePumiInterface.retrieveSolutionFromMesh_interp(mesh, u_vals2)
+
+  for i=1:length(u_vals2)
+    @test abs(u_vals2[i] - u_vals[i]) < 1e-12
+  end
+
+
+
   # just for good measure, create a new mesh
   mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
 #  mesh =  PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
@@ -1006,6 +1016,7 @@ end
 
   test_submesh()
 
+  test_adapt_2d()
   println("finished")
 
 end

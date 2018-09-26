@@ -22,9 +22,6 @@ apf::MeshEntity* entity_global;  // token mesh entity used for EntityShape
 apf::MeshEntity* e_tmp;
 
 const char *names[] = { "vertex", "edge", "face", "element"};  // array of strings, used for printing output inside loops
-IsotropicFunctionJ isofunc;  // declare isotropic function at global scope
-AnisotropicFunctionJ anisofunc; // declare anisotropic function at global scope
-
 
 std::map<apf::Mesh*, int> meshref; // store reference count for mesh
 
@@ -930,6 +927,37 @@ apf::Numbering* findNumbering(apf::Mesh* m, const char* name)
   return m->findNumbering(name);
 }
 
+// destroy all Numberings on the mesh except those listed
+void destroyNumberings(apf::Mesh* m, apf::Numbering* save_n[], int n_save)
+{
+
+  int n_nums = m->countNumberings();
+  // first copy Numberings to an array, because after we delete a 
+  // Numbering, the indices in m->getNumbering(i) shift
+  std::vector<apf::Numbering*> old_n(n_nums);
+  for (int i=0; i < n_nums; ++i)
+    old_n[i] = m->getNumbering(i);
+
+  for (int i=0; i < n_nums; ++i)
+  {
+    apf::Numbering* n_i = old_n[i];
+
+    // delete if not in save_n array
+    bool foundflag = false;
+    for (int j=0; j < n_save; ++j)
+      if ( save_n[j] == n_i )
+      {
+        foundflag = true;
+        break;
+      }
+
+    if (!foundflag)
+    {
+      apf::destroyNumbering(n_i);
+    }
+  }  // end loop i
+}
+
 // retrieve a number from julia
 int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component)
 {
@@ -1078,40 +1106,72 @@ void getDoubleTag(apf::Mesh2 * m_local, apf::MeshEntity* e, apf::MeshTag* tag,  
 
 
 
+//-----------------------------------------------------------------------------
+// mesh adapatation functions
 
-// mesh adapatation function
-extern void createIsoFunc(apf::Mesh2* m_local, double(*sizefunc)(apf::MeshEntity*vert, apf::Mesh2* m_local, double* u), double *u)
+IsotropicFunctionJ* createIsoFunc(apf::Mesh* m, apf::Field* f)
 {
-  std::cout << "in createIsoFunc" << std::endl;
-  IsotropicFunctionJ newisofunc(m_local, sizefunc, u); // create new function
-  isofunc = newisofunc; // copy to global isofunc
+  return new IsotropicFunctionJ(m, f);
 }
 
-// using a double* for the operator only works on 64 bit systems
-void createAnisoFunc(apf::Mesh2* m_local,  void (*sizefunc)(apf::MeshEntity* vert, double r[3][3], double h[3], apf::Mesh2* m_ptr, void *f_ptr, double *operator_ptr), apf::Field *f_ptr, double *operator_ptr)
+void deleteIsoFunc(IsotropicFunctionJ* isofunc)
 {
-//  std::cout << " in c++, operator_ptr = " << operator_ptr << std::endl;
-
-  AnisotropicFunctionJ newanisofunc(m_local, sizefunc, f_ptr, operator_ptr);  // create new function
-  anisofunc = newanisofunc;  // copy to global anisofunc
-}
-// run mesh adaptation using isofunc
-void runIsoAdapt(apf::Mesh2* m_local)
-{
-  IsotropicFunctionJ* isofunc_ptr = &isofunc;
-  ma::Input* inputconfig = ma::configure(m_local, isofunc_ptr);
-  ma::adapt(inputconfig);
+  delete isofunc;
 }
 
-void runAnisoAdapt(apf::Mesh2* m_local)
+ma::SolutionTransfers* createSolutionTransfers()
 {
-  AnisotropicFunctionJ* anisofunc_ptr = &anisofunc;
-  ma::Input* inputconfig = ma::configure(m_local, anisofunc_ptr);
-  ma::adapt(inputconfig);
+  return new ma::SolutionTransfers;
 }
 
+void deleteSolutionTransfers(ma::SolutionTransfers* soltrans)
+{
+  delete soltrans;
+}
 
+void addSolutionTransfer(ma::SolutionTransfers* soltrans, apf::Field* f)
+{
+  soltrans->add(ma::createFieldTransfer(f));
+  return;
+}
+
+ma::Input* configureMAInput(apf::Mesh2* m, IsotropicFunctionJ* isofunc, 
+                            ma::SolutionTransfer* soltrans)
+{
+  return ma::configure(m, isofunc, soltrans);
+}
+
+void runMA(ma::Input* in)
+{
+  ma::adapt(in); // this function deletes in, but not soltrans or isofunc
+}
+
+// Get the average edge length of every element
+// el_N is the Numbering of the elements
+void getAvgElementSize(apf::Mesh* m, apf::Numbering* el_N, double* el_sizes)
+{
+  apf::Downward edges;
+  apf::MeshIterator* it = m->begin(m->getDimension());
+  apf::MeshEntity* el;
+
+  while ( (el = m->iterate(it)) )
+  {
+    int elnum = apf::getNumber(el_N, el, 0, 0);
+    int nedges = m->getDownward(el, 1, edges);
+
+    double avg_size = 0.0;
+    for (int i=0; i < nedges; ++i)
+      avg_size += apf::measure(m, edges[i]);
+
+    el_sizes[elnum] = avg_size/nedges;
+  }
+
+  m->end(it);
+}
+
+//-----------------------------------------------------------------------------
 // apf::Field functions (needed for automagical solution transfer)
+//
 apf::Field* createPackedField(apf::Mesh* m, char* fieldname, int numcomponents,  apf::FieldShape* fshape)
 {
   return apf::createPackedField(m, fieldname, numcomponents, fshape);
@@ -1135,10 +1195,60 @@ void zeroField(apf::Field* f)
   apf::zeroField(f);
 }
 
+const apf::ReductionSum<double>* Sum = new apf::ReductionSum<double>();
+const apf::ReductionMin<double>* Min = new apf::ReductionMin<double>();
+const apf::ReductionMax<double>* Max = new apf::ReductionMax<double>();
+const apf::ReductionOp<double>* Reductions[3] = {Sum, Min, Max};
+
+void reduceField(apf::Field* f, apf::Sharing* shr, int reduce_op)
+{
+  if (reduce_op < 0 || reduce_op > 2)
+  {
+    std::cerr << "Error: unrecognized reduce_op: " << reduce_op << std::endl;
+    std::abort();
+  }
+
+  apf::sharedReduction(f, shr, false, *Reductions[reduce_op]);
+
+}
+
 apf::Field* getCoordinateField(apf::Mesh* m_ptr)
 {
   return m_ptr->getCoordinateField();
 }
+
+apf::Field* findField(apf::Mesh* m, char* fieldname)
+{
+  return m->findField(fieldname);
+}
+void destroyField(apf::Field* f)
+{
+  apf::destroyField(f);
+}
+
+// destroy all Fields on the mesh except those listed
+void destroyFields(apf::Mesh* m, apf::Field* save_n[], int n_save)
+{
+
+  int n_nums = m->countFields();
+  for (int i=0; i < n_nums; ++i)
+  {
+    apf::Field* n_i = m->getField(i);
+
+    // delete if not in save_n array
+    bool foundflag = false;
+    for (int j=0; j < n_save; ++j)
+      if ( save_n[j] == n_i )
+      {
+        foundflag = true;
+        break;
+      }
+
+    if (!foundflag)
+      apf::destroyField(n_i);
+  }  // end loop i
+}
+
 
 //-----------------------------------------------------------------------------
 // Parallelization function

@@ -19,7 +19,8 @@
 #include <math.h>
 #include <string.h>
 
-#include "adaptFuncsJ.h"
+//#include "adaptFuncsJ.h"
+#include "adaptJ.h"
 #include "apfSBPShape.h"
 #include "apfSBPShape3.h"
 #include "dgSBPShape1.h"
@@ -54,7 +55,6 @@ void initMesh(apf::Mesh* m, int number_entities[],
 
 // these functions are not user accessible
 void cleanup(apf::Mesh* m_local);
-void destroyNumberings(int dim); 
 
 void pushMeshRef(apf::Mesh* m);
 void popMeshRef(apf::Mesh* m);
@@ -127,6 +127,7 @@ void getAllEntityCoords(apf::Mesh* m, apf::MeshEntity* e, double* coords);
 extern  apf::Numbering* createNumberingJ(apf::Mesh2* m_local, char* name, apf::FieldShape* field, int components);
 extern void destroyNumbering(apf::Numbering* n);
 apf::Numbering* findNumbering(apf::Mesh* m, const char* name);
+extern void destroyNumberings(apf::Mesh* m, apf::Numbering* save_n[], int n_save);
 
 apf::FieldShape* getNumberingShape(apf::Numbering* n);
 extern int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number);
@@ -149,11 +150,17 @@ extern void getDoubleTag(apf::Mesh2* m_local, apf::MeshEntity* e, apf::MeshTag* 
 
 
 // mesh adaptation functions
-extern void createIsoFunc(apf::Mesh2* m_local, double(*sizefunc)(apf::MeshEntity*vert, apf::Mesh2* m_local, double *u), double *u);
-extern void runIsoAdapt(apf::Mesh2* m_local);
-extern void createAnisoFunc(apf::Mesh2* m_local,  void (*sizefunc)(apf::MeshEntity* vert, double r[3][3], double h[3], apf::Mesh2* m_ptr, void *f_ptr, double *operator_ptr), apf::Field *f_ptr, double *operator_ptr);
-void runAnisoAdapt(apf::Mesh2* m_local);
 
+extern IsotropicFunctionJ* createIsoFunc(apf::Mesh* m, apf::Field* f);
+extern void deleteIsoFunc(IsotropicFunctionJ* isofunc);
+extern ma::SolutionTransfers* createSolutionTransfers();
+extern void deleteSolutionTransfers(ma::SolutionTransfers* soltrans);
+extern void addSolutionTransfer(ma::SolutionTransfers* soltrans, apf::Field* f);
+extern ma::Input* configureMAInput(apf::Mesh2* m, IsotropicFunctionJ* isofunc, 
+                            ma::SolutionTransfer* soltrans);
+
+extern void runMA(ma::Input* in);
+extern void getAvgElementSize(apf::Mesh* m, apf::Numbering* el_N, double* el_sizes);
 
 // apf::Field functions (needed for automagical solution transfer)
 apf::Field* createPackedField(apf::Mesh* m, char* fieldname, int numcomponents, apf::FieldShape* fshape);
@@ -164,7 +171,12 @@ void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components
 
 
 void zeroField(apf::Field* f);
+void reduceField(apf::Field* f, apf::Sharing* shr, int reduce_op);
 apf::Field* getCoordinateField(apf::Mesh* m_ptr);
+
+apf::Field* findField(apf::Mesh* m, char* fieldname);
+void destroyField(apf::Field* f);
+void destroyFields(apf::Mesh* m, apf::Field* save_n[], int n_save);
 
 apf::FieldShape* getSBPShapes(int type, int order);
 
