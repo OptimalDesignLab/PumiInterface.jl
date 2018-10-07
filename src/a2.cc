@@ -56,7 +56,8 @@ void addQueues(std::queue<apf::MeshEntity*> & q1, std::queue<apf::MeshEntity*> &
 apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const double y)
 {
 
-  std::cout << "requested starting coordinates = " << x << ", " << y <<std::endl;
+  if (PCU_Comm_Self() == 0)
+    std::cout << "requested starting coordinates = " << x << ", " << y <<std::endl;
   apf::MeshEntity* e_min; // minimum degree meshentity
   apf::MeshEntity* e_i; // current meshentity
   apf::Vector3 coords; // coordinates of current point
@@ -113,7 +114,9 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const dou
   }
 
   m_local->getPoint(e_min, 0, coords);
-  std::cout << "starting entity coordinates = " << coords << std::endl;
+
+  if (PCU_Comm_Self() == 0)
+    std::cout << "starting entity coordinates = " << coords << std::endl;
 
   return e_min;
 
@@ -425,6 +428,5 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp,
 //    std::cout << "node reordering is sane" << std::endl;
   }
 
-  std::cout << std::endl;
 }
 

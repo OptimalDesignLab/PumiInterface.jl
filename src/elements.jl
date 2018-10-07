@@ -133,7 +133,6 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
     # create a new field to store the solution if it does not already exist
     # (reloading mesh after mesh adaptation)
     mesh.fnew_ptr = findField(mesh.mnew_ptr, "solution_field_interp")
-    println("mesh.fnew_ptr = ", mesh.fnew_ptr)
     if mesh.fnew_ptr == C_NULL
       mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field_interp", dofpernode)
     end
@@ -152,7 +151,10 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
     end
   end  # end if mesh.isDG
 
-  println("finished createSubtriangulatedMesh")
+  if mesh.myrank == 0
+    println("finished createSubtriangulatedMesh")
+  end
+
   return nothing
 end
 

@@ -979,9 +979,6 @@ end
 function reorder(m_ptr, ndof::Integer, ncomp::Integer, node_statusN_ptr,
                  nodeNums, elNums, start_coords::Vector{Cdouble})
 
-  println("ndof = ", ndof)
-  println("ncomp = ", ncomp)
- 
   ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Cdouble}),  m_ptr, ndof,  ncomp, node_statusN_ptr, nodeNums, elNums, start_coords)
 
   return nothing
