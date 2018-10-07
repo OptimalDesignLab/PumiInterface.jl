@@ -174,4 +174,63 @@ return nothing
 end
 
 
+"""
+  This function prints some overview statistics of the mesh.  Specifically,
+  it prints the sum of the number of mesh:
 
+   * vertices
+   * edges
+   * faces (3D only)
+   * elements
+   * degrees of freedom
+   * nodes
+
+   on all processes (for some entities, the value printed is greater than
+   the number of *unique* entities because some entities are shared in
+   parallel.  This function does not attempt to determine entity uniqueness
+
+   **Inputs**
+
+    * mesh: a mesh obj
+    * f: an IO object to print to.  Only mesh.myrank == 0 prints to the IO.
+         defaults to STDOUT
+"""
+function printStats(mesh::PumiMesh2D, f::IO=STDOUT)
+  # this might overflow, but its only used for output
+  counts = Int64[mesh.numVert, mesh.numEdge, mesh.numEl, mesh.numDof, mesh.numNodes]
+  counts_recv = zeros(Int64, length(counts))
+  MPI.Allreduce!(counts, counts_recv, MPI.SUM, mesh.comm)
+
+  if mesh.myrank == 0
+    println(f, "printin global mesh statistics:")
+    println(f, "  numVert = ", counts_recv[1])
+    println(f, "  numEdge = ", counts_recv[2])
+    println(f, "  numEl = ", counts_recv[3])
+    println(f, "  numDof = ", counts_recv[4])
+    println(f, "  numNodes = ", counts_recv[5])
+  end
+
+
+  return nothing
+end
+
+# 3D method
+function printStats(mesh::PumiMesh3D, f::IO=STDOUT)
+
+  # this might overflow, but its only used for output
+  counts = Int64[mesh.numVert, mesh.numEdge, mesh.numFace, mesh.numEl, mesh.numDof, mesh.numNodes]
+  counts_recv = zeros(Int64, length(counts))
+  MPI.Allreduce!(counts, counts_recv, MPI.SUM, mesh.comm)
+
+  if mesh.myrank == 0
+    println(f, "printin global mesh statistics:")
+    println(f, "  numVert = ", counts_recv[1])
+    println(f, "  numEdge = ", counts_recv[2])
+    println(f, "  numEdge = ", counts_recv[3])
+    println(f, "  numEl = ", counts_recv[4])
+    println(f, "  numDof = ", counts_recv[5])
+    println(f, "  numNodes = ", counts_recv[6])
+  end
+
+  return nothing
+end

@@ -871,7 +871,6 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
     numc = colorMesh2(mesh, colordata)
     mesh.numColors = numc
     mesh.maxColors = MPI.Allreduce(numc, MPI.MAX, mesh.comm)
-    println(mesh.f, "max colors = ", mesh.maxColors)
     mesh.color_masks = Array{BitArray{1}}(numc)  # one array for every color
     mesh.neighbor_colors = zeros(UInt8, 4, mesh.numEl)
     mesh.neighbor_nums = zeros(Int32, 4, mesh.numEl)
@@ -891,7 +890,7 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
     mesh.pertNeighborEls = getPertNeighbors0(mesh)
 
   else
-    println(STDERR, "Error: unsupported coloring distance requested")
+    error("Error: unsupported coloring distance requested")
   end
 
   # get sparsity information
@@ -924,30 +923,7 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
 
   createSubtriangulatedMesh(mesh, opts)
 
-
-  println("printin main mesh statistics")
-
-#=
-  println("typeof m_ptr = ", typeof(m_ptr))
-  println("typeof mshape_ptr = ", typeof(mshape_ptr))
-  println("typeof numVerg = ", typeof(numVert))
-  println("typeof numEdge = ", typeof(numEdge))
-  println("typeof numEl = ", typeof(numEl))
-  println("typeof order = ", typeof(order))
-  println("typeof numdof = ", typeof(numdof))
-  println("typeof bnd_edges_cnt = ", typeof(bnd_edges_cnt))
-  println("typeof verts = ", typeof(verts))
-  println("typeof edges = ", typeof(edges))
-  println("typeof element = ", typeof(elements))
-  println("typeof dofnums_Nptr = ", typeof(dofnums_Nptr))
-  println("typeof bnd_edges_small = ", typeof(bnd_edges_small))
-=#
-  println("numVert = ", mesh.numVert)
-  println("numEdge = ", mesh.numEdge)
-  println("numEl = ", mesh.numEl)
-  println("numDof = ", mesh.numDof)
-  println("numNodes = ", mesh.numNodes)
-
+  printStats(mesh)
 
   # write data if requested
   myrank = mesh.myrank
@@ -1063,8 +1039,6 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
 
 #  close(mesh.f)
   return mesh
-  # could use incomplete initilization to avoid copying arrays
-#  return PumiMeshDG2(m_ptr, mshape_ptr, f_ptr, vert_Nptr, edge_Nptr, el_Nptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
 end
 
 

@@ -583,15 +583,22 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   # shape_type = type of shape functions, 0 = lagrange, 1 = SBP
   # coloring_distance : distance between elements of the same color, where distance is the minimum number of edges that connect the elements, default = 2
 
-  println("\nConstructing PumiMesh2 Object")
-  println("  smb_name = ", smb_name)
-  println("  dmg_name = ", dmg_name)
+  mesh = new{T1, Tface}()
+  mesh.comm = MPI.COMM_WORLD
+  mesh.commsize = MPI.Comm_size(MPI.COMM_WORLD)
+  mesh.myrank = MPI.Comm_rank(MPI.COMM_WORLD)
+
+  if mesh.myrank == 0
+    println("\nConstructing PumiMesh2 Object")
+    println("  smb_name = ", smb_name)
+    println("  dmg_name = ", dmg_name)
+  end
+
   if !MPI.Initialized()
     MPI.Init()
   end
   @assert MPI.Comm_size(MPI.COMM_WORLD) == 1
 
-  mesh = new{T1, Tface}()
   mesh.isDG = false
   mesh.isInterpolated = false
   mesh.dim = 2
@@ -627,9 +634,6 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
     mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
   end
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
-  mesh.comm = MPI.COMM_WORLD
-  mesh.commsize = MPI.Comm_size(MPI.COMM_WORLD)
-  mesh.myrank = MPI.Comm_rank(MPI.COMM_WORLD)
   mesh.ref_verts = [0.0 1 0; 0 0 1]
 
   # count the number of all the different mesh attributes
@@ -1091,26 +1095,7 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   mesh.elements = elements
 #  mesh.boundary_nums = bnd_edges_small
 
-#=
-  println("typeof m_ptr = ", typeof(m_ptr))
-  println("typeof mshape_ptr = ", typeof(mshape_ptr))
-  println("typeof numVerg = ", typeof(numVert))
-  println("typeof numEdge = ", typeof(numEdge))
-  println("typeof numEl = ", typeof(numEl))
-  println("typeof order = ", typeof(order))
-  println("typeof numdof = ", typeof(numdof))
-  println("typeof bnd_edges_cnt = ", typeof(bnd_edges_cnt))
-  println("typeof verts = ", typeof(verts))
-  println("typeof edges = ", typeof(edges))
-  println("typeof element = ", typeof(elements))
-  println("typeof dofnums_Nptr = ", typeof(dofnums_Nptr))
-  println("typeof bnd_edges_small = ", typeof(bnd_edges_small))
-=#
-  println("numVert = ", numVert)
-  println("numEdge = ", numEdge)
-  println("numEl = ", numEl)
-  println("numDof = ", numdof)
-  println("numNodes = ", numnodes)
+  printStats(mesh)
 
   registerFinalizer(mesh)
 

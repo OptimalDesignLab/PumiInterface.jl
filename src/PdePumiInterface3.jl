@@ -27,6 +27,11 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
   numEntities::Array{Int, 1}  # number of entities of each type in the mesh, length 4
   numEntitiesPerElement::Array{Int, 1}  # number of vertices, edges, and regions in each element
 
+  # parallel info
+  comm::MPI.Comm  # MPI Communicator
+  myrank::Int  # MPI rank, zero based
+  commsize::Int # MPI comm size
+
   # hold pointers to mesh entities
   verts::Array{Ptr{Void},1}  # holds pointers to mesh vertices
   edges::Array{Ptr{Void},1}  # pointers to mesh edges
@@ -56,6 +61,12 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
   # shape_type = type of shape functions to use, 0 = lagrange, 1 = SBP
 
   mesh = new{T1}()
+  mesh.comm = MPI.COMM_WORLD
+  mesh.commsize = MPI.Comm_size(MPI.COMM_WORLD)
+  mesh.myrank = MPI.Comm_rank(MPI.COMM_WORLD)
+
+  @assert mesh.commsize == 1  # not paralllezed yet
+
   mesh.numDofPerNode = dofpernode
   mesh.order = order
   mesh.numNodesPerElement = getNumNodes(order)
@@ -167,33 +178,11 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
   mesh.jac = Array{T1}(sbp.numnodes, mesh.numEl)
   mappingjacobian!(sbp, mesh.coords, mesh.dxidx, mesh.jac)
 =#
-#=
-  println("typeof m_ptr = ", typeof(m_ptr))
-  println("typeof mshape_ptr = ", typeof(mshape_ptr))
-  println("typeof numVerg = ", typeof(numVert))
-  println("typeof numEdge = ", typeof(numEdge))
-  println("typeof numEl = ", typeof(numEl))
-  println("typeof order = ", typeof(order))
-  println("typeof numdof = ", typeof(numdof))
-  println("typeof bnd_edges_cnt = ", typeof(bnd_edges_cnt))
-  println("typeof verts = ", typeof(verts))
-  println("typeof edges = ", typeof(edges))
-  println("typeof element = ", typeof(elements))
-  println("typeof dofnums_Nptr = ", typeof(dofnums_Nptr))
-  println("typeof bnd_edges_small = ", typeof(bnd_edges_small))
-=#
-  println("numVert = ", mesh.numVert)
-  println("numEdge = ", mesh.numEdge)
-  println("numEl = ", mesh.numEl)
-  println("numDof = ", mesh.numDof)
-  println("numNodes = ", mesh.numNodes)
 
-
+  printStats(mesh)
 
   writeVtkFiles("mesh_complete", mesh.m_ptr)
   return mesh
-  # could use incomplete initilization to avoid copying arrays
-#  return PumiMesh2(m_ptr, mshape_ptr, f_ptr, vert_Nptr, edge_Nptr, el_Nptr, numVert, numEdge, numEl, order, numdof, numnodes, dofpernode, bnd_edges_cnt, verts, edges, elements, dofnums_Nptr, bnd_edges_small)
   end
 
  
