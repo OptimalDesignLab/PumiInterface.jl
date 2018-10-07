@@ -44,6 +44,8 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
     MPI_Init(0,NULL);  // initilize MPI 
     PCU_Comm_Init();   // initilize PUMI's communication
   }
+
+  int myrank = PCU_Comm_Self();
  
   // if we load a mesh, this value will get replaced
   m = m_ptr_array[0];
@@ -81,7 +83,8 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
 
   } else  // default to lagrange shape functions
   {
-    std::cout << "Warning: unrecognized shape_type, defaulting to Lagrange" << std::endl;
+    if (myrank == 0)
+      std::cout << "Warning: unrecognized shape_type, defaulting to Lagrange" << std::endl;
     fshape = apf::getLagrange(order);
   }
 
@@ -154,6 +157,8 @@ apf::Mesh2* loadMesh(const char* dmg_name, const char* smb_name, int shape_type,
     PCU_Comm_Init();   // initilize PUMI's communication
   }
  
+  int myrank = PCU_Comm_Self();
+
   int dim;
   apf::Mesh2* m;
   if (strcmp(dmg_name, ".null") == 0)
@@ -188,18 +193,18 @@ apf::Mesh2* loadMesh(const char* dmg_name, const char* smb_name, int shape_type,
   if (coords_tag != 0 && order_orig == 1)
   {
     apf::changeMeshShape(m, apf::getLagrange(1), false);
-    std::cout << "finished first mesh shape change" << std::endl;
+    //std::cout << "finished first mesh shape change" << std::endl;
   }
   
-  if ( change_shape && order_orig > order)
+  if ( change_shape && order_orig > order && myrank == 0)
   {
     std::cerr << "Warning: changing mesh coordinate field from " << order_orig << " to " << order << " will result in loss of resolution" << std::endl;
   }
 
   if (change_shape)
   {
-    std::cout << "about to perform final mesh shape change" << std::endl;
-    std::cout << "changing to shape named " << fshape->getName() << std::endl;
+    //std::cout << "about to perform final mesh shape change" << std::endl;
+    //std::cout << "changing to shape named " << fshape->getName() << std::endl;
     if ( order == 1 )
     {
       apf::changeMeshShape(m, fshape, true);
