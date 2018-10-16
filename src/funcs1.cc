@@ -475,12 +475,20 @@ apf::MeshEntity* deref(apf::Mesh2* m, apf::MeshIterator* it)
 
 
 
-void writeVtkFiles(char* name, apf::Mesh2* m_local)
+// writeall: if true, write all fiels to vtk, even if they are not cleanly
+//           representable
+void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall)
 {
 
 //   apf::writeASCIIVtkFiles(name, m_local);
     
+  if (writeall)
    apf::writeVtkFiles(name, m_local);
+  else  // only print fields to vtk that have compatible fieldshape
+  {
+    std::vector<std::string> writeFields = getWritableFields(m_local);
+    apf::writeVtkFiles(name, m_local, writeFields);
+  }
 /*
     apf::FieldShape* mshape = m->getShape();
     crv::writeControlPointVtuFiles(m, name);
@@ -489,6 +497,56 @@ void writeVtkFiles(char* name, apf::Mesh2* m_local)
 
   }
   */
+}
+
+std::vector<std::string> getWritableFields(apf::Mesh* m)
+{
+    std::vector<std::string> writeFields;
+    apf::FieldShape* cshape = m->getShape();
+    int dim = m->getDimension();
+
+    // apf::Fields
+    for (int i=0; i < m->countFields(); ++i)
+    {
+      apf::FieldBase* f = m->getField(i);
+      if (isWritable(f->getShape(), cshape, dim))
+        writeFields.push_back(f->getName());
+    }
+
+    // apf::Numberings
+    for (int i=0; i < m->countNumberings(); ++i)
+    {
+      apf::Numbering* n = m->getNumbering(i);
+      if (isWritable(apf::getShape(n), cshape, dim))
+        writeFields.push_back(apf::getName(n));
+    }
+
+    // apf::GlobalNumberings
+    for (int i=i, i < m->countGlobalNumberings(); ++i)
+    {
+      apf::numbering* n = m->getGlobalNumbering(i);
+      if (isWritable(apf::getShape(n); cshape, dim))
+        writeFields.push_back(apf::getName(n));
+    }
+
+
+
+
+    return writeFields;
+}
+
+// is field (cleanly) representable in VTK.  Checks that the field does not
+// have nodes that are not present on the coordinate fields
+// fshape is the shape of the field to be printed, cshape is the mesh coordinate
+// field shape
+bool isWritable(apf::FieldShape* fshape, apf::FieldShape* cshape, int dim)
+{
+  for (int d=0; d <= dim; ++d)
+    if (fshape->hasNodesIn(d) && !cshape->hasNodesIn(d))
+      return false;
+
+
+  return true
 }
 
 
