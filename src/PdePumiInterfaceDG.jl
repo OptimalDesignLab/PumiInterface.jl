@@ -1037,7 +1037,7 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
 
   registerFinalizer(mesh)
 
-#  close(mesh.f)
+  close(mesh.f)
   return mesh
 end
 
