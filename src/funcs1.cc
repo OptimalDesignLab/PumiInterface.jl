@@ -508,9 +508,9 @@ std::vector<std::string> getWritableFields(apf::Mesh* m)
     // apf::Fields
     for (int i=0; i < m->countFields(); ++i)
     {
-      apf::FieldBase* f = m->getField(i);
-      if (isWritable(f->getShape(), cshape, dim))
-        writeFields.push_back(f->getName());
+      apf::Field* f = m->getField(i);
+      if (isWritable(apf::getShape(f), cshape, dim))
+        writeFields.push_back(apf::getName(f));
     }
 
     // apf::Numberings
@@ -522,15 +522,12 @@ std::vector<std::string> getWritableFields(apf::Mesh* m)
     }
 
     // apf::GlobalNumberings
-    for (int i=i, i < m->countGlobalNumberings(); ++i)
+    for (int i=0; i < m->countGlobalNumberings(); ++i)
     {
-      apf::numbering* n = m->getGlobalNumbering(i);
-      if (isWritable(apf::getShape(n); cshape, dim))
+      apf::GlobalNumbering* n = m->getGlobalNumbering(i);
+      if (isWritable(apf::getShape(n), cshape, dim))
         writeFields.push_back(apf::getName(n));
     }
-
-
-
 
     return writeFields;
 }
@@ -546,7 +543,7 @@ bool isWritable(apf::FieldShape* fshape, apf::FieldShape* cshape, int dim)
       return false;
 
 
-  return true
+  return true;
 }
 
 
