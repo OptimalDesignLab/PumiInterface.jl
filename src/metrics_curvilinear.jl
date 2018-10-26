@@ -145,10 +145,10 @@ function getFaceCoordinatesAndNormals_rev(mesh::PumiMeshDG{Tmsh},
 
   if length(mesh.bndryfaces) > 0  # debugging: don't call if unneeded
     #TODO: don't allocate this every time
-    coords_bndry_bar = zeros(mesh.dim, mesh.numNodesPerFace, mesh.numBoundaryFaces)
+#    coords_bndry_bar = zeros(mesh.dim, mesh.numNodesPerFace, mesh.numBoundaryFaces)
     calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.bndryfaces,
                                       mesh.coords_bndry,
-                                      coords_bndry_bar,
+                                      mesh.coords_bndry_bar,
                                       mesh.nrm_bndry,
                                       mesh.nrm_bndry_bar)
   end

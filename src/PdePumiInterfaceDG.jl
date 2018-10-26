@@ -265,8 +265,11 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
                              # nodes
   vert_coords_bar::Array{T1, 3}  # adjoint part
   coords::Array{T1, 3}  # store coordinates of all nodes
+
   coords_bndry::Array{T1, 3}  # store coordinates of nodes on boundary,
                               # 2 x numFaceNodes x numBoundaryFaces
+  coords_bndry_bar::Array{T1, 3}  # adjoint part
+
   coords_interface::Array{T1, 3} # store coordinates of nodes on interfaces
                                  # 2 x numFaceNodes x numInterfaces
 

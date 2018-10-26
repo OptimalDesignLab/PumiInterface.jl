@@ -420,7 +420,7 @@ function test_metrics3_rev(mesh, mesh_c, sbp, opts)
 
       # TODO: uncomment when this is fixed
       for j=1:length(mesh_c.jac)
-#        jac[in_idx, out_idx] = imag(mesh_c.jac[j])/h (mesh_c.jac[j] - jac_orig[j])/pert
+        #jac[in_idx, out_idx] = imag(mesh_c.jac[j])/h #(mesh_c.jac[j] - jac_orig[j])/pert
         out_idx += 1
       end
 
@@ -459,7 +459,7 @@ function test_metrics3_rev(mesh, mesh_c, sbp, opts)
 
       # TODO: uncomment when this is fixed
       for j=1:length(mesh_c.jac)
-#        jac[in_idx, out_idx] = imag(mesh_c.jac[j])/h #(mesh_c.jac[j] - jac_orig[j])/pert
+        #jac[in_idx, out_idx] = imag(mesh_c.jac[j])/h #(mesh_c.jac[j] - jac_orig[j])/pert
         out_idx += 1
       end
 
@@ -482,7 +482,7 @@ function test_metrics3_rev(mesh, mesh_c, sbp, opts)
 
         # uncomment when this is fixed
         for j=1:length(mesh_c.jac)
-#          jac[in_idx, out_idx] = imag(mesh_c.dxidx[j])/h  #(mesh_c.jac[j] - jac_orig[j])/pert
+          jac[in_idx, out_idx] = imag(mesh_c.dxidx[j])/h  #(mesh_c.jac[j] - jac_orig[j])/pert
           out_idx += 1
         end
 
@@ -542,7 +542,7 @@ function test_metrics3_rev(mesh, mesh_c, sbp, opts)
     fill!(mesh.dxidx_bar, 0.0)
     for j=1:length(mesh.jac)
       #TODO: uncomment when this is fixed
-#      mesh.jac_bar[j] = 1
+      #mesh.jac_bar[j] = 1
 
       fill!(mesh.vert_coords_bar, 0.0)
       fill!(mesh.nrm_face_bar, 0.0)
@@ -582,7 +582,8 @@ function test_metrics3_rev(mesh, mesh_c, sbp, opts)
     end  # end loop j
 
 
-    @test isapprox( maximum(abs.(jac - jac2)), 0.0) atol=1e-5
+    println("max diff = ", maximum(abs.(jac - jac2)))
+    @test isapprox( maximum(abs.(jac - jac2)), 0.0) atol=1e-13
   end
 
   return nothing
@@ -603,7 +604,7 @@ function test_metrics4_rev(mesh, mesh_c, sbp, opts)
 
   @testset "----- Testing metrics4_rev -----" begin
     nin = length(mesh.vert_coords)
-    nout = length(mesh.nrm_bndry) + length(mesh.nrm_face)
+    nout = length(mesh.nrm_bndry) + length(mesh.nrm_face) + length(mesh.coords_bndry)
     for i=1:mesh.npeers
       nout += length(mesh.nrm_sharedface[i])
     end
@@ -638,6 +639,11 @@ function test_metrics4_rev(mesh, mesh_c, sbp, opts)
 
       for j=1:length(mesh_c.nrm_face)
         jac[in_idx, out_idx] = imag(mesh_c.nrm_face[j])/h #(mesh_c.nrm_face[j] - nrm_face_orig[j])/pert
+        out_idx += 1
+      end
+
+      for j=1:length(mesh_c.coords_bndry)
+        jac[in_idx, out_idx] = imag(mesh_c.coords_bndry[j])/h
         out_idx += 1
       end
 
@@ -689,6 +695,21 @@ function test_metrics4_rev(mesh, mesh_c, sbp, opts)
       mesh.nrm_face_bar[j] = 0
     end
 
+    for j=1:length(mesh.coords_bndry)
+      mesh.coords_bndry_bar[j] = 1
+      fill!(mesh.vert_coords_bar, 0.0)
+
+      PdePumiInterface.getFaceCoordinatesAndNormals_rev(mesh, sbp)
+      in_idx = 1
+      for i=1:length(mesh.vert_coords_bar)
+        jac2[in_idx, out_idx] = mesh.vert_coords_bar[i]
+        in_idx += 1
+      end
+
+      out_idx += 1 
+      mesh.coords_bndry_bar[j] = 0
+    end
+
     for peer=1:mesh.npeers
       nrm_sharedface_bar = mesh.nrm_sharedface_bar[peer]
       for j=1:length(nrm_sharedface_bar)
@@ -710,7 +731,8 @@ function test_metrics4_rev(mesh, mesh_c, sbp, opts)
 
      
     diffnorm = maximum(abs.(jac - jac2))
-    @test isapprox( diffnorm, 0.0) atol=1e-5
+    println("diffnorm = ", diffnorm)
+    @test isapprox( diffnorm, 0.0) atol=1e-13
   end
 
   return nothing

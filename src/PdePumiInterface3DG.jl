@@ -243,6 +243,8 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
   coords::Array{T1, 3}  # store coordinates of all nodes
   coords_bndry::Array{T1, 3}  # store coordinates of nodes on boundary,
                               # 3 x numFaceNodes x numBoundaryFaces
+
+  coords_bndry_bar::Array{T1, 3} # adjoint part
   coords_interface::Array{T1, 3} # store coordinates of nodes on interfaces
                                  # 3 x numFaceNodes x numInterfaces
   coords_sharedface::Array{Array{T1, 3}, 1}  # coordinates of shared interface nodes

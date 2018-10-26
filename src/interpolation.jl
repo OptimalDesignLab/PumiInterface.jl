@@ -211,6 +211,8 @@ function allocateFaceCoordinates(mesh::PumiMeshDG{Tmsh}) where Tmsh
   if !isFieldDefined(mesh, :coords_bndry, :coords_sharedface)
     mesh.coords_bndry = zeros(Tmsh, mesh.dim, sbpface.numnodes, 
                                   mesh.numBoundaryFaces)
+    mesh.coords_bndry_bar = zeros(Tmsh, mesh.dim, sbpface.numnodes,
+                                  mesh.numBoundaryFaces)
     mesh.coords_interface = zeros(Tmsh, mesh.dim, sbpface.numnodes, mesh.numInterfaces)
     mesh.coords_sharedface = Array{Array{Tmsh, 3}}(mesh.npeers)
     for i=1:mesh.npeers
