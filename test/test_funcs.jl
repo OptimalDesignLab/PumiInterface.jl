@@ -482,7 +482,7 @@ function test_metrics3_rev(mesh, mesh_c, sbp, opts)
 
         # uncomment when this is fixed
         for j=1:length(mesh_c.jac)
-          jac[in_idx, out_idx] = imag(mesh_c.dxidx[j])/h  #(mesh_c.jac[j] - jac_orig[j])/pert
+          #jac[in_idx, out_idx] = imag(mesh_c.dxidx[j])/h  #(mesh_c.jac[j] - jac_orig[j])/pert
           out_idx += 1
         end
 
