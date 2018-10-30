@@ -1423,7 +1423,6 @@ function isOwned(shr_ptr, entity)
 
   val = ccall( (isOwned_name, pumi_libname), CppBool, (Ptr{Void}, Ptr{Void}), shr_ptr, entity)
 
-  println("val = ", val)
   return val != 0
 end
 
