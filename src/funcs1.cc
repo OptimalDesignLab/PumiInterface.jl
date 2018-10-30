@@ -1350,7 +1350,10 @@ apf::Sharing* getSharing(apf::Mesh* m)
 
 bool isOwned(apf::Sharing* shr, apf::MeshEntity* e)
 {
+//  bool tmp = shr->isOwned(e);
+//  std::cout << "isOwned tmp = " << tmp << std::endl;
   return shr->isOwned(e);
+//  return tmp;
 }
 
 apf::CopyArray copies1;

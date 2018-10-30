@@ -3,7 +3,9 @@ __precompile__(false)
 module PumiInterface
 
 # make PdePumiInterface findable
-push!(LOAD_PATH, dirname(@__FILE__))  
+push!(LOAD_PATH, dirname(@__FILE__))
+
+const CppBool = UInt8  # this is implementation defined
 
 # no names should exported because there should be higher level functions
 # wrapping these
@@ -560,10 +562,10 @@ flip = convert(UInt8, 42)
 rotate = convert(Int32, 42)
 =#
 which = Array{Int32}(1)
-flip = Array{UInt8}(1)
+flip = Array{CppBool}(1)
 rotate = Array{Int32}(1)
 
-  ccall( (getAlignment_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Int32}, Ptr{UInt8}, Ptr{Int32}), m_ptr, elem, elem_boundary, which, flip, rotate)
+  ccall( (getAlignment_name, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Int32}, Ptr{CppBool}, Ptr{Int32}), m_ptr, elem, elem_boundary, which, flip, rotate)
 
   return which[1], convert(Bool, flip[1]), rotate[1]
 end
@@ -572,7 +574,7 @@ end
 function hasNodesIn(mshape_ptr, dimension::Integer)
 # check whether this FieldShape* has nodes on entities of a given dimension
 
-  i = ccall( (hasNodesIn_name, pumi_libname), Cuchar, (Ptr{Void}, Int32), mshape_ptr, dimension)
+  i = ccall( (hasNodesIn_name, pumi_libname), CppBool, (Ptr{Void}, Int32), mshape_ptr, dimension)
 
   i_bool = convert(Bool, i)
 #  println("hasNodesIn returned", i_bool)
@@ -862,8 +864,8 @@ end
 function isNumbered(n_ptr, entity, node::Integer, component::Integer)
 # check whether a node is numbered or not, returns a Julia Bool
 
-i = ccall( (isNumbered_name, pumi_libname), Cint, (Ptr{Void}, Ptr{Void}, Int32, Int32), n_ptr, entity, node, component)
-return i == 1
+i = ccall( (isNumbered_name, pumi_libname), CppBool, (Ptr{Void}, Ptr{Void}, Int32, Int32), n_ptr, entity, node, component)
+return i != 0
 
 end
 
@@ -1405,7 +1407,7 @@ end
 
 function hasMatching(m_ptr::Ptr{Void})
 
-  val = ccall( (hasMatching_name, pumi_libname), Cint, (Ptr{Void},), m_ptr)
+  val = ccall( (hasMatching_name, pumi_libname), CppBool, (Ptr{Void},), m_ptr)
 
   return val != 0
 end
@@ -1419,8 +1421,9 @@ end
 
 function isOwned(shr_ptr, entity)
 
-  val = ccall( (isOwned_name, pumi_libname), Cint, (Ptr{Void}, Ptr{Void}), shr_ptr, entity)
+  val = ccall( (isOwned_name, pumi_libname), CppBool, (Ptr{Void}, Ptr{Void}), shr_ptr, entity)
 
+  println("val = ", val)
   return val != 0
 end
 
