@@ -116,6 +116,7 @@ function allocateBoundaryAndInterfaceArrays(mesh, opts)
     mesh.bndry_offsets = Array{Int}(mesh.numBC + 1)
     mesh.bndry_funcs = Array{BCType}(mesh.numBC)
     mesh.bndry_funcs_revm = Array{BCType_revm}(mesh.numBC)
+    mesh.bndry_funcs_revq = Array{BCType_revq}(mesh.numBC)
     mesh.bndry_geo_nums = Array{Array{Int, 1}}(mesh.numBC)
 
     mesh.bndryfaces = Array{Boundary}(mesh.numBoundaryFaces)

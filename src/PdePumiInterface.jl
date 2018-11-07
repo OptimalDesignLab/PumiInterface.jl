@@ -521,6 +521,7 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
 
   bndry_funcs::Array{BCType, 1}  # array of boundary functors (Abstract type)
   bndry_funcs_revm::Array{BCType_revm, 1}  # reverse mode functors
+  bndry_funcs_revq::Array{BCType_revq, 1}
   bndry_normals::Array{T1, 3}  # array of normals to each face on the boundary
 #  bndry_facenums::Array{Array{Int, 1}, 1}  # hold array of faces corresponding to each boundary condition
   bndry_offsets::Array{Int, 1}  # location in bndryfaces where new type of BC starts
