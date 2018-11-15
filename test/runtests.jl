@@ -355,7 +355,7 @@ end
  numberJ(n_ptr, vert, 0, 0, 1)
  @test ( getNumberJ(n_ptr, vert, 0, 0) )== 1
 
-
+#=
   # test writeVtk all fields option
   # the mesh has a first order lagrange field, so make a 2nd order numbering
   nshape = getFieldShape(0, 2, 2)
@@ -374,7 +374,7 @@ end
   writeVtkFiles("test_vtk_all", m_ptr, writeall=true)
 
   #TODO grep for name 
-
+=#
 
  # test mesh warping functions
 
