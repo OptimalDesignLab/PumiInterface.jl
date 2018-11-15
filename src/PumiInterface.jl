@@ -430,6 +430,8 @@ function countJ(m_ptr, dimension::Integer)
   return i
 end
 
+using ODLCommonTools  #TEMPORARY
+
 """
   Writes VTK files.  The keyword argument `writeall` determines which Numberings
   and Fields are written to the file.  By default only those with a FieldShape
@@ -437,6 +439,9 @@ end
 """
 function writeVtkFiles(name::AbstractString, m_ptr; writeall::Bool=false)
 # write vtk files to be read by paraview
+
+  println("about to writeVtkFiles")
+  printbacktrace()
 
   ccall( (writeVtkFiles_name, pumi_libname), Void, (Ptr{UInt8}, Ptr{Void}, CppBool), name, m_ptr, writeall)
   return nothing

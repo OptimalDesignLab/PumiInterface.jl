@@ -505,11 +505,14 @@ std::vector<std::string> getWritableFields(apf::Mesh* m)
     apf::FieldShape* cshape = m->getShape();
     int dim = m->getDimension();
 
+    // isWritable checks that the FieldShape is compatible
+    // isPrintable is an apf function that checks if the field is complete
+
     // apf::Fields
     for (int i=0; i < m->countFields(); ++i)
     {
       apf::Field* f = m->getField(i);
-      if (isWritable(apf::getShape(f), cshape, dim))
+      if (isWritable(apf::getShape(f), cshape, dim) && isPrintable(f))
         writeFields.push_back(apf::getName(f));
     }
 
@@ -517,7 +520,7 @@ std::vector<std::string> getWritableFields(apf::Mesh* m)
     for (int i=0; i < m->countNumberings(); ++i)
     {
       apf::Numbering* n = m->getNumbering(i);
-      if (isWritable(apf::getShape(n), cshape, dim))
+      if (isWritable(apf::getShape(n), cshape, dim) && isPrintable(n))
         writeFields.push_back(apf::getName(n));
     }
 
@@ -525,7 +528,7 @@ std::vector<std::string> getWritableFields(apf::Mesh* m)
     for (int i=0; i < m->countGlobalNumberings(); ++i)
     {
       apf::GlobalNumbering* n = m->getGlobalNumbering(i);
-      if (isWritable(apf::getShape(n), cshape, dim))
+      if (isWritable(apf::getShape(n), cshape, dim) && isPrintable(n))
         writeFields.push_back(apf::getName(n));
     }
 
@@ -546,7 +549,22 @@ bool isWritable(apf::FieldShape* fshape, apf::FieldShape* cshape, int dim)
   return true;
 }
 
+// this is equivalent to apfVtk.cc/isPrintable, but that function is static
+bool isPrintable(apf::Field* f)
+{
+  apf::HasAll op;
+  return PCU_Ans(op.run(f));
+}
 
+bool isPrintable(apf::Numbering* f)
+{
+  return true;
+}
+
+bool isPrintable(apf::GlobalNumbering* f);
+{
+  return true;
+}
 
 // get model info of a mesh element
 apf::ModelEntity* toModel(apf::Mesh* m_local, apf::MeshEntity* e)

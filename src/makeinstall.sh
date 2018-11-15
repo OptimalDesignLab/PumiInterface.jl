@@ -2,7 +2,7 @@
 
 startdir=`pwd`
 cd ./build
-make -j 4
+make -j 1
 make install
 
 cd $startdir

@@ -215,4 +215,7 @@ int getindex_c(const int i, const int j, const int si, const int sj);
 
 std::vector<std::string> getWritableFields(apf::Mesh* m);
 bool isWritable(apf::FieldShape* fshape, apf::FieldShape* cshape, int dim);
+bool isPrintable(apf::Field* f);
+bool isPrintable(apf::Numbering* f);
+bool isPrintable(apf::GlobalNumbering* f);
 #endif
