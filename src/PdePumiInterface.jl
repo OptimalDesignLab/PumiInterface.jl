@@ -302,6 +302,10 @@ function zeroBarArrays(mesh::PumiMesh)
 
       # treat parallel (Arrays-of-Arrays) separately
       if contains(fname_str, "sharedface")
+        if length(field) == 0
+          continue
+        end
+
         for i=1:mesh.npeers
           fill!(field[i], 0.0)
         end
