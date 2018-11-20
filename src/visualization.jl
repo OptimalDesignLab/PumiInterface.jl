@@ -21,15 +21,20 @@ function _saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector,
 
   num_entities = [3, 3, 1] # number of vertices, edges, faces
   q_vals = zeros(mesh.numDofPerNode)
+  node_entities = ElementNodeEntities(mesh.m_ptr, mesh.mshape_ptr, mesh.dim)
 
   for el=1:mesh.numEl
     el_i = mesh.elements[el]
-    node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
+    getNodeEntities(node_entities, el_i)
+    #node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
     col = 1 # current node of the element
-    for i=1:3  # loop over verts, edges, faces
-      for j=1:num_entities[i]  # loop over all entities of this type
-	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
-	  entity = node_entities[col]  # current entity
+    for i=1:node_entities.nentities
+      entity = node_entities.entities[i]
+      for k=1:node_entities.nodecounts[i]
+#    for i=1:3  # loop over verts, edges, faces
+#      for j=1:num_entities[i]  # loop over all entities of this type
+#	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
+#          entity = node_entities[col]  # current entity
 	  offset_k = mesh.elementNodeOffsets[col, el] # offset for current node
 	  new_node = abs(offset_k - k) - 1
 
@@ -42,9 +47,9 @@ function _saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector,
           setComponents(mesh.f_ptr, entity, abs(offset_k - k) - 1, q_vals)
 
 	  col += 1
-	end  # end loop over nodes on curren entity
-      end  # end loop over entities of current type
-    end  # end loop over entity types
+	end  # end loop over nodes on current entity
+      end  # end loop over entities 
+#    end
   end  # end loop over elements
 
   transferFieldToSubmesh(mesh, u, mnew_ptr, fnew_ptr)
@@ -186,6 +191,9 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
   if mesh.dim == 3
     numNodesPerType[4] = countNodesOn(fshape_ptr, 4) # tetrahedron
   end
+  node_entities_mnew = ElementNodeEntities(mesh.mnew_ptr, fshape_ptr, mesh.dim)
+
+  node_entities_m = ElementNodeEntities(mesh.m_ptr, fshape_ptr, mesh.dim)
 
   zeroField(mesh.fnew_ptr)
 
@@ -227,19 +235,24 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 
     # save values to mesh
     # assumes the solution fieldshape is the same as the coordinate fieldshape
-    getNodeEntities(mesh.mnew_ptr, fshape_ptr, el_i, node_entities)
+    getNodeEntities(node_entities_mnew, el_i)
+#    getNodeEntities(mesh.mnew_ptr, fshape_ptr, el_i, node_entities)
     col = 1  # current node of the element
 
-    for i=1:(mesh.dim+1)
-      for j=1:numTypePerElement[i]
-        for k=1:numNodesPerType[i]
-          entity = node_entities[col]
+    for i=1:node_entities_mnew.nentities
+      entity = node_entities_mnew.entities[i]
+      edim = node_entities_mnew.dimensions[i]
+      for k=1:node_entities_mnew.nodecounts[i]
+#    for i=1:(mesh.dim+1)
+#      for j=1:numTypePerElement[i]
+#        for k=1:numNodesPerType[i]
+#          entity = node_entities[col]
 #          @assert i == 1
-          vertnum = getNumberJ(mesh.entity_Nptrs[i], entity, 0, 0) + 1
+          vertnum = getNumberJ(mesh.entity_Nptrs[edim+1], entity, 0, 0) + 1
           getPoint(mesh.m_ptr, entity, 0, coords)
 
           # pack array to send to other processes
-          if i == 1 && haskey(vshare.rev_mapping, vertnum)
+          if edim == 0 && haskey(vshare.rev_mapping, vertnum)
 #            println(mesh.f, "\nvert number ", vertnum)
             pair = vshare.rev_mapping[vertnum]
 #            println(mesh.f, "peers = \n", pair.first)
@@ -275,7 +288,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 
           # check for local matches
           nmatches = countMatches(mesh.m_ptr, entity)
-          if i == 1 && nmatches > 0
+          if edim == 0 && nmatches > 0
             @assert nmatches <= length(matches_partnums)
             getMatches(matches_partnums, matches_entities)
             for match_idx = 1:nmatches
@@ -296,7 +309,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
           setComponents(mesh.fnew_ptr, entity, 0, u_node)
           col += 1
         end
-      end
+     # end
     end  # end loop over entity dimensions
 
   end  # end loop over elements
@@ -380,8 +393,14 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
             # searching getNodeEntities for the index guarantees we can
             # identify the right interpolated point for all elements, 
             # independent of topology
-            getNodeEntities(mesh.m_ptr, fshape_ptr, el_j, node_entities)
-            node_idx = findfirst(node_entities, entity_i)
+            getNodeEntities(node_entities_m, el_j)
+#            getNodeEntities(mesh.m_ptr, fshape_ptr, el_j, node_entities)
+            entity_idx = findfirst(node_entities_m.entities, entity_i)
+            node_idx = 1
+            for p=1:(entity_idx-1)
+              node_idx += node_entities_m.nodecounts[p]
+            end
+#            node_idx = findfirst(node_entities, entity_i)
 
             # interpolate the jacobian to this point
             jac_entity = 0.0

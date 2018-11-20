@@ -6,6 +6,8 @@ export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVe
 
 export apfVERTEX, apfEDGE, apfTRIANGLE, apfQUAD, apfTET, apfHEX, apfPRISM, apfPYRAMIX, simplexTypes
 
+export ElementNodeEntities
+
 # declare the enums
 global const apfVERTEX=0
 global const apfEDGE=1
@@ -190,6 +192,132 @@ function getJacobian2(m_ptr, entity, coords)
    jac = getJacobian(mel_ptr, coords)
    return jac
 end
+
+"""
+  Struct that contains all the MeshEntities that have nodes on them, as
+  well as the number of nodes on each one
+
+  It might be helpful to generalize this so it works on any MeshEntity,
+  not just an element, but that would require more topology information
+
+  **Public Fields**
+
+   * entities: array of MeshEntities that have nodes on them, length `nentities`
+   * nodecounts: array containing the number of nodes on each entity,
+                 length `nentities`
+   * nentities: number of entities
+   * nnodes: total number of nodes on all the entities
+"""
+struct ElementNodeEntities
+  # public fields 
+  entities::Vector{Ptr{Void}}
+  nodecounts::Vector{Int}  # number of nodes on each entity
+  dimensions::Vector{Int}  # dimension of each entity
+  nentities::Int  # = length of above arrays
+  nnodes::Int # total number of nodes
+
+  # private fields
+  m_ptr::Ptr{Void}
+  has_nodes_in_dim::Vector{Bool}
+  dim::Int
+  
+  # temporary arrays
+  down_entities::Array{Ptr{Void}, 1}
+end
+
+function ElementNodeEntities(m_ptr::Ptr{Void}, mshape_ptr::Ptr{Void},
+                             dim::Integer)
+
+  if dim == 2  # triangle
+    num_type_per_entity = [3, 3, 1]
+    dim = 2
+  elseif dim == 3  # tetrahedron
+    num_type_per_entity = [4, 6, 4, 1]
+    numRegions = num_type_per_entity[4]
+    dim = 3
+  else
+    throw(ErrorException("unsupported dimension in getNodeEntites, dim = $dim"))
+  end
+
+  num_nodes_per_entity = zeros(Int, 4)
+  for i=1:3
+    num_nodes_per_entity[i] = countNodesOn(mshape_ptr, i-1)
+  end
+  num_nodes_per_entity[4] = countNodesOn(mshape_ptr, 4)  # tetrahedron
+
+  has_nodes_in_dim = Array{Bool}(4)
+  for i=1:4
+    has_nodes_in_dim[i] = num_nodes_per_entity[i] != 0
+  end
+
+  # compute number of entities
+  nentities = 0
+  nnodes = 0
+  for i=0:dim
+    if num_nodes_per_entity[i+1] > 0
+      nentities += num_type_per_entity[i+1]
+      nnodes += num_type_per_entity[i+1]*num_nodes_per_entity[i+1]
+    end
+  end
+
+  entities = Array{Ptr{Void}}(nentities)
+  nodecounts = Array{Int}(nentities)
+  dimensions = Array{Int}(nentities)
+  down_entities = Array{Ptr{Void}}(12)  # apf::Downward
+
+  # get the nodecounts
+  idx = 1
+  for i=0:dim
+    if num_nodes_per_entity[i+1] > 0
+      for j=1:num_type_per_entity[i+1]
+        nodecounts[idx] = num_nodes_per_entity[i+1]
+        dimensions[idx] = i
+        idx += 1
+      end
+    end
+  end
+
+  @assert idx == nentities + 1
+
+  return ElementNodeEntities(entities, nodecounts, dimensions,  nentities,
+                             nnodes, m_ptr,
+                             has_nodes_in_dim, dim, down_entities)
+end
+
+
+"""
+  Gets the apf::MeshEntities of the entities that have nodes on them.
+  The entities are retrieve in order: vertices, edges, faces, and
+  regions.  Entities of each dimension are ordered consistently with
+  Pumi's `getDownward` function.
+
+  **Inputs**
+
+   * obj: an [`ElementNodeEntities`](@ref) object.  The `entities` field
+          will be overwritten.
+   * entity: an apf::MeshEntity* for the element.  The MeshEntities of
+             the downward adjacent entities that have nodes on them will
+             be retrieve
+"""
+function getNodeEntities(obj::ElementNodeEntities, entity::Ptr{Void})
+
+  # entity must be of the same type passed to the constructor of obj
+
+  # get entities in order of increasing dimension
+  idx = 1
+  for i=1:(obj.dim+1)
+    if obj.has_nodes_in_dim[i]
+      n = getDownward(obj.m_ptr, entity, i-1, obj.down_entities)
+      for j=1:n
+        obj.entities[idx] = obj.down_entities[j]
+        idx += 1
+      end
+    end
+  end
+
+  return nothing
+end
+
 
 
 function getNodeEntities(m_ptr, mshape_ptr, entity)

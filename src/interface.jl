@@ -231,14 +231,17 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
   @assert length(coords_vec) == mesh.coord_numNodes*mesh.dim
 
   fill!(coords_vec, reduce_op.neutral_element)
+  node_entities = ElementNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.dim)
 
   for i=1:mesh.numEl
     #TODO: it would be faster to create an array for this, but it would use
     #      more memory
-    node_entities = getNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.elements[i])
+#    node_entities = getNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.elements[i])
+    getNodeEntities(node_entities, mesh.elements[i])
     for j=1:mesh.coord_numNodesPerElement
+      entity = node_entities.entities[j]
       for k=1:mesh.dim
-        idx = getNumberJ(mesh.coord_nodenums_Nptr, node_entities[j], 0, k-1)
+        idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
 
         coords_vec[idx] = reduce_op(coords_vec[idx], coords_arr[k, j, i])
       end
@@ -273,12 +276,16 @@ function coords1DTo3D(mesh::PumiMeshDG, coords_vec::AbstractVector,
 
 
   fill!(coords_arr, reduce_op.neutral_element)
+  node_entities = ElementNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.dim)
 
   for i=1:mesh.numEl
-    node_entities = getNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.elements[i])
+    getNodeEntities(node_entities, mesh.elements[i])
+#    node_entities = getNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.elements[i])
     for j=1:mesh.coord_numNodesPerElement
+      entity = node_entities.entities[j]
+#    for j=1:mesh.coord_numNodesPerElement
       for k=1:mesh.dim
-        idx = getNumberJ(mesh.coord_nodenums_Nptr, node_entities[j], 0, k-1)
+        idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
 
         coords_arr[k, j, i] = reduce_op(coords_arr[k, j, i], coords_vec[idx])
       end
