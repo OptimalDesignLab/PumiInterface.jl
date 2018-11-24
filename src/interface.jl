@@ -125,11 +125,6 @@ end
 # Reduction operations
 
 """
-  Abstract type for reduction operations
-"""
-abstract type Reduction{T} end
-
-"""
   Assignment reduction (always returns the right hand value)
 """
 struct AssignReduction{T} <: Reduction{T}

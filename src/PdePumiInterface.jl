@@ -234,6 +234,12 @@ function RemoteMetrics(mesh::PumiMeshDG{Tmsh}, peer_idx::Int; islocal=true) wher
 end
 
 
+"""
+  Abstract type for reduction operations
+"""
+abstract type Reduction{T} end
+
+
 
 """
   This function copies the data fields of one mesh object to another
@@ -382,6 +388,7 @@ function finalizeMesh(mesh::PumiMesh)
 end
 
 
+include("parallel_types.jl")
 include("elements.jl")
 include("./PdePumiInterface3.jl")
 include("PdePumiInterfaceDG.jl")

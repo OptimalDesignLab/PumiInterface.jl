@@ -1017,6 +1017,7 @@ end
   test_submesh()
 
   test_adapt_2d()
-  println("finished")
+
+  test_ScatterData(mesh)
 
 end
