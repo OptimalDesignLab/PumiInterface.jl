@@ -137,6 +137,7 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
   fexact_ptr::Ptr{Void}  # pointer to field on mexact_ptr
   fexactshape_ptr::Ptr{Void}  # apf::FieldShape of fexact_ptr
   shr_ptr::Ptr{Void}  # pointer to the apf::Sharing object
+  normalshr_ptr::Ptr{Void}  # pointer to the NormalSharing object
   shape_type::Int  #  type of shape functions
   subdata::SubMeshData  # if this is a submesh, the submeshdata object,
                         # otherwise NULL
@@ -696,6 +697,7 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
   end
 
   mesh.shr_ptr = getSharing(mesh.m_ptr)
+  mesh.normalshr_ptr = getNormalSharing(mesh.m_ptr)
   # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])
   mesh.numEdge =convert(Int,  num_Entities[2])

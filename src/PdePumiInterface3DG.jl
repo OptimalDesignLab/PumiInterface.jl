@@ -122,6 +122,7 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
   fexactshape_ptr::Ptr{Void}  # apf::FieldShape of fexact_ptr
 
   shr_ptr::Ptr{Void} # pointer to apf::Sharing object
+  normalshr_ptr::Ptr{Void}  # NormalSharing object
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
   min_el_size::Float64 # size of the smallest element (units of length)
@@ -638,6 +639,7 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   mesh.fexactshape_ptr = C_NULL
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
   mesh.shr_ptr = getSharing(mesh.m_ptr)
+  mesh.normalshr_ptr = getNormalSharing(mesh.m_ptr)
 
   # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])

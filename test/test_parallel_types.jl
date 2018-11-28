@@ -80,7 +80,10 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
   data_recv = zeros(T, mesh.coord_numNodes*mesh.dim)
   # create lambda function for receiving data
   function calc_func(data::PdePumiInterface.PeerData)
+    PdePumiInterface.receiveVecFunction(data, mesh, data_recv)
+  end
 
+  #=
     pos = 1
     for i=1:length(data.entities)
       entity = data.entities[i]
@@ -94,10 +97,10 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
         pos += 1
       end
     end
-
+  
     return nothing
   end
-
+  =#
 
 
 
@@ -149,7 +152,12 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
 
     # send the coordinates using a SumReduction, so the receiver will get the
     # n * coordinates, where n is the number of remotes + self
-    sendParallelData(data, mesh.vert_coords, PdePumiInterface.AssignReduction{T}())
+    reduce_op = PdePumiInterface.AssignReduction{T}()
+    sendParallelData(data, mesh.vert_coords, reduce_op)
+
+    # also test coords3DTo1D at same time
+    coords_vec = zeros(T, mesh.dim*mesh.coord_numNodes)
+    coords3DTo1D(mesh, mesh.vert_coords, coords_vec, reduce_op)
 
     receiveParallelData(data, calc_func)
     coords = Array{Float64}(3)
@@ -162,15 +170,23 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
       it = MeshIterator(mesh.m_ptr, dim)
       for i=1:mesh.numEntitiesPerType[dim+1]
         entity = iterate(mesh.m_ptr, it)
+        owner = getOwner(shr, entity)
         #typ = getType(mesh.m_ptr, entity)
 
-        if isSharedShr(shr, entity) && getOwner(shr, entity) == mesh.myrank
+        if isSharedShr(shr, entity)
           ncopies = countCopies(shr, entity)
+          nlocals = countAdjacent(mesh.m_ptr, entity, mesh.dim)
           for j=1:mesh.coord_numNodesPerType[dim+1]
             getPoint(mesh.m_ptr, entity, j-1, coords)
             for k=1:mesh.dim
               idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
-              @test abs(data_recv[idx] - ncopies*coords[k]) < 1e-13
+              if owner == mesh.myrank
+                @test abs(data_recv[idx] - ncopies*coords[k]) < 1e-13
+                @test abs(coords_vec[idx] - coords[k]) < 1e-13
+              elseif owner != mesh.myrank
+                idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+                @test coords_vec[idx] == 0
+              end  # end if
             end  # end k
           end  # end j
         end  # end if

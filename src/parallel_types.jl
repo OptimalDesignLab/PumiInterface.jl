@@ -218,7 +218,7 @@ function ScatterData(::Type{T}, dims::NTuple, comm::MPI.Comm) where {T}
   recv = Array{PeerData{T, N, N2}}(0)
   peernums_send = Array{Cint}(0)
   peernums_recv = Array{Cint}(0)
-  tag = 2001  #TODO: need tag manager
+  tag = getNextTag(TagManager)
   curridx = Array{Int}(0)
 
   return ScatterData{T, N, N2, N3}(send, recv, peernums_send, peernums_recv,
@@ -641,6 +641,43 @@ function receiveParallelData(data::ScatterData, calc_func::Function)
 end
 
 
+"""
+  Function for receiving data shaped liked the coordinate field and putting
+  it into a vector.  Note that this does *not* meet the interface defined by
+  [`receiveParallelData`](@ref), so it will have to be called from inside a
+  lambda function
+
+  **Inputs**
+
+   * data: [`ScatterData`](@ref) object
+   * mesh: mesh object
+   * reduce_op: a [`Reduction`](@ref) object to apply
+   * vec: vector to put the result in
+"""
+function receiveVecFunction(data::PdePumiInterface.PeerData{T, 2},
+                            mesh::PumiMesh, vec::AbstractVector,
+                            reduce_op::Reduction=SumReduction{T}()) where {T}
+
+  pos = 1
+  for i=1:length(data.entities)
+    entity = data.entities[i]
+    typ = getType(mesh.m_ptr, entity)
+    dim = getTypeDimension(typ)
+    for j=1:mesh.coord_numNodesPerType[dim+1]
+      for k=1:mesh.dim
+        idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+        vec[idx] = reduce_op(data.vals[k, pos], vec[idx])
+      end
+      pos += 1
+    end
+  end
+
+  return nothing
+end
+
+
+
+
 #------------------------------------------------------------------------------
 # Sample functions for 3D arrays
 
@@ -666,7 +703,8 @@ end
 function initSendToOwner(mesh::PumiMesh{T}, fshape::Ptr{Void}, dims::NTuple) where {T}
 
   data = ScatterData(T, dims, mesh.comm)
-  shr = getNormalSharing(mesh.m_ptr)
+  shr = mesh.normalshr_ptr
+#  shr = getNormalSharing(mesh.m_ptr)
 
   part_nums = Array{Cint}(400)  # apf::Up
   remote_entities = Array{Ptr{Void}}(400)  # apf::Up

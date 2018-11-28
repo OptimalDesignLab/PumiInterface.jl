@@ -14,6 +14,7 @@ import ArrayViews.view
 include("nodecalc.jl")
 #include("bary.jl")
 include("options.jl")
+include("tag_manager.jl")
 #include(joinpath(Pkg.dir("PDESolver"), "src/tools/misc.jl"))
 
 # export types
@@ -359,6 +360,14 @@ function finalizeMesh(mesh::PumiMesh)
     if zero_mexact
       mesh.mexact_ptr = C_NULL
     end
+  end
+
+  if ( :shr_ptr in fnames)
+    freeSharing(mesh.shr_ptr)
+  end
+
+  if ( :normalshr_ptr in fnames)
+    freeSharing(mesh.normalshr_ptr)
   end
 
   if ( :mnew_ptr in fnames) && mesh.mnew_ptr != C_NULL
