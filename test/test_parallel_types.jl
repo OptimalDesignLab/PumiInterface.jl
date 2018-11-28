@@ -77,4 +77,136 @@ function test_ScatterData(mesh::PumiMesh{T}) where {T}
 end
 
 
+"""
+  Test `initSendToOwner` is correct by testing against the `mesh.vert_coords`
+  array (parallel only)
+"""
+function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
+
+  data_recv = zeros(T, mesh.coord_numNodes*mesh.dim)
+  # create lambda function for receiving data
+  function calc_func(data::PdePumiInterface.PeerData)
+
+    println("processing buffer from peer ", data.peernum)
+    pos = 1
+    for i=1:length(data.entities)
+      entity = data.entities[i]
+      typ = getType(mesh.m_ptr, entity)
+      dim = getTypeDimension(typ)
+      for j=1:mesh.coord_numNodesPerType[dim+1]
+        for k=1:mesh.dim
+          idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+          println("idx = ", idx)
+          data_recv[idx] += data.vals[k, pos]
+          println("data.vals = ", data.vals[k, pos])
+          println("data_recv[idx] = ", data_recv[idx])
+        end
+        pos += 1
+      end
+    end
+
+    return nothing
+  end
+
+
+
+
+  @testset "testing initSendToOwner" begin
+    data = PdePumiInterface.initSendToOwner(mesh, mesh.coordshape_ptr, (mesh.dim,))
+
+    println( "peernums_send = ", data.peernums_send)
+    shr = getNormalSharing(mesh.m_ptr)
+    # test that all entities owned by another process are present
+    for dim=0:(mesh.dim-1)
+      it = MeshIterator(mesh.m_ptr, dim)
+      nnodes = countNodesOn(mesh.coordshape_ptr, dim) != 0
+      println("number of nodes on dimension $dim = ", nnodes)
+
+
+      for j=1:mesh.numEntitiesPerType[dim+1]
+        entity = iterate(mesh.m_ptr, it)
+        owner = getOwner(shr, entity)
+        if isSharedShr(shr, entity) && owner != mesh.myrank && countNodesOn(mesh.coordshape_ptr, dim) != 0
+          owner_idx = getPeerIdx(data, owner)
+          @test entity in data.send[owner_idx]._entities_local
+        end
+      end
+      free(mesh.m_ptr, it)
+    end
+
+    # test that the local indices were computed correctly
+    coords = Array{Float64}(3)
+    for data_i in data.send
+      for j=1:length(data_i._entities_local)
+        getPoint(mesh.m_ptr, data_i._entities_local[j], 0, coords)
+
+        for j=data_i.colptr[j]:(data_i.colptr[j+1]-1)
+          idx = data_i.local_indices[j]
+          @test maximum(abs.(coords - mesh.vert_coords[:, idx])) < 1e-13
+        end
+      end
+      #println( "local_indices = ", data_i.local_indices)
+    end
+
+    # test that sending the data works correctly
+    exchangeKeys(data)
+
+    # check that all entities received are owned by this process
+    idx = 1
+    for data_i in data.recv
+      println("data ", idx)
+      for entity in data_i.entities
+        println("entity = ", entity)
+        @test isSharedShr(shr, entity)
+        @test getOwner(shr, entity) == mesh.myrank
+      end
+    end
+
+    # send the coordinates using a SumReduction, so the receiver will get the
+    # n * coordinates, where n is the number of remotes + self
+    sendParallelData(data, mesh.vert_coords, PdePumiInterface.AssignReduction{T}())
+
+    receiveParallelData(data, calc_func)
+    coords = Array{Float64}(3)
+    for dim=0:mesh.dim
+      println("dim = ", dim)
+
+      if !hasNodesIn(mesh.coordshape_ptr, dim)
+        println("skipping")
+        continue
+      end
+
+      it = MeshIterator(mesh.m_ptr, dim)
+      for i=1:mesh.numEntitiesPerType[dim+1]
+        println("\nentity ", i)
+        entity = iterate(mesh.m_ptr, it)
+        #typ = getType(mesh.m_ptr, entity)
+
+        if isSharedShr(shr, entity) && getOwner(shr, entity) == mesh.myrank
+          println("entity is shared")
+          ncopies = countCopies(shr, entity)
+          for j=1:mesh.coord_numNodesPerType[dim+1]
+            println("node ", j)
+            getPoint(mesh.m_ptr, entity, j-1, coords)
+            for k=1:mesh.dim
+              idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+              println("idx = ", idx)
+              println("coords[$k] = ", coords[k])
+              println("ncopies = ", ncopies)
+              println("data_recv[idx] = ", data_recv[idx])
+
+              @test abs(data_recv[idx] - ncopies*coords[k]) < 1e-13
+            end  # end k
+          end  # end j
+        end  # end if
+      end  # end i
+      free(mesh.m_ptr, it)
+    end  # end dim
+
+
+  end  # end testset
+#  error("stop here")
+
+  return nothing
+end
 

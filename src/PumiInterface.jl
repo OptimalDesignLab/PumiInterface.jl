@@ -2,6 +2,22 @@ __precompile__(false)
 # functions to test the julia/PUMI interface
 module PumiInterface
 
+using MPI
+
+# make MeshEntity* passable by MPI
+if sizeof(Ptr{Void}) == sizeof(Int32)
+  T = Int32
+elseif  sizeof(Ptr{Void}) == sizeof(Int64)
+  T = Int64
+else
+  error("cannot find compatible size of Ptr{Void}")
+end
+
+if !haskey(MPI.mpitype_dict, Ptr{Void})
+  MPI.mpitype_dict[Ptr{Void}] = MPI.mpitype_dict[T]
+end
+
+
 # make PdePumiInterface findable
 push!(LOAD_PATH, dirname(@__FILE__))
 
@@ -10,16 +26,17 @@ const CppBool = UInt8  # this is implementation defined
 # no names should exported because there should be higher level functions
 # wrapping these
 # but they are going to be exported anyways
-@doc """
+
+#=
   declareNames() declares global constant variables that are used to construct
   the first argument to the ccall function (it must be a constant expression)
 
   names declared in C++ code as 'extern "C" ' will not be mangled, but some
   libraries do not do this, so these variables can be used to declare a human
   readable variable name for the mangled name
-"""
+=#
 
-function declareNames()
+#function declareNames()
 # declare variables that hold the (possible mangled) names of c++ library functions
 global const pumi_libname = "libpumiInterface"
 global const init_name = "initABC"
@@ -136,17 +153,21 @@ global const getPoint_name = "getPoint"
 
 global const hasMatching_name = "hasMatching"
 global const getSharing_name = "getSharing"
+global const getNormalSharing_name = "getNormalSharing"
+global const freeSharing_name = "freeSharing"
 global const isOwned_name = "isOwned"
 global const countCopies_name = "countCopies"
 global const getCopies_name = "getCopies"
+global const getOwner_name = "getOwner"
+global const isSharedShr_name = "isSharedShr"
 
 global const countMatches_name = "countMatches"
 global const getMatches_name = "getMatches"
-end
+#end
 
 
 # export low level interface functions
-export declareNames, init, loadMesh, initMesh, pushMeshRef, popMeshRef,
+export init, loadMesh, initMesh, pushMeshRef, popMeshRef,
        getConstantShapePtr, getMeshShapePtr, countJ, writeVtkFiles,
        getMeshDimension, getType, getDownward, countAdjacent, getAdjacent,
        getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder,
@@ -177,7 +198,8 @@ export countPeers, getPeers, countRemotes, getRemotes, isShared
 export getEntity, incrementIt, resetIt
 
 export setPoint, acceptChanges, Verify, getPoint
-export hasMatching, getSharing, isOwned, countCopies, getCopies, countMatches, getMatches
+export hasMatching, getSharing, getNormalSharing, freeSharing, isOwned,
+       countCopies, getCopies, countMatches, getMatches, getOwner, isSharedShr
 
 # SubMesh creation
 export createSubMesh, getNewMesh, getOldMesh, writeNewMesh, getParentNumbering, 
@@ -409,7 +431,7 @@ end
 
 function iteraten(m_ptr::Ptr{Void}, it::MeshIterator, n::Integer)
 
-  me = ccall((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator, Cint), m_ptr, it, n)
+  me = ccall((:iteraten, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator, Cint), m_ptr, it, n)
 
   return me
 end
@@ -981,6 +1003,7 @@ end
 function reorder(m_ptr, ndof::Integer, ncomp::Integer, node_statusN_ptr,
                  nodeNums, elNums, start_coords::Vector{Cdouble})
 
+  @assert length(start_coords) == 3
   ccall( (reorder_name, pumi_libname), Void, (Ptr{Void}, Int32, Int32, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{Cdouble}),  m_ptr, ndof,  ncomp, node_statusN_ptr, nodeNums, elNums, start_coords)
 
   return nothing
@@ -1419,6 +1442,21 @@ function getSharing(m_ptr)
   return shr
 end
 
+
+function getNormalSharing(m_ptr)
+
+  shr = ccall( (getNormalSharing_name, pumi_libname), Ptr{Void}, (Ptr{Void},), m_ptr)
+
+  return shr
+end
+
+
+function freeSharing(shr_ptr::Ptr{Void})
+
+  val = ccall( (freeSharing_name, pumi_libname), Void, (Ptr{Void},), shr_ptr)
+
+end
+
 function isOwned(shr_ptr, entity)
 
   val = ccall( (isOwned_name, pumi_libname), CppBool, (Ptr{Void}, Ptr{Void}), shr_ptr, entity)
@@ -1441,6 +1479,24 @@ function getCopies(part_nums::AbstractArray{Cint}, entities::AbstractArray{Ptr{V
   ccall( (getCopies_name, pumi_libname), Void, (Ptr{Cint}, Ptr{Ptr{Void}}), part_nums, entities)
 
 end
+
+
+function getOwner(shr_ptr, entity)
+
+  val = ccall( (getOwner_name, pumi_libname), Cint, (Ptr{Void}, Ptr{Void}), shr_ptr, entity)
+
+  return val
+end
+
+
+function isSharedShr(shr_ptr, entity)
+
+  val = ccall( (isSharedShr_name, pumi_libname), CppBool, (Ptr{Void}, Ptr{Void}), shr_ptr, entity)
+
+  return val != 0
+end
+
+
 
 function countMatches(m_ptr, entity)
 
@@ -1571,8 +1627,6 @@ function free(sdata::SubMeshData)
 end
 
 
-
-declareNames()  # will this execute when module is compiled?
 
 include("PumiInterface2.jl")  # higher level functions
 end  # end of module

@@ -45,6 +45,8 @@ function set_defaults(opts)
   # typically the curvilinear method is used even for linear (straight-sided)
   # elements.
   get!(opts, "use_linear_metrics", false)
+  get!(opts, "reordering_start_coords", [0.0, 0.0, 0.0])
+
 
   return nothing
 end

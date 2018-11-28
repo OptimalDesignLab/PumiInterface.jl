@@ -198,10 +198,13 @@ void getPoint(apf::Mesh* m, apf::MeshEntity* e,  int node, double* coords);
 // matched entity functions
 bool hasMatching(apf::Mesh* m);
 apf::Sharing* getSharing(apf::Mesh* m);
+apf::Sharing* getNormalSharing(apf::Mesh* m);
+void freeSharing(apf::Sharing* shr);
 bool isOwned(apf::Sharing* shr, apf::MeshEntity* e);
 std::size_t countCopies(apf::Sharing* shr, apf::MeshEntity* e);
 void getCopies(int part_nums[], apf::MeshEntity* entities[]);
-
+int getOwner(apf::Sharing* shr, apf::MeshEntity* e);
+bool isSharedShr(apf::Sharing* shr, apf::MeshEntity* e);
 
 std::size_t countMatches(apf::Mesh* m, apf::MeshEntity* e);
 void getMatches(int part_nums[], apf::MeshEntity* entities[]);

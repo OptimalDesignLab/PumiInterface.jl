@@ -4,7 +4,7 @@
 
 export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities, getEntityLocalNumber, printElementVertNumbers, isShared_sharing
 
-export apfVERTEX, apfEDGE, apfTRIANGLE, apfQUAD, apfTET, apfHEX, apfPRISM, apfPYRAMIX, simplexTypes
+export apfVERTEX, apfEDGE, apfTRIANGLE, apfQUAD, apfTET, apfHEX, apfPRISM, apfPYRAMIX, simplexTypes, getTypeDimension
 
 export ElementNodeEntities
 
@@ -25,6 +25,25 @@ global const tri_edge_verts = _tmp1 + 1
 global const tet_edge_verts = _tmp2 + 1
 global const tet_tri_verts = _tmp3 + 1
 
+# this is not exported, use the getter function
+global const typeDimension = Array{Int}(8)
+typeDimension[apfVERTEX + 1]   = 0
+typeDimension[apfEDGE + 1]     = 1
+typeDimension[apfTRIANGLE + 1] = 2
+typeDimension[apfQUAD + 1]     = 2
+typeDimension[apfTET + 1]      = 3
+typeDimension[apfHEX + 1]      = 3
+typeDimension[apfPRISM + 1]    = 3
+typeDimension[apfPYRAMID + 1]  = 3
+
+"""
+  Returns the dimension of a given type (one of the apf::Type enums)
+"""
+function getTypeDimension(typ::Integer)
+
+  return typeDimension[typ + 1]
+end
+
 function getAdjacentFull(m_ptr, entity, dimension::Integer)
 # returns an array with the adjacencies of meshentity entity of specified dimension, and the number of entries in the array
 # this encasuplates the calls to countAdjacent and getAdjacent
@@ -32,7 +51,7 @@ function getAdjacentFull(m_ptr, entity, dimension::Integer)
   n = countAdjacent(m_ptr, entity, dimension)
   adj = getAdjacent(n)
 
-return adj, n
+  return adj, n
 
 end
 

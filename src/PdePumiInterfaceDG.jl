@@ -819,8 +819,8 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
     # want to label nodes
 
     # coordinate node numbering
-    reorder(mesh.m_ptr, mesh.coord_numNodes, mesh.dim, 
-            C_NULL, mesh.dim*mesh.coord_nodenums_Nptr, C_NULL, 
+    reorder(mesh.m_ptr, mesh.dim*mesh.coord_numNodes, mesh.dim, 
+            C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
 	    start_coords)
 
  elseif opts["reordering_algorithm"] == "default"
@@ -833,9 +833,6 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
     reorder(mesh.m_ptr, mesh.dim*mesh.coord_numNodes, mesh.dim, 
             C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
 	    start_coords)
-
-
-
   else
     throw(ErrorException("invalid dof reordering algorithm requested"))
   end

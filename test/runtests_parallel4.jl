@@ -13,6 +13,7 @@ include("defs.jl")
 include("common_functions.jl")
 include("test_funcs.jl")
 include("test_adapt.jl")
+include("test_parallel_types.jl")
 
 @testset "----- Testing 4 process PDEPumiInterface3DG -----" begin
   degree = 1
@@ -76,6 +77,7 @@ include("test_adapt.jl")
     end   # end loop over peer faces
   end  # end loop over peers
 
+  test_initSendToOwner(mesh)
 
   mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
 #  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)

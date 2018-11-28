@@ -162,13 +162,15 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
   coord_numNodesPerElement::Int
   coord_numNodesPerType::Array{Int, 1}
   coord_typeOffsetsPerElement::Array{Int, 1}
+  coord_numNodes::Int  # total number of coordinate nodes (on this part)
   coord_numNodesPerFace::Int
   coord_xi::Array{Float64, 2}  # xi coordinates of nodes on reference element
                                 # in the Pumi order
                                 # dim x coords_numNodesPerElement
   coord_facexi::Array{Float64, 2}  # like coord_xi, but for the face of an
-                                     # element
- 
+                                     # element 
+  coord_nodenums_Nptr::Ptr{Void}  # numbering for nodes of coordinate field,
+
   # constants needed by Pumi
   el_type::Int  # apf::Type for the elements of the mesh
   face_type::Int # apf::Type for the faces of the mesh
@@ -710,6 +712,11 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   mesh.dofnums_Nptr = createNumberingJ(mesh.m_ptr, "reordered dof numbers", 
                       mesh.mshape_ptr, dofpernode)
 
+  # coordinate node numbering
+  mesh.coord_nodenums_Nptr = createNumberingJ(mesh.m_ptr, "coord node numbers",
+                                               mesh.coordshape_ptr, mesh.dim)
+
+
   # get entity pointers
 #  println("about to get entity pointers")
   mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
@@ -721,6 +728,12 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
 
 
   # do node reordering
+  coord_numnodes = 0
+  for i=1:(mesh.dim+1)
+    coord_numnodes += mesh.coord_numNodesPerType[i]*mesh.numEntitiesPerType[i]
+  end
+  mesh.coord_numNodes = coord_numnodes
+
 
  if opts["reordering_algorithm"] == "adjacency"
     start_coords = opts["reordering_start_coords"]
@@ -730,10 +743,22 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
 #    reorder(mesh.m_ptr, mesh.numNodes, 1, 
 #            mesh.nodestatus_Nptr, mesh.nodenums_Nptr, mesh.el_Nptr, 
 #	    start_coords[1], start_coords[2])
+    reorder(mesh.m_ptr, mesh.dim*mesh.coord_numNodes, mesh.dim, 
+            C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
+	    start_coords)
+
 
  elseif opts["reordering_algorithm"] == "default"
 #    println("about to number nodes")
   numberNodesElement(mesh)
+
+  # coordinate node numbering
+  start_coords = zeros(3)
+  getPoint(mesh.m_ptr, mesh.verts[1], 0, start_coords)
+  reorder(mesh.m_ptr, mesh.dim*mesh.coord_numNodes, mesh.dim, 
+          C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
+          start_coords)
+
 
   else
     throw(ErrorException("invalid dof reordering algorithm requested"))
