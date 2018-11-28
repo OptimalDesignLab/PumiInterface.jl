@@ -40,9 +40,6 @@ function test_ScatterData(mesh::PumiMesh{T}) where {T}
     pushKey!(data, e_local, e_remote, peernum, idx)
     pushReceivePart!(data, 5)
 
-    println("data.peernums_send = ", data.peernums_send)
-    println("data.peernums_recv = ", data.peernums_recv)
-
     @test getPeerIdx(data, 1) == 0
     @test getRemotePeerIdx(data, 3) == 1
     @test getPeerIdx(data, 2) == 1
@@ -62,12 +59,9 @@ function test_ScatterData(mesh::PumiMesh{T}) where {T}
 
     # test pushValue!
     pushValue!(data, 2, [2.0, 3.0])
-    println("data.send[2].vals = ", data.send[2].vals)
     pushValue!(data, 2, [4.0, 5.0])
-    println("data.send[2].vals = ", data.send[2].vals)
 
     @test data.curridx[2] == 3
-    println("data.send[2].vals = ", data.send[2].vals)
     @test maximum(abs.(data.send[2].vals[:, 1] - [2.0, 3.0])) < 1e-13
     @test maximum(abs.(data.send[2].vals[:, 2] - [4.0, 5.0])) < 1e-13
 
@@ -87,7 +81,6 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
   # create lambda function for receiving data
   function calc_func(data::PdePumiInterface.PeerData)
 
-    println("processing buffer from peer ", data.peernum)
     pos = 1
     for i=1:length(data.entities)
       entity = data.entities[i]
@@ -96,10 +89,7 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
       for j=1:mesh.coord_numNodesPerType[dim+1]
         for k=1:mesh.dim
           idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
-          println("idx = ", idx)
           data_recv[idx] += data.vals[k, pos]
-          println("data.vals = ", data.vals[k, pos])
-          println("data_recv[idx] = ", data_recv[idx])
         end
         pos += 1
       end
@@ -114,13 +104,11 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
   @testset "testing initSendToOwner" begin
     data = PdePumiInterface.initSendToOwner(mesh, mesh.coordshape_ptr, (mesh.dim,))
 
-    println( "peernums_send = ", data.peernums_send)
     shr = getNormalSharing(mesh.m_ptr)
     # test that all entities owned by another process are present
     for dim=0:(mesh.dim-1)
       it = MeshIterator(mesh.m_ptr, dim)
       nnodes = countNodesOn(mesh.coordshape_ptr, dim) != 0
-      println("number of nodes on dimension $dim = ", nnodes)
 
 
       for j=1:mesh.numEntitiesPerType[dim+1]
@@ -145,7 +133,6 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
           @test maximum(abs.(coords - mesh.vert_coords[:, idx])) < 1e-13
         end
       end
-      #println( "local_indices = ", data_i.local_indices)
     end
 
     # test that sending the data works correctly
@@ -154,9 +141,7 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
     # check that all entities received are owned by this process
     idx = 1
     for data_i in data.recv
-      println("data ", idx)
       for entity in data_i.entities
-        println("entity = ", entity)
         @test isSharedShr(shr, entity)
         @test getOwner(shr, entity) == mesh.myrank
       end
@@ -169,32 +154,22 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
     receiveParallelData(data, calc_func)
     coords = Array{Float64}(3)
     for dim=0:mesh.dim
-      println("dim = ", dim)
 
       if !hasNodesIn(mesh.coordshape_ptr, dim)
-        println("skipping")
         continue
       end
 
       it = MeshIterator(mesh.m_ptr, dim)
       for i=1:mesh.numEntitiesPerType[dim+1]
-        println("\nentity ", i)
         entity = iterate(mesh.m_ptr, it)
         #typ = getType(mesh.m_ptr, entity)
 
         if isSharedShr(shr, entity) && getOwner(shr, entity) == mesh.myrank
-          println("entity is shared")
           ncopies = countCopies(shr, entity)
           for j=1:mesh.coord_numNodesPerType[dim+1]
-            println("node ", j)
             getPoint(mesh.m_ptr, entity, j-1, coords)
             for k=1:mesh.dim
               idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
-              println("idx = ", idx)
-              println("coords[$k] = ", coords[k])
-              println("ncopies = ", ncopies)
-              println("data_recv[idx] = ", data_recv[idx])
-
               @test abs(data_recv[idx] - ncopies*coords[k]) < 1e-13
             end  # end k
           end  # end j
