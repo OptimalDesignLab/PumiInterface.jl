@@ -387,6 +387,7 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
   # add field that maps back and forth?
 
   vert_sharing::VertSharing
+  coordscatter::ScatterData{T1}  # abstract type, used for coords3DTo1D
 
   # temporarily allow nested meshes for the staggered grid work
   mesh2::AbstractMesh
@@ -865,6 +866,7 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
 #  println("about to get degree of freedom numbers")
   getDofNumbers(mesh)  # store dof numbers
 #  println("finished getting degree of freedom numbers")
+  mesh.coordscatter = ScatterData(T1, (mesh.dim,), mesh.comm)
 
 
   MPI.Barrier(mesh.comm)

@@ -247,7 +247,11 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
 end
 
 """
-  Like `coords1DTo3D`, but goes from the vector to the 3D array.
+  Like `coords1DTo3D`, but goes from the vector to the 3D array.  Unlike 
+  `coords1DTo3D`, this is an entirely local operation (does not do parallel
+  communications)
+
+  TODO: make this do parallel communication if reduce_op is not assignment
 
   **Inputs**
 

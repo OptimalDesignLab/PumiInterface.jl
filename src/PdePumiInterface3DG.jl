@@ -363,6 +363,7 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
   topo_pumi::ElementTopology{3}  # Pumi topology
 
   vert_sharing::VertSharing
+  coordscatter::ScatterData{T1}  # abstract type, used by coords3DTo1D
 
   # temporarily allow nested meshes for the staggered grid work
   mesh2::AbstractMesh
@@ -786,6 +787,7 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   # start parallel initializiation
   colordata = getParallelInfo(mesh)
   mesh.vert_sharing = getVertexParallelInfo(mesh)
+  mesh.coordscatter = ScatterData(T1, (mesh.dim,), mesh.comm)
 
 #  println("about to get degree of freedom numbers")
   getDofNumbers(mesh)  # store dof numbers
