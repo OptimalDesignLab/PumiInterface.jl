@@ -89,7 +89,7 @@ end
 function allocateBuffer(data::PeerData{T, N, N2}, dims::NTuple) where {T, N, N2}
 
   final_dim = length(data.entities)
-  _dims = (dims[1:end-1]..., final_dim)
+  _dims = (dims..., final_dim)
   @assert length(_dims) == N
   data.vals = zeros(T, _dims)
 
@@ -117,7 +117,7 @@ function PeerData(::Type{T}, peernum::Integer, dims::NTuple, nval::Integer,
   _entities_local = Array{Ptr{Void}}(0)  #TODO: document
   local_indices = Array{CartesianIndex{N2}}(0)  #TODO: document
   colptr = Array{Int}(0)  # TODO: document
-  vals = Array{T, N}(dims[1:end-1]..., nval)  # this might be type-unstable
+  vals = Array{T, N}(dims..., nval)  # this might be type-unstable
                                               # is the overall constructor
                                               # still type-unstable?
   req = MPI.REQUEST_NULL
@@ -176,6 +176,12 @@ end
   See [`initSendToOwner`](@ref) for an example of adding entities during
   the setup phase.
 
+  **Static Parameters**
+
+   * T: element type of the buffer
+   * N: dimensionality of the buffer
+   * N2: number of dimensions of the indicies in `local_indices`
+   * N3: N - 1 (dimension of data at each index in the buffer)
 
   **Fields**
   
@@ -187,18 +193,16 @@ end
                     receive from
    * comm: MPI communicator
    * tag: MPI tag used for communication
-   * dims: NTuple, first N - 1 entries will be used to allocate the leading
-           dimensions of the MPI buffers
+   * dims: NTuple containing the leading dimensions of the MPI buffer
 """
-struct ScatterData{T, N, N2}
+struct ScatterData{T, N, N2, N3}
   send::Vector{PeerData{T, N, N2}}
   recv::Vector{PeerData{T, N, N2}}
   peernums_send::Vector{Cint}  # MPI ranks of processes to send data to
   peernums_recv::Vector{Cint}  # MPI ranks of processes to receive data from
   comm::MPI.Comm
   tag::Int
-  dims::NTuple{N, Int}  # dimensions of send and receive buffers (first N-1
-                       # only, the final dimension is the number of entities
+  dims::NTuple{N3, Int}  # leading dimensions of send and receive buffers
   curridx::Vector{Int}  # used for pushing into pre-sized array, contains the
                         # current index
 end
@@ -208,17 +212,17 @@ function ScatterData(::Type{T}, dims::NTuple, comm::MPI.Comm) where {T}
 
   N = 2
   N2 = 2
+  N3 = N - 1
 
   send = Array{PeerData{T, N, N2}}(0)
   recv = Array{PeerData{T, N, N2}}(0)
   peernums_send = Array{Cint}(0)
   peernums_recv = Array{Cint}(0)
   tag = 2001  #TODO: need tag manager
-  _dims = (dims..., 1)  # last dimension is never used
   curridx = Array{Int}(0)
 
-  return ScatterData{T, N, N2}(send, recv, peernums_send, peernums_recv,
-                                   comm, tag, _dims, curridx)
+  return ScatterData{T, N, N2, N3}(send, recv, peernums_send, peernums_recv,
+                                   comm, tag, dims, curridx)
 end
 
 
