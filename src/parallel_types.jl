@@ -577,6 +577,10 @@ function sendParallelData(data::ScatterData{T, N, N2}, arr::AbstractArray{T2, N3
     Irecv!(data_i)
   end
 
+  if length(data.send) == 0
+    return nothing
+  end
+
   tpl = getDataColons(data)
 
   # this is a trick to get a temporary array of the right size, because I 
@@ -616,7 +620,7 @@ end
 
 
 """
-  Receives teh parallel communication started by [`sendParallelData`](@ref).
+  Receives the parallel communication started by [`sendParallelData`](@ref).
 
   **Inputs**
 
