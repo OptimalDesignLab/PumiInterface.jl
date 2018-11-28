@@ -633,6 +633,10 @@ function receiveParallelData(data::ScatterData, calc_func::Function)
 end
 
 
+#------------------------------------------------------------------------------
+# Sample functions for 3D arrays
+
+
 """
   Initializes a [`ScatterData`] object for sending data in a 3D array format
   to the owning MeshEntity, which receives it in vector format.
