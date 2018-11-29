@@ -840,10 +840,6 @@ function sendParallelData_rev(mesh::PumiMesh, data::ScatterData, xvec::AbstractV
 
   resetBuffers(data)
 
-  if length(data.peernums_recv) == 0
-    return nothing
-  end
-
   # post receives
   for data_i in data.send
     Irecv!(data_i)
@@ -901,21 +897,13 @@ end
 """
 function receiveFromOwner(data::PeerData{T, 2}, mesh::PumiMesh, xvec::AbstractVector) where {T}
 
-  println("receiving from peer ", data.peernum)
-  println("xvec = ", xvec)
   idx_src = 1
   for entity in data._entities_local
-    println("entity ", entity)
     if data.peernum == getOwner(mesh.normalshr_ptr, entity)
-      println("entity owned by this peer")
       dim = getDimension(mesh.m_ptr, entity)
       for j=1:mesh.coord_numNodesPerType[dim+1]
-        println("j = ", j)
         for k=1:mesh.dim
-          println("k = ", k)
           idx_dest = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
-          println("dest value = ", xvec[idx_dest])
-          println("src_val = ", data.vals[k, idx_src])
           xvec[idx_dest] = data.vals[k, idx_src]
         end
         idx_src += 1

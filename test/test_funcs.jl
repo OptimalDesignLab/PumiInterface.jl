@@ -1416,7 +1416,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
 
   coords3DTo1D(mesh, mesh.vert_coords, xvec, PdePumiInterface.AssignReduction{T}())
   xvec .+= pert*xvec_dot
-  coords1DTo3D(mesh, xvec, mesh.vert_coords)
+  coords1DTo3D(mesh, xvec, mesh.vert_coords, parallel=true)
   PdePumiInterface.recalcCoordinatesAndMetrics(mesh, sbp, opts)
 
   val1 = sum(imag(mesh.dxidx)/h .* dxidx_bar)              +
