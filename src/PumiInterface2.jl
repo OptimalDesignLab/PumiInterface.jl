@@ -4,7 +4,7 @@
 
 export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities, getEntityLocalNumber, printElementVertNumbers, isShared_sharing
 
-export apfVERTEX, apfEDGE, apfTRIANGLE, apfQUAD, apfTET, apfHEX, apfPRISM, apfPYRAMIX, simplexTypes, getTypeDimension
+export apfVERTEX, apfEDGE, apfTRIANGLE, apfQUAD, apfTET, apfHEX, apfPRISM, apfPYRAMIX, simplexTypes, getTypeDimension, getDimension
 
 export ElementNodeEntities
 
@@ -42,6 +42,12 @@ typeDimension[apfPYRAMID + 1]  = 3
 function getTypeDimension(typ::Integer)
 
   return typeDimension[typ + 1]
+end
+
+function getDimension(m_ptr::Ptr{Void}, entity::Ptr{Void})
+
+  typ = getType(m_ptr, entity)
+  return getTypeDimension(typ)
 end
 
 function getAdjacentFull(m_ptr, entity, dimension::Integer)

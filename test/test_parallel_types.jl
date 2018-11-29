@@ -195,6 +195,51 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
     end  # end dim
 
 
+    # test scattering data
+    coords = zeros(Float64, 3)
+    coords_vec = zeros(T, mesh.dim*mesh.coord_numNodes)
+    coords3DTo1D(mesh, mesh.vert_coords, coords_vec, reduce_op)
+    for i=1:length(coords_vec)  
+      coords_vec[i] += mesh.myrank  # add rank-specific offset
+    end
+    coords_vec2 = copy(coords_vec)
+
+    PdePumiInterface.sendParallelData_rev(mesh, data, coords_vec)
+    calc_func2 = (data::PeerData) -> PdePumiInterface.receiveFromOwner(data, mesh, coords_vec2)
+    PdePumiInterface.receiveParallelData_rev(data, calc_func2)
+    println("max diff = ", maximum(abs.(coords_vec - coords_vec2)))
+    # check the rank-specific offset
+    for dim=0:mesh.dim
+      it = MeshIterator(mesh.m_ptr, dim)
+      for i=1:mesh.numEntitiesPerType[dim+1]
+        entity = iterate(mesh.m_ptr, it)
+        println("entity = ", entity)
+
+        for j=1:mesh.coord_numNodesPerType[dim+1]
+          println("j = ", j)
+          getPoint(mesh.m_ptr, entity, j-1, coords)
+          for k=1:mesh.dim
+            println("k = ", k)
+            idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+
+            if isOwned(mesh.normalshr_ptr, entity)
+              println("entity is owned, coords_vec2[$idx] = ", coords_vec2[idx])
+              println("coords[k] + mesh.myrank = ", coords[k] + mesh.myrank)
+              @test abs(coords_vec2[idx] - (coords[k] + mesh.myrank)) < 1e-13
+            else
+              owner = getOwner(mesh.normalshr_ptr, entity)
+              println("entity owned by $owner, coords_vec2[idx] = ", coords_vec2[idx])
+              println("coords[k] = ", coords[k])
+              @test abs(coords_vec2[idx] - (coords[k] + owner)) < 1e-13
+            end
+          end  # end k
+        end  # end j
+      end   # end i
+
+      free(mesh.m_ptr, it)
+    end  # end dim
+
+
   end  # end testset
 #  error("stop here")
 

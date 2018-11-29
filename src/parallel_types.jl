@@ -131,7 +131,7 @@ function PeerData(::Type{T}, peernum::Integer, dims::NTuple, nval::Integer,
 end
 
 
-import MPI: Isend, Irecv!
+import MPI: Isend, Irecv!, Wait!
 
 function Isend(data::PeerData)
 
@@ -150,6 +150,17 @@ function Irecv!(data::PeerData)
 
   data.req = MPI.Irecv!(data.vals, data.peernum, data.tag, data.comm)
   data.req_waited = false
+
+  return nothing
+end
+
+
+function Wait!(data::PeerData)
+
+  if !data.req_waited
+    MPI.Wait!(data.req)
+    data.req_waited = true
+  end
 
   return nothing
 end
@@ -509,17 +520,13 @@ function resetBuffers(data::ScatterData)
 
   for i=1:length(data.peernums_send)
     data_i = data.send[i]
-    if !data_i.req_waited
-      MPI.Wait!(data_i.req)
-      data_i.req_waited = true
-    end
+    Wait!(data_i)
     data.curridx[i] = 1
-
   end
 
-  # this should already have been done.  If it hasn't something is wrong
-  for data_i in data.recv
-    @assert data_i.req_waited
+  for i=1:length(data.peernums_recv)
+    data_i = data.recv[i]
+    Wait!(data_i)
   end
 
   return nothing
@@ -527,28 +534,28 @@ end
 
 
 """
-  Wrapper around MPI.Waitany on the `data.recv` objects
+  Wrapper around MPI.Waitany on a vector of `PeerData` objects
 
   **Inputs**
 
-   * data: [`ScatterData`](@ref) object.  
+  * data: vector of [`PeerData`](@ref) objects
 
   **Outputs**
 
    * idx: index of `data.recv` object that was waited on
 """
-function waitAnyReceive(data::ScatterData)
+function waitAny(data::Vector{P}) where {P <: PeerData}
 
-  npeers = length(data.peernums_recv)
+  npeers = length(data)
   recv_reqs = Array{MPI.Request}(npeers)
   for i=1:npeers
-    recv_reqs[i] = data.recv[i].req
+    recv_reqs[i] = data[i].req
   end
 
   idx, stat = MPI.Waitany!(recv_reqs)
 
-  data.recv[idx].req = MPI.REQUEST_NULL
-  data.recv[idx].req_waited = true
+  data[idx].req = MPI.REQUEST_NULL
+  data[idx].req_waited = true
 
   return idx
 end
@@ -633,7 +640,7 @@ end
 function receiveParallelData(data::ScatterData, calc_func::Function)
 
   for i=1:length(data.recv)
-    idx = waitAnyReceive(data)
+    idx = waitAny(data.recv)
     calc_func(data.recv[idx])
   end
 
@@ -654,7 +661,7 @@ end
    * reduce_op: a [`Reduction`](@ref) object to apply
    * vec: vector to put the result in
 """
-function receiveVecFunction(data::PdePumiInterface.PeerData{T, 2},
+function receiveVecFunction(data::PeerData{T, 2},
                             mesh::PumiMesh, vec::AbstractVector,
                             reduce_op::Reduction=SumReduction{T}()) where {T}
 
@@ -813,4 +820,111 @@ function addEntityKeys(mesh::PumiMesh, data::ScatterData, nnodes::Integer,
 
   return nothing
 end
+
+
+# this function is used by coords1DTo3D
+"""
+  This function is used to scatter the data by [`coords1DTo3D`](@ref).
+  This function reverses the roles of `data.send` and `data.recv`
+
+  **Inputs**
+
+   * mesh
+   * data: [`ScatterData`](@ref)
+   * xvec: vector of coordinate data (indexed by `mesh.coord_nodenums_Nptr`)
+           that will be scattered to all users of the data.  This is somewhat
+           wasteful, because we only need to send it if this process is the
+           owner.
+"""
+function sendParallelData_rev(mesh::PumiMesh, data::ScatterData, xvec::AbstractVector)
+
+  resetBuffers(data)
+
+  if length(data.peernums_recv) == 0
+    return nothing
+  end
+
+  # post receives
+  for data_i in data.send
+    Irecv!(data_i)
+  end
+
+  for data_i in data.recv
+    idx_dest = 1
+    for entity in data_i.entities
+      dim = getDimension(mesh.m_ptr, entity)
+      for j=1:mesh.coord_numNodesPerType[dim+1]
+        for k=1:mesh.dim
+          idx_src = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+          data_i.vals[k, idx_dest] = xvec[idx_src]
+        end
+        idx_dest += 1
+      end  # end j
+    end  # end entity
+
+    Isend(data_i)
+  end
+
+  return nothing
+end
+
+
+"""
+  Function to receive data send by [`sendParallelData_rev`](@ref).
+"""
+function receiveParallelData_rev(data::ScatterData, calc_func::Function)
+
+  for i=1:length(data.peernums_send)
+    idx = waitAny(data.send)
+    calc_func(data.send[idx])
+  end
+
+  return nothing
+end
+
+
+"""
+  Function to help [`coords1DTo3D`](@ref) with reveiving data.  It only assigns
+  the data to the vector if the remote process owns it
+
+  **Inputs**
+
+   * data: a [`PeerData`](@ref) object
+   * mesh
+  
+  **Inputs/Outputs**
+
+   * xvec: coordinate vector, indexed by `mesh.coord_nodenums_Nptr`.  Only
+           entries corresponding to MeshEntities not owned by this process
+           will be overwritten.  They will be overwritten by the data from the
+           owning process.
+"""
+function receiveFromOwner(data::PeerData{T, 2}, mesh::PumiMesh, xvec::AbstractVector) where {T}
+
+  println("receiving from peer ", data.peernum)
+  println("xvec = ", xvec)
+  idx_src = 1
+  for entity in data._entities_local
+    println("entity ", entity)
+    if data.peernum == getOwner(mesh.normalshr_ptr, entity)
+      println("entity owned by this peer")
+      dim = getDimension(mesh.m_ptr, entity)
+      for j=1:mesh.coord_numNodesPerType[dim+1]
+        println("j = ", j)
+        for k=1:mesh.dim
+          println("k = ", k)
+          idx_dest = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+          println("dest value = ", xvec[idx_dest])
+          println("src_val = ", data.vals[k, idx_src])
+          xvec[idx_dest] = data.vals[k, idx_src]
+        end
+        idx_src += 1
+      end  # end j
+    end  # end if
+  end  # end entity
+
+  return nothing
+end
+
+
 

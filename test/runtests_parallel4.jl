@@ -97,7 +97,7 @@ include("test_parallel_types.jl")
   mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
   mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
 
-  test_metrics_rev_1d(mesh_c, sbp, opts)
+  #test_metrics_rev_1d(mesh_c, sbp, opts)
 end
 
 MPI.Barrier(MPI.COMM_WORLD)
