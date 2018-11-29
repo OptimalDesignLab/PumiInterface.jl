@@ -80,9 +80,7 @@ include("test_parallel_types.jl")
   test_initSendToOwner(mesh)
 
   mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
-#  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
   mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
-#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
   compare_meshes(mesh, mesh_c)
 
 
@@ -90,9 +88,16 @@ include("test_parallel_types.jl")
   test_parallel_metrics(mesh, sbp, opts)
 
   # this allocates a ton of memory - don't run
-#  test_metric_rev(mesh, mesh_c, sbp)
+#  test_metrics_rev(mesh, mesh_c, sbp)
 
   test_adapt_3d(parallel=true)
+
+  # test curvilinear metrics
+  opts["use_linear_metrics"] = false
+  mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+
+  test_metrics_rev_1d(mesh_c, sbp, opts)
 end
 
 MPI.Barrier(MPI.COMM_WORLD)

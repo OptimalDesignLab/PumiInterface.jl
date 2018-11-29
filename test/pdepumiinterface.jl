@@ -546,9 +546,6 @@ end
   @test ( vecnorm(mesh.vert_coords_bar) )== 0.0
 
 
-  # test metrics reverse
-  test_metric_rev(mesh, mesh_c, sbp, opts)
-
 
    function test_interp(mesh::AbstractMesh{Tmsh}) where Tmsh
      sbpface = mesh.sbpface
@@ -857,6 +854,7 @@ end
   opts["smb_name"] = "tri3_px.smb"
   opts["BC1"] = [0, 2]
   mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+  mesh_c = PumiMeshDG2(Complex128, sbp, opts, sbpface, dofpernode=4)
 #  mesh = PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
   @test ( mesh.numPeriodicInterfaces )== 3
@@ -896,12 +894,17 @@ end
     end
   end
 
+  # test metrics reverse
+  test_metrics_rev(mesh, mesh_c, sbp, opts)
+
+
 
   # a 0 - 5 square that used a sin wave to remap the nondimensionalized
   # coordinates
   opts["smb_name"] = "square_05_curve.smb"
   opts["use_linear_metrics"] = false
   mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+  mesh_c = PumiMeshDG2(Complex128, sbp, opts, sbpface, dofpernode=4)
 #  mesh =  PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
 
   testSurfaceNumbering(mesh, sbp, opts)
@@ -1004,6 +1007,9 @@ end
     end
   end
 
+  # test metrics reverse
+  test_metrics_rev(mesh, mesh_c, sbp, opts)
+  test_metrics_rev_1d(mesh_c, sbp, opts)
 
       
 

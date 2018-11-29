@@ -142,7 +142,7 @@ end
 
 
 """
-  Reverse mode of getAllCoordinateAndMetrics.  Back propigates
+  Reverse mode of getAllCoordinatesAndMetrics.  Back propigates
   mesh.nrm_*_bar, mesh.dxidx_bar, mesh.jac_bar to mesh.vert_coords_bar.
 
   Users should generally call zeroBarArrays() before calling this function
@@ -155,7 +155,6 @@ end
 """
 function getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
 
-  @assert mesh.commsize == 1
   if opts["use_linear_metrics"]
 #   if mesh.coord_order == 1
     @assert mesh.coord_order == 1
@@ -165,8 +164,44 @@ function getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
     @assert mesh.coord_order <= 2
 
     getCurvilinearCoordinatesAndMetrics_rev(mesh, sbp)
-    getFaceCoordinateAndNormals_rev(mesh, sbp)  
+    getFaceCoordinatesAndNormals_rev(mesh, sbp)  
   end
+
+  return nothing
+end
+
+"""
+  This method outputs the result in vector form, rather than the 3D array form
+  of `mesh.vert_coords_bar`.  In parallel, for coordinates that live on shared
+  entities, the entity on the owning process will get the value.
+  The value will be zero on non-owning processes.
+
+  **Inputs**
+
+   * mesh
+   * sbp
+   * opts
+
+  **Inputs/Outputs**
+
+   * xvec_bar: vector, length `mesh.dim*mesh.coord_numNodes` to overwrite
+               with the result of back propigating the metrics
+
+  **Keyword Arguments**
+
+   * parallel: if true (default), do parallel communication for shared entities
+               (as described above).  Otherwise, do only local back-propigation.
+"""
+function getAllCoordinatesAndMetrics_rev(mesh, sbp, opts, xvec_bar::AbstractVector, parallel::Bool=true)
+# output 1D vector
+
+  #TODO: it would be better for parallel efficiency to do:
+  #  1. reverse mode for elements on parallel boundaries
+  #  2. start communication for coords3DTo1D
+  #  3. reverse mode for elements on interior
+  #  4. finish coords3DTo1D
+  getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
+  coords3DTo1D(mesh, mesh.vert_coords_bar, xvec_bar, parallel=parallel)
 
   return nothing
 end

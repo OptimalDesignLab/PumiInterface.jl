@@ -153,7 +153,7 @@ end  # end function
   This function tests the reverse mode of calcEoneElement and then
   calls other functions to test the other parts of the calculation.
 """
-function test_metric_rev(mesh, mesh_c, sbp, opts)
+function test_metrics_rev(mesh, mesh_c, sbp, opts)
 
   @testset "----- testing metric reverse mode -----" begin
     sbpface = mesh.sbpface
@@ -1368,6 +1368,84 @@ function test_coord_field(mesh::PumiMeshDG{T}) where {T}
     @test vecnorm(coord_arr - mesh.vert_coords) < 1e-13
 
   end
+
+  return nothing
+end
+
+
+"""
+  Returns an array of the specified size with random values for the real part
+  and zeros for the imaginary part
+"""
+function rand_realpart(dims...)
+
+  a = rand(Complex128, dims...)
+  for i=1:length(a)
+    a[i] = real(a[i])
+  end
+
+  return a
+end
+
+
+"""
+  Tests back propigating the metrics to the 1D vector form
+"""
+function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
+
+  println("testing metrics_rev_1d")
+  h = 1e-20
+  pert = Complex128(0, h)
+
+  xvec = zeros(Complex128, mesh.dim*mesh.coord_numNodes)
+  xvec_dot = rand_realpart(size(xvec))
+  xvec_bar = zeros(Complex128, length(xvec))
+
+  dxidx_bar       = rand_realpart(size(mesh.dxidx))
+#  jac_bar         = rand_realpart(size(mesh.jac))
+  nrm_bndry_bar   = rand_realpart(size(mesh.nrm_bndry))
+  nrm_face_bar    = rand_realpart(size(mesh.nrm_face_bar))
+  coords_bndry_bar    = rand_realpart(size(mesh.coords_bndry_bar))
+  nrm_sharedface_bar = Array{Array{Complex128, 3}}(mesh.npeers)
+  for i=1:mesh.npeers
+    nrm_sharedface_bar[i] = rand_realpart(size(mesh.nrm_sharedface[i]))
+  end
+
+
+  zeroBarArrays(mesh)
+
+  coords3DTo1D(mesh, mesh.vert_coords, xvec, PdePumiInterface.AssignReduction{T}())
+  xvec .+= pert*xvec_dot
+  coords1DTo3D(mesh, xvec, mesh.vert_coords)
+  PdePumiInterface.recalcCoordinatesAndMetrics(mesh, sbp, opts)
+
+  val1 = sum(imag(mesh.dxidx)/h .* dxidx_bar)              +
+ #        sum(imag(mesh.jac)/h .* jac_bar)                  +
+         sum(imag(mesh.nrm_bndry)/h .* nrm_bndry_bar)      +
+         sum(imag(mesh.nrm_face)/h .* nrm_face_bar)          +
+         sum(imag(mesh.coords_bndry)/h .* coords_bndry_bar)
+  for i=1:mesh.npeers
+    val1 += sum(mesh.nrm_sharedface_bar[i] .* nrm_sharedface_bar[i])
+  end
+
+
+  #TODO: nrm_sharedface
+
+  copy!(mesh.dxidx_bar, dxidx_bar)
+#  copy!(mesh.jac_bar, jac_bar)
+  copy!(mesh.nrm_bndry_bar, nrm_bndry_bar)
+  copy!(mesh.nrm_face_bar, nrm_face_bar)
+  copy!(mesh.coords_bndry_bar, coords_bndry_bar)
+  for i=1:mesh.npeers
+    copy!(mesh.nrm_sharedface_bar[i], nrm_sharedface_bar[i])
+  end
+
+  getAllCoordinatesAndMetrics_rev(mesh, sbp, opts, xvec_bar)
+  val2 = sum(xvec_bar .* xvec_dot)
+
+  println("val1 = ", val1)
+  println("val2 = ", val2)
+  @test abs(val1 - val2) < 1e-13
 
   return nothing
 end

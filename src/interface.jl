@@ -303,10 +303,8 @@ function coords1DTo3D(mesh::PumiMeshDG, coords_vec::AbstractVector,
 
   for i=1:mesh.numEl
     getNodeEntities(node_entities, mesh.elements[i])
-#    node_entities = getNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.elements[i])
     for j=1:mesh.coord_numNodesPerElement
       entity = node_entities.entities[j]
-#    for j=1:mesh.coord_numNodesPerElement
       for k=1:mesh.dim
         idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
 

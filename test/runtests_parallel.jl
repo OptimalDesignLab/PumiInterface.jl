@@ -330,7 +330,7 @@ end
   end
 
   compare_meshes(mesh, mesh_c)
-  test_metric_rev(mesh, mesh_c, sbp, opts)
+  test_metrics_rev(mesh, mesh_c, sbp, opts)
 
   MPI.Barrier(mesh.comm)
 
@@ -456,7 +456,7 @@ end
 
   # test curvilinear metrics reverse mode
   compare_meshes(mesh, mesh_c)
-  test_metric_rev(mesh, mesh_c, sbp, opts)
+  test_metrics_rev(mesh, mesh_c, sbp, opts)
 
 
 
