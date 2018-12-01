@@ -142,6 +142,8 @@ end
 
 
 """
+  TODO: this is the reverse mode of `recalcCoordinatesAndMetrics`
+
   Reverse mode of getAllCoordinatesAndMetrics.  Back propigates
   mesh.nrm_*_bar, mesh.dxidx_bar, mesh.jac_bar to mesh.vert_coords_bar.
 
@@ -192,7 +194,7 @@ end
    * parallel: if true (default), do parallel communication for shared entities
                (as described above).  Otherwise, do only local back-propigation.
 """
-function getAllCoordinatesAndMetrics_rev(mesh, sbp, opts, xvec_bar::AbstractVector, parallel::Bool=true)
+function getAllCoordinatesAndMetrics_rev(mesh, sbp, opts, xvec_bar::AbstractVector; parallel::Bool=true)
 # output 1D vector
 
   #TODO: it would be better for parallel efficiency to do:

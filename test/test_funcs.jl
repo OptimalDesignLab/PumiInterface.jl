@@ -1391,9 +1391,10 @@ end
 """
   Tests back propigating the metrics to the 1D vector form
 """
-function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
+function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
 
   println("testing metrics_rev_1d")
+  println("vertidx = ", vertidx)
   h = 1e-20
   pert = Complex128(0, h)
 
@@ -1402,6 +1403,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   xvec_bar = zeros(Complex128, length(xvec))
 
   dxidx_bar       = rand_realpart(size(mesh.dxidx))
+  #dxidx_bar       = zeros(Complex128, size(mesh.dxidx))
 #  jac_bar         = rand_realpart(size(mesh.jac))
   nrm_bndry_bar   = rand_realpart(size(mesh.nrm_bndry))
   nrm_face_bar    = rand_realpart(size(mesh.nrm_face_bar))
@@ -1411,41 +1413,148 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
     nrm_sharedface_bar[i] = rand_realpart(size(mesh.nrm_sharedface[i]))
   end
 
+  maxval = 14257
+  maxel = 397
+  neighbor_elnums = Array{Int}(0)
+  nel = countBridgeAdjacent(mesh.m_ptr, mesh.elements[maxel], 0, mesh.dim)
+  neighbor_els = Array{Ptr{Void}}(nel)
+  getBridgeAdjacent(neighbor_els)
+  for i=1:nel
+    push!(neighbor_elnums, getNumberJ(mesh.el_Nptr, neighbor_els[i], 0, 0) + 1)
+  end
+  println("neighbor_elnums = ", neighbor_elnums)
+
+  
+  dxidx_bar_extract = sview(dxidx_bar, :, :, :, maxel)
+  dxidx_bar_extract[1] = 1
+  #for i=1:length(dxidx_bar_extract)
+  #  dxidx_bar_extract[i] = i
+  #end
+  
+  #=
+  println("maxval = ", maxval)
+  for i=1:maxval
+    dxidx_bar[i] = i
+  end
+
+  for peer=1:mesh.npeers
+    for el in mesh.local_element_lists[peer]
+      arr = sview(dxidx_bar, :, :, :, el)
+      fill!(arr, 0)
+    end
+  end
+  =#
+
 
   zeroBarArrays(mesh)
-
-  coords3DTo1D(mesh, mesh.vert_coords, xvec, PdePumiInterface.AssignReduction{T}())
+  vert_coords_orig = copy(mesh.vert_coords)
+#=
+  # get unique-ified xvec_dot
+  println("\nuniquefying xvec_dot")
+  coords3DTo1D(mesh, mesh.vert_coords, xvec, PdePumiInterface.AssignReduction{T}(), parallel=false)
   xvec .+= pert*xvec_dot
   coords1DTo3D(mesh, xvec, mesh.vert_coords, parallel=true)
-  PdePumiInterface.recalcCoordinatesAndMetrics(mesh, sbp, opts)
+  xvec_dot = imag(xvec)/h  # unique-ified version
 
-  val1 = sum(imag(mesh.dxidx)/h .* dxidx_bar)              +
- #        sum(imag(mesh.jac)/h .* jac_bar)                  +
-         sum(imag(mesh.nrm_bndry)/h .* nrm_bndry_bar)      +
-         sum(imag(mesh.nrm_face)/h .* nrm_face_bar)          +
-         sum(imag(mesh.coords_bndry)/h .* coords_bndry_bar)
-  for i=1:mesh.npeers
-    val1 += sum(mesh.nrm_sharedface_bar[i] .* nrm_sharedface_bar[i])
+  diff = maximum(abs.(vert_coords_orig - real(mesh.vert_coords)))
+  @assert diff < 1e-15
+=#
+
+  # test that coords3DTo1D is the reverse mode of coords1DTo3D
+  vert_coords2 = zeros(mesh.vert_coords)
+  vert_coords_bar = rand_realpart(size(mesh.vert_coords))
+  xvec_bar = zeros(Complex128, length(xvec))
+#=
+  # forward mode
+  println("\ntesting forward mode")
+  #xvec .+= pert*xvec_dot
+  coords1DTo3D(mesh, xvec, vert_coords2, parallel=false)
+  #xvec .-= pert*xvec_dot
+  val1 = sum(imag(vert_coords2)/h .* vert_coords_bar)
+
+  # reverse mode
+  println("\ntesting reverse mode")
+  coords3DTo1D(mesh, vert_coords_bar, xvec_bar, parallel=true)
+  val2 = sum(xvec_bar .* xvec_dot)
+
+  @test abs(val1 - val2) < abs(val1)*1e-13
+=#
+  # test back-propigation of the metrics
+  const otherel = 1099
+  println("seeting vert_coords_dot")
+  zeroBarArrays(mesh)
+  fill!(xvec_bar, 0)
+  vert_coords_dot = rand_realpart(size(mesh.vert_coords))
+  #vert_coords_dot = zeros(Complex128, size(mesh.vert_coords))
+  for i=1:mesh.dim
+    for j=1:mesh.coord_numNodesPerElement
+      vert_coords_dot[i, j, maxel] = i + j
+      for el in neighbor_elnums
+        vert_coords_dot[i, j, el] = i + j + 1
+      end
+      vert_coords_dot[i, j, otherel] = i + j + 2
+      #vert_coords_dot[vertidx] = i + j + 5
+    end
+  end
+
+  #for i=1:vertidx
+  #  vert_coords_dot[i] = i
+  #end
+
+  for i=1:length(mesh.vert_coords)
+    mesh.vert_coords[i] = real(mesh.vert_coords[i])
   end
 
 
-  #TODO: nrm_sharedface
+
+  println("about to recalcCoordinatesAndMetrics")
+  mesh.vert_coords .+= pert*vert_coords_dot
+  PdePumiInterface.recalcCoordinatesAndMetrics(mesh, sbp, opts)
+  mesh.vert_coords .-= pert*vert_coords_dot
+
+  val1 = sum(imag(mesh.dxidx)/h .* dxidx_bar)              #+
+ #        sum(imag(mesh.jac)/h .* jac_bar)                  +
+#         sum(imag(mesh.nrm_bndry)/h .* nrm_bndry_bar)      +
+#         sum(imag(mesh.nrm_face)/h .* nrm_face_bar)          +
+#         sum(imag(mesh.coords_bndry)/h .* coords_bndry_bar)
+  #for i=1:mesh.npeers
+  #  val1 += sum(imag(mesh.nrm_sharedface[i]) .* nrm_sharedface_bar[i])
+  #end
+
+  for i=1:length(mesh.vert_coords)
+    mesh.vert_coords[i] = real(mesh.vert_coords[i])
+  end
+
 
   copy!(mesh.dxidx_bar, dxidx_bar)
 #  copy!(mesh.jac_bar, jac_bar)
-  copy!(mesh.nrm_bndry_bar, nrm_bndry_bar)
-  copy!(mesh.nrm_face_bar, nrm_face_bar)
-  copy!(mesh.coords_bndry_bar, coords_bndry_bar)
-  for i=1:mesh.npeers
-    copy!(mesh.nrm_sharedface_bar[i], nrm_sharedface_bar[i])
-  end
+  #copy!(mesh.nrm_bndry_bar, nrm_bndry_bar)
+  #copy!(mesh.nrm_face_bar, nrm_face_bar)
+  #copy!(mesh.coords_bndry_bar, coords_bndry_bar)
+  #for i=1:mesh.npeers
+  #  copy!(mesh.nrm_sharedface_bar[i], nrm_sharedface_bar[i])
+  #end
 
-  getAllCoordinatesAndMetrics_rev(mesh, sbp, opts, xvec_bar)
-  val2 = sum(xvec_bar .* xvec_dot)
+  println("getting all coordinate and metrics rev")
+  getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
+  println("vert_coords_bar[:, :, otherel] = ", mesh.vert_coords_bar[:, :, otherel])
+#  getAllCoordinatesAndMetrics_rev(mesh, sbp, opts, xvec_bar, parallel=true)
+  val2 = sum(mesh.vert_coords_bar .* vert_coords_dot)
+  #val2 = sum(xvec_bar .* xvec_dot)
 
   println("val1 = ", val1)
   println("val2 = ", val2)
-  @test abs(val1 - val2) < 1e-13
+
+  # DEBUGGING
+  #=
+  val1 = MPI.Allreduce(val1, MPI.SUM, mesh.comm)
+  val2 = MPI.Allreduce(val2, MPI.SUM, mesh.comm)
+  println("after allreduce")
+  println("val1 = ", val1)
+  println("val2 = ", val2)
+  =#
+
+  @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
 
   return nothing
 end

@@ -868,7 +868,8 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
 #  println("about to get degree of freedom numbers")
   getDofNumbers(mesh)  # store dof numbers
 #  println("finished getting degree of freedom numbers")
-  mesh.coordscatter = ScatterData(T1, (mesh.dim,), mesh.comm)
+  mesh.coordscatter = initSendToOwner(mesh, mesh.coordshape_ptr, (mesh.dim,))
+
 
 
   MPI.Barrier(mesh.comm)

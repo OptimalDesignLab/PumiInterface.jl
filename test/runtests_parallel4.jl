@@ -77,7 +77,9 @@ include("test_parallel_types.jl")
     end   # end loop over peer faces
   end  # end loop over peers
 
+  #TESTING:
   test_initSendToOwner(mesh)
+  println("finished test_initSendToOwner")
 
   mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
   mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
@@ -97,7 +99,18 @@ include("test_parallel_types.jl")
   mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
   mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
 
-  test_metrics_rev_1d(mesh_c, sbp, opts)
+  test_metrics_rev_1d(mesh_c, sbp, opts, 1)
+  #=
+  #increment = mesh.dim*mesh.dim*mesh.numNodesPerElement
+  increment=mesh.dim*mesh.coord_numNodesPerElement
+  idx = 1
+  for i=1:increment:length(mesh.vert_coords)
+    println("testing element ", idx)
+    test_metrics_rev_1d(mesh_c, sbp, opts, i)
+    idx += 1
+  end
+  =#
+  
 end
 
 MPI.Barrier(MPI.COMM_WORLD)

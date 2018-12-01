@@ -83,27 +83,6 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
     PdePumiInterface.receiveVecFunction(data, mesh, data_recv)
   end
 
-  #=
-    pos = 1
-    for i=1:length(data.entities)
-      entity = data.entities[i]
-      typ = getType(mesh.m_ptr, entity)
-      dim = getTypeDimension(typ)
-      for j=1:mesh.coord_numNodesPerType[dim+1]
-        for k=1:mesh.dim
-          idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
-          data_recv[idx] += data.vals[k, pos]
-        end
-        pos += 1
-      end
-    end
-  
-    return nothing
-  end
-  =#
-
-
-
   @testset "testing initSendToOwner" begin
     data = PdePumiInterface.initSendToOwner(mesh, mesh.coordshape_ptr, (mesh.dim,))
 

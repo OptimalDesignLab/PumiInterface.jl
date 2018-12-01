@@ -142,7 +142,6 @@ end
 """
 function getFaceCoordinatesAndNormals_rev(mesh::PumiMeshDG{Tmsh},
                                           sbp::AbstractSBP) where Tmsh
-
   if length(mesh.bndryfaces) > 0  # debugging: don't call if unneeded
     calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.bndryfaces,
                                       mesh.coords_bndry,
@@ -151,11 +150,11 @@ function getFaceCoordinatesAndNormals_rev(mesh::PumiMeshDG{Tmsh},
                                       mesh.nrm_bndry_bar)
   end
 
-
   coords_face_bar = zeros(Tmsh, mesh.dim, mesh.numNodesPerFace, mesh.numInterfaces)
   calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.interfaces, 
                                 mesh.coords_interface, coords_face_bar,
                                 mesh.nrm_face, mesh.nrm_face_bar)
+
   for i=1:mesh.npeers
     coords_sharedface_bar = zeros(Tmsh, mesh.dim, mesh.numNodesPerFace, length(mesh.bndries_local[i]))
     calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.bndries_local[i],
@@ -347,7 +346,6 @@ function calcFaceCoordinatesAndNormals_rev(
       coords_bar_i = sview(coords_lag_face_bar, :, :, i)
       getMeshFaceCoordinates_rev(mesh, el_i, face_i, coords_bar_i)
     end
-
   end  # end loop over full blocks
 
   # do remainder loop
@@ -364,10 +362,10 @@ function calcFaceCoordinatesAndNormals_rev(
   coords_lag_face_block = sview(coords_lag_face, :, :, 1:nrem)
   coords_lag_face_bar_block = sview(coords_lag_face_bar, :, :, 1:nrem)
 
+    
   for i=1:nrem  # loop over remaining faces
     el_i = getElementL(faces_block[i])
     face_i = getFaceL(faces_block[i])
-    el_ptr = mesh.elements[el_i]
 
     coords_i = sview(coords_lag_face, :, :, i)
     getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
@@ -383,6 +381,8 @@ function calcFaceCoordinatesAndNormals_rev(
   fixOutwardNormal_rev(mesh, sview(faces, start_idx:end_idx), nrm_face_block,
                     nrm_face_bar_block)
 
+  fill!(coords_lag_face_bar, 0.0)
+
   calcFaceNormals_rev!(mesh.sbpface, mesh.coord_order, ref_verts, 
                    coords_lag_face_block, coords_lag_face_bar_block,
                    coords_face_bar_block, nrm_face_bar_block)
@@ -390,7 +390,6 @@ function calcFaceCoordinatesAndNormals_rev(
   for i=1:nrem
     el_i = getElementL(faces_block[i])
     face_i = getFaceL(faces_block[i])
-    el_ptr = mesh.elements[el_i]
 
     coords_bar_i = sview(coords_lag_face_bar_block, :, :, i)
     getMeshFaceCoordinates_rev(mesh, el_i, face_i, coords_bar_i)
@@ -657,6 +656,7 @@ end
 function getCurvilinearCoordinatesAndMetrics_rev(mesh::PumiMeshDG{Tmsh},
                                                  sbp::AbstractSBP) where Tmsh
 
+  println("entered getCurvilinearCoordinatesAndMetrics_rev")
   # we have to compute E1_bar for both 2d and 3D
   blocksize = 1000  # number of elements per block
   nblocks_full = div(mesh.numEl, blocksize)
@@ -672,6 +672,7 @@ function getCurvilinearCoordinatesAndMetrics_rev(mesh::PumiMeshDG{Tmsh},
     fill!(Eone_bar, 0.0)
     getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp, element_range,
                                                   Eone_bar)
+    println("after element block ", element_range, " vert_coords_bar[:, :, otherel] = ", mesh.vert_coords_bar[:, :, 1099])
   end
 
  if nrem != 0

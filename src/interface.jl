@@ -231,9 +231,11 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
   @assert size(coords_arr, 1) == mesh.dim
   @assert length(coords_vec) == mesh.coord_numNodes*mesh.dim
 
+  println("\nentered coords3DTo1D")
   _parallel::Bool = parallel
 
   if _parallel
+    println("sending parallel data")
     sendParallelData(mesh.coordscatter, coords_arr, reduce_op)
   end
 
@@ -248,7 +250,7 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
     getNodeEntities(node_entities, mesh.elements[i])
     for j=1:mesh.coord_numNodesPerElement
       entity = node_entities.entities[j]
-      if _parallel && getOwner(shr, entity) == mesh.myrank
+      if !_parallel || (_parallel && getOwner(shr, entity) == mesh.myrank)
         for k=1:mesh.dim
           idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
           coords_vec[idx] = reduce_op(coords_vec[idx], coords_arr[k, j, i])
@@ -258,6 +260,7 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
   end  # end i
 
   if _parallel
+    println("receiving parallel data")
     # lambda function for receiving
     calc_func = (data::PeerData) -> receiveVecFunction(data, mesh, coords_vec,
                                                        reduce_op)
@@ -306,17 +309,17 @@ function coords1DTo3D(mesh::PumiMeshDG, coords_vec::AbstractVector,
   @assert length(coords_vec) == mesh.coord_numNodes*mesh.dim
 
 
-#  if parallel
-#    sendParallelData_rev(mesh, mesh.coordscatter, coords_vec)
-#  end
+  if parallel
+    sendParallelData_rev(mesh, mesh.coordscatter, coords_vec)
+  end
 
   fill!(coords_arr, reduce_op.neutral_element)
   node_entities = ElementNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.dim)
 
-#  if parallel
-#    calc_func = (data::PeerData) -> receiveFromOwner(data, mesh, coords_vec)
-#    receiveParallelData_rev(data, calc_func)
-#  end
+  if parallel
+    calc_func = (data::PeerData) -> receiveFromOwner(data, mesh, coords_vec)
+    receiveParallelData_rev(mesh.coordscatter, calc_func)
+  end
 
   for i=1:mesh.numEl
     getNodeEntities(node_entities, mesh.elements[i])
