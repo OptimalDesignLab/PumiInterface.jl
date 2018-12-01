@@ -1403,7 +1403,6 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
   xvec_bar = zeros(Complex128, length(xvec))
 
   dxidx_bar       = rand_realpart(size(mesh.dxidx))
-  #dxidx_bar       = zeros(Complex128, size(mesh.dxidx))
 #  jac_bar         = rand_realpart(size(mesh.jac))
   nrm_bndry_bar   = rand_realpart(size(mesh.nrm_bndry))
   nrm_face_bar    = rand_realpart(size(mesh.nrm_face_bar))
@@ -1411,49 +1410,12 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
   nrm_sharedface_bar = Array{Array{Complex128, 3}}(mesh.npeers)
   for i=1:mesh.npeers
     nrm_sharedface_bar[i] = rand_realpart(size(mesh.nrm_sharedface[i]))
-    #nrm_sharedface_bar[i] = zeros(Complex128, size(mesh.nrm_sharedface[i]))
   end
-  #nrm_sharedface_bar[1][1] = 2
-  #println("boundary = ", mesh.bndries_local[1][1])
-
-  #=
-  maxval = 14257
-  maxel = 397
-  neighbor_elnums = Array{Int}(0)
-  nel = countBridgeAdjacent(mesh.m_ptr, mesh.elements[maxel], 0, mesh.dim)
-  neighbor_els = Array{Ptr{Void}}(nel)
-  getBridgeAdjacent(neighbor_els)
-  for i=1:nel
-    push!(neighbor_elnums, getNumberJ(mesh.el_Nptr, neighbor_els[i], 0, 0) + 1)
-  end
-  println("neighbor_elnums = ", neighbor_elnums)
-
-  
-  dxidx_bar_extract = sview(dxidx_bar, :, :, :, maxel)
-  dxidx_bar_extract[1] = 1
-  =#
-  #for i=1:length(dxidx_bar_extract)
-  #  dxidx_bar_extract[i] = i
-  #end
-  
-  #=
-  println("maxval = ", maxval)
-  for i=1:maxval
-    dxidx_bar[i] = i
-  end
-
-  for peer=1:mesh.npeers
-    for el in mesh.local_element_lists[peer]
-      arr = sview(dxidx_bar, :, :, :, el)
-      fill!(arr, 0)
-    end
-  end
-  =#
 
 
   zeroBarArrays(mesh)
   vert_coords_orig = copy(mesh.vert_coords)
-#=
+
   # get unique-ified xvec_dot
   println("\nuniquefying xvec_dot")
   coords3DTo1D(mesh, mesh.vert_coords, xvec, PdePumiInterface.AssignReduction{T}(), parallel=false)
@@ -1463,13 +1425,14 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
 
   diff = maximum(abs.(vert_coords_orig - real(mesh.vert_coords)))
   @assert diff < 1e-15
-=#
+
 
   # test that coords3DTo1D is the reverse mode of coords1DTo3D
+  println("testing coords1DTo3D")
   vert_coords2 = zeros(mesh.vert_coords)
   vert_coords_bar = rand_realpart(size(mesh.vert_coords))
   xvec_bar = zeros(Complex128, length(xvec))
-#=
+
   # forward mode
   println("\ntesting forward mode")
   #xvec .+= pert*xvec_dot
@@ -1482,36 +1445,15 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
   coords3DTo1D(mesh, vert_coords_bar, xvec_bar, parallel=true)
   val2 = sum(xvec_bar .* xvec_dot)
 
-  @test abs(val1 - val2) < abs(val1)*1e-13
-=#
+  println("val1 = ", val1)
+  println("val2 = ", val2)
+  println("diff = ", val1 - val2)
+  @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
+
   # test back-propigation of the metrics
-  const otherel = 1099
-  println("seeting vert_coords_dot")
   zeroBarArrays(mesh)
   fill!(xvec_bar, 0)
   vert_coords_dot = rand_realpart(size(mesh.vert_coords))
-  #vert_coords_dot = zeros(Complex128, size(mesh.vert_coords))
-  for i=1:mesh.dim
-    for j=1:mesh.coord_numNodesPerElement
-      vert_coords_dot[i, j, 592] = i + j
-    end
-  end
-  #=
-  for i=1:mesh.dim
-    for j=1:mesh.coord_numNodesPerElement
-      #vert_coords_dot[i, j, maxel] = i + j
-      for el in neighbor_elnums
-        vert_coords_dot[i, j, el] = i + j + 1
-      end
-      vert_coords_dot[i, j, otherel] = i + j + 2
-      #vert_coords_dot[vertidx] = i + j + 5
-    end
-  end
-  =#
-
-  #for i=1:vertidx
-  #  vert_coords_dot[i] = i
-  #end
 
   for i=1:length(mesh.vert_coords)
     mesh.vert_coords[i] = real(mesh.vert_coords[i])
