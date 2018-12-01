@@ -283,7 +283,7 @@ end
 
   **Inputs/Outputs**
 
-   * coords_arr: 3D array to be populated
+   * coords_arr: 3D array to be populated (overwritten)
 
   **Keyword Arguments**
 
