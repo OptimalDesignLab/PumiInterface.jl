@@ -640,7 +640,6 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
   mesh.shr_ptr = getSharing(mesh.m_ptr)
   mesh.normalshr_ptr = getNormalSharing(mesh.m_ptr)
-  println("creating mesh, mesh.normalshr_ptr = ", mesh.normalshr_ptr)
 
   # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])

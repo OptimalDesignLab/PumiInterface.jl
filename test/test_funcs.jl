@@ -1411,8 +1411,12 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
   nrm_sharedface_bar = Array{Array{Complex128, 3}}(mesh.npeers)
   for i=1:mesh.npeers
     nrm_sharedface_bar[i] = rand_realpart(size(mesh.nrm_sharedface[i]))
+    #nrm_sharedface_bar[i] = zeros(Complex128, size(mesh.nrm_sharedface[i]))
   end
+  #nrm_sharedface_bar[1][1] = 2
+  #println("boundary = ", mesh.bndries_local[1][1])
 
+  #=
   maxval = 14257
   maxel = 397
   neighbor_elnums = Array{Int}(0)
@@ -1427,6 +1431,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
   
   dxidx_bar_extract = sview(dxidx_bar, :, :, :, maxel)
   dxidx_bar_extract[1] = 1
+  =#
   #for i=1:length(dxidx_bar_extract)
   #  dxidx_bar_extract[i] = i
   #end
@@ -1488,7 +1493,13 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
   #vert_coords_dot = zeros(Complex128, size(mesh.vert_coords))
   for i=1:mesh.dim
     for j=1:mesh.coord_numNodesPerElement
-      vert_coords_dot[i, j, maxel] = i + j
+      vert_coords_dot[i, j, 592] = i + j
+    end
+  end
+  #=
+  for i=1:mesh.dim
+    for j=1:mesh.coord_numNodesPerElement
+      #vert_coords_dot[i, j, maxel] = i + j
       for el in neighbor_elnums
         vert_coords_dot[i, j, el] = i + j + 1
       end
@@ -1496,6 +1507,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
       #vert_coords_dot[vertidx] = i + j + 5
     end
   end
+  =#
 
   #for i=1:vertidx
   #  vert_coords_dot[i] = i
@@ -1512,14 +1524,14 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
   PdePumiInterface.recalcCoordinatesAndMetrics(mesh, sbp, opts)
   mesh.vert_coords .-= pert*vert_coords_dot
 
-  val1 = sum(imag(mesh.dxidx)/h .* dxidx_bar)              #+
- #        sum(imag(mesh.jac)/h .* jac_bar)                  +
-#         sum(imag(mesh.nrm_bndry)/h .* nrm_bndry_bar)      +
-#         sum(imag(mesh.nrm_face)/h .* nrm_face_bar)          +
-#         sum(imag(mesh.coords_bndry)/h .* coords_bndry_bar)
-  #for i=1:mesh.npeers
-  #  val1 += sum(imag(mesh.nrm_sharedface[i]) .* nrm_sharedface_bar[i])
-  #end
+  val1 = sum(imag(mesh.dxidx)/h .* dxidx_bar)               +
+#         sum(imag(mesh.jac)/h .* jac_bar)                  +
+         sum(imag(mesh.nrm_bndry)/h .* nrm_bndry_bar)      +
+         sum(imag(mesh.nrm_face)/h .* nrm_face_bar)          +
+         sum(imag(mesh.coords_bndry)/h .* coords_bndry_bar)
+  for i=1:mesh.npeers
+    val1 += sum(imag(mesh.nrm_sharedface[i])/h .* nrm_sharedface_bar[i])
+  end
 
   for i=1:length(mesh.vert_coords)
     mesh.vert_coords[i] = real(mesh.vert_coords[i])
@@ -1528,16 +1540,15 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
 
   copy!(mesh.dxidx_bar, dxidx_bar)
 #  copy!(mesh.jac_bar, jac_bar)
-  #copy!(mesh.nrm_bndry_bar, nrm_bndry_bar)
-  #copy!(mesh.nrm_face_bar, nrm_face_bar)
-  #copy!(mesh.coords_bndry_bar, coords_bndry_bar)
-  #for i=1:mesh.npeers
-  #  copy!(mesh.nrm_sharedface_bar[i], nrm_sharedface_bar[i])
-  #end
+  copy!(mesh.nrm_bndry_bar, nrm_bndry_bar)
+  copy!(mesh.nrm_face_bar, nrm_face_bar)
+  copy!(mesh.coords_bndry_bar, coords_bndry_bar)
+  for i=1:mesh.npeers  # DEBUGGING
+    copy!(mesh.nrm_sharedface_bar[i], nrm_sharedface_bar[i])
+  end
 
   println("getting all coordinate and metrics rev")
   getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
-  println("vert_coords_bar[:, :, otherel] = ", mesh.vert_coords_bar[:, :, otherel])
 #  getAllCoordinatesAndMetrics_rev(mesh, sbp, opts, xvec_bar, parallel=true)
   val2 = sum(mesh.vert_coords_bar .* vert_coords_dot)
   #val2 = sum(xvec_bar .* xvec_dot)

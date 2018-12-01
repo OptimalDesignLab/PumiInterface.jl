@@ -278,7 +278,7 @@ function calcFaceCoordinatesAndNormals_rev(
                     coords_face::AbstractArray{Tmsh, 3},
                     coords_face_bar::AbstractArray{Tmsh, 3},
                     nrm_face::AbstractArray{Tmsh, 3},
-                    nrm_face_bar::AbstractArray{Tmsh, 3}) where {Tmsh, I <: Union{Boundary, Interface}}
+                    nrm_face_bar::AbstractArray{Tmsh, 3}; print=false) where {Tmsh, I <: Union{Boundary, Interface}}
 
   blocksize = 1000  # magic parameter: number of faces to do in a group
   nfaces = length(faces)
@@ -330,7 +330,6 @@ function calcFaceCoordinatesAndNormals_rev(
                          nrm_face_bar_block)
 
     fill!(coords_lag_face_bar, 0.0)
-
     calcFaceNormals_rev!(mesh.sbpface, mesh.coord_order, ref_verts,
                          coords_lag_face, coords_lag_face_bar,
                          coords_face_bar_block, nrm_face_bar_block)
@@ -656,7 +655,6 @@ end
 function getCurvilinearCoordinatesAndMetrics_rev(mesh::PumiMeshDG{Tmsh},
                                                  sbp::AbstractSBP) where Tmsh
 
-  println("entered getCurvilinearCoordinatesAndMetrics_rev")
   # we have to compute E1_bar for both 2d and 3D
   blocksize = 1000  # number of elements per block
   nblocks_full = div(mesh.numEl, blocksize)
@@ -672,7 +670,6 @@ function getCurvilinearCoordinatesAndMetrics_rev(mesh::PumiMeshDG{Tmsh},
     fill!(Eone_bar, 0.0)
     getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp, element_range,
                                                   Eone_bar)
-    println("after element block ", element_range, " vert_coords_bar[:, :, otherel] = ", mesh.vert_coords_bar[:, :, 1099])
   end
 
  if nrem != 0
@@ -1211,7 +1208,7 @@ function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum::Integer,
   coords[1, 2] = mesh.vert_coords[1, v2_idx, elnum]
   coords[2, 2] = mesh.vert_coords[2, v2_idx, elnum]
 
-  if hasNodesIn(mesh.coordshape_ptr, 1)
+  if mesh.coord_numNodesPerType[2] > 0
     edge_idx = 3 + topo.face_edges[1, facenum]
     coords[1, 3] = mesh.vert_coords[1, edge_idx, elnum]
     coords[2, 3] = mesh.vert_coords[2, edge_idx, elnum]
@@ -1253,7 +1250,7 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh2DG, elnum::Integer,
   mesh.vert_coords_bar[1, v2_idx, elnum] += coords_bar[1, 2]
   mesh.vert_coords_bar[2, v2_idx, elnum] += coords_bar[2, 2]
 
-  if hasNodesIn(mesh.coordshape_ptr, 1)
+  if mesh.coord_numNodesPerType[2] > 0
     edge_idx = facenum + 3  # for simplex elements
     mesh.vert_coords_bar[1, edge_idx, elnum] += coords_bar[1, 3]
     mesh.vert_coords_bar[2, edge_idx, elnum] += coords_bar[2, 3]
@@ -1277,7 +1274,7 @@ function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum::Integer,
     end
   end
 
-  if hasNodesIn(mesh.coordshape_ptr, 1)
+  if mesh.coord_numNodesPerType[2] > 0
 #    println("getting 2nd order node")
 
     for i=1:3  # 3 edges per face
@@ -1313,7 +1310,7 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh3DG, elnum::Integer,
     end
   end
 
-   if hasNodesIn(mesh.coordshape_ptr, 1)
+  if mesh.coord_numNodesPerType[2] > 0
     offset = 3 + (facenum - 1)*3  # 3 vertices + 1 edge node per face
 
     for i=1:3  # 3 edges per face
