@@ -1395,6 +1395,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
 
   println("testing metrics_rev_1d")
   println("vertidx = ", vertidx)
+  srand(1234)
   h = 1e-20
   pert = Complex128(0, h)
 
@@ -1435,9 +1436,11 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
 
   # forward mode
   println("\ntesting forward mode")
-  #xvec .+= pert*xvec_dot
   coords1DTo3D(mesh, xvec, vert_coords2, parallel=false)
   #xvec .-= pert*xvec_dot
+  for i=1:length(xvec)
+    xvec[i] = real(xvec[i])
+  end
   val1 = sum(imag(vert_coords2)/h .* vert_coords_bar)
 
   # reverse mode
@@ -1445,12 +1448,12 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
   coords3DTo1D(mesh, vert_coords_bar, xvec_bar, parallel=true)
   val2 = sum(xvec_bar .* xvec_dot)
 
-  println("val1 = ", val1)
-  println("val2 = ", val2)
-  println("diff = ", val1 - val2)
+  val1 = MPI.Allreduce(val1, MPI.SUM, mesh.comm)
+  val2 = MPI.Allreduce(val2, MPI.SUM, mesh.comm)
   @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
 
-  # test back-propigation of the metrics
+  #----------------------------------------------------------------------------
+  # test back-propigation of the metrics (locally)
   zeroBarArrays(mesh)
   fill!(xvec_bar, 0)
   vert_coords_dot = rand_realpart(size(mesh.vert_coords))

@@ -231,11 +231,9 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
   @assert size(coords_arr, 1) == mesh.dim
   @assert length(coords_vec) == mesh.coord_numNodes*mesh.dim
 
-  println("\nentered coords3DTo1D")
   _parallel::Bool = parallel
 
   if _parallel
-    println("sending parallel data")
     sendParallelData(mesh.coordscatter, coords_arr, reduce_op)
   end
 
@@ -260,7 +258,6 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
   end  # end i
 
   if _parallel
-    println("receiving parallel data")
     # lambda function for receiving
     calc_func = (data::PeerData) -> receiveVecFunction(data, mesh, coords_vec,
                                                        reduce_op)
