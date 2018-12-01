@@ -1391,11 +1391,9 @@ end
 """
   Tests back propigating the metrics to the 1D vector form
 """
-function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts, vertidx) where {T}
+function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
 
   println("testing metrics_rev_1d")
-  println("vertidx = ", vertidx)
-  srand(1234)
   h = 1e-20
   pert = Complex128(0, h)
 

@@ -99,7 +99,7 @@ include("test_parallel_types.jl")
   mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
   mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
 
-  test_metrics_rev_1d(mesh_c, sbp, opts, 1)
+  test_metrics_rev_1d(mesh_c, sbp, opts)
   #=
   #increment = mesh.dim*mesh.dim*mesh.numNodesPerElement
   increment=mesh.dim*mesh.coord_numNodesPerElement
