@@ -297,7 +297,7 @@ end
 """
 function coords1DTo3D(mesh::PumiMeshDG, coords_vec::AbstractVector,
                       coords_arr::AbstractArray{T, 3},
-                      reduce_op::Reduction{T}=AssignReduction{T}();
+                      reduce_op::Reduction=AssignReduction{T}();
                       parallel::Bool=false) where {T}
 
   @assert mesh.coord_order <= 2

@@ -439,7 +439,7 @@ function test_metrics3_rev(mesh, mesh_c, sbp, opts)
       end
 
       for j=1:length(mesh_c.jac)
-        jac[in_idx, out_idx] = imag(mesh_c.jac[j])/h  #(mesh_c.jac[j] - jac_orig[j])/pert
+        #jac[in_idx, out_idx] = imag(mesh_c.jac[j])/h  #(mesh_c.jac[j] - jac_orig[j])/pert
         out_idx += 1
       end
 
@@ -482,7 +482,7 @@ function test_metrics3_rev(mesh, mesh_c, sbp, opts)
 
         # uncomment when this is fixed
         for j=1:length(mesh_c.jac)
-          #jac[in_idx, out_idx] = imag(mesh_c.dxidx[j])/h  #(mesh_c.jac[j] - jac_orig[j])/pert
+          #jac[in_idx, out_idx] = imag(mesh_c.jac[j])/h  #(mesh_c.jac[j] - jac_orig[j])/pert
           out_idx += 1
         end
 
@@ -775,7 +775,7 @@ function test_metrics5_rev(mesh, mesh_c, sbp, opts)
 
       
       for j=1:length(mesh_c.jac)
-  #      jac[i, out_idx] = imag(mesh_c.jac[j])/h
+        jac[i, out_idx] = imag(mesh_c.jac[j])/h
         out_idx += 1
       end
 
@@ -819,8 +819,9 @@ function test_metrics5_rev(mesh, mesh_c, sbp, opts)
     end
 
     for j=1:length(mesh.jac)
-      mesh.jac_bar[j] = 0  # 1
+      mesh.jac_bar[j] = 1  #TODO: uncomment when this is fixed
 
+      #TODO: should these be in the other order?
 #      getAllCoordinatesAndMetrics_rev(mesh, sbp)
       PdePumiInterface.getCurvilinearCoordinatesAndMetrics_rev(mesh, sbp)
       PdePumiInterface.getFaceCoordinatesAndNormals_rev(mesh, sbp)
@@ -1393,6 +1394,7 @@ end
 """
 function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
 
+  println("testing metrics_rev_1d")
   h = 1e-20
   pert = Complex128(0, h)
 
@@ -1401,7 +1403,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   xvec_bar = zeros(Complex128, length(xvec))
 
   dxidx_bar       = rand_realpart(size(mesh.dxidx))
-#  jac_bar         = rand_realpart(size(mesh.jac))
+  jac_bar         = rand_realpart(size(mesh.jac))
   nrm_bndry_bar   = rand_realpart(size(mesh.nrm_bndry))
   nrm_face_bar    = rand_realpart(size(mesh.nrm_face_bar))
   coords_bndry_bar    = rand_realpart(size(mesh.coords_bndry_bar))
@@ -1460,7 +1462,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   mesh.vert_coords .-= pert*vert_coords_dot
 
   val1 = sum(imag(mesh.dxidx)/h .* dxidx_bar)               +
-#         sum(imag(mesh.jac)/h .* jac_bar)                  +
+         sum(imag(mesh.jac)/h .* jac_bar)                  +
          sum(imag(mesh.nrm_bndry)/h .* nrm_bndry_bar)      +
          sum(imag(mesh.nrm_face)/h .* nrm_face_bar)          +
          sum(imag(mesh.coords_bndry)/h .* coords_bndry_bar)
@@ -1474,7 +1476,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
 
 
   copy!(mesh.dxidx_bar, dxidx_bar)
-#  copy!(mesh.jac_bar, jac_bar)
+  copy!(mesh.jac_bar, jac_bar)
   copy!(mesh.nrm_bndry_bar, nrm_bndry_bar)
   copy!(mesh.nrm_face_bar, nrm_face_bar)
   copy!(mesh.coords_bndry_bar, coords_bndry_bar)
@@ -1490,6 +1492,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
 
   #----------------------------------------------------------------------------
+  # test back-propigation of metrics (parallel)
   zeroBarArrays(mesh)
   fill!(xvec_bar, 0)
 
@@ -1500,7 +1503,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   xvec .-= pert*xvec_dot
 
   val1 = sum(imag(mesh.dxidx)/h .* dxidx_bar)               +
-#         sum(imag(mesh.jac)/h .* jac_bar)                  +
+         sum(imag(mesh.jac)/h .* jac_bar)                  +
          sum(imag(mesh.nrm_bndry)/h .* nrm_bndry_bar)      +
          sum(imag(mesh.nrm_face)/h .* nrm_face_bar)          +
          sum(imag(mesh.coords_bndry)/h .* coords_bndry_bar)
@@ -1516,7 +1519,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
 
   # reverse mode
   copy!(mesh.dxidx_bar, dxidx_bar)
-#  copy!(mesh.jac_bar, jac_bar)
+  copy!(mesh.jac_bar, jac_bar)
   copy!(mesh.nrm_bndry_bar, nrm_bndry_bar)
   copy!(mesh.nrm_face_bar, nrm_face_bar)
   copy!(mesh.coords_bndry_bar, coords_bndry_bar)

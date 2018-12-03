@@ -754,7 +754,7 @@ function getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp,
   dxidx_bar_block = sview(mesh.dxidx_bar, :, :, :, element_range)
 #  jac_block = sview(mesh.jac, :, element_range)
   jac_bar_block = sview(mesh.jac_bar, :, element_range)
-  @assert vecnorm(jac_bar_block) < 1e-13  # this is currently broken in SBP
+  #@assert vecnorm(jac_bar_block) < 1e-13  # this is currently broken in SBP
 
   # outputs
   vert_coords_bar_block = sview(mesh.vert_coords_bar, :, :, element_range)

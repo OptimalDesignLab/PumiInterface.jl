@@ -572,7 +572,7 @@ end
    * reduce_op: a [`Reduction`](@ref) to apply to values corresponding to
                 the same mesh entity
 """
-function sendParallelData(data::ScatterData{T, N, N2}, arr::AbstractArray{T2, N3}, reduce_op::Reduction{T}=SumReduction{T}()) where {T, T2, N, N2, N3}
+function sendParallelData(data::ScatterData{T, N, N2}, arr::AbstractArray{T2, N3}, reduce_op::Reduction=SumReduction{T}()) where {T, T2, N, N2, N3}
 
   @assert N3 == (N + N2 - 1)
 
