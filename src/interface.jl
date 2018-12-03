@@ -213,7 +213,7 @@ end
 
   **Inputs/Outputs**
 
-   * coords_vec: vector to be populated
+   * coords_vec: vector to be populated, length `mesh.dim*mesh.coord_numNodes`
 
   **Keyword Arguments**
 
@@ -278,7 +278,8 @@ end
   **Inputs**
 
    * mesh: DG mesh
-   * coords_vec: vector of coordinate-like values
+   * coords_vec: vector of coordinate-like values, length
+                 `mesh.dim*mesh.coord_numNodes`
    * reduce_op: [`Reduction`](@ref) object, default [`AssignmnetReduction`](@ref)
 
   **Inputs/Outputs**
