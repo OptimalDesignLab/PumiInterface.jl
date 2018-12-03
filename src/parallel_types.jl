@@ -524,8 +524,6 @@ function resetBuffers(data::ScatterData)
     data.curridx[i] = 1
   end
 
-  println("data.peernums_recv = ", data.peernums_recv)
-  println("length(data.recv = ", length(data.recv))
   for i=1:length(data.peernums_recv)
     data_i = data.recv[i]
     Wait!(data_i)
@@ -579,9 +577,6 @@ function sendParallelData(data::ScatterData{T, N, N2}, arr::AbstractArray{T2, N3
   @assert N3 == (N + N2 - 1)
 
   resetBuffers(data)
-
-  println("peernums_send = ", data.peernums_send)
-  println("peernums_recv = ", data.peernums_recv)
 
   # post receives
   for data_i in data.recv
@@ -715,8 +710,6 @@ function initSendToOwner(mesh::PumiMesh{T}, fshape::Ptr{Void}, dims::NTuple) whe
 
   data = ScatterData(T, dims, mesh.comm)
   shr = mesh.normalshr_ptr
-  #shr = getNormalSharing(mesh.m_ptr)
-  println("in initSendToOwner, shr = ", shr)
 
   part_nums = Array{Cint}(400)  # apf::Up
   remote_entities = Array{Ptr{Void}}(400)  # apf::Up

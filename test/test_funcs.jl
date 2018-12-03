@@ -1393,7 +1393,6 @@ end
 """
 function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
 
-  println("testing metrics_rev_1d")
   h = 1e-20
   pert = Complex128(0, h)
 
@@ -1416,7 +1415,6 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   vert_coords_orig = copy(mesh.vert_coords)
 
   # get unique-ified xvec_dot
-  println("\nuniquefying xvec_dot")
   coords3DTo1D(mesh, mesh.vert_coords, xvec, PdePumiInterface.AssignReduction{T}(), parallel=false)
   xvec .+= pert*xvec_dot
   coords1DTo3D(mesh, xvec, mesh.vert_coords, parallel=true)
@@ -1427,13 +1425,11 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
 
 
   # test that coords3DTo1D is the reverse mode of coords1DTo3D
-  println("testing coords1DTo3D")
   vert_coords2 = zeros(mesh.vert_coords)
   vert_coords_bar = rand_realpart(size(mesh.vert_coords))
   xvec_bar = zeros(Complex128, length(xvec))
 
   # forward mode
-  println("\ntesting forward mode")
   coords1DTo3D(mesh, xvec, vert_coords2, parallel=false)
   #xvec .-= pert*xvec_dot
   for i=1:length(xvec)
@@ -1442,7 +1438,6 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   val1 = sum(imag(vert_coords2)/h .* vert_coords_bar)
 
   # reverse mode
-  println("\ntesting reverse mode")
   coords3DTo1D(mesh, vert_coords_bar, xvec_bar, parallel=true)
   val2 = sum(xvec_bar .* xvec_dot)
 
@@ -1460,9 +1455,6 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
     mesh.vert_coords[i] = real(mesh.vert_coords[i])
   end
 
-
-
-  println("about to recalcCoordinatesAndMetrics")
   mesh.vert_coords .+= pert*vert_coords_dot
   PdePumiInterface.recalcCoordinatesAndMetrics(mesh, sbp, opts)
   mesh.vert_coords .-= pert*vert_coords_dot
@@ -1490,7 +1482,6 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
     copy!(mesh.nrm_sharedface_bar[i], nrm_sharedface_bar[i])
   end
 
-  println("getting all coordinate and metrics rev")
   getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
 #  getAllCoordinatesAndMetrics_rev(mesh, sbp, opts, xvec_bar, parallel=true)
   val2 = sum(mesh.vert_coords_bar .* vert_coords_dot)
@@ -1502,7 +1493,6 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   zeroBarArrays(mesh)
   fill!(xvec_bar, 0)
 
-  println("testing 1D version")
   # forward mode
   xvec .+= pert*xvec_dot
   coords1DTo3D(mesh, xvec, mesh.vert_coords, parallel=true)
@@ -1536,13 +1526,8 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
 
   getAllCoordinatesAndMetrics_rev(mesh, sbp, opts, xvec_bar)
   val2 = sum(xvec_bar .* xvec_dot)
-  println("val1 = ", val1)
-  println("val2 = ", val2)
   val1 = MPI.Allreduce(val1, MPI.SUM, mesh.comm)
   val2 = MPI.Allreduce(val2, MPI.SUM, mesh.comm)
-  println("after allreduce:")
-  println("val1 = ", val1)
-  println("val2 = ", val2)
 
   @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
 
