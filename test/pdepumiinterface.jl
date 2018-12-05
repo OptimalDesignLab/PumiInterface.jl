@@ -2,6 +2,8 @@
 
 @testset "--- Testing PdePumiInterface --- " begin
 
+  test_math()
+
   # test masked copy
   mask = [1, 3]
   a = rand(4)
