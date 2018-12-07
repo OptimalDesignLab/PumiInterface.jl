@@ -767,7 +767,6 @@ function getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp,
                            vert_coords_bar_block, coords_bar_block,
                            dxidx_bar_block, jac_bar_block, Eone_bar)
 
-
   # back propigate E1 to the face normals
   calcEone_rev(mesh, sbp, element_range, Eone_bar)
 
