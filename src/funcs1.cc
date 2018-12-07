@@ -1348,6 +1348,18 @@ apf::Sharing* getSharing(apf::Mesh* m)
   return apf::getSharing(m);
 }
 
+
+apf::Sharing* getNormalSharing(apf::Mesh* m)
+{
+  return new apf::NormalSharing(m);
+}
+
+
+void freeSharing(apf::Sharing* shr)
+{
+  delete shr;
+}
+
 bool isOwned(apf::Sharing* shr, apf::MeshEntity* e)
 {
 //  bool tmp = shr->isOwned(e);
@@ -1375,6 +1387,19 @@ void getCopies(int part_nums[], apf::MeshEntity* entities[])
     entities[i] = copies1[i].entity;
   }
 }
+
+
+int getOwner(apf::Sharing* shr, apf::MeshEntity* e)
+{
+  return shr->getOwner(e);
+}
+
+bool isSharedShr(apf::Sharing* shr, apf::MeshEntity* e)
+{
+  return shr->isShared(e);
+}
+
+
 
 apf::Matches matches1;
 std::size_t countMatches(apf::Mesh* m, apf::MeshEntity* e)

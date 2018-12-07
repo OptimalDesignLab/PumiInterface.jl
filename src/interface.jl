@@ -125,11 +125,6 @@ end
 # Reduction operations
 
 """
-  Abstract type for reduction operations
-"""
-abstract type Reduction{T} end
-
-"""
   Assignment reduction (always returns the right hand value)
 """
 struct AssignReduction{T} <: Reduction{T}
@@ -218,11 +213,17 @@ end
 
   **Inputs/Outputs**
 
-   * coords_vec: vector to be populated
+   * coords_vec: vector to be populated, length `mesh.dim*mesh.coord_numNodes`
 
+  **Keyword Arguments**
+
+   * parallel: if true (default), do the reduction in parallel, sending data
+               to the owning process.  The entry in the local vector for
+               non-owned entities will be zero (in general,
+               `reduce_op.neutral_element`)
 """
 function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
-                     coords_vec::AbstractVector, reduce_op::Reduction{T}=SumReduction{T}())  where {T}
+                     coords_vec::AbstractVector, reduce_op::Reduction{T}=SumReduction{T}(); parallel=true)  where {T}
 
   @assert mesh.coord_order <= 2
   @assert size(coords_arr, 3) == mesh.numEl
@@ -230,40 +231,74 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
   @assert size(coords_arr, 1) == mesh.dim
   @assert length(coords_vec) == mesh.coord_numNodes*mesh.dim
 
+  _parallel::Bool = parallel
+
+  if _parallel
+    sendParallelData(mesh.coordscatter, coords_arr, reduce_op)
+  end
+
   fill!(coords_vec, reduce_op.neutral_element)
+  node_entities = ElementNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.dim)
 
+ 
+  #TODO: not sure if this gives enough time for data to arrive, maybe combine
+  #      with calcCoordinatesAndMetrics_rev?
+  shr = mesh.normalshr_ptr
   for i=1:mesh.numEl
-    #TODO: it would be faster to create an array for this, but it would use
-    #      more memory
-    node_entities = getNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.elements[i])
+    getNodeEntities(node_entities, mesh.elements[i])
     for j=1:mesh.coord_numNodesPerElement
-      for k=1:mesh.dim
-        idx = getNumberJ(mesh.coord_nodenums_Nptr, node_entities[j], 0, k-1)
+      entity = node_entities.entities[j]
+      if !_parallel || (_parallel && getOwner(shr, entity) == mesh.myrank)
+        for k=1:mesh.dim
+          idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
+          coords_vec[idx] = reduce_op(coords_vec[idx], coords_arr[k, j, i])
+        end
+      end  # end if
+    end  # end j
+  end  # end i
 
-        coords_vec[idx] = reduce_op(coords_vec[idx], coords_arr[k, j, i])
-      end
-    end
+  if _parallel
+    # lambda function for receiving
+    calc_func = (data::PeerData) -> receiveVecFunction(data, mesh, coords_vec,
+                                                       reduce_op)
+
+    receiveParallelData(mesh.coordscatter, calc_func)
   end
 
   return nothing
 end
 
 """
-  Like `coords1DTo3D`, but goes from the vector to the 3D array.
+  Like `coords1DTo3D`, but goes from the vector to the 3D array.  Unlike 
+  `coords1DTo3D`, this is an entirely local operation (does not do parallel
+  communications)
+
+  TODO: make this do parallel communication if reduce_op is not assignment
 
   **Inputs**
 
    * mesh: DG mesh
-   * coords_vec: vector of coordinate-like values
+   * coords_vec: vector of coordinate-like values, length
+                 `mesh.dim*mesh.coord_numNodes`
    * reduce_op: [`Reduction`](@ref) object, default [`AssignmnetReduction`](@ref)
 
   **Inputs/Outputs**
 
-   * coords_arr: 3D array to be populated
+   * coords_arr: 3D array to be populated (overwritten)
+
+  **Keyword Arguments**
+
+   * parallel: if true, performs a global scatter such that the elements
+               in coords_vec are overwritten by the owner's value before
+               unpacking into `coords_arr`.
+               default false.
+
+  TODO: parallel efficiency of `parallel=true` could be improved
 """
 function coords1DTo3D(mesh::PumiMeshDG, coords_vec::AbstractVector,
                       coords_arr::AbstractArray{T, 3},
-                      reduce_op::Reduction{T}=AssignReduction{T}()) where {T}
+                      reduce_op::Reduction=AssignReduction{T}();
+                      parallel::Bool=false) where {T}
 
   @assert mesh.coord_order <= 2
   @assert size(coords_arr, 3) == mesh.numEl
@@ -272,13 +307,24 @@ function coords1DTo3D(mesh::PumiMeshDG, coords_vec::AbstractVector,
   @assert length(coords_vec) == mesh.coord_numNodes*mesh.dim
 
 
+  if parallel
+    sendParallelData_rev(mesh, mesh.coordscatter, coords_vec)
+  end
+
   fill!(coords_arr, reduce_op.neutral_element)
+  node_entities = ElementNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.dim)
+
+  if parallel
+    calc_func = (data::PeerData) -> receiveFromOwner(data, mesh, coords_vec)
+    receiveParallelData_rev(mesh.coordscatter, calc_func)
+  end
 
   for i=1:mesh.numEl
-    node_entities = getNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.elements[i])
+    getNodeEntities(node_entities, mesh.elements[i])
     for j=1:mesh.coord_numNodesPerElement
+      entity = node_entities.entities[j]
       for k=1:mesh.dim
-        idx = getNumberJ(mesh.coord_nodenums_Nptr, node_entities[j], 0, k-1)
+        idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
 
         coords_arr[k, j, i] = reduce_op(coords_arr[k, j, i], coords_vec[idx])
       end

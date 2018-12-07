@@ -406,7 +406,7 @@ include("defs.jl")
 
   # test reverse mode
   PdePumiInterface.copy_data!(mesh_c, mesh)
-  test_metric_rev(mesh, mesh_c, sbp, opts)
+  test_metrics_rev(mesh, mesh_c, sbp, opts)
 
 
   # test with a diagonal E operator
@@ -485,7 +485,8 @@ include("defs.jl")
 
   # test reverse mode
   PdePumiInterface.copy_data!(mesh2_c, mesh2)
-  test_metric_rev(mesh2, mesh2_c, sbp, opts)
+  test_metrics_rev(mesh2, mesh2_c, sbp, opts)
+  test_metrics_rev_1d(mesh2_c, sbp, opts)
 
 
   test_adapt_3d()

@@ -53,11 +53,15 @@ void addQueues(std::queue<apf::MeshEntity*> & q1, std::queue<apf::MeshEntity*> &
 // search for node vertex classified on geometric vertex that is closest to 
 // the point (x,y) and has minimum connectivity
 //
-apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const double y)
+apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double start_coords[3])
 {
+  double x = start_coords[0];
+  double y = start_coords[1];
+  double z = start_coords[2];
+
 
   if (PCU_Comm_Self() == 0)
-    std::cout << "requested starting coordinates = " << x << ", " << y <<std::endl;
+    std::cout << "requested starting coordinates = " << x << ", " << y << ", " << z << std::endl;
   apf::MeshEntity* e_min; // minimum degree meshentity
   apf::MeshEntity* e_i; // current meshentity
   apf::Vector3 coords; // coordinates of current point
@@ -65,6 +69,9 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const dou
   double min_dist; // minimum distance to (x,y)
   apf::ModelEntity* me_i;
   int me_dimension;
+  x = start_coords[0];
+  y = start_coords[1];
+  z = start_coords[2];
 
   apf::MeshIterator* it = m_local->begin(0); // iterator over verticies
 
@@ -87,7 +94,7 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const dou
   m_local-> getPoint(e_i, 0, coords);
   // no need to take square root if we are only interested in relative
   // distance
-  min_dist = (coords[0] - x)*(coords[0] - x) + (coords[1] - y)*(coords[1] - y);
+  min_dist = (coords[0] - x)*(coords[0] - x) + (coords[1] - y)*(coords[1] - y) + (coords[2] - z)*(coords[2] - z);
 
 
 
@@ -102,7 +109,7 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const dou
       m_local-> getPoint(e_i, 0, coords);
       // no need to take square root if we are only interested in relative
       // distance
-      dist = (coords[0] - x)*(coords[0] - x) + (coords[1] - y)*(coords[1] - y);
+      dist = (coords[0] - x)*(coords[0] - x) + (coords[1] - y)*(coords[1] - y) + (coords[2] - z)*(coords[2] - z);
 
       if (dist < min_dist)
       {
@@ -116,7 +123,7 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double x, const dou
   m_local->getPoint(e_min, 0, coords);
 
   if (PCU_Comm_Self() == 0)
-    std::cout << "starting entity coordinates = " << coords << std::endl;
+    std::cout << "starting entity coordinates = " << coords[0] << ", " << coords[1] << ", " << coords[2]  << std::endl;
 
   return e_min;
 
@@ -248,14 +255,15 @@ void printElNumbers(apf::Mesh2*& m_local, apf::Numbering*& elNums)
 // all dofs are numbered
 // ndof is the number of actual degrees of freedom in the mesh
 // comp is the number of dofs per node (the number of components in the dof numberings)
-// nodeNums is a numbering over the dofs to be populated with global node numbers
+// nodeNums is a numbering over the dofs to be populated with  node numbers
 // elNums is numbering over elements (faces) to be populated, if NULL, elements
 // will not be numbered
-// x, y are the coordinates of the point used to deterimine the starting node
-//   the mesh vertex classified on a model vertex closest to (x,y) is chosen
+//
+// x, y, z coordinates in start_coords are used to deterimine the starting node
+//   the mesh vertex classified on a model vertex closest to the point is chosen
 void reorder(apf::Mesh2* m_local, int ndof, const int comp, 
              apf::Numbering* node_statusNumbering, apf::Numbering* nodeNums,
-             apf::Numbering* elNums, const double x, const double y)
+             apf::Numbering* elNums, const double start_coords[3])
 {
 // TODO: move node_statusNumbering checks out one loop level because 
 //       it is node status now, not dof status
@@ -267,6 +275,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp,
     return;
   }
 
+  const int dim = m_local->getDimension();
   const int numEl = m_local->count(m_local->getDimension());  // counts the number of elements
 
 
@@ -280,7 +289,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp,
   std::queue < apf::MeshEntity*> tmpQue;  // temporary queue for vertices
 
   apf::MeshEntity* e;
-  e = getStartEntity(m_local, x, y); // get starting node
+  e = getStartEntity(m_local, start_coords); // get starting node
 
   int nodeLabel_i = ndof + 1;  // one-based indexing
   int elementLabel_i = numEl;  // zero-based indexing
@@ -321,7 +330,7 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp,
         {
           apf::MeshEntity* face_j = m_local->getUpward(edge_i, j);
 
-          if (elNums)
+          if (elNums && dim == 2)
           {
             // label face (element) if it is not yet labelled
             int faceNum_j = apf::getNumber(elNums, face_j, 0, 0);
@@ -344,9 +353,39 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp,
               que1.push(face_j); // add face to que
             }
           }
-        }  // end face loop
 
-        //TODO: region loop here (3D)
+          // get regions adjacent to the face
+          if (dim == 3)
+          {
+            int numRegions_i = m_local->countUpward(face_j);
+            for (int k = 0; k < numRegions_i; ++k)
+            {
+              apf::MeshEntity* region_k = m_local->getUpward(face_j, k);
+
+              // label element
+              if (elNums)
+              {
+                int regionNum_k = apf::getNumber(elNums, region_k, 0, 0);
+                if (regionNum_k > numEl)  // face not labelled
+                {
+                  elementLabel_i -= 1;
+                  apf::number(elNums, region_k, 0, 0, elementLabel_i);
+                }
+              }
+
+              // add region to queue if it hasn't been labelled yet
+              if ( hasNode(m_local, region_k) )
+              {
+                int nodenum_k = apf::getNumber(nodeNums, region_k, 0, 0);
+                if ((nodenum_k > ndof) && (nodenum_k <= 2*ndof))
+                {
+                  apf::number(nodeNums, region_k, 0, 0, nodenum_k*2);
+                  que1.push(region_k);
+                }
+              }
+            }  // end region loop
+          }
+        }  // end face loop
 
         // look at other vertex on edge
         apf::MeshEntity* otherVertex = apf::getEdgeVertOppositeVert(m_local, edge_i, e);

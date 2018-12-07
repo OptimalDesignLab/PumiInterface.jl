@@ -13,6 +13,7 @@ include("defs.jl")
 include("common_functions.jl")
 include("test_funcs.jl")
 include("test_adapt.jl")
+include("test_parallel_types.jl")
 
 @testset "----- Testing 4 process PDEPumiInterface3DG -----" begin
   degree = 1
@@ -76,11 +77,12 @@ include("test_adapt.jl")
     end   # end loop over peer faces
   end  # end loop over peers
 
+  #TESTING:
+  test_initSendToOwner(mesh)
+  println("finished test_initSendToOwner")
 
   mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
-#  mesh_c = PumiMeshDG3{Complex128, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
   mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
-#  mesh = PumiMeshDG3{Float64, typeof(sbpface)}(dmg_name, smb_name, degree, sbp, opts, sbpface, topo)
   compare_meshes(mesh, mesh_c)
 
 
@@ -88,9 +90,27 @@ include("test_adapt.jl")
   test_parallel_metrics(mesh, sbp, opts)
 
   # this allocates a ton of memory - don't run
-#  test_metric_rev(mesh, mesh_c, sbp)
+#  test_metrics_rev(mesh, mesh_c, sbp)
 
   test_adapt_3d(parallel=true)
+
+  # test curvilinear metrics
+  opts["use_linear_metrics"] = false
+  mesh_c = PumiMeshDG3(Complex128, sbp, opts, sbpface, topo)
+  mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo)
+
+  test_metrics_rev_1d(mesh_c, sbp, opts)
+  #=
+  #increment = mesh.dim*mesh.dim*mesh.numNodesPerElement
+  increment=mesh.dim*mesh.coord_numNodesPerElement
+  idx = 1
+  for i=1:increment:length(mesh.vert_coords)
+    println("testing element ", idx)
+    test_metrics_rev_1d(mesh_c, sbp, opts, i)
+    idx += 1
+  end
+  =#
+  
 end
 
 MPI.Barrier(MPI.COMM_WORLD)

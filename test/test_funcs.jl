@@ -153,7 +153,7 @@ end  # end function
   This function tests the reverse mode of calcEoneElement and then
   calls other functions to test the other parts of the calculation.
 """
-function test_metric_rev(mesh, mesh_c, sbp, opts)
+function test_metrics_rev(mesh, mesh_c, sbp, opts)
 
   @testset "----- testing metric reverse mode -----" begin
     sbpface = mesh.sbpface
@@ -439,7 +439,7 @@ function test_metrics3_rev(mesh, mesh_c, sbp, opts)
       end
 
       for j=1:length(mesh_c.jac)
-        jac[in_idx, out_idx] = imag(mesh_c.jac[j])/h  #(mesh_c.jac[j] - jac_orig[j])/pert
+        #jac[in_idx, out_idx] = imag(mesh_c.jac[j])/h  #(mesh_c.jac[j] - jac_orig[j])/pert
         out_idx += 1
       end
 
@@ -482,7 +482,7 @@ function test_metrics3_rev(mesh, mesh_c, sbp, opts)
 
         # uncomment when this is fixed
         for j=1:length(mesh_c.jac)
-          #jac[in_idx, out_idx] = imag(mesh_c.dxidx[j])/h  #(mesh_c.jac[j] - jac_orig[j])/pert
+          #jac[in_idx, out_idx] = imag(mesh_c.jac[j])/h  #(mesh_c.jac[j] - jac_orig[j])/pert
           out_idx += 1
         end
 
@@ -775,7 +775,7 @@ function test_metrics5_rev(mesh, mesh_c, sbp, opts)
 
       
       for j=1:length(mesh_c.jac)
-  #      jac[i, out_idx] = imag(mesh_c.jac[j])/h
+        jac[i, out_idx] = imag(mesh_c.jac[j])/h
         out_idx += 1
       end
 
@@ -819,8 +819,9 @@ function test_metrics5_rev(mesh, mesh_c, sbp, opts)
     end
 
     for j=1:length(mesh.jac)
-      mesh.jac_bar[j] = 0  # 1
+      mesh.jac_bar[j] = 1  #TODO: uncomment when this is fixed
 
+      #TODO: should these be in the other order?
 #      getAllCoordinatesAndMetrics_rev(mesh, sbp)
       PdePumiInterface.getCurvilinearCoordinatesAndMetrics_rev(mesh, sbp)
       PdePumiInterface.getFaceCoordinatesAndNormals_rev(mesh, sbp)
@@ -1368,6 +1369,170 @@ function test_coord_field(mesh::PumiMeshDG{T}) where {T}
     @test vecnorm(coord_arr - mesh.vert_coords) < 1e-13
 
   end
+
+  return nothing
+end
+
+
+"""
+  Returns an array of the specified size with random values for the real part
+  and zeros for the imaginary part
+"""
+function rand_realpart(dims...)
+
+  a = rand(Complex128, dims...)
+  for i=1:length(a)
+    a[i] = real(a[i])
+  end
+
+  return a
+end
+
+
+"""
+  Tests back propigating the metrics to the 1D vector form
+"""
+function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
+
+  println("testing metrics_rev_1d")
+  h = 1e-20
+  pert = Complex128(0, h)
+
+  xvec = zeros(Complex128, mesh.dim*mesh.coord_numNodes)
+  xvec_dot = rand_realpart(size(xvec))
+  xvec_bar = zeros(Complex128, length(xvec))
+
+  dxidx_bar       = rand_realpart(size(mesh.dxidx))
+  jac_bar         = rand_realpart(size(mesh.jac))
+  nrm_bndry_bar   = rand_realpart(size(mesh.nrm_bndry))
+  nrm_face_bar    = rand_realpart(size(mesh.nrm_face_bar))
+  coords_bndry_bar    = rand_realpart(size(mesh.coords_bndry_bar))
+  nrm_sharedface_bar = Array{Array{Complex128, 3}}(mesh.npeers)
+  for i=1:mesh.npeers
+    nrm_sharedface_bar[i] = rand_realpart(size(mesh.nrm_sharedface[i]))
+  end
+
+
+  zeroBarArrays(mesh)
+  vert_coords_orig = copy(mesh.vert_coords)
+
+  # get unique-ified xvec_dot
+  coords3DTo1D(mesh, mesh.vert_coords, xvec, PdePumiInterface.AssignReduction{T}(), parallel=false)
+  xvec .+= pert*xvec_dot
+  coords1DTo3D(mesh, xvec, mesh.vert_coords, parallel=true)
+  xvec_dot = imag(xvec)/h  # unique-ified version
+
+  diff = maximum(abs.(vert_coords_orig - real(mesh.vert_coords)))
+  @assert diff < 1e-15
+
+
+  # test that coords3DTo1D is the reverse mode of coords1DTo3D
+  vert_coords2 = zeros(mesh.vert_coords)
+  vert_coords_bar = rand_realpart(size(mesh.vert_coords))
+  xvec_bar = zeros(Complex128, length(xvec))
+
+  # forward mode
+  coords1DTo3D(mesh, xvec, vert_coords2, parallel=false)
+  #xvec .-= pert*xvec_dot
+  for i=1:length(xvec)
+    xvec[i] = real(xvec[i])
+  end
+  val1 = sum(imag(vert_coords2)/h .* vert_coords_bar)
+
+  # reverse mode
+  coords3DTo1D(mesh, vert_coords_bar, xvec_bar, parallel=true)
+  val2 = sum(xvec_bar .* xvec_dot)
+
+  val1 = MPI.Allreduce(val1, MPI.SUM, mesh.comm)
+  val2 = MPI.Allreduce(val2, MPI.SUM, mesh.comm)
+  @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
+
+  #----------------------------------------------------------------------------
+  # test back-propigation of the metrics (locally)
+  zeroBarArrays(mesh)
+  fill!(xvec_bar, 0)
+  vert_coords_dot = rand_realpart(size(mesh.vert_coords))
+
+  for i=1:length(mesh.vert_coords)
+    mesh.vert_coords[i] = real(mesh.vert_coords[i])
+  end
+
+  mesh.vert_coords .+= pert*vert_coords_dot
+  PdePumiInterface.recalcCoordinatesAndMetrics(mesh, sbp, opts)
+  mesh.vert_coords .-= pert*vert_coords_dot
+
+  val1 = sum(imag(mesh.dxidx)/h .* dxidx_bar)               +
+         sum(imag(mesh.jac)/h .* jac_bar)                  +
+         sum(imag(mesh.nrm_bndry)/h .* nrm_bndry_bar)      +
+         sum(imag(mesh.nrm_face)/h .* nrm_face_bar)          +
+         sum(imag(mesh.coords_bndry)/h .* coords_bndry_bar)
+  for i=1:mesh.npeers
+    val1 += sum(imag(mesh.nrm_sharedface[i])/h .* nrm_sharedface_bar[i])
+  end
+
+  for i=1:length(mesh.vert_coords)
+    mesh.vert_coords[i] = real(mesh.vert_coords[i])
+  end
+
+
+  copy!(mesh.dxidx_bar, dxidx_bar)
+  copy!(mesh.jac_bar, jac_bar)
+  copy!(mesh.nrm_bndry_bar, nrm_bndry_bar)
+  copy!(mesh.nrm_face_bar, nrm_face_bar)
+  copy!(mesh.coords_bndry_bar, coords_bndry_bar)
+  for i=1:mesh.npeers  # DEBUGGING
+    copy!(mesh.nrm_sharedface_bar[i], nrm_sharedface_bar[i])
+  end
+
+  getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
+#  getAllCoordinatesAndMetrics_rev(mesh, sbp, opts, xvec_bar, parallel=true)
+  val2 = sum(mesh.vert_coords_bar .* vert_coords_dot)
+  #val2 = sum(xvec_bar .* xvec_dot)
+
+  @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
+
+  #----------------------------------------------------------------------------
+  # test back-propigation of metrics (parallel)
+  zeroBarArrays(mesh)
+  fill!(xvec_bar, 0)
+
+  # forward mode
+  xvec .+= pert*xvec_dot
+  coords1DTo3D(mesh, xvec, mesh.vert_coords, parallel=true)
+  PdePumiInterface.recalcCoordinatesAndMetrics(mesh, sbp, opts)
+  xvec .-= pert*xvec_dot
+
+  val1 = sum(imag(mesh.dxidx)/h .* dxidx_bar)               +
+         sum(imag(mesh.jac)/h .* jac_bar)                  +
+         sum(imag(mesh.nrm_bndry)/h .* nrm_bndry_bar)      +
+         sum(imag(mesh.nrm_face)/h .* nrm_face_bar)          +
+         sum(imag(mesh.coords_bndry)/h .* coords_bndry_bar)
+  for i=1:mesh.npeers
+    val1 += sum(imag(mesh.nrm_sharedface[i])/h .* nrm_sharedface_bar[i])
+  end
+
+  # remove complex parts
+  for i=1:length(mesh.vert_coords)
+    mesh.vert_coords[i] = real(mesh.vert_coords[i])
+  end
+  PdePumiInterface.recalcCoordinatesAndMetrics(mesh, sbp, opts)
+
+  # reverse mode
+  copy!(mesh.dxidx_bar, dxidx_bar)
+  copy!(mesh.jac_bar, jac_bar)
+  copy!(mesh.nrm_bndry_bar, nrm_bndry_bar)
+  copy!(mesh.nrm_face_bar, nrm_face_bar)
+  copy!(mesh.coords_bndry_bar, coords_bndry_bar)
+  for i=1:mesh.npeers
+    copy!(mesh.nrm_sharedface_bar[i], nrm_sharedface_bar[i])
+  end
+
+  getAllCoordinatesAndMetrics_rev(mesh, sbp, opts, xvec_bar)
+  val2 = sum(xvec_bar .* xvec_dot)
+  val1 = MPI.Allreduce(val1, MPI.SUM, mesh.comm)
+  val2 = MPI.Allreduce(val2, MPI.SUM, mesh.comm)
+
+  @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
 
   return nothing
 end

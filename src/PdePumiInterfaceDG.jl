@@ -137,6 +137,7 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
   fexact_ptr::Ptr{Void}  # pointer to field on mexact_ptr
   fexactshape_ptr::Ptr{Void}  # apf::FieldShape of fexact_ptr
   shr_ptr::Ptr{Void}  # pointer to the apf::Sharing object
+  normalshr_ptr::Ptr{Void}  # pointer to the NormalSharing object
   shape_type::Int  #  type of shape functions
   subdata::SubMeshData  # if this is a submesh, the submeshdata object,
                         # otherwise NULL
@@ -387,6 +388,7 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
   # add field that maps back and forth?
 
   vert_sharing::VertSharing
+  coordscatter::ScatterData{T1}  # abstract type, used for coords3DTo1D
 
   # temporarily allow nested meshes for the staggered grid work
   mesh2::AbstractMesh
@@ -695,6 +697,7 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
   end
 
   mesh.shr_ptr = getSharing(mesh.m_ptr)
+  mesh.normalshr_ptr = getNormalSharing(mesh.m_ptr)
   # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])
   mesh.numEdge =convert(Int,  num_Entities[2])
@@ -819,8 +822,8 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
     # want to label nodes
 
     # coordinate node numbering
-    reorder(mesh.m_ptr, mesh.coord_numNodes, mesh.dim, 
-            C_NULL, mesh.dim*mesh.coord_nodenums_Nptr, C_NULL, 
+    reorder(mesh.m_ptr, mesh.dim*mesh.coord_numNodes, mesh.dim, 
+            C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
 	    start_coords)
 
  elseif opts["reordering_algorithm"] == "default"
@@ -833,9 +836,6 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
     reorder(mesh.m_ptr, mesh.dim*mesh.coord_numNodes, mesh.dim, 
             C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
 	    start_coords)
-
-
-
   else
     throw(ErrorException("invalid dof reordering algorithm requested"))
   end
@@ -868,6 +868,8 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
 #  println("about to get degree of freedom numbers")
   getDofNumbers(mesh)  # store dof numbers
 #  println("finished getting degree of freedom numbers")
+  mesh.coordscatter = initSendToOwner(mesh, mesh.coordshape_ptr, (mesh.dim,))
+
 
 
   MPI.Barrier(mesh.comm)
