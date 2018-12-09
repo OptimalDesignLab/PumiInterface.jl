@@ -6,6 +6,7 @@
 cmake_minimum_required(VERSION 3.0.0)
 
 project(MeshCreate VERSION 1.0.0 LANGUAGES CXX)
+option(HAVE_SIMMETRIX "If Pumi was built with Simmetrix support" OFF)
 
 # Starting here are the critical lines:
 
@@ -29,11 +30,30 @@ else()
       REQUIRED #indicate that SCOREC is really needed to compile
       CONFIG   #skip the 'MODULE' search system, save some time and confusion
       )
+
 endif()
 
 
 MESSAGE( STATUS "CMAKE_BINARY_DIR:     " ${CMAKE_BINARY_DIR})
 MESSAGE( STATUS "Pumi configuration file location: " ${SCOREC_CONFIG})
+
+# Figure out of Pumi was built with Simmetrix support
+get_target_property(SCOREC_LIBS SCOREC::core INTERFACE_LINK_LIBRARIES)
+#MESSAGE(STATUS ${SCOREC_LIBS})
+
+if(SCOREC_LIBS MATCHES "gmi_sim")
+  MESSAGE(STATUS "Founds gmi_sim")
+  set (HAVE_SIMMETRIX ON)
+elseif()
+  MESSAGE(STATUS "Match not found")
+endif()
+
+configure_file (
+  "${PROJECT_SOURCE_DIR}/pumiInterface_config.h.in"
+  "${PROJECT_BINARY_DIR}/pumiInterface_config.h"
+)
+include_directories("${PROJECT_BINARY_DIR}")
+
 
 #this is just example code, do your own thing
 add_executable(test_init test_init.cc)
@@ -53,3 +73,5 @@ target_link_libraries(test_meshadapt PRIVATE SCOREC::core)
 install (TARGETS pumiInterface DESTINATION lib)
 install (TARGETS test_init DESTINATION bin)
 install (TARGETS test_meshadapt DESTINATION bin)
+
+install (FILES funcs1.h a2.h "${PROJECT_BINARY_DIR}/pumiInterface_config.h" DESTINATION include)
