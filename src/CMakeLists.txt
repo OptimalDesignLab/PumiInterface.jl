@@ -40,7 +40,6 @@ MESSAGE( STATUS "Pumi configuration file location: " ${SCOREC_CONFIG})
 # Figure out of Pumi was built with Simmetrix support
 get_target_property(SCOREC_LIBS SCOREC::core INTERFACE_LINK_LIBRARIES)
 #MESSAGE(STATUS ${SCOREC_LIBS})
-
 if(SCOREC_LIBS MATCHES "gmi_sim")
   MESSAGE(STATUS "Founds gmi_sim")
   set (HAVE_SIMMETRIX ON)
@@ -53,6 +52,8 @@ configure_file (
   "${PROJECT_BINARY_DIR}/pumiInterface_config.h"
 )
 include_directories("${PROJECT_BINARY_DIR}")
+
+file(WRITE "PUMI_CMAKE_PATH" ${SCOREC_CONFIG})
 
 
 #this is just example code, do your own thing

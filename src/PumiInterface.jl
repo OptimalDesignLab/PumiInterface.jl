@@ -3,6 +3,7 @@ __precompile__(false)
 module PumiInterface
 
 using MPI
+include("pumi_utils.jl")
 
 # make MeshEntity* passable by MPI
 if sizeof(Ptr{Void}) == sizeof(Int32)
@@ -21,7 +22,17 @@ end
 # make PdePumiInterface findable
 push!(LOAD_PATH, dirname(@__FILE__))
 
+"""
+  Typealias for C++ Bool.  This is implementation defined, so it might need
+  to be manually changed for different systems
+"""
 const CppBool = UInt8  # this is implementation defined
+
+"""
+  Absolute path of Pumi /lib directory
+"""
+const PUMI_LIBDIR = getPumiLibDir()
+
 
 # no names should exported because there should be higher level functions
 # wrapping these
