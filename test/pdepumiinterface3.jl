@@ -47,7 +47,7 @@ include("defs.jl")
 
   function checkNumbering(nshape_ptr, dim, cnt)
     for i=1:4
-      nodes = countNodesOn(nshape_ptr, simplexTypes[i])
+      nodes = apf.countNodesOn(nshape_ptr, apf.simplexTypes[i])
       if i == dim
         @test ( nodes )== cnt
       else
@@ -57,7 +57,7 @@ include("defs.jl")
   end
 
   for i=1:4
-    numbering_shape = getNumberingShape(mesh.entity_Nptrs[i])
+    numbering_shape = apf.getNumberingShape(mesh.entity_Nptrs[i])
     checkNumbering(numbering_shape, i, 1)
   end
 
@@ -71,8 +71,8 @@ include("defs.jl")
   @test isapprox( mesh.volume, 1.0) atol=1e-12
   @test ( mesh.numEntitiesPerType )== [mesh.numVert, mesh.numEdge, mesh.numFace, mesh.numEl]
   @test ( mesh.numTypePerElement )== [4, 6, 4, 1]
-  @test ( mesh.el_type )== apfTET
-  @test ( mesh.face_type )== apfTRIANGLE
+  @test ( mesh.el_type )== apf.TET
+  @test ( mesh.face_type )== apf.TRIANGLE
   @test ( mesh.isDG )== true
   @test ( mesh.dim )== 3
   
@@ -81,9 +81,9 @@ include("defs.jl")
     @test ( mesh.edges[i] )!=mesh.faces[i]
   end
 
-  nodeshape = getNumberingShape(mesh.nodenums_Nptr)
+  nodeshape = apf.getNumberingShape(mesh.nodenums_Nptr)
   checkNumbering(nodeshape, 4, 4)
-  dofshape = getNumberingShape(mesh.dofnums_Nptr)
+  dofshape = apf.getNumberingShape(mesh.dofnums_Nptr)
   checkNumbering(dofshape, 4, 4)
 
   @test ( mesh.bndry_offsets[1] )== 1
@@ -269,12 +269,12 @@ include("defs.jl")
 
 
   for order=1:2
-    fshape = getFieldShape(0, order, 3)
-    eshape = getEntityShape(fshape, apfTET)  # triangle
+    fshape = apf.getFieldShape(0, order, 3)
+    eshape = apf.getEntityShape(fshape, apf.TET)  # triangle
     nodexi = PdePumiInterface.getXiCoords(order, 3)
     numnodes = size(nodexi, 2)
     for i=1:numnodes
-      vals = getValues(mesh.m_ptr, eshape, nodexi[:, i], numnodes)
+      vals = apf.getValues(mesh.m_ptr, eshape, nodexi[:, i], numnodes)
       for j=1:numnodes
         if i == j
           @test  abs(vals[j] - 1)  < 1e-12

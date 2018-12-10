@@ -310,7 +310,7 @@ function getInterfaceArray(mesh::PumiMesh2D)
 
   # only need internal boundaries (not external)
   # get number of nodes affecting an edge
-  num_edge_nodes = countAllNodes(mesh.mshape_ptr, 1)
+  num_edge_nodes = apf.countAllNodes(mesh.mshape_ptr, 1)
 
   # unused variable?
   nodemap = Array(num_edge_nodes:(-1):1)
@@ -327,8 +327,8 @@ function getInterfaceArray(mesh::PumiMesh2D)
     end
     # get number of elements using the edge
     adjacent_nums, num_adjacent = getAdjacentEntityNums(mesh, i, 1, 2)
-    n = countMatches(mesh.m_ptr, mesh.edges[i])
-    getMatches(part_nums, matched_entities)
+    n = apf.countMatches(mesh.m_ptr, mesh.edges[i])
+    apf.getMatches(part_nums, matched_entities)
     has_local_match = part_nums[1] == mesh.myrank && n > 0
 
     if num_adjacent > 1 || has_local_match # internal edge
@@ -343,17 +343,17 @@ function getInterfaceArray(mesh::PumiMesh2D)
         element1 = adjacent_nums[1]
 
         # get the element of the other edge
-        num_adjacent = countAdjacent(mesh.m_ptr, edge2_ptr, mesh.dim)
-        adjacent_entities = getAdjacent(num_adjacent)
-        element2 = getNumberJ(mesh.el_Nptr, adjacent_entities[1], 0, 0) + 1
+        num_adjacent = apf.countAdjacent(mesh.m_ptr, edge2_ptr, mesh.dim)
+        adjacent_entities = apf.getAdjacent(num_adjacent)
+        element2 = apf.getNumberJ(mesh.el_Nptr, adjacent_entities[1], 0, 0) + 1
         edge1 = i
-        edge2 = getNumberJ(mesh.edge_Nptr, edge2_ptr, 0, 0) + 1
+        edge2 = apf.getNumberJ(mesh.edge_Nptr, edge2_ptr, 0, 0) + 1
       end
 
       coords_1 = zeros(3,3)
       coords_2 = zeros(3,3)
-      getFaceCoords(mesh.m_ptr, mesh.elements[element1], coords_1, 3, 3)
-      getFaceCoords(mesh.m_ptr, mesh.elements[element2], coords_2, 3, 3)
+      apf.getFaceCoords(mesh.m_ptr, mesh.elements[element1], coords_1, 3, 3)
+      apf.getFaceCoords(mesh.m_ptr, mesh.elements[element2], coords_2, 3, 3)
 
       # calculate centroid
       centroid1 = sum(coords_1, 2)
@@ -457,29 +457,29 @@ function getInterfaceArray(mesh::PumiMesh3D)
       continue
     end
 
-    num_adjacent = countAdjacent(mesh.m_ptr, face_i, mesh.dim)
+    num_adjacent = apf.countAdjacent(mesh.m_ptr, face_i, mesh.dim)
 
-    n = countMatches(mesh.m_ptr, face_i)
-    getMatches(part_nums, matched_entities)
+    n = apf.countMatches(mesh.m_ptr, face_i)
+    apf.getMatches(part_nums, matched_entities)
     has_local_match = part_nums[1] == mesh.myrank && n > 0
 
     if num_adjacent == 2 || has_local_match  # this is a shared interface
 
-      getAdjacent(adj_elements)
+      apf.getAdjacent(adj_elements)
       if has_local_match
         # get the parent element
         el1 = adj_elements[1]
         edgenum1 = i
-        elnum1 = getNumberJ(mesh.el_Nptr, el1 , 0, 0) + 1
+        elnum1 = apf.getNumberJ(mesh.el_Nptr, el1 , 0, 0) + 1
 
         # get the matched face
         other_face = matched_entities[1]
         # get the parent element of the matched face
-        countAdjacent(mesh.m_ptr, other_face, mesh.dim)
-        getAdjacent(adj_elements)
+        apf.countAdjacent(mesh.m_ptr, other_face, mesh.dim)
+        apf.getAdjacent(adj_elements)
         el2 = adj_elements[1]
-        edgenum2 = getNumberJ(mesh.face_Nptr, other_face, 0, 0) + 1
-        elnum2 = getNumberJ(mesh.el_Nptr, el2, 0, 0) + 1
+        edgenum2 = apf.getNumberJ(mesh.face_Nptr, other_face, 0, 0) + 1
+        elnum2 = apf.getNumberJ(mesh.el_Nptr, el2, 0, 0) + 1
         push!(seen_entities, other_face)
       else
         # get both parent elements
@@ -487,8 +487,8 @@ function getInterfaceArray(mesh::PumiMesh3D)
         el2 = adj_elements[2]
         edgenum1 = i
         edgenum2 = i
-        elnum1 = getNumberJ(mesh.el_Nptr, el1, 0, 0) + 1
-        elnum2 = getNumberJ(mesh.el_Nptr, el2, 0, 0) + 1
+        elnum1 = apf.getNumberJ(mesh.el_Nptr, el1, 0, 0) + 1
+        elnum2 = apf.getNumberJ(mesh.el_Nptr, el2, 0, 0) + 1
       end
 
       # decide which one is elementL

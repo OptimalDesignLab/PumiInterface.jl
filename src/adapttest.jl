@@ -4,22 +4,22 @@ using PumiInterface
 dmg_name = ".null"
 smb_name = "tri8l.smb"
 
-tmp, num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, 1)
+tmp, num_Entities, m_ptr, mshape_ptr = apf.init2(dmg_name, smb_name, 1)
 
-writeVtkFiles("output_pre", m_ptr)
+apf.writeVtkFiles("output_pre", m_ptr)
 
 #=
 println("about to create field")
-f_ptr = createPackedField(m_ptr, "testfield", 4)
+f_ptr = apf.createPackedField(m_ptr, "testfield", 4)
 println("created field")
 comps = [1.0, 2, 3, 4]
 
 resetVertIt()
 vert_ptr = getVert()  # get a vertex
-setComponents(f_ptr, vert_ptr, 0, comps)
+apf.setComponents(f_ptr, vert_ptr, 0, comps)
 println("set components")
 comps_retrieved = [0.0, 0, 0, 0]
-getComponents(f_ptr, vert_ptr, 0, comps_retrieved)
+apf.getComponents(f_ptr, vert_ptr, 0, comps_retrieved)
 println("comps_retrieved = ", comps_retrieved)
 =#
 
@@ -29,7 +29,7 @@ function func2(entity_ptr, m_ptr, u_::Ptr{T}) where T
 
   u = pointer_to_array(u_, 9)  # pointer_to_array(p, dims), where p is the pointer, dims can either be an integer that is the number of elements for a 1D array, or an array (tuple?) that tells the number of elements in each dimension of the array.  This enables the C code that is behind pointer_to_array to make sense of the data laid out in memory
   coords = zeros(3,1)
-  getVertCoords(entity_ptr, coords, 3, 1)
+  apf.getVertCoords(entity_ptr, coords, 3, 1)
   x_coords = coords[1]
   frac = (x_coords + 1.5)/2.0
   h_value = 1.25*frac
@@ -70,7 +70,7 @@ u = ones(Float64, 9)
 #=
 cfunc2 = cfunction(func2, Cdouble, (Ptr{Void}, Ptr{Void}, Ptr{Float64}))
 println("typeof(cfunc2 = ", typeof(cfunc2))
-createIsoFunc(m_ptr, cfunc2, u)
+apf.createIsoFunc(m_ptr, cfunc2, u)
 runIsoAdapt(m_ptr)
 =#
 cfunc3 = cfunction(func3, Void, (Ptr{Void}, Ptr{Float64}, Ptr{Float64}, Ptr{Void}, Ptr{Float64}))
@@ -79,6 +79,6 @@ createAnisoFunc(m_ptr, cfunc3, u)
 runAnisoAdapt(m_ptr)
 
 
-writeVtkFiles("output_post", m_ptr)
-tmp, num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, 1, 0)  # re-initilize the same mesh
+apf.writeVtkFiles("output_post", m_ptr)
+tmp, num_Entities, m_ptr, mshape_ptr = apf.init2(dmg_name, smb_name, 1, 0)  # re-apf.initilize the same mesh
 

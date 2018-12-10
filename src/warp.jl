@@ -31,7 +31,7 @@ function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractMatr
   coords_j = zeros(Float64, 3)
   
   el_i = mesh.elements[elnum]
-  getDownward(mesh.m_ptr, el_i, 0, verts)
+  apf.getDownward(mesh.m_ptr, el_i, 0, verts)
 
   if mesh.coord_order == 1
     @assert (size(coords_new, 2) >= mesh.numTypePerElement[1])
@@ -46,17 +46,17 @@ function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractMatr
     for k=1:mesh.dim
       coords_j[k] = real(coords_new[k, j])
     end
-    setPoint(mesh.m_ptr, verts[j], 0, coords_j)
+    apf.setPoint(mesh.m_ptr, verts[j], 0, coords_j)
   end
 
-  if hasNodesIn(mesh.coordshape_ptr, 1)
+  if apf.hasNodesIn(mesh.coordshape_ptr, 1)
     offset = mesh.dim + 1
-    nedges = getDownward(mesh.m_ptr, el_i, 1, verts)
+    nedges = apf.getDownward(mesh.m_ptr, el_i, 1, verts)
     for j=1:nedges
       for k=1:mesh.dim
         coords_j[k] = real(coords_new[k, j + offset])
       end
-      setPoint(mesh.m_ptr, verts[j], 0, coords_j)
+      apf.setPoint(mesh.m_ptr, verts[j], 0, coords_j)
     end
   end
 
@@ -83,9 +83,9 @@ function commit_coords(mesh::PumiMesh, sbp, opts; verify=true, write_vis=false)
 # the verify kwarg determines if the Pumi verifier on the new mesh
 # that should check for negative volumes
 
-  acceptChanges(mesh.m_ptr)
+  apf.acceptChanges(mesh.m_ptr)
   if verify
-    Verify(mesh.m_ptr)
+    apf.Verify(mesh.m_ptr)
     # TODO; call our verification code too
   end
 

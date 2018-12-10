@@ -90,12 +90,12 @@ function printBoundaryFaceNums(mesh::PumiMesh2D)
       el = mesh.bndryfaces[bndry].element
       local_face = mesh.bndryfaces[bndry].face
       el_ptr = mesh.elements[el]
-      getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, edges)
+      apf.getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, edges)
       arr[i] = edges[local_face]
       bndry += 1
     end
     
-    printFaceVertNumbers(arr, mesh.edge_Nptr, mesh.vert_Nptr; fstream=f)
+    apf.printFaceVertNumbers(arr, mesh.edge_Nptr, mesh.vert_Nptr; fstream=f)
     close(f)
   end
 

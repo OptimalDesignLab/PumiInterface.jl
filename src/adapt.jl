@@ -24,14 +24,14 @@
 function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
 
   # create apf::Field
-  fsize = createPackedField(mesh.m_ptr, "size_field", 1, mesh.coordshape_ptr)
+  fsize = apf.createPackedField(mesh.m_ptr, "size_field", 1, mesh.coordshape_ptr)
 
-  zeroField(fsize)
+  apf.zeroField(fsize)
 
   # figure out which entities have nodes on them
   has_nodes = Array{Bool}(mesh.dim+1)
   for d=0:mesh.dim
-    has_nodes[d+1] = hasNodesIn(mesh.coordshape_ptr, d)
+    has_nodes[d+1] = apf.hasNodesIn(mesh.coordshape_ptr, d)
   end
 
   vals = zeros(Cdouble, 1)
@@ -43,23 +43,23 @@ function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
     el_i = mesh.elements[i]
     for d=0:mesh.dim
       if has_nodes[d+1]
-        ndown = getDownward(mesh.m_ptr, el_i, d, down_entities)
+        ndown = apf.getDownward(mesh.m_ptr, el_i, d, down_entities)
         for j=1:ndown
-          getComponents(fsize, down_entities[j], 0, vals)
+          apf.getComponents(fsize, down_entities[j], 0, vals)
           if vals[1] == 0
             vals[1] = el_sizes[i]
           else
             vals[1] = min(vals[1], el_sizes[i])
           end
 
-          setComponents(fsize, down_entities[j], 0, vals)
+          apf.setComponents(fsize, down_entities[j], 0, vals)
         end  # end loop j
       end  # end if
     end  # end loop d
   end  # end loop i
 
   # take minimum along partition boundaries
-  reduceField(fsize, mesh.shr_ptr, 1);
+  apf.reduceField(fsize, mesh.shr_ptr, 1);
 
   # return field
   return fsize
@@ -144,7 +144,7 @@ end
   new mesh object)
 
   This function deletes most of the existing Numberings and Fields on the
-  mesh in preparation for mesh re-initialization.
+  mesh in preparation for mesh reinitialization.
 
   **Inputs**
 
@@ -157,33 +157,33 @@ function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVec
 
   # get size function
   size_f = getSizeField(mesh, el_sizes)
-  isofunc = createIsoFunc(mesh.m_ptr, size_f)
+  isofunc = apf.createIsoFunc(mesh.m_ptr, size_f)
 
   # interpolate size and possibly the solution to new mesh
-  soltrans = createSolutionTransfers()
-  addSolutionTransfer(soltrans, size_f)
+  soltrans = apf.createSolutionTransfers()
+  apf.addSolutionTransfer(soltrans, size_f)
   if length(u_vec) > 0
     saveSolutionToMesh(mesh, u_vec)
-    addSolutionTransfer(soltrans, mesh.fnew_ptr)  # transfer field to new mesh
+    apf.addSolutionTransfer(soltrans, mesh.fnew_ptr)  # transfer field to new mesh
   end
 
   # configure input
-  ma_input = configureMAInput(mesh.m_ptr, isofunc, soltrans)
+  ma_input = apf.configureMAInput(mesh.m_ptr, isofunc, soltrans)
 
   # run mesh adaptation
-  runMA(ma_input)  # this function deletes ma_input
+  apf.runMA(ma_input)  # this function deletes ma_input
 
   # cleanup intermediate data
-  deleteSolutionTransfers(soltrans)
-  deleteIsoFunc(isofunc)
-  destroyField(size_f) 
+  apf.deleteSolutionTransfers(soltrans)
+  apf.deleteIsoFunc(isofunc)
+  apf.destroyField(size_f) 
 
 
   # because we are going to reinitialize the mesh, and Pumi will return
   # an existing Numbering (and possibly Field?) if a new one is created
   # with the same name, we have to delete all existing Numberings/Fields
-  destroyNumberings(mesh.m_ptr)
-  destroyFields(mesh.m_ptr, [mesh.fnew_ptr])
+  apf.destroyNumberings(mesh.m_ptr)
+  apf.destroyFields(mesh.m_ptr, [mesh.fnew_ptr])
 
   return nothing
 end
@@ -205,7 +205,7 @@ end
 function getElementSizes(mesh::PumiMesh)
 
   el_sizes = zeros(Cdouble, mesh.numEl)
-  getAvgElementSize(mesh.m_ptr, mesh.el_Nptr, el_sizes)
+  apf.getAvgElementSize(mesh.m_ptr, mesh.el_Nptr, el_sizes)
 
   return el_sizes
 end

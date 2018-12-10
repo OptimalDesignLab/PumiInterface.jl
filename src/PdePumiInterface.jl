@@ -347,7 +347,7 @@ function finalizeMesh(mesh::PumiMesh)
 
   # only do the main mesh for now
   if mesh.m_ptr != C_NULL
-    popMeshRef(mesh.m_ptr)
+    apf.popMeshRef(mesh.m_ptr)
 
     # figure out which other mesh pointers need to be zeroed
     zero_mnew = ( :mnew_ptr in fnames) && mesh.mnew_ptr == mesh.m_ptr
@@ -363,15 +363,15 @@ function finalizeMesh(mesh::PumiMesh)
   end
 
   if ( :shr_ptr in fnames)
-    freeSharing(mesh.shr_ptr)
+    apf.freeSharing(mesh.shr_ptr)
   end
 
   if ( :normalshr_ptr in fnames)
-    freeSharing(mesh.normalshr_ptr)
+    apf.freeSharing(mesh.normalshr_ptr)
   end
 
   if ( :mnew_ptr in fnames) && mesh.mnew_ptr != C_NULL
-    popMeshRef(mesh.mnew_ptr)
+    apf.popMeshRef(mesh.mnew_ptr)
 
     zero_mexact = ( :mexact_ptr in fnames) && mesh.mexact_ptr == mesh.mnew_ptr
 
@@ -382,12 +382,12 @@ function finalizeMesh(mesh::PumiMesh)
   end
 
   if ( :mexect_ptr in fnames) && mesh.mexact_ptr != C_NULL
-    popMeshRef(mesh.mexact_ptr)
+    apf.popMeshRef(mesh.mexact_ptr)
     mesh.mexact_ptr = C_NULL
   end
 
   if ( :subdata in fnames) && mesh.subdata.pobj != C_NULL
-    free(mesh.subdata)
+    apf.free(mesh.subdata)
     mesh.subdata = SubMeshData(C_NULL)
   end
 
@@ -633,15 +633,15 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   mesh.topo = ElementTopology2()  # get default topology because it isn't
                                   # important for 2d
 
-  mesh.m_ptr, dim = loadMesh(dmg_name, smb_name, order, shape_type=shape_type)
+  mesh.m_ptr, dim = apf.loadMesh(dmg_name, smb_name, order, shape_type=shape_type)
 
-  pushMeshRef(mesh.m_ptr)
+  apf.pushMeshRef(mesh.m_ptr)
   if dim != mesh.dim
     throw(ErrorException("loaded mesh is not 2 dimensions"))
   end
-  mesh.mshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
+  mesh.mshape_ptr, num_Entities, n_arr = apf.initMesh(mesh.m_ptr)
 
-#  num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, shape_type=shape_type)
+#  num_Entities, mesh.m_ptr, mesh.mshape_ptr, dim, n_arr = apf.init2(dmg_name, smb_name, order, shape_type=shape_type)
   mesh.coordshape_ptr = mesh.mshape_ptr  # coordinate shape is same as mesh
                                          # field shape for CG
   mesh.sbpface = sbpface
@@ -650,9 +650,9 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   end
   mesh.facenodes = Int[1 2 3; 2 3 1]
 
-  mesh.f_ptr = findField(mesh.m_ptr, "solution_field")
+  mesh.f_ptr = apf.findField(mesh.m_ptr, "solution_field")
   if mesh.f_ptr == C_NULL
-    mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
+    mesh.f_ptr = apf.createPackedField(mesh.m_ptr, "solution_field", dofpernode)
   end
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
   mesh.ref_verts = [0.0 1 0; 0 0 1]
@@ -666,9 +666,9 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   mesh.numTypePerElement = [3, 3, 1]
   mesh.numFacesPerElement = mesh.numTypePerElement[end-1]
 
-  num_nodes_v = countNodesOn(mesh.mshape_ptr, 0) # on vert
-  num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
-  num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
+  num_nodes_v = apf.countNodesOn(mesh.mshape_ptr, 0) # on vert
+  num_nodes_e = apf.countNodesOn(mesh.mshape_ptr, 1) # on edge
+  num_nodes_f = apf.countNodesOn(mesh.mshape_ptr, 2) # on face
   num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f]
   # count numbers of different things per other thing
   # use for bookkeeping
@@ -702,18 +702,18 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   mesh.entity_Nptrs = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.el_Nptr]
 
   # create the coloring_Nptr
-  el_mshape = getConstantShapePtr(2)
-  mesh.coloring_Nptr = createNumberingJ(mesh.m_ptr, "coloring", el_mshape, 1)
+  el_mshape = apf.getConstantShapePtr(2)
+  mesh.coloring_Nptr = apf.createNumberingJ(mesh.m_ptr, "coloring", el_mshape, 1)
 
   # create node status numbering (node, not dof)
-  mesh.nodestatus_Nptr = createNumberingJ(mesh.m_ptr, "dof status", 
+  mesh.nodestatus_Nptr = apf.createNumberingJ(mesh.m_ptr, "dof status", 
                          mesh.mshape_ptr, 1)   
   # create node numbering
-  mesh.nodenums_Nptr = createNumberingJ(mesh.m_ptr, "reordered node numbers",
+  mesh.nodenums_Nptr = apf.createNumberingJ(mesh.m_ptr, "reordered node numbers",
                        mesh.mshape_ptr, 1)
 
   # create dof numbering
-  mesh.dofnums_Nptr = createNumberingJ(mesh.m_ptr, "reordered dof numbers", 
+  mesh.dofnums_Nptr = apf.createNumberingJ(mesh.m_ptr, "reordered dof numbers", 
                       mesh.mshape_ptr, dofpernode)
 
   println("about to get entity pointers")
@@ -733,7 +733,7 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
     start_coords = opts["reordering_start_coords"]
     # tell the algorithm there is only 1 dof per node because we only
     # want to label nodes
-    reorder(mesh.m_ptr, mesh.numNodes, 1, 
+    apf.reorder(mesh.m_ptr, mesh.numNodes, 1, 
             mesh.nodestatus_Nptr, mesh.nodenums_Nptr, mesh.el_Nptr, 
 	    start_coords[1], start_coords[2])
 =#
@@ -849,14 +849,14 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   if opts["write_edge_vertnums"]
     rmfile("edge_vertnums.dat")
     f = open("edge_vertnums.dat", "a+")
-    printEdgeVertNumbers(mesh.edge_Nptr, mesh.vert_Nptr, fstream=f)
+    apf.printEdgeVertNumbers(mesh.edge_Nptr, mesh.vert_Nptr, fstream=f)
     close(f)
   end
 
   if opts["write_face_vertnums"]
     rmfile("face_vertnums.dat")
     f = open("face_vertnums.dat", "a+")
-    printFaceVertNumbers(mesh.el_Nptr, mesh.vert_Nptr, fstream=f)
+    apf.printFaceVertNumbers(mesh.el_Nptr, mesh.vert_Nptr, fstream=f)
     close(f)
   end
 
@@ -945,8 +945,8 @@ function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts;
 
   mesh.coloringDistance = coloring_distance
   # create the coloring_Nptr
-  el_mshape = getConstantShapePtr(2)
-  mesh.coloring_Nptr = createNumberingJ(mesh.m_ptr, "preconditioning coloring", el_mshape, 1)
+  el_mshape = apf.getConstantShapePtr(2)
+  mesh.coloring_Nptr = apf.createNumberingJ(mesh.m_ptr, "preconditioning coloring", el_mshape, 1)
 
   if coloring_distance == 2
     numc = colorMesh2(mesh)
@@ -1000,7 +1000,7 @@ function getMinElementSize(mesh::AbstractMesh)
 end
 
 
-# for reinitilizeing after mesh adaptation
+# for re.initilizeing after mesh adaptation
 function reinitPumiMesh2(mesh::PumiMesh2)
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
@@ -1017,7 +1017,7 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   dofpernode = mesh.numDofPerNode
   dim = mesh.dim
 
-  mshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
+  mshape_ptr, num_Entities, n_arr = apf.initMesh(mesh.m_ptr)
 #  tmp, num_Entities, m_ptr, mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
   f_ptr = mesh.f_ptr  # use existing solution field
 
@@ -1041,23 +1041,23 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   # also initilize the field to zero
 #  comps = zeros(dofpernode)
   comps = [1.0, 2, 3, 4]
-  it = MeshIterator(mesh.m_ptr, 0)
+  it = apf.MeshIterator(mesh.m_ptr, 0)
   for i=1:numVert
-    verts[i] = iterate(mesh.m_ptr, it)
+    verts[i] = apf.iterate(mesh.m_ptr, it)
   end
-  free(mesh.m_ptr, it)
+  apf.free(mesh.m_ptr, it)
 
-  it = MeshIterator(mesh.m_ptr, 1)
+  it = apf.MeshIterator(mesh.m_ptr, 1)
   for i=1:numEdge
-    edges[i] = iterate(mesh.m_ptr, it)
+    edges[i] = apf.iterate(mesh.m_ptr, it)
   end
-  free(mesh.m_ptr, it)
+  apf.free(mesh.m_ptr, it)
 
-  it = MeshIterator(mesh.m_ptr, it)
+  it = apf.MeshIterator(mesh.m_ptr, it)
   for i=1:numEl
-    elements[i] = iterate(mesh.m_ptr, it)
+    elements[i] = apf.iterate(mesh.m_ptr, it)
   end
-  free(mesh.m_ptr, it)
+  apf.free(mesh.m_ptr, it)
 
   # calculate number of nodes, dofs (works for first and second order)
   numnodes = order*numVert 
@@ -1066,7 +1066,7 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   ctr= 1
   for i=1:numVert
     for j=1:dofpernode
-      numberJ(dofnums_Nptr, verts[i], 0, j-1, ctr)
+      apf.numberJ(dofnums_Nptr, verts[i], 0, j-1, ctr)
 #      println("vertex ", i,  " numbered ", ctr)
       ctr += 1
     end
@@ -1075,7 +1075,7 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   if order >= 2
     for i=1:numEdges
       for j=1:dofpernode
-        numberJ(dofnums_Nptr, edges[i], 0, j-1, ctr)
+        apf.numberJ(dofnums_Nptr, edges[i], 0, j-1, ctr)
         ctr += 1
       end
     end
@@ -1086,21 +1086,21 @@ function reinitPumiMesh2(mesh::PumiMesh2)
   # count boundary edges
   bnd_edges_cnt = 0
   bnd_edges = Array{Int}(numEdge, 2)
-  it = MeshIterator(mesh.m_ptr, it)
+  it = apf.MeshIterator(mesh.m_ptr, it)
   for i=1:numEdge
-    edge_i = iterate(mesh.m_ptr, it)
-    numFace = countAdjacent(m_ptr, edge_i, 2)  # should be count upward
+    edge_i = apf.iterate(mesh.m_ptr, it)
+    numFace = apf.countAdjacent(m_ptr, edge_i, 2)  # should be count upward
 
     if numFace == 1  # if an exterior edge
-      faces = getAdjacent(numFace)
-      facenum = getNumberJ(mesh.el_Nptr, faces[1], 0, 0) + 1
+      faces = apf.getAdjacent(numFace)
+      facenum = apf.getNumberJ(mesh.el_Nptr, faces[1], 0, 0) + 1
 
       bnd_edges_cnt += 1
       bnd_edges[bnd_edges_cnt, 1] = facenum
       bnd_edges[bnd_edges_cnt, 2] = i
     end
   end
-  free(mesh.m_ptr, it)
+  apf.free(mesh.m_ptr, it)
 
   bnd_edges_small = bnd_edges[1:bnd_edges_cnt, :]
 
@@ -1120,7 +1120,7 @@ function reinitPumiMesh2(mesh::PumiMesh2)
 
   registerFinalizer(mesh)
 
-  writeVtkFiles("mesh_complete", m_ptr)
+  apf.writeVtkFiles("mesh_complete", m_ptr)
 end
 
 

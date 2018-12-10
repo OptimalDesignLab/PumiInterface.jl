@@ -86,29 +86,29 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
   @testset "testing initSendToOwner" begin
     data = PdePumiInterface.initSendToOwner(mesh, mesh.coordshape_ptr, (mesh.dim,))
 
-    shr = getNormalSharing(mesh.m_ptr)
+    shr = apf.getNormalSharing(mesh.m_ptr)
     # test that all entities owned by another process are present
     for dim=0:(mesh.dim-1)
-      it = MeshIterator(mesh.m_ptr, dim)
-      nnodes = countNodesOn(mesh.coordshape_ptr, dim) != 0
+      it = apf.MeshIterator(mesh.m_ptr, dim)
+      nnodes = apf.countNodesOn(mesh.coordshape_ptr, dim) != 0
 
 
       for j=1:mesh.numEntitiesPerType[dim+1]
-        entity = iterate(mesh.m_ptr, it)
-        owner = getOwner(shr, entity)
-        if isSharedShr(shr, entity) && owner != mesh.myrank && countNodesOn(mesh.coordshape_ptr, dim) != 0
+        entity = apf.iterate(mesh.m_ptr, it)
+        owner = apf.getOwner(shr, entity)
+        if apf.isSharedShr(shr, entity) && owner != mesh.myrank && apf.countNodesOn(mesh.coordshape_ptr, dim) != 0
           owner_idx = getPeerIdx(data, owner)
           @test entity in data.send[owner_idx]._entities_local
         end
       end
-      free(mesh.m_ptr, it)
+      apf.free(mesh.m_ptr, it)
     end
 
     # test that the local indices were computed correctly
     coords = Array{Float64}(3)
     for data_i in data.send
       for j=1:length(data_i._entities_local)
-        getPoint(mesh.m_ptr, data_i._entities_local[j], 0, coords)
+        apf.getPoint(mesh.m_ptr, data_i._entities_local[j], 0, coords)
 
         for j=data_i.colptr[j]:(data_i.colptr[j+1]-1)
           idx = data_i.local_indices[j]
@@ -124,8 +124,8 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
     idx = 1
     for data_i in data.recv
       for entity in data_i.entities
-        @test isSharedShr(shr, entity)
-        @test getOwner(shr, entity) == mesh.myrank
+        @test apf.isSharedShr(shr, entity)
+        @test apf.getOwner(shr, entity) == mesh.myrank
       end
     end
 
@@ -142,35 +142,35 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
     coords = Array{Float64}(3)
     for dim=0:mesh.dim
 
-      if !hasNodesIn(mesh.coordshape_ptr, dim)
+      if !apf.hasNodesIn(mesh.coordshape_ptr, dim)
         continue
       end
 
-      it = MeshIterator(mesh.m_ptr, dim)
+      it = apf.MeshIterator(mesh.m_ptr, dim)
       for i=1:mesh.numEntitiesPerType[dim+1]
-        entity = iterate(mesh.m_ptr, it)
-        owner = getOwner(shr, entity)
-        #typ = getType(mesh.m_ptr, entity)
+        entity = apf.iterate(mesh.m_ptr, it)
+        owner = apf.getOwner(shr, entity)
+        #typ = apf.getType(mesh.m_ptr, entity)
 
-        if isSharedShr(shr, entity)
-          ncopies = countCopies(shr, entity)
-          nlocals = countAdjacent(mesh.m_ptr, entity, mesh.dim)
+        if apf.isSharedShr(shr, entity)
+          ncopies = apf.countCopies(shr, entity)
+          nlocals = apf.countAdjacent(mesh.m_ptr, entity, mesh.dim)
           for j=1:mesh.coord_numNodesPerType[dim+1]
-            getPoint(mesh.m_ptr, entity, j-1, coords)
+            apf.getPoint(mesh.m_ptr, entity, j-1, coords)
             for k=1:mesh.dim
-              idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+              idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
               if owner == mesh.myrank
                 @test abs(data_recv[idx] - ncopies*coords[k]) < 1e-13
                 @test abs(coords_vec[idx] - coords[k]) < 1e-13
               elseif owner != mesh.myrank
-                idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+                idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
                 @test coords_vec[idx] == 0
               end  # end if
             end  # end k
           end  # end j
         end  # end if
       end  # end i
-      free(mesh.m_ptr, it)
+      apf.free(mesh.m_ptr, it)
     end  # end dim
 
 
@@ -188,25 +188,25 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
     PdePumiInterface.receiveParallelData_rev(data, calc_func2)
     # check the rank-specific offset
     for dim=0:mesh.dim
-      it = MeshIterator(mesh.m_ptr, dim)
+      it = apf.MeshIterator(mesh.m_ptr, dim)
       for i=1:mesh.numEntitiesPerType[dim+1]
-        entity = iterate(mesh.m_ptr, it)
+        entity = apf.iterate(mesh.m_ptr, it)
         for j=1:mesh.coord_numNodesPerType[dim+1]
-          getPoint(mesh.m_ptr, entity, j-1, coords)
+          apf.getPoint(mesh.m_ptr, entity, j-1, coords)
           for k=1:mesh.dim
-            idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+            idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
 
-            if isOwned(mesh.normalshr_ptr, entity)
+            if apf.isOwned(mesh.normalshr_ptr, entity)
               @test abs(coords_vec2[idx] - (coords[k] + mesh.myrank)) < 1e-13
             else
-              owner = getOwner(mesh.normalshr_ptr, entity)
+              owner = apf.getOwner(mesh.normalshr_ptr, entity)
               @test abs(coords_vec2[idx] - (coords[k] + owner)) < 1e-13
             end
           end  # end k
         end  # end j
       end   # end i
 
-      free(mesh.m_ptr, it)
+      apf.free(mesh.m_ptr, it)
     end  # end dim
 
 

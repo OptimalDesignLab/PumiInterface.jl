@@ -20,12 +20,12 @@ function getSparsityCounts(mesh::PumiMeshDG, sparse_bnds::AbstractArray{Int32, 2
   shared_edges = Array{Ptr{Void}}(4)
   for i=1:mesh.numEl
     el_ptr = mesh.elements[i]
-    getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, edges)
+    apf.getDownward(mesh.m_ptr, el_ptr, mesh.dim-1, edges)
     nremotes = 0
     for j=1:mesh.numFacesPerElement
       edge_j = edges[j]
-      ncopies = countCopies(mesh.shr_ptr, edge_j)
-      getCopies(part_nums, shared_edges)
+      ncopies = apf.countCopies(mesh.shr_ptr, edge_j)
+      apf.getCopies(part_nums, shared_edges)
       for k=1:ncopies
         if part_nums[k] != mesh.myrank
           nremotes += 1
@@ -63,11 +63,11 @@ function getDofConnectivity(mesh::PumiMesh2)
   els_all = Array{Ptr{Void}}(3*up_cnt)
   els_tmp = Array{Ptr{Void}}(3*up_cnt)
   for i=1:mesh.numEl
-    getDownward(mesh.m_ptr, 0, verts)
+    apf.getDownward(mesh.m_ptr, 0, verts)
     pos = 1
     for j=1:3
-      nel[j] = countAdjacent(mesh.m_ptr, verts[j], 2)
-      getAdjacent(up)
+      nel[j] = apf.countAdjacent(mesh.m_ptr, verts[j], 2)
+      apf.getAdjacent(up)
       # copy element pointer into a single array
       for k=1:nel[j]
         els_all[pos] = up[k]
@@ -93,11 +93,11 @@ function getDofConnectivity(mesh::PumiMesh2)
   dof_elements = zeros(Int32, max_el, mesh.numNodes)
   # now get the element numbers
   for i=1:mesh.numEl
-    getDownward(mesh.m_ptr, 0, verts)
+    apf.getDownward(mesh.m_ptr, 0, verts)
     pos = 1
     for j=1:3
-      nel[j] = countAdjacent(mesh.m_ptr, verts[j], 2)
-      getAdjacent(up)
+      nel[j] = apf.countAdjacent(mesh.m_ptr, verts[j], 2)
+      apf.getAdjacent(up)
       # copy element pointer into a single array
       for k=1:nel[j]
         els_all[pos] = up[k]
@@ -166,10 +166,10 @@ end
 for etype=1:(mesh.dim+1)  # loop over mesh entity types
  
   if (num_nodes_entity[etype] != 0)  # there are nodes herea
-    it = MeshIterator(mesh.m_ptr, etype-1)
+    it = apf.MeshIterator(mesh.m_ptr, etype-1)
     for entity = 1:num_entities[etype]  # loop over all entities of this type
 #      entity_ptr = iterators_get[etype]()  # get pointer to mesh entity
-      entity_ptr = iterate(mesh.m_ptr, it)
+      entity_ptr = apf.iterate(mesh.m_ptr, it)
 
       min, max = getDofBounds(mesh, entity_ptr, getdofs=getdofs)
       for node = 1:num_nodes_entity[etype]  # loop over nodes on each entity
@@ -177,7 +177,7 @@ for etype=1:(mesh.dim+1)  # loop over mesh entity types
 	# use the same min, max for all dofs on this node
 
 	for dof = 1:numDofPerNode
-	  dofnum = getNumberJ(numbering_Nptr, entity_ptr, node - 1, dof-1)
+	  dofnum = apf.getNumberJ(numbering_Nptr, entity_ptr, node - 1, dof-1)
           sparse_bnds[1, dofnum] = min
 	  sparse_bnds[2, dofnum] = max
 
@@ -185,7 +185,7 @@ for etype=1:(mesh.dim+1)  # loop over mesh entity types
       end  # end loop over nodes on entity
 #      iterators_inc[etype]()
     end  # end loops over entities of this type
-    free(mesh.m_ptr, it)
+    apf.free(mesh.m_ptr, it)
   end  # end if statement
 end  # end loop over entity types
 
@@ -202,19 +202,19 @@ function getDofBounds(mesh::PumiMesh2D, entity_ptr::Ptr{Void}; getdofs=true)
 # this works for distance-0 and 1 colorings
 
 #iterators_get = [getVert, getEdge, getFace]
-#it = MeshIterator(mesh.m_ptr, etype - 1)
+#it = apf.MeshIterator(mesh.m_ptr, etype - 1)
 #entity_ptr = iterators_get[etype]()
 
 # get associated elements (distance-0 elements)
-num_adj = countAdjacent(mesh.m_ptr, entity_ptr, 2)
-el_arr = getAdjacent(num_adj)
+num_adj = apf.countAdjacent(mesh.m_ptr, entity_ptr, 2)
+el_arr = apf.getAdjacent(num_adj)
 
 # distance-1
 #=
 dofnums = zeros(Int32, mesh.numDofPerNode, mesh.numNodesPerElement, num_adj)
 
 for i=1:num_adj
-  el_i = getNumberJ(mesh.el_Nptr, el_arr[i], 0, 0) + 1
+  el_i = apf.getNumberJ(mesh.el_Nptr, el_arr[i], 0, 0) + 1
   sub_arr = sub(dofnums, :, :, i)
   getGlobalNodeNumbers(mesh, el_i, sub_arr)
 end
@@ -230,7 +230,7 @@ return min, max
     edge_arr = Array{Ptr{Void}}(num_adj*3)  # enough space for all edges, including repeats
     for i=1:num_adj  # get the edges
       sub_arr = sview(edge_arr, (3*(i-1) + 1):(3*i))
-      getDownward(mesh.m_ptr, el_arr[i], 1, sub_arr)
+      apf.getDownward(mesh.m_ptr, el_arr[i], 1, sub_arr)
     end
 
     # edge_arr now populated with all edges
@@ -238,7 +238,7 @@ return min, max
     # print the edge numbers
   #=
     for i=1:num_adj*3
-      edge_num_i = getNumberJ(mesh.edge_Nptr, edge_arr[i], 0, 0)
+      edge_num_i = apf.getNumberJ(mesh.edge_Nptr, edge_arr[i], 0, 0)
       println("edge ", i, " has number ", edge_num_i)
     end
   =#
@@ -249,7 +249,7 @@ return min, max
   #  println("length(num_els) = ", length(num_els))
   #  println("length(edge_arr) = ", length(edge_arr))
     for i=1:length(edge_arr)
-      num_els[i] = countAdjacent(mesh.m_ptr, edge_arr[i], 2)
+      num_els[i] = apf.countAdjacent(mesh.m_ptr, edge_arr[i], 2)
     end
 
     # now get the elements
@@ -260,8 +260,8 @@ return min, max
     for i=1:length(edge_arr)
       edge_i = edge_arr[i]
       sub_arr = sview(el_arr, start_idx:end_idx)
-      countAdjacent(mesh.m_ptr, edge_i, 2)
-      getAdjacent(sub_arr)
+      apf.countAdjacent(mesh.m_ptr, edge_i, 2)
+      apf.getAdjacent(sub_arr)
 
       # update indices
       start_idx = end_idx + 1
@@ -286,7 +286,7 @@ return min, max
   dofnums = zeros(Int32, numDofPerNode, mesh.numNodesPerElement, num_adj)
 
   for i=1:num_adj
-    elnum_i = getNumberJ(mesh.el_Nptr, el_arr[i], 0, 0) + 1
+    elnum_i = apf.getNumberJ(mesh.el_Nptr, el_arr[i], 0, 0) + 1
     getGlobalNodeNumbers(mesh, elnum_i, sview(dofnums, :, :, i), getdofs=getdofs)
   end
 

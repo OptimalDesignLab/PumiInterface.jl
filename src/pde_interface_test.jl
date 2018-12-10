@@ -22,7 +22,7 @@ for i=1:mesh.numBoundaryFaces
   println("element ", bndry.element, " has local edge number ", bndry.face, " on the external boundary")
 end
 
-printEdgeVertNumbers(mesh.edge_Nptr, mesh.vert_Nptr)
+apf.printEdgeVertNumbers(mesh.edge_Nptr, mesh.vert_Nptr)
 
 adjacent_nums, num_adjacent = getAdjacentEntityNums(mesh, 1, 1, 2)
 println("adjacent_nums = ", adjacent_nums, " num_adjacent = ", num_adjacent)

@@ -1,5 +1,10 @@
 # utilities for managing Pumi lbraries
 
+module PumiConfig
+
+using MPI
+
+export CppBool, CONFIG_PATHS
 
 # make MeshEntity* passable by MPI
 if sizeof(Ptr{Void}) == sizeof(Int32)
@@ -39,6 +44,10 @@ function readConfigFile()
   # this is basically like RPATH
   fname = joinpath(dirname(@__FILE__), "PUMI_RPATH")
 
+  if !isfile(fname)
+    error("PUMI_RPATH file not found: please rebuild PumiInterface.jl")
+  end
+
   for line in eachline(fname)
     substr = split(chomp(line))
     @assert length(substr) == 2
@@ -69,4 +78,4 @@ end
 
 readConfigFile()
 
-
+end  # end module

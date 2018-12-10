@@ -4,17 +4,17 @@
 
 using PumiInterface
 include("funcs2.jl")
-declareNames();  # declare global variable names
-# initilize mesh
+apf.declareNames();  # declare global variable names
+# apf.initilize mesh
 dmg_name = "cube.dmg"
 smb_name = "tet-mesh-1.smb"
-#dmg_name = "reorder_a.dmg"
-#smb_name = "reorder_a.smb"
+#dmg_name = "apf.reorder_a.dmg"
+#smb_name = "apf.reorder_a.smb"
 #dmg_name = ".null"
 #smb_name = ".smb"
-downward_counts_tmp, num_entities_tmp, m2_ptr, mshape_ptr = init(dmg_name, smb_name)
-m_ptr = getMeshPtr()
-mshape_ptr = getMeshShapePtr()
+downward_counts_tmp, num_entities_tmp, m2_ptr, mshape_ptr = apf.init(dmg_name, smb_name)
+m_ptr = apf.getMeshPtr()
+mshape_ptr = apf.getMeshShapePtr()
 
 vertN_ptr = getVertNumbering()
 edgeN_ptr = getEdgeNumbering()
@@ -44,17 +44,17 @@ resetElIt();
 
 coords = Array{Float64}(3, 1)   # pass an array 3 by n (3 coordinates each for n points)
 (m,n) = size(coords)
-getVertCoords(coords, m, n)
+apf.getVertCoords(coords, m, n)
 
 coords = zeros(3,2)
 (m,n) = size(coords)
-getEdgeCoords(coords, m, n)
+apf.getEdgeCoords(coords, m, n)
 
 # get face coordinates
 numP = downward_counts[3, 1]
 coords = zeros(3,numP)
 (m,n) = size(coords)
-getFaceCoords(coords, m, n)
+apf.getFaceCoords(coords, m, n)
 println("from julia, face coords = ", coords)
 print("\n")
 
@@ -63,7 +63,7 @@ print("\n")
 numP = downward_counts[4,1]
 coords = zeros(3, numP)
 (m,n) = size(coords)
-getElCoords(coords, m,n)
+apf.getElCoords(coords, m,n)
 println("from julia, element coords = ", coords)
 
 resetElIt()
@@ -108,123 +108,123 @@ println("typeof(entity) in main = ", typeof(entity) )
 i = getVertNumber2(entity)
 println("vertex number = ", i)
 
-i = getMeshDimension(m_ptr);
+i = apf.getMeshDimension(m_ptr);
 println("mesh dimension from julia = ", i )
 
-i = countNodesOn(mshape_ptr, 2);
+i = apf.countNodesOn(mshape_ptr, 2);
 println("number of nodes on type 2 = ", i)
 
-numbering_ptr = createNumberingJ(m_ptr, "numberingJ1", mshape_ptr, 1)
+numbering_ptr = apf.createNumberingJ(m_ptr, "numberingJ1", mshape_ptr, 1)
 println("created numbering")
 
-numberJ(numbering_ptr, entity, 0, 0, 5)
-i = getNumberJ(numbering_ptr, entity, 0, 0)
+apf.numberJ(numbering_ptr, entity, 0, 0, 5)
+i = apf.getNumberJ(numbering_ptr, entity, 0, 0)
 println("number of entity = ", i)
 
-i = getNumberJ(vertN_ptr, entity, 0, 0)
+i = apf.getNumberJ(vertN_ptr, entity, 0, 0)
 println("global number of vertex entity = ", i)
 
 entity = getEdge()
-i = getNumberJ(edgeN_ptr, entity, 0, 0)
+i = apf.getNumberJ(edgeN_ptr, entity, 0, 0)
 println("global number of edge entity = ", i)
 
 entity = getFace()
-i = getNumberJ(faceN_ptr, entity, 0, 0)
+i = apf.getNumberJ(faceN_ptr, entity, 0, 0)
 println("global number of face entity = ", i)
 
 entity = getEl()
-i = getNumberJ(elN_ptr, entity, 0, 0)
+i = apf.getNumberJ(elN_ptr, entity, 0, 0)
 println("global number of element entity = ", i)
 
-i = getMeshDimension(m2_ptr)
+i = apf.getMeshDimension(m2_ptr)
 println("mesh2 dimension = ", i)
 
-downwards, npoints = getDownward(m_ptr, entity, 0)
+downwards, npoints = apf.getDownward(m_ptr, entity, 0)
 println("npoints = ", npoints)
 j = 1
 for entity2 in downwards
-  num = getNumberJ(vertN_ptr, entity2, 0, 0);
+  num = apf.getNumberJ(vertN_ptr, entity2, 0, 0);
   println("entity $j on current element has number", num)
   j += 1
 end
 
-entity_type = getType(m_ptr, entity)
+entity_type = apf.getType(m_ptr, entity)
 println("type of current entity = ", entity_type)
-i = countNodesOn(mshape_ptr, entity_type)
+i = apf.countNodesOn(mshape_ptr, entity_type)
 println(" number of nodes on current entity = ", i)
 
-printNumberingName(faceN_ptr)
+apf.printNumberingName(faceN_ptr)
 
 resetVertIt()
 incrementIt(3)
 entity = getEl()
-i = getNumberJ(elN_ptr, entity, 0, 0)
+i = apf.getNumberJ(elN_ptr, entity, 0, 0)
 println("global number of vertex entity = ", i)
 
 
-tag_ptr = createDoubleTag( m_ptr, "tag1", 2)
-setDoubleTag( m_ptr, entity, tag_ptr, [3.5, 2.5])
+tag_ptr = apf.createDoubleTag( m_ptr, "tag1", 2)
+apf.setDoubleTag( m_ptr, entity, tag_ptr, [3.5, 2.5])
 data_ret = zeros(1,2)
 data_ret[1] = 2.0
-getDoubleTag( m_ptr, entity, tag_ptr, data_ret)
+apf.getDoubleTag( m_ptr, entity, tag_ptr, data_ret)
 println("data_ret = ", data_ret)
 
 
 entity = getVert()
-n = countAdjacent(m_ptr, entity, 3)
+n = apf.countAdjacent(m_ptr, entity, 3)
 #println("vertex has ", i, " 3d regions ")
 
-adj = getAdjacent(n)
+adj = apf.getAdjacent(n)
 
-(adj, n) = getAdjacentFull(m_ptr, entity, 3)
+(adj, n) = apf.getAdjacentFull(m_ptr, entity, 3)
 println("vertex has ", n, " 3d regions ")
 println("size(adj) = ", size(adj))
 for k in adj
-  n = getNumberJ(elN_ptr, k, 0, 0)
-  m = countDownwards(m_ptr, k)
+  n = apf.getNumberJ(elN_ptr, k, 0, 0)
+  m = apf.countDownwards(m_ptr, k)
   println("element number = ", n)
   println("downward adjacency counts = ", m)
 end
 
-hasNodesIn(mshape_ptr, 0)
-hasNodesIn(mshape_ptr, 1)
+apf.hasNodesIn(mshape_ptr, 0)
+apf.hasNodesIn(mshape_ptr, 1)
 
-i = countNodesOn(mshape_ptr, getType(m_ptr, entity))
+i = apf.countNodesOn(mshape_ptr, apf.getType(m_ptr, entity))
 println("number of nodes on vertex = ", i)
 
 for i = 0:4
-  j = countNodesOn(mshape_ptr, i)
+  j = apf.countNodesOn(mshape_ptr, i)
   println("entity of type ", i, "has ", j, " nodes")
 end
 
 
-eshape_ptr = getEntityShape(mshape_ptr, 3)
-i = countNodes(eshape_ptr)
+eshape_ptr = apf.getEntityShape(mshape_ptr, 3)
+i = apf.countNodes(eshape_ptr)
 println("number of nodes on entity of type 3 = ", i)
 
-i = countAllNodes(mshape_ptr, 3)
+i = apf.countAllNodes(mshape_ptr, 3)
 println("number of nodes on entity of type 3 = ", i)
 
-printEdgeVertNumbers(edgeN_ptr, vertN_ptr)
+apf.printEdgeVertNumbers(edgeN_ptr, vertN_ptr)
 
-writeVtkFiles("vtkTest", m_ptr)
+apf.writeVtkFiles("vtkTest", m_ptr)
 
 entity = getFace()
-etype = getType(m_ptr, entity)
-eshape_ptr = getEntityShape(mshape_ptr, etype)
+etype = apf.getType(m_ptr, entity)
+eshape_ptr = apf.getEntityShape(mshape_ptr, etype)
 
 
-mel_ptr = createMeshElement(m_ptr, entity)
-i = countIntPoints(mel_ptr, 5)
+mel_ptr = apf.createMeshElement(m_ptr, entity)
+i = apf.countIntPoints(mel_ptr, 5)
 println("face requires ", i, " points for 5th order accurate integration")
-numN = countNodes(eshape_ptr)
+numN = apf.countNodes(eshape_ptr)
 
 for k=1:i
-  coords = getIntPoint(mel_ptr, 5, k)
-  weight = getIntWeight(mel_ptr, 5,k)
-  sh_vals = getValues2(eshape_ptr, coords)
-  shd_vals = getLocalGradients2(eshape_ptr, coords)
-  jac = getJacobian(mel_ptr, coords)
+  coords = apf.getIntPoint(mel_ptr, 5, k)
+  weight = apf.getIntWeight(mel_ptr, 5,k)
+  sh_vals = apf.getValues2(eshape_ptr, coords)
+  shd_vals = apf.getLocalGradients2(eshape_ptr, coords)
+  jac = apf.getJacobian(mel_ptr, coords)
   println("point ", k, " has coordinates ", coords, " and weight ", weight)
   println("shape function values = ", sh_vals)
   println("shape function derivative values = ", shd_vals)
@@ -235,17 +235,17 @@ end
 resetVertIt()
 entity = getVert()
 coords = zeros(3,1)
-getVertCoords(entity, coords, 3, 1)
+apf.getVertCoords(entity, coords, 3, 1)
 println("coords = ", coords)
 
 resetEdgeIt()
 entity = getEdge()
 coords = zeros(3,2)
-getEdgeCoords(entity, coords, 3, 2)
+apf.getEdgeCoords(entity, coords, 3, 2)
 println("coords = ", coords)
 
 resetFaceIt()
 entity = getFace()
 coords = zeros(3,3)
-getFaceCoords(entity, coords, 3, 4)
+apf.getFaceCoords(entity, coords, 3, 4)
 

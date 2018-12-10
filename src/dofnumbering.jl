@@ -16,30 +16,30 @@ function populateDofNumbers(mesh::PumiMesh)
 
   for etype = 1:(mesh.dim+1) # loop over entity types
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
-      it = MeshIterator(mesh.m_ptr, etype - 1)
+      it = apf.MeshIterator(mesh.m_ptr, etype - 1)
       for entity = 1:num_entities[etype]  # loop over all entities of this type
 #	entity_ptr = iterators_get[etype]()  # get entity
-        entity_ptr = iterate(mesh.m_ptr, it)
+        entity_ptr = apf.iterate(mesh.m_ptr, it)
 
 	for node = 1:num_nodes_entity[etype]
-          nodenum = getNumberJ(mesh.nodenums_Nptr, entity_ptr, node-1, 0)
+          nodenum = apf.getNumberJ(mesh.nodenums_Nptr, entity_ptr, node-1, 0)
 	  if nodenum != 0
 	    for i=1:mesh.numDofPerNode
 	      dofnum_i = (nodenum -1)*mesh.numDofPerNode + i
-  	      numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, i-1, dofnum_i)
+  	      apf.numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, i-1, dofnum_i)
 	    end  # end loop over dofsPerNode
 	  end   # end if nodenum != 0
 	end  # end loop over node
 
 #      iterators_inc[etype]()
       end  # end loop over entitiesa
-      free(mesh.m_ptr, it)
+      apf.free(mesh.m_ptr, it)
     end  # end if 
   end  # end loop over entity types
 
 #  resetAllIts2(mesh.m_ptr)
 
-#  writeVtkFiles("dofs_numbered", mesh.m_ptr)
+#  apf.writeVtkFiles("dofs_numbered", mesh.m_ptr)
   return nothing
 end
 
@@ -61,18 +61,18 @@ function populateNodeStatus(mesh::PumiMesh)
 
   for etype = 1:(mesh.dim + 1) # loop over entity types
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
-      it = MeshIterator(mesh.m_ptr, etype - 1)
+      it = apf.MeshIterator(mesh.m_ptr, etype - 1)
       for entity = 1:num_entities[etype]  # loop over all entities of this type
 #	entity_ptr = iterators_get[etype]()  # get entity
-        entity_ptr = iterate(mesh.m_ptr, it)
+        entity_ptr = apf.iterate(mesh.m_ptr, it)
 
 	for node = 1:num_nodes_entity[etype]
-	  numberJ(mesh.nodestatus_Nptr, entity_ptr, node-1, 0, 3)
+	  apf.numberJ(mesh.nodestatus_Nptr, entity_ptr, node-1, 0, 3)
 	end  # end loop over node
 
 #      iterators_inc[etype]()
       end  # end loop over entitiesa
-      free(mesh.m_ptr, it)
+      apf.free(mesh.m_ptr, it)
     end  # end if 
   end  # end loop over entity types
 
@@ -249,25 +249,25 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
   el_i_ptr = Ptr{Void}(0)  # hold current element
 # TODO: move all if statements out one for loop (check only first dof on each node)
   curr_dof = 1
-  it = MeshIterator(mesh.m_ptr, mesh.dim)
+  it = apf.MeshIterator(mesh.m_ptr, mesh.dim)
   for i=1:mesh.numEl
-    el_i_ptr = iterate(mesh.m_ptr, it)
+    el_i_ptr = apf.iterate(mesh.m_ptr, it)
 #    el_i_ptr = getFace()
 #    incrementFaceIt()
     # get vertices, edges for this element
-    numVert = getDownward(mesh.m_ptr, el_i_ptr, 0, verts_i)
+    numVert = apf.getDownward(mesh.m_ptr, el_i_ptr, 0, verts_i)
 #    println("verts_i = ", verts_i)
 #    println("mesh.verts = ", mesh.verts)
-    numEdge = getDownward(mesh.m_ptr, el_i_ptr, 1, edges_i)
+    numEdge = apf.getDownward(mesh.m_ptr, el_i_ptr, 1, edges_i)
     for j=1:3  # loop over vertices, edges  #TODO: why is this 1:3?
       vert_j = verts_i[j]
       edge_j = edges_i[j]
       for k=1:num_nodes_entity[1] # loop over vertex nodes
         for p=1:dofpernode
-          dofnum_k = getNumberJ(numbering_ptr, vert_j, k-1, p-1)
+          dofnum_k = apf.getNumberJ(numbering_ptr, vert_j, k-1, p-1)
           if dofnum_k > numDof  # still has initial number
             # give it new (final) number
-            numberJ(numbering_ptr, vert_j, 0, k-1, curr_dof)
+            apf.numberJ(numbering_ptr, vert_j, 0, k-1, curr_dof)
             curr_dof += 1
           end
         end
@@ -276,10 +276,10 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
       # loop over nodes on edge
       for k=1:num_nodes_entity[2]  # loop over nodes
 	for p=1:dofpernode  # loop over dofs
-	  dofnum_p = getNumberJ(numbering_ptr, edge_j, k-1, p-1)
+	  dofnum_p = apf.getNumberJ(numbering_ptr, edge_j, k-1, p-1)
 	  if dofnum_p > numDof  # still has initial number
 	    # give it new (final) number
-	    numberJ(numbering_ptr, edge_j, k-1, p-1, curr_dof)
+	    apf.numberJ(numbering_ptr, edge_j, k-1, p-1, curr_dof)
 	    curr_dof += 1
 	  end
 	end
@@ -293,16 +293,16 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
         # we would have to do additional translation to take them into account
 
       for p=1:dofpernode  # loop over dofs
-	dofnum_p = getNumberJ(numbering_ptr, el_i_ptr, k-1, p-1)
+	dofnum_p = apf.getNumberJ(numbering_ptr, el_i_ptr, k-1, p-1)
 	if dofnum_p > numDof
-	  numberJ(numbering_ptr, el_i_ptr, k-1, p-1, curr_dof)
+	  apf.numberJ(numbering_ptr, el_i_ptr, k-1, p-1, curr_dof)
 	  curr_dof += 1
 	end
       end
     end  # end loop over face nodes
   end  # end loop over elements
 
-  free(mesh.m_ptr, it)
+  apf.free(mesh.m_ptr, it)
 #  resetAllIts2(mesh.m_ptr)
 
 
@@ -374,7 +374,7 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
 
   if mesh.isDG
     nodemap =  mesh.nodemapSbpToPumi
-  else  # fake nodemap: always 1:1, this works because we iterate over the
+  else  # fake nodemap: always 1:1, this works because we apf.iterate over the
         # entities of each dimension, so every entity is visited exactly once
         # Such an algorith generates a horrible sparsity pattern, but this
         # is the default algorithm, so whatever
@@ -383,10 +383,10 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
 
   for etype = 1:(mesh.dim + 1) # loop over entity types
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
-      it = MeshIterator(mesh.m_ptr, etype - 1)
+      it = apf.MeshIterator(mesh.m_ptr, etype - 1)
       for entity = 1:num_entities[etype]  # loop over all entities of this type
 #	entity_ptr = iterators_get[etype]()  # get entity
-        entity_ptr = iterate(mesh.m_ptr, it)
+        entity_ptr = apf.iterate(mesh.m_ptr, it)
 
 	for node = 1:num_nodes_entity[etype]
           pumi_node = nodemap[node]  # this appears to only work for elements
@@ -394,7 +394,7 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
                                      # there would need to be different node
                                      # maps for entities of different dimension
 	  for dof = 1:dofpernode
-	    numberJ(numbering_ptr, entity_ptr, pumi_node-1, dof-1, curr_dof)
+	    apf.numberJ(numbering_ptr, entity_ptr, pumi_node-1, dof-1, curr_dof)
 	    curr_dof += 1
 	  end  # end loop over dof
 	end  # end loop over node
@@ -402,7 +402,7 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
 #      iterators_inc[etype]()
       end  # end loop over entitiesa
 
-      free(mesh.m_ptr, it)
+      apf.free(mesh.m_ptr, it)
     end  # end if 
   end  # end loop over entity types
 
@@ -485,16 +485,16 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   # initially number all components in range (numEl+1):(2*numEl)
   curr_elnum = mesh.numEl+1
 #  resetIt(dim)
-  it = MeshIterator(mesh.m_ptr, dim)
+  it = apf.MeshIterator(mesh.m_ptr, dim)
   for i=1:mesh.numEl
-    el_i = iterate(mesh.m_ptr, it)
+    el_i = apf.iterate(mesh.m_ptr, it)
 #    el_i = getEntity(dim)
 
-    numberJ(el_Nptr, el_i, 0, 0, curr_elnum)
+    apf.numberJ(el_Nptr, el_i, 0, 0, curr_elnum)
     curr_elnum += 1
 #    incrementIt(dim)
   end
-  free(mesh.m_ptr, it)
+  apf.free(mesh.m_ptr, it)
   @assert (curr_elnum - 1) == 2*mesh.numEl
 
   # do the final numbering
@@ -511,32 +511,32 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
 
     # only unlabelled entities are added to the que, and they are added 
     # exactly once, so no need to check here
-    numberJ(el_Nptr, curr_el, 0, 0, curr_elnum)
+    apf.numberJ(el_Nptr, curr_el, 0, 0, curr_elnum)
     curr_elnum += 1
 
     # now label dofs
     for i=1:mesh.numNodesPerElement
       pumi_node = nodemap[i]
       for j=1:dofpernode
-        numberJ(numbering_ptr, curr_el, pumi_node-1, j-1, curr_dof)
+        apf.numberJ(numbering_ptr, curr_el, pumi_node-1, j-1, curr_dof)
         curr_dof += 1
       end
     end
 
     # add face adjacent neighbor elements to the que
-    numadj = countBridgeAdjacent(mesh.m_ptr, curr_el, dim-1, dim)
-    getBridgeAdjacent(adj_els)
+    numadj = apf.countBridgeAdjacent(mesh.m_ptr, curr_el, dim-1, dim)
+    apf.getBridgeAdjacent(adj_els)
 
     for i=1:numadj
       el_i = adj_els[i]
-      elnum = getNumberJ(el_Nptr, el_i, 0, 0)
+      elnum = apf.getNumberJ(el_Nptr, el_i, 0, 0)
 
        # if not numbered and not in que
        # when adding to que, scale elnum so it is in range (2*numEl+1):3*numEl
        # as long as there are at least 3 nodes per element, node numbers will
        # overflow before this
       if (elnum > mesh.numEl) && (elnum <= 2*mesh.numEl)
-        numberJ(el_Nptr, el_i, 0, 0, elnum + mesh.numEl)
+        apf.numberJ(el_Nptr, el_i, 0, 0, elnum + mesh.numEl)
         push!(que, el_i)
       end
     end  # end loop over adjacent elements
@@ -557,8 +557,8 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   # the element numbers
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
-    idx = getNumberJ(mesh.el_Nptr, el_i, 0, 0)
-    numberJ(mesh.el_Nptr, el_i, 0, 0, idx - 1)
+    idx = apf.getNumberJ(mesh.el_Nptr, el_i, 0, 0)
+    apf.numberJ(mesh.el_Nptr, el_i, 0, 0, idx - 1)
   end
 
   # need to update the element pointer array because element numbering has
@@ -582,9 +582,9 @@ function getStartEl(mesh::PumiMeshDG, start_coords)
   min_norm = typemin(Float64)
   min_el = Ptr{Void}(0)
 
-  it = MeshIterator(mesh.m_ptr, dim)
+  it = apf.MeshIterator(mesh.m_ptr, dim)
   for i=1:mesh.numEl
-    el_i = iterate(mesh.m_ptr, it)
+    el_i = apf.iterate(mesh.m_ptr, it)
 #    el_i = getEntity(dim)
     getElementCoords(mesh, el_i, coords)
 

@@ -41,11 +41,11 @@ function numberSurfacePoints(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglo
 
   # we can't guarantee an existing numbering with the same name was
   # created using the same bc_nums, so delete any existing numbering
-  n_old = findNumbering(mesh.m_ptr, numbering_name)
+  n_old = apf.findNumbering(mesh.m_ptr, numbering_name)
   if n_old != C_NULL
-    destroyNumbering(n_old)
+    apf.destroyNumbering(n_old)
   end
-  n_face = createNumberingJ(mesh.m_ptr, numbering_name, 
+  n_face = apf.createNumberingJ(mesh.m_ptr, numbering_name, 
                              mesh.coordshape_ptr, 1)
   topo = mesh.topo
   num_i = 1
@@ -64,29 +64,29 @@ function numberSurfacePoints(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglo
       el_ptr = mesh.elements[el_j]
 
       # get the vertices
-      getDownward(mesh.m_ptr, el_ptr, 0, verts)
+      apf.getDownward(mesh.m_ptr, el_ptr, 0, verts)
 
       for k=1:size(mesh.topo.face_verts, 1)
         v_k = verts[mesh.topo.face_verts[k, bndry_j.face]]
 
-        if !isNumbered(n_face, v_k, 0, 0)
-#          getPoint(mesh.m_ptr, v_k, 0, coords)
-          numberJ(n_face, v_k, 0, 0, num_i)
+        if !apf.isNumbered(n_face, v_k, 0, 0)
+#          apf.getPoint(mesh.m_ptr, v_k, 0, coords)
+          apf.numberJ(n_face, v_k, 0, 0, num_i)
           push!(face_verts, v_k)
           num_i += 1
         end
       end  # end loop k
 
       # get the edges nodes too
-      if hasNodesIn(mesh.coordshape_ptr, 1)
-        getDownward(mesh.m_ptr, el_ptr, 1, edges)
+      if apf.hasNodesIn(mesh.coordshape_ptr, 1)
+        apf.getDownward(mesh.m_ptr, el_ptr, 1, edges)
         for k=1:size(topo.face_edges, 1)
           edge_k = edges[topo.face_edges[k, bndry_j.face]]
 
           # up to 2nd order fields, we don't need to worry about edge orientation
-          if !isNumbered(n_face, edge_k, 0, 0)
+          if !apf.isNumbered(n_face, edge_k, 0, 0)
 
-            numberJ(n_face, edge_k, 0, 0, num_i)
+            apf.numberJ(n_face, edge_k, 0, 0, num_i)
             push!(face_verts, edge_k)
             num_i += 1
           end  # end if
@@ -101,16 +101,16 @@ function numberSurfacePoints(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglo
   for i=1:mesh.numVert
     v_i = mesh.verts[i]
 
-    if !isNumbered(n_face, v_i, 0, 0)
-      numberJ(n_face, v_i, 0, 0, num_i)
+    if !apf.isNumbered(n_face, v_i, 0, 0)
+      apf.numberJ(n_face, v_i, 0, 0, num_i)
     end
   end
 
-  if hasNodesIn(mesh.coordshape_ptr, 1)
+  if apf.hasNodesIn(mesh.coordshape_ptr, 1)
     for i=1:mesh.numEdge
       edge_i = mesh.edges[i]
-      if !isNumbered(n_face, edge_i, 0, 0)
-        numberJ(n_face, edge_i, 0, 0, num_i)
+      if !apf.isNumbered(n_face, edge_i, 0, 0)
+        apf.numberJ(n_face, edge_i, 0, 0, num_i)
       end
     end
   end
@@ -238,19 +238,19 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
   end
 
   fill!(coords_vec, reduce_op.neutral_element)
-  node_entities = ElementNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.dim)
+  node_entities = apf.ElementNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.dim)
 
  
   #TODO: not sure if this gives enough time for data to arrive, maybe combine
   #      with calcCoordinatesAndMetrics_rev?
   shr = mesh.normalshr_ptr
   for i=1:mesh.numEl
-    getNodeEntities(node_entities, mesh.elements[i])
+    apf.getNodeEntities(node_entities, mesh.elements[i])
     for j=1:mesh.coord_numNodesPerElement
       entity = node_entities.entities[j]
-      if !_parallel || (_parallel && getOwner(shr, entity) == mesh.myrank)
+      if !_parallel || (_parallel && apf.getOwner(shr, entity) == mesh.myrank)
         for k=1:mesh.dim
-          idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
+          idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
           coords_vec[idx] = reduce_op(coords_vec[idx], coords_arr[k, j, i])
         end
       end  # end if
@@ -312,7 +312,7 @@ function coords1DTo3D(mesh::PumiMeshDG, coords_vec::AbstractVector,
   end
 
   fill!(coords_arr, reduce_op.neutral_element)
-  node_entities = ElementNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.dim)
+  node_entities = apf.ElementNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.dim)
 
   if parallel
     calc_func = (data::PeerData) -> receiveFromOwner(data, mesh, coords_vec)
@@ -320,11 +320,11 @@ function coords1DTo3D(mesh::PumiMeshDG, coords_vec::AbstractVector,
   end
 
   for i=1:mesh.numEl
-    getNodeEntities(node_entities, mesh.elements[i])
+    apf.getNodeEntities(node_entities, mesh.elements[i])
     for j=1:mesh.coord_numNodesPerElement
       entity = node_entities.entities[j]
       for k=1:mesh.dim
-        idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
+        idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
 
         coords_arr[k, j, i] = reduce_op(coords_arr[k, j, i], coords_vec[idx])
       end

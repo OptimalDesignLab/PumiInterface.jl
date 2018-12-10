@@ -127,14 +127,14 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
     # and interpolate the solution onto it
     # it appears the pumi vtu writing bumps the field up the same as the
     # coordinate field, so we might as well do  it ourselves
-    fshape_new = getFieldShape(0, mesh.coord_order, mesh.dim)
+    fshape_new = apf.getFieldShape(0, mesh.coord_order, mesh.dim)
 
     mesh.mnew_ptr = mesh.m_ptr
     # create a new field to store the solution if it does not already exist
     # (reloading mesh after mesh adaptation)
-    mesh.fnew_ptr = findField(mesh.mnew_ptr, "solution_field_interp")
+    mesh.fnew_ptr = apf.findField(mesh.mnew_ptr, "solution_field_interp")
     if mesh.fnew_ptr == C_NULL
-      mesh.fnew_ptr = createPackedField(mesh.mnew_ptr, "solution_field_interp", dofpernode)
+      mesh.fnew_ptr = apf.createPackedField(mesh.mnew_ptr, "solution_field_interp", dofpernode)
     end
     mesh.fnewshape_ptr = fshape_new
 
@@ -165,11 +165,11 @@ function createCGSubMesh(mesh::PumiMeshCG)
   dofpernode = mesh.numDofPerNode
   
   mesh.triangulation = getTriangulation(order, shape_type)
-  mnew_ptr = createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
+  mnew_ptr = apf.createSubMesh(mesh.m_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs)
 
-  fnew_ptr = createPackedField(mnew_ptr, "solution_field", dofpernode)
+  fnew_ptr = apf.createPackedField(mnew_ptr, "solution_field", dofpernode)
 
-  fnewshape_ptr = getMeshShapePtr(mnew_ptr)
+  fnewshape_ptr = apf.getMeshShapePtr(mnew_ptr)
 
   return mnew_ptr, fnew_ptr, fnewshape_ptr
 end
@@ -181,10 +181,10 @@ function createDGSubMesh(mesh::PumiMeshDG)
   dofpernode = mesh.numDofPerNode
 
   mesh.triangulation = getTriangulation(order, shape_type)
-  mnew_ptr = createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, real(mesh.coords))
+  mnew_ptr = apf.createSubMeshDG(mesh.m_ptr, mesh.mshape_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.nodemapPumiToSbp, mesh.entity_Nptrs, real(mesh.coords))
 
-  fnew_ptr = createPackedField(mnew_ptr, "solution_field", dofpernode)
-  fnewshape_ptr = getMeshShapePtr(mnew_ptr)
+  fnew_ptr = apf.createPackedField(mnew_ptr, "solution_field", dofpernode)
+  fnewshape_ptr = apf.getMeshShapePtr(mnew_ptr)
 
   return mnew_ptr, fnew_ptr, fnewshape_ptr
 end
@@ -194,7 +194,7 @@ function transferFieldToSubmesh(mesh::AbstractMesh, u, mnew_ptr=mesh.mnew_ptr,
 
   if mesh.isInterpolated
     if mesh.shape_type != 3
-      transferFieldDG(mesh.m_ptr, mnew_ptr, mesh.triangulation, 
+      apf.transferFieldDG(mesh.m_ptr, mnew_ptr, mesh.triangulation, 
                       mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, 
                       mesh.entity_Nptrs, mesh.f_ptr, mesh.interp_op.', fnew_ptr)
     else
@@ -207,7 +207,7 @@ function transferFieldToSubmesh(mesh::AbstractMesh, u, mnew_ptr=mesh.mnew_ptr,
     #end
   else  # CG mesh
     if mesh.order >= 3
-      transferField(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.fnew_ptr)
+      apf.transferField(mesh.m_ptr, mesh.mnew_ptr, mesh.triangulation, mesh.elementNodeOffsets, mesh.typeOffsetsPerElement_, mesh.entity_Nptrs, mesh.f_ptr, mesh.fnew_ptr)
     end
   end
 
@@ -221,7 +221,7 @@ end
   coordinates and its faces.
 
   Note: this matches the ordering of the entities returned by
-  [`getNodeEntities`](@ref)
+  [`apf.getNodeEntities`](@ref)
 
   Inputs:
     order: order of the element

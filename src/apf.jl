@@ -1,10 +1,9 @@
 __precompile__(false)
 # functions to test the julia/PUMI interface
-module PumiInterface
+module apf
 
 using MPI
-include("pumi_utils.jl")
-
+using PumiConfig
 
 # no names should exported because there should be higher level functions
 # wrapping these
@@ -104,7 +103,7 @@ global const getAvgElementSize_name = "getAvgElementSize"
 
 #global const createAnisoFunc_name = "createAnisoFunc"
 
-#apf::field related functions
+#:field related functions
 global const createPackedField_name = "createPackedField"
 global const setComponents_name = "setComponents"
 global const getComponents_name = "getComponents"
@@ -218,7 +217,7 @@ struct MAInput
 end
 
 """
-  An apf::ModelEntity* aka. gmi_ent*
+  An :ModelEntity* aka. gmi_ent*
 """
 struct ModelEntity
   p::Ptr{Void}
@@ -240,8 +239,8 @@ end
 		       same for different elements, so they are set to zero
     * num_Entities : returns column vector containing number of entities of
                        each type in the mesh
-    * m_ptr :        pointer to apf::Mesh2 that was loaded from the smb file
-    * mshape_ptr :   pointer to the apf::FieldShape of the mesh
+    * m_ptr :        pointer to :Mesh2 that was loaded from the smb file
+    * mshape_ptr :   pointer to the :FieldShape of the mesh
 """
 
 function init(dmg_name::AbstractString, smb_name::AbstractString, order::Integer; load_mesh=true, shape_type=0 )
@@ -317,7 +316,7 @@ end
 
   **Outputs**
 
-   * m_ptr: apf::Mesh2*
+   * m_ptr: :Mesh2*
    * dim: dimension of the loaded mesh
 
   [`popMeshRef`](@ref) should be called on this pointer to free it.
@@ -339,11 +338,11 @@ end
 
   **Inputs**
 
-   * m_ptr: a apf::Mesh* of an already loaded mesh
+   * m_ptr: a :Mesh* of an already loaded mesh
  
   **Outputs**
 
-   * mshape_ptr: a apf::FieldShape* for the mesh coordinate field
+   * mshape_ptr: a :FieldShape* for the mesh coordinate field
    * num_entities: array of length 4 containing the number of entities of
                    each dimension, low to high, on this partition of the mesh.
                    All entities, including non-owned ones, are counted
@@ -596,7 +595,7 @@ function hasNodesIn(mshape_ptr, dimension::Integer)
 end
 
 function countNodesOn(mshape_ptr, entity_type::Integer)
-# count the number of nodes on an entity of the specified type (apf::Mesh::Type)
+# count the number of nodes on an entity of the specified type (:Mesh::Type)
   i = ccall( (countNodesOn_name, pumi_libname), Int32, (Ptr{Void}, Int32), mshape_ptr, entity_type)
 
   return i
@@ -806,8 +805,8 @@ end
 
 function createNumberingJ(m_ptr, name::AbstractString, field, components::Integer)
 # create a generally defined numbering, get a pointer to it
-# this just passes through to apf::createNumbering
-# field is an apf::FieldShape*
+# this just passes through to :createNumbering
+# field is an :FieldShape*
 
 numbering_ptr = ccall( (createNumberingJ_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{UInt8}, Ptr{Void}, Int32), m_ptr, name, field, components)
 
@@ -829,13 +828,13 @@ function findNumbering(m_ptr::Ptr{Void}, name::String)
 end
 
 """
-  Destroys all apf::Numberings associated with a given mesh, except
+  Destroys all :Numberings associated with a given mesh, except
   those specified
 
   **Inputs**
 
-   * m_ptr: apf::Mesh*
-   * n_save: array of apf::Numbering* objects to not destroy (optional)
+   * m_ptr: :Mesh*
+   * n_save: array of :Numbering* objects to not destroy (optional)
 """
 function destroyNumberings(m_ptr::Ptr{Void}, n_save=Array{Ptr{Void}}(0))
 
@@ -972,16 +971,16 @@ end
    ndof: total number of degrees of freedom to be labelled (exlucding any
          fixed dofs not to be given a number)
    comp: number of dofs per node
-   node_statusNumbering: apf::Numbering* that tells what the status of a dof
+   node_statusNumbering: :Numbering* that tells what the status of a dof
                          is.  If the value for a dof >= 2, then it gets 
 			 labelled.  Must have ncomp components per node.
                          If C_NULL, all dofs will be numbered.
-  nodeNums:  an already created apf::Numbering* that the dof numbers are
-             written to. Its apf::Fieldshape must be the same as the mesh.
+  nodeNums:  an already created :Numbering* that the dof numbers are
+             written to. Its :Fieldshape must be the same as the mesh.
 	     The numbering is 1-based.  Any dof with status < 2 will be given
 	     the number zero.
 
-  elNums: an already created apf::Numbering* that the element numbers are 
+  elNums: an already created :Numbering* that the element numbers are 
           written to.  If C_NULL, this numbering will not be used.
   start_coords: coordinates of a point. The mesh vertex classified on a model
          vertex closest to this point is used as the starting entity for the 
@@ -1008,8 +1007,8 @@ end
 
   **Inputs**
 
-   * m_ptr: an apf::Mesh2*
-   * f: an apf::Field* specifying the desired mesh size at each coordinate
+   * m_ptr: an :Mesh2*
+   * f: an :Field* specifying the desired mesh size at each coordinate
         node of mesh (note: coordinate node, not solution node)
 """
 function createIsoFunc(m_ptr::Ptr{Void}, f::Ptr{Void})
@@ -1083,12 +1082,12 @@ function deleteSolutionTransfers(soltrans::SolutionTransfers)
 end
 
 """
-  Add an apf::Field* to be transferred to the new mesh
+  Add an :Field* to be transferred to the new mesh
 
   **Inputs**
 
    * soltrans: the [`SolutionTransfers`](@ref) object
-   * f: the apf::Field*
+   * f: the :Field*
 
   **Outputs**
 
@@ -1106,7 +1105,7 @@ end
 
   **Inputs**
 
-   * m_ptr: an apf::Mesh2*
+   * m_ptr: an :Mesh2*
    * isofunc: an [`IsoFuncJ`](@ref)
    * soltrans: a [`SolutionTransfers`](@ref)
 
@@ -1145,8 +1144,8 @@ end
 
   **Inputs**
 
-   * m_ptr: apf::Mesh*
-   * el_N: an apf::Numbering* for the elements
+   * m_ptr: :Mesh*
+   * el_N: an :Numbering* for the elements
 
   **Inputs/Outputs**
 
@@ -1160,7 +1159,7 @@ function getAvgElementSize(m_ptr::Ptr{Void}, el_N::Ptr{Void}, el_sizes::Abstract
 end
 
 #------------------------------------------------------------------------------
-# apf::Field related function
+# :Field related function
 # needed for automagical solution transfer
 
 function createPackedField(m_ptr, fieldname::AbstractString, numcomponents::Integer, fshape=C_NULL)
@@ -1196,8 +1195,8 @@ end
 
   **Inputs**
 
-   * f_ptr: apf::Field*
-   * shr_ptr:: apf::Sharing*
+   * f_ptr: :Field*
+   * shr_ptr:: :Sharing*
    * reduce_op: 0 = sum, 1 = min, 2 = max
 """
 function reduceField(f_ptr::Ptr{Void}, shr_ptr::Ptr{Void}, reduce_op::Integer)
@@ -1226,13 +1225,13 @@ function destroyField(f_ptr::Ptr{Void})
 end
 
 """
-  Destroys all apf::Fields associated with a given mesh, except
+  Destroys all :Fields associated with a given mesh, except
   those specified
 
   **Inputs**
 
-   * m_ptr: apf::Mesh*
-   * n_save: array of apf::Field* objects to not destroy (optional)
+   * m_ptr: :Mesh*
+   * n_save: array of :Field* objects to not destroy (optional)
 """
 function destroyFields(m_ptr::Ptr{Void}, n_save=Array{Ptr{Void}}(0))
 
@@ -1247,7 +1246,7 @@ end
 
   This function takes in a (presumable high order) mesh, subtriangulates 
   each element into a set of linear triangles, writes a vtk file with the
-  name newmesh_linear, and returns a apf::Mesh2* pointer as a Void pointer.
+  name newmesh_linear, and returns a :Mesh2* pointer as a Void pointer.
   Note that Pumi is fully capabable of having multiple meshes loaded at one
   time (although only one of them can reference geometry).  The Julia 
   interface to Pumi does not always handle multiple meshes correctly.  In
@@ -1533,8 +1532,8 @@ end
 
   **Inputs**
 
-   * m_ptr: apf::Mesh* for existing mesh
-   * numberings: array of 0-based apf::Numberings, of length mesh.dim + 1, numbering
+   * m_ptr: :Mesh* for existing mesh
+   * numberings: array of 0-based :Numberings, of length mesh.dim + 1, numbering
      the entities of dimension 0 to dim
    * el_list: array of Cint element numbers (in the numberings[end] numbering)
               that will exist on the new mesh
@@ -1567,7 +1566,7 @@ function writeNewMesh(sdata::SubMeshData, fname::AbstractString)
 end
 
 """
-  Get the apf::Mesh* of the new mesh
+  Get the :Mesh* of the new mesh
 
   **Inputs**
 
@@ -1575,7 +1574,7 @@ end
 
   **Outputs**
 
-   * a apf::Mesh*
+   * a :Mesh*
 """
 function getNewMesh(sdata::SubMeshData)
 
@@ -1594,7 +1593,7 @@ end
 
 
 """
-  Returns an apf::Numbering* for a Numbering on the submesh containing the
+  Returns an :Numbering* for a Numbering on the submesh containing the
   element number on the original mesh that each element came from.
 """
 function getParentNumbering(sdata::SubMeshData)
@@ -1618,5 +1617,5 @@ end
 
 
 
-include("PumiInterface2.jl")  # higher level functions
+include("apf2.jl")  # higher level functions
 end  # end of module

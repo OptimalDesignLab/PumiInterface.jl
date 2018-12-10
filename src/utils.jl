@@ -226,11 +226,11 @@ function accumulateAtVerts(mesh::PumiMeshDG, u_volume::Abstract3DArray, u_verts:
   fill!(u_verts, 0.0)
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
-    nverts = getDownward(mesh.m_ptr, el_i, 0, down_verts)
+    nverts = apf.getDownward(mesh.m_ptr, el_i, 0, down_verts)
 
     for j=1:nverts
       vert_j = down_verts[j]
-      vertnum_j = getNumberJ(mesh.vert_Nptr, vert_j, 0, 0) + 1
+      vertnum_j = apf.getNumberJ(mesh.vert_Nptr, vert_j, 0, 0) + 1
 
       for k=1:n
         u_verts[k, vertnum_j] +=  u_volume[k, j, i]
