@@ -17,7 +17,6 @@ set(SCOREC_PREFIX "" CACHE STRING "Directory where SCOREC is installed")
 # If SCOREC_PREFIX was specified, only link to that directory,
 # i.e. don't link to another installation in /usr/lib by mistake
 if (SCOREC_PREFIX)
-  MESSAGE( STATUS "using SCOREC_PREFIX")
   find_package(SCOREC 2.1.0 REQUIRED CONFIG PATHS ${SCOREC_PREFIX} NO_DEFAULT_PATH)
 else()
 # IF SCOREC_PREFIX was not specified, look in typical system directories,
