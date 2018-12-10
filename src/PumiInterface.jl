@@ -217,6 +217,13 @@ struct MAInput
   p::Ptr{Void}
 end
 
+"""
+  An apf::ModelEntity* aka. gmi_ent*
+"""
+struct ModelEntity
+  p::Ptr{Void}
+end
+
 
 
 @doc """
@@ -448,21 +455,21 @@ function toModel(m_ptr, entity_ptr)
 
   model_entity_ptr = ccall( (toModel_name, pumi_libname), Ptr{Void}, (Ptr{Void}, Ptr{Void}), m_ptr, entity_ptr)
 
-  return model_entity_ptr
+  return ModelEntity(model_entity_ptr)
 end
 
-function getModelType(m_ptr, model_entity_ptr)
+function getModelType(m_ptr, model_entity::ModelEntity)
 # get the model entity *dimension*
 
-  dim = ccall( (getModelType_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}), m_ptr, model_entity_ptr)
+  dim = ccall( (getModelType_name, pumi_libname), Int32, (Ptr{Void}, ModelEntity), m_ptr, model_entity)
 
   return dim
 end
 
-function getModelTag(m_ptr, model_entity_ptr)
+function getModelTag(m_ptr, model_entity::ModelEntity)
 # get the dimension unique identifier of the model entity
 
-  tag = ccall( (getModelTag_name, pumi_libname), Int32, (Ptr{Void}, Ptr{Void}), m_ptr, model_entity_ptr)
+  tag = ccall( (getModelTag_name, pumi_libname), Int32, (Ptr{Void}, ModelEntity), m_ptr, model_entity)
 
   return tag
 end
