@@ -36,6 +36,7 @@ endif()
 
 MESSAGE( STATUS "CMAKE_BINARY_DIR:     " ${CMAKE_BINARY_DIR})
 MESSAGE( STATUS "Pumi configuration file location: " ${SCOREC_CONFIG})
+MESSAGE( STATUS "installation prefix: " ${CMAKE_INSTALL_PREFIX})
 
 # Figure out of Pumi was built with Simmetrix support
 get_target_property(SCOREC_LIBS SCOREC::core INTERFACE_LINK_LIBRARIES)
@@ -53,7 +54,31 @@ configure_file (
 )
 include_directories("${PROJECT_BINARY_DIR}")
 
-file(WRITE "PUMI_CMAKE_PATH" ${SCOREC_CONFIG})
+# write the path info to be read from Julia
+file(WRITE "PUMI_RPATH" "PUMI_CMAKE_PATH ${SCOREC_CONFIG}\n")
+file(APPEND "PUMI_RPATH" "PUMIINTERFACE_PREFIX ${CMAKE_INSTALL_PREFIX}")
+
+# set RPATH for binaries
+# use, i.e. don't skip the full RPATH for the build tree
+SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
+
+# when building, don't use the install RPATH already
+# (but later on when installing)
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+
+SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+
+# the RPATH to be used when installing, but only if it's not a system directory
+LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+IF("${isSystemDir}" STREQUAL "-1")
+  SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+ENDIF("${isSystemDir}" STREQUAL "-1")
+
 
 
 #this is just example code, do your own thing

@@ -5,34 +5,6 @@ module PumiInterface
 using MPI
 include("pumi_utils.jl")
 
-# make MeshEntity* passable by MPI
-if sizeof(Ptr{Void}) == sizeof(Int32)
-  T = Int32
-elseif  sizeof(Ptr{Void}) == sizeof(Int64)
-  T = Int64
-else
-  error("cannot find compatible size of Ptr{Void}")
-end
-
-if !haskey(MPI.mpitype_dict, Ptr{Void})
-  MPI.mpitype_dict[Ptr{Void}] = MPI.mpitype_dict[T]
-end
-
-
-# make PdePumiInterface findable
-push!(LOAD_PATH, dirname(@__FILE__))
-
-"""
-  Typealias for C++ Bool.  This is implementation defined, so it might need
-  to be manually changed for different systems
-"""
-const CppBool = UInt8  # this is implementation defined
-
-"""
-  Absolute path of Pumi /lib directory
-"""
-const PUMI_LIBDIR = getPumiLibDir()
-
 
 # no names should exported because there should be higher level functions
 # wrapping these
@@ -49,7 +21,7 @@ const PUMI_LIBDIR = getPumiLibDir()
 
 #function declareNames()
 # declare variables that hold the (possible mangled) names of c++ library functions
-global const pumi_libname = "libpumiInterface"
+global const pumi_libname = joinpath(CONFIG_PATHS["PUMIINTERFACE_LIBDIR"], "libpumiInterface")
 global const init_name = "initABC"
 global const init2_name = "initABC2"
 global const pushMeshRef_name = "pushMeshRef"
