@@ -2,7 +2,12 @@
 
 module apf_types
 
-export IsoFuncJ, SolutionTransfers, MAInput, ModelEntity, MeshIterator, SubMeshData
+using PumiConfig
+
+export pumi_libname, IsoFuncJ, SolutionTransfers, MAInput, ModelEntity,
+       MeshIterator, SubMeshData
+
+global const pumi_libname = joinpath(CONFIG_PATHS["PUMIINTERFACE_LIBDIR"], "libpumiInterface")
 
 # struct declarations
 # these have same memory layout as their contents, so they can be passed in

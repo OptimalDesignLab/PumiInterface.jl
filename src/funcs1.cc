@@ -1458,3 +1458,24 @@ void getTopologyMaps(int* tri_edge_verts_in, int* tet_edge_verts_in, int* tet_tr
       tet_tri_verts_in[getindex_c(i, j, si, sj)] = apf::tet_tri_verts[i][j];
     }
 }
+
+
+//-----------------------------------------------------------------------------
+// GMI functions
+//-----------------------------------------------------------------------------
+
+struct gmi_set* _gmi_adjacent_set = NULL;
+int gmi_adjacent_count(struct gmi_model* g, struct gmi_ent* e, int dim)
+{
+  _gmi_adjacent_set = gmi_adjacent(g, e, dim);
+  return _gmi_adjacent_set->n;
+}
+
+
+struct gmi_set* gmi_adjacent_get(gmi_ent* v[])
+{
+  for (int i=0; i < _gmi_adjacent_set->n; ++i)
+    v[i] = _gmi_adjacent_set->e[i];
+
+  return _gmi_adjacent_set;
+}

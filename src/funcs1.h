@@ -6,6 +6,7 @@
 // header file for funcs1
 #include <iostream>
 #include <apf.h>
+#include <gmi.h>
 #include <gmi_mesh.h>
 #include <gmi_null.h>
 #include <apfMDS.h>
@@ -211,6 +212,11 @@ void getMatches(int part_nums[], apf::MeshEntity* entities[]);
 
 
 void getTopologyMaps(int* tri_edge_verts_in, int* tet_edge_verts_in, int* tet_tri_verts_in);
+
+// gmi functions
+int gmi_adjacent_count(struct gmi_model* g, struct gmi_ent* e, int dim);
+struct gmi_set* gmi_adjacent_get(gmi_ent* v[]);
+
 }  // extern c
 
 

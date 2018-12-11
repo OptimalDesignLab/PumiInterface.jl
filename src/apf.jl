@@ -24,7 +24,6 @@ import apf_types: IsoFuncJ, SolutionTransfers, MAInput, ModelEntity, MeshIterato
 
 #function declareNames()
 # declare variables that hold the (possible mangled) names of c++ library functions
-global const pumi_libname = joinpath(CONFIG_PATHS["PUMIINTERFACE_LIBDIR"], "libpumiInterface")
 global const init_name = "initABC"
 global const init2_name = "initABC2"
 global const pushMeshRef_name = "pushMeshRef"
