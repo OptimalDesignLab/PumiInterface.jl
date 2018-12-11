@@ -667,11 +667,11 @@ function receiveVecFunction(data::PeerData{T, 2},
   pos = 1
   for i=1:length(data.entities)
     entity = data.entities[i]
-    typ = getType(mesh.m_ptr, entity)
-    dim = getTypeDimension(typ)
+    typ = apf.getType(mesh.m_ptr, entity)
+    dim = apf.getTypeDimension(typ)
     for j=1:mesh.coord_numNodesPerType[dim+1]
       for k=1:mesh.dim
-        idx = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+        idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
         vec[idx] = reduce_op(data.vals[k, pos], vec[idx])
       end
       pos += 1
@@ -693,7 +693,7 @@ end
   to the owning MeshEntity, which receives it in vector format.
 
   The 3D array *must* have the data in the second dimension ordered according to
-  [`getNodeEntities`](@ref)
+  [`apf.getNodeEntities`](@ref)
 
   **Inputs**
 
@@ -714,13 +714,13 @@ function initSendToOwner(mesh::PumiMesh{T}, fshape::Ptr{Void}, dims::NTuple) whe
   part_nums = Array{Cint}(400)  # apf::Up
   remote_entities = Array{Ptr{Void}}(400)  # apf::Up
   _adj_els = Array{Ptr{Void}}(400)  # apf::Up
-  node_entities = ElementNodeEntities(mesh.m_ptr, fshape, mesh.dim)
+  node_entities = apf.ElementNodeEntities(mesh.m_ptr, fshape, mesh.dim)
 
   coords = Array{Float64}(3)  # DEBUGGING
   local_indices = Array{CartesianIndex{2}}(400)
   for dim=0:(mesh.dim-1)  # elements cant be shared in parallel
-    it = MeshIterator(mesh.m_ptr, dim)
-    nnodes = countNodesOn(fshape, dim)  # dim == apf::Type up to faces
+    it = apf.MeshIterator(mesh.m_ptr, dim)
+    nnodes = apf.countNodesOn(fshape, dim)  # dim == apf::Type up to faces
 
     if nnodes == 0
       continue
@@ -728,18 +728,18 @@ function initSendToOwner(mesh::PumiMesh{T}, fshape::Ptr{Void}, dims::NTuple) whe
 
     for i=1:mesh.numEntitiesPerType[dim+1]
 
-      entity = iterate(mesh.m_ptr, it)
+      entity = apf.iterate(mesh.m_ptr, it)
 
       # bail out early if entity is not shared
-      if !isSharedShr(shr, entity)
+      if !apf.isSharedShr(shr, entity)
         continue
       end
 
-      ncopy = countCopies(shr, entity)
+      ncopy = apf.countCopies(shr, entity)
       @assert ncopy <= 400
-      getCopies(part_nums, remote_entities)
+      apf.getCopies(part_nums, remote_entities)
 
-      owner = getOwner(shr, entity)
+      owner = apf.getOwner(shr, entity)
       if owner == mesh.myrank
         pushReceivePart!(data, sview(part_nums, 1:Int(ncopy)))
       else # figure out all entries in the 3D array that correspond to this
@@ -750,9 +750,9 @@ function initSendToOwner(mesh::PumiMesh{T}, fshape::Ptr{Void}, dims::NTuple) whe
         remote_entity = remote_entities[owner_idx]
         
 
-        nel = countAdjacent(mesh.m_ptr, entity, mesh.dim)
+        nel = apf.countAdjacent(mesh.m_ptr, entity, mesh.dim)
         @assert nel <= 400
-        getAdjacent(_adj_els); adj_els = sview(_adj_els, 1:Int(nel))
+        apf.getAdjacent(_adj_els); adj_els = sview(_adj_els, 1:Int(nel))
 
         addEntityKeys(mesh, data, nnodes, node_entities, adj_els,
                       entity, remote_entity, owner, local_indices)
@@ -760,7 +760,7 @@ function initSendToOwner(mesh::PumiMesh{T}, fshape::Ptr{Void}, dims::NTuple) whe
       end  # end if
     end  # end loop i
 
-    free(mesh.m_ptr, it)
+    apf.free(mesh.m_ptr, it)
   end  #end loop dim
 
   exchangeKeys(data)
@@ -779,7 +779,7 @@ end
    * mesh
    * data: [`ScatterData`](@ref) object
    * nnodes: number of nodes on the entity
-   * node_entities: an [`ElementNodeEntities`](@ref) object (reusable storage)
+   * node_entities: an [`apf.ElementNodeEntities`](@ref) object (reusable storage)
    * adj_els: vector of elements that are upward adjacent of `entity`
    * entity: the local MeshEntity*
    * remote_entity: the MeshEntity* on the owner process
@@ -788,7 +788,7 @@ end
                     of each (node, element) of the 3D array
 """
 function addEntityKeys(mesh::PumiMesh, data::ScatterData, nnodes::Integer,
-                       node_entities::ElementNodeEntities,
+                       node_entities::apf.ElementNodeEntities,
                        adj_els::AbstractVector, entity::Ptr{Void},
                        remote_entity::Ptr{Void}, owner::Integer,
                        local_indices::AbstractVector)
@@ -798,7 +798,7 @@ function addEntityKeys(mesh::PumiMesh, data::ScatterData, nnodes::Integer,
   for k=1:nnodes  # add the current entity nnodes times
     local_idx = 1  # reset index into local_indices
     for j=1:length(adj_els)
-      getNodeEntities(node_entities, adj_els[j])
+      apf.getNodeEntities(node_entities, adj_els[j])
       e_idx = findfirst(node_entities.entities, entity)
 
       # compute index in second dimension of 3D array
@@ -807,7 +807,7 @@ function addEntityKeys(mesh::PumiMesh, data::ScatterData, nnodes::Integer,
         idx += node_entities.nodecounts[p]
       end
 
-      elnum = getNumberJ(mesh.el_Nptr, adj_els[j], 0, 0) + 1
+      elnum = apf.getNumberJ(mesh.el_Nptr, adj_els[j], 0, 0) + 1
       local_indices[local_idx] = CartesianIndex(idx, elnum)
       local_idx += 1
     end  # end loop j
@@ -846,10 +846,10 @@ function sendParallelData_rev(mesh::PumiMesh, data::ScatterData, xvec::AbstractV
   for data_i in data.recv
     idx_dest = 1
     for entity in data_i.entities
-      dim = getDimension(mesh.m_ptr, entity)
+      dim = apf.getDimension(mesh.m_ptr, entity)
       for j=1:mesh.coord_numNodesPerType[dim+1]
         for k=1:mesh.dim
-          idx_src = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+          idx_src = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
           data_i.vals[k, idx_dest] = xvec[idx_src]
         end
         idx_dest += 1
@@ -897,11 +897,11 @@ function receiveFromOwner(data::PeerData{T, 2}, mesh::PumiMesh, xvec::AbstractVe
 
   idx_src = 1
   for entity in data._entities_local
-    if data.peernum == getOwner(mesh.normalshr_ptr, entity)
-      dim = getDimension(mesh.m_ptr, entity)
+    if data.peernum == apf.getOwner(mesh.normalshr_ptr, entity)
+      dim = apf.getDimension(mesh.m_ptr, entity)
       for j=1:mesh.coord_numNodesPerType[dim+1]
         for k=1:mesh.dim
-          idx_dest = getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+          idx_dest = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
           xvec[idx_dest] = data.vals[k, idx_src]
         end
         idx_src += 1

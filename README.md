@@ -43,9 +43,16 @@ install MPICH.  It will also install the MPI.jl package if needed
 
 ### Build Pumi (if needed)
 The build script attempts to locate Pumi using `cmake --find-package`.
-If not found, it will attempt to build Pumi locally.  The build requires an
+If Pumi is not located in one of CMake's standard search locations,
+users can set the `SCOREC_PREFIX` environment variable to Pumi's installation
+prefix.
+If Pumi is not found, the build system will attempt to build Pumi locally.
+The build requires an
 MPI implementation (which should be present according to the above process),
-and Cmake 3.0.0.  It will install to `deps/core/build/install`.  
+and Cmake 3.0.0.  It will install to `deps/core/build/install`.  If you want
+to build other software that links to this Pumi build, source the
+script script `deps/use_pumi.sh` first.  This will set the necessary
+environment variables.
 
 ### Build Shared Library
 At this point, MPI and Pumi should be be present, so the library itself can
@@ -56,16 +63,12 @@ respectively.  The library is installed to the `repo/install` directory.
 If you wish to rebuild the shared library, you should execute these scripts.  
 It is also recommended to execute the `cleanup.sh`
 script before doing so, to remove any old configuration files.
-The build script also creates a symlink called `use_julialib.sh` which links
-to a shell script that sets any environmental variables needed to use the
-shared library.
-You must source this shell script at runtime in order to use the library.
-CMakes `find_package` command is used to locate the Pumi installation to link
-to.  The environmental variable `SCOREC_PREFIX` can be used to specify a
-different installation.  If the installation specified is neither the Scorec
-one (see below) nor the one built by the build script then the user is
-responsible for creating their own `use_julialib.sh` script.
-See `use_julialib_scorec.sh` and `use_julialib_general.sh` for examples.
+Previous version of this package required users to source the `use_julialib.sh`
+script before each use.  This is no longer necessary.
+It is also unnecessary to set `LD_LIBRARY_PATH` or any other environment
+variables at runtime.  This package uses `RPATH` to locate the libraries
+at runtime (and an `RPATH`-like mechanism for the Julia code).
+
 
 Thats it, now you are done.
 
@@ -82,14 +85,14 @@ The build script will:
   * build MPI if it cannot find an existing installation
   * build Pumi if it cannot find an existing installation
   * build the shared library
-  * create `use_julialib.sh` in `repo/src`, which must be `sourc`ed at runtime
 
 ## Scorec Installation
 
 If you are working on a SCOREC machine (with access to the SCOREC shared file
 system), load the Pumi module before building the package.  This will ensure
 the Scorec installation of Pumi is found, which is preferable to building
-Pumi locally.
+Pumi locally because it links to Zoltan and other optional dependencies that
+provide extra features.
 
 
 ## Non Scorec Installation on Scorec machine
@@ -99,10 +102,10 @@ not loaded, it seems CMake is still able to find the Pumi installation,
 therefore the build system will use it.  
 
 To get around this:
+  * Load the compiler and MPI modules you want to use
   * run the build script normally
   * `cd` into `repo/deps` and run `build_local.sh`
-  * `cd` into `repo/src`
-  * `source` the script `use_julialib_general.sh`
+  * `source ./use_pumi.sh`
   *  execute `config.sh` and then `makeinstall.sh`
 
 This will build a local copy of Pumi and tell the shared library to

@@ -1013,7 +1013,7 @@ function interpolateFace_rev(interp_data::Interpolation{Tmsh, 3},
 end
 
 
-#TODO: reorder these operations for column major arrays
+#TODO: eorder these operations for column major arrays
 function det2(A::AbstractMatrix)
 # determinet of 2x2 matrix
 

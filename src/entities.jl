@@ -20,12 +20,12 @@
 """
 function getNodeInfo(fshape::Ptr{Void}, dim::Integer, numTypePerElement::Array{I, 1}) where I <: Integer
 
-  num_nodes_v = countNodesOn(fshape, 0)  # number of nodes on a vertex
-  num_nodes_e = countNodesOn(fshape, 1) # on edge
-  num_nodes_f = countNodesOn(fshape, 2) # on face
+  num_nodes_v = apf.countNodesOn(fshape, 0)  # number of nodes on a vertex
+  num_nodes_e = apf.countNodesOn(fshape, 1) # on edge
+  num_nodes_f = apf.countNodesOn(fshape, 2) # on face
 
   if dim == 3
-    num_nodes_r = countNodesOn(fshape, apfTET)  # on region
+    num_nodes_r = apf.countNodesOn(fshape, apf.TET)  # on region
     numNodesPerType = [num_nodes_v, num_nodes_e, num_nodes_f, num_nodes_r]
   else
     numNodesPerType = [num_nodes_v, num_nodes_e, num_nodes_f]
@@ -54,9 +54,9 @@ numbering = mesh.entity_Nptrs[mesh.dim + 1]
 for i=1:bndry_edges
   edgenum_i = bndry_edges[i]
   face_i = mesh.faces[edgenum_i]
-  numFace = countAdjacent(mesh.m_ptr, face_i, mesh.dim)  # should be count upward
-  getAdjacent(faces)
-  facenum = getNumberJ(numbering, face_i, 0, 0) + 1
+  numFace = apf.countAdjacent(mesh.m_ptr, face_i, mesh.dim)  # should be count upward
+  apf.getAdjacent(faces)
+  facenum = apf.getNumberJ(numbering, face_i, 0, 0) + 1
 #  facenum = getFaceNumber2(faces[1]) + 1
 
   bndry_faces[i] = facenum
@@ -82,60 +82,60 @@ function getEntityPointers(mesh::PumiMesh)
   # also initilize the field to zero
 #  resetAllIts2(mesh.m_ptr)
 #  comps = zeros(dofpernode)
-  it = MeshIterator(mesh.m_ptr, 0)
+  it = apf.MeshIterator(mesh.m_ptr, 0)
   for i=1:mesh.numVert
 #    entity = getVert()
-    entity = iterate(mesh.m_ptr, it)
-    idx = getNumberJ(mesh.vert_Nptr, entity, 0, 0) + 1
+    entity = apf.iterate(mesh.m_ptr, it)
+    idx = apf.getNumberJ(mesh.vert_Nptr, entity, 0, 0) + 1
     verts[idx] = entity
 #    incrementVertIt()
   end
-  free(mesh.m_ptr, it)
+  apf.free(mesh.m_ptr, it)
 
-  it = MeshIterator(mesh.m_ptr, 1)
+  it = apf.MeshIterator(mesh.m_ptr, 1)
   for i=1:mesh.numEdge
-    entity = iterate(mesh.m_ptr, it)
+    entity = apf.iterate(mesh.m_ptr, it)
 #    entity = getEdge()
-    idx = getNumberJ(mesh.edge_Nptr, entity, 0, 0) + 1
+    idx = apf.getNumberJ(mesh.edge_Nptr, entity, 0, 0) + 1
     edges[idx] = entity
 #    incrementEdgeIt()
   end
-  free(mesh.m_ptr, it)
+  apf.free(mesh.m_ptr, it)
 
   if mesh.dim == 3
     faces = Array{Ptr{Void}}(mesh.numFace)
-    it = MeshIterator(mesh.m_ptr, 2)
+    it = apf.MeshIterator(mesh.m_ptr, 2)
     for i=1:mesh.numFace
-      entity = iterate(mesh.m_ptr, it)
+      entity = apf.iterate(mesh.m_ptr, it)
 #      entity = getFace()
-      idx = getNumberJ(mesh.face_Nptr, entity, 0, 0) + 1
+      idx = apf.getNumberJ(mesh.face_Nptr, entity, 0, 0) + 1
       faces[idx] = entity
 #      incrementFaceIt()
     end
-    free(mesh.m_ptr, it)
+    apf.free(mesh.m_ptr, it)
 
-    it = MeshIterator(mesh.m_ptr, 3)
+    it = apf.MeshIterator(mesh.m_ptr, 3)
     for i=1:mesh.numEl
-      entity = iterate(mesh.m_ptr, it)
+      entity = apf.iterate(mesh.m_ptr, it)
 #      entity = getEl()
-      idx = getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
+      idx = apf.getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
       elements[idx] = entity
 #      incrementElIt()
     end
-    free(mesh.m_ptr, it)
+    apf.free(mesh.m_ptr, it)
 
 
   else
     faces = edges
-    it = MeshIterator(mesh.m_ptr, 2)
+    it = apf.MeshIterator(mesh.m_ptr, 2)
     for i=1:mesh.numEl
-      entity = iterate(mesh.m_ptr, it)
+      entity = apf.iterate(mesh.m_ptr, it)
 #      entity = getFace()
-      idx = getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
+      idx = apf.getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
       elements[idx] = entity
 #      incrementFaceIt()
     end
-    free(mesh.m_ptr, it)
+    apf.free(mesh.m_ptr, it)
 
 
   end
@@ -186,7 +186,7 @@ function getGlobalNodeNumbers(mesh::PumiMesh, elnum::Integer, dofnums::AbstractA
 # 
 
   el_i = mesh.elements[elnum]
-  type_i = getType(mesh.m_ptr, el_i)  # what is this used for?
+  type_i = apf.getType(mesh.m_ptr, el_i)  # what is this used for?
 
   #println("elnum = ", elnum)
   # calculate total number of nodes
@@ -202,13 +202,13 @@ function getGlobalNodeNumbers(mesh::PumiMesh, elnum::Integer, dofnums::AbstractA
   end
 
   # get entities in the Pumi order
-  node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
+  node_entities = apf.getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
 
   # get node offsets in the SBP order
   node_offsets = sview(mesh.elementNodeOffsets, :, elnum)
   #node_offsets = sview(mesh.elementNodeOffsets[:, elnum])
 
-  PumiInterface.getDofNumbers(numbering_ptr, node_entities, node_offsets, mesh.nodemapPumiToSbp, el_i, dofnums)  # C implimentation
+  PumiInterface.apf.getDofNumbers(numbering_ptr, node_entities, node_offsets, mesh.nodemapPumiToSbp, el_i, dofnums)  # C implimentation
 
   return nothing
 end
@@ -260,20 +260,20 @@ entity = entity_array[entity_index]
 #println("entity = ", entity)
 
 #=
-entity_type = getType(mesh.m_ptr, entity)
+entity_type = apf.getType(mesh.m_ptr, entity)
 println("entity_type = ", entity_type)
-entity_num = getNumberJ(mesh.edge_Nptr, entity, 0, 0)
+entity_num = apf.getNumberJ(mesh.edge_Nptr, entity, 0, 0)
 println("edge number = ", entity_num)
 =#
 
 if input_dimension > output_dimension # downward adjacencies
 #  println("getting downward adjacencies")
-  adjacent_entities, num_adjacent = getDownward(mesh.m_ptr, entity, output_dimension)
+  adjacent_entities, num_adjacent = apf.getDownward(mesh.m_ptr, entity, output_dimension)
 
 else  # upward adjacencies
 #  println("getting upward adjacencies")
-  num_adjacent = countAdjacent(mesh.m_ptr, entity, output_dimension)
-  adjacent_entities = getAdjacent(num_adjacent)
+  num_adjacent = apf.countAdjacent(mesh.m_ptr, entity, output_dimension)
+  adjacent_entities = apf.getAdjacent(num_adjacent)
 end
 
 # get their numbers
@@ -281,7 +281,7 @@ adjacent_nums = zeros(Int, num_adjacent)
 for i=1:num_adjacent # loop over adjacent entities
   
   # get their numbers here
-  adjacent_nums[i] = getNumberJ(numbering_ptr, adjacent_entities[i], 0, 0) + 1
+  adjacent_nums[i] = apf.getNumberJ(numbering_ptr, adjacent_entities[i], 0, 0) + 1
 end
 
 return adjacent_nums, num_adjacent
@@ -300,13 +300,13 @@ function getBoundaryFaceLocalNum(mesh::PumiMesh, edge_num::Integer)
   face_i = mesh.faces[edge_num]
 
   # get mesh face associated with edge
-  countAdjacent(mesh.m_ptr, face_i, mesh.dim)
-  el = getAdjacent(1)[1]  # get the single face (not an array)
+  apf.countAdjacent(mesh.m_ptr, face_i, mesh.dim)
+  el = apf.getAdjacent(1)[1]  # get the single face (not an array)
 
-#  elnum_i = getNumberJ(mesh.el_Nptr, face, 0, 0) + 1
+#  elnum_i = apf.getNumberJ(mesh.el_Nptr, face, 0, 0) + 1
 #  facenum_i = getFaceNumber2(face) + 1  # convert to 1 based indexing
   down_faces = Array{Ptr{Void}}(12)
-  numedges = getDownward(mesh.m_ptr, el, mesh.dim-1, down_faces)
+  numedges = apf.getDownward(mesh.m_ptr, el, mesh.dim-1, down_faces)
   facenum_local = 0
   for j = 1:mesh.numFacesPerElement  # find which local edge is edge_i
     if down_faces[j] == face_i
@@ -326,7 +326,7 @@ function getFaceLocalNum(mesh::PumiMesh, edge_num::Integer, element_num::Integer
   element = mesh.elements[element_num]
 
   down_edges = Array{Ptr{Void}}(12)
-   numedges = getDownward(mesh.m_ptr, element, mesh.dim-1, down_edges)
+   numedges = apf.getDownward(mesh.m_ptr, element, mesh.dim-1, down_edges)
 
   edgenum_local = 0
    for j = 1:mesh.numFacesPerElement  # find which local edge is edge_i
@@ -350,11 +350,11 @@ function getElementVertMap(mesh::PumiMesh)
 
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
-    getDownward(mesh.m_ptr, el_i,  vert_dim, verts)
+    apf.getDownward(mesh.m_ptr, el_i,  vert_dim, verts)
 
     for j=1:numVertPerElement
       vert_j = verts[j]
-      elvertmap[j, i] = getNumberJ(mesh.vert_Nptr, vert_j, 0, 0) + 1
+      elvertmap[j, i] = apf.getNumberJ(mesh.vert_Nptr, vert_j, 0, 0) + 1
     end
   end
 

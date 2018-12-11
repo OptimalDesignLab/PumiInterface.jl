@@ -249,12 +249,12 @@
 
   # test getNodeXi
   if order <= 2
-    fshape = getFieldShape(0, order, 2)
-    eshape = getEntityShape(fshape, 2)  # triangle
+    fshape = apf.getFieldShape(0, order, 2)
+    eshape = apf.getEntityShape(fshape, 2)  # triangle
     nodexi = PdePumiInterface.getXiCoords(order, 2)
     numnodes = size(nodexi, 2)
     for i=1:numnodes
-      vals = getValues(mesh.m_ptr, eshape, nodexi[:, i], numnodes)
+      vals = apf.getValues(mesh.m_ptr, eshape, nodexi[:, i], numnodes)
       for j=1:numnodes
         if i == j
           @test  abs(vals[j] - 1)  < 1e-12
@@ -517,7 +517,7 @@ end
   # check that value at each vert is the number of elements using that vert
   for i=1:mesh.numVert
     vert_i = mesh.verts[i]
-    nel = countAdjacent(mesh.m_ptr, vert_i, mesh.dim)
+    nel = apf.countAdjacent(mesh.m_ptr, vert_i, mesh.dim)
     for j=1:6
       @test ( u_verts[j, i] )== nel
     end
@@ -659,13 +659,13 @@ end
        facenum_local = getFaceL(iface_i)
 
        el_i = mesh.elements[elnum]
-       nverts = getDownward(mesh.m_ptr, el_i, 0, el_verts)
+       nverts = apf.getDownward(mesh.m_ptr, el_i, 0, el_verts)
        println("nverts = ", nverts)
 
        for j=1:numVertPerFace
          face_verts[j] = el_verts[topo.face_verts[j, facenum_local]]
          tmp = zeros(3)
-         getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
+         apf.getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
          face_vert_coords[1:mesh.dim, j] = tmp[1:mesh.dim]
        end
 
@@ -678,7 +678,7 @@ end
        end
 
        tmp = zeros(3)
-       getPoint(mesh.m_ptr, other_vert, 0, tmp)
+       apf.getPoint(mesh.m_ptr, other_vert, 0, tmp)
        other_vert_coords[1:mesh.dim] = tmp[1:mesh.dim]
 
        # check that the face normal is in the opposite direction as the
@@ -704,7 +704,7 @@ end
 
 
    println("testing number nodes windy")
-   # check adjacency reordering algorithm doesn't error out
+   # check adjacency apf.reordering algorithm doesn't error out
    PdePumiInterface.numberNodesWindy(mesh, [0.0, 0.0, 0.0])
 
     opts["smb_name"] = "tri8l.smb"
@@ -812,17 +812,17 @@ end
   for i=1:mesh.numEl
     order = mesh.order
     el_ptr = mesh.elements[i]
-    getDownward(mesh.m_ptr, el_ptr, 0, down_verts)
+    apf.getDownward(mesh.m_ptr, el_ptr, 0, down_verts)
 
     for j=1:mesh.numTypePerElement[1]  # loop over vertices
       vert_j = down_verts[j]
-      getPoint(mesh.m_ptr, vert_j, 0, coords_vert)
+      apf.getPoint(mesh.m_ptr, vert_j, 0, coords_vert)
 
       x = coords_vert[1]
       y = coords_vert[2]
 
       # note: this assumes mnew = m
-      getComponents(mesh.fnew_ptr, vert_j, 0, interp_vals)
+      apf.getComponents(mesh.fnew_ptr, vert_j, 0, interp_vals)
 
       val_expected = x^order + y^order + 1
       for k=1:mesh.numDofPerNode

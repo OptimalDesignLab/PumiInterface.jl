@@ -1260,9 +1260,9 @@ function testSurfaceNumbering(mesh, sbp, opts)
     # this is a bit too loose because some MeshEntities are classified on
     # the geometric entities that are on the closure of the specified geometry
     for vert in face_verts
-      me =  toModel(mesh.m_ptr, vert)
-      me_type = getModelType(mesh.m_ptr, me)  # dimension of model entity
-      me_tag = getModelTag(mesh.m_ptr, me)
+      me =  apf.toModel(mesh.m_ptr, vert)
+      me_type = apf.getModelType(mesh.m_ptr, me)  # dimension of model entity
+      me_tag = apf.getModelTag(mesh.m_ptr, me)
 
       if me_type == mesh.dim - 1
         @test ( me_tag in geo_tags )== true
@@ -1277,12 +1277,12 @@ function testSurfaceNumbering(mesh, sbp, opts)
     entities[1] = mesh.verts
     entities[2] = mesh.edges
     for edim = 1:length(entities)
-      if hasNodesIn(mesh.coordshape_ptr, edim - 1)
+      if apf.hasNodesIn(mesh.coordshape_ptr, edim - 1)
         for vert in entities[edim]
-          n_v = getNumberJ(n_face, vert, 0, 0)
-          me =  toModel(mesh.m_ptr, vert)
-          me_type = getModelType(mesh.m_ptr, me)
-          me_tag = getModelTag(mesh.m_ptr, me)
+          n_v = apf.getNumberJ(n_face, vert, 0, 0)
+          me =  apf.toModel(mesh.m_ptr, vert)
+          me_type = apf.getModelType(mesh.m_ptr, me)
+          me_tag = apf.getModelTag(mesh.m_ptr, me)
 
           if n_v > numFacePts
             if me_type == mesh.dim - 1
@@ -1320,7 +1320,7 @@ function test_coordNumbering(mesh)
     # check verts
     for entity in mesh.verts
       for i=1:mesh.dim
-        val = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, i-1)
+        val = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, i-1)
         @test val >= 1
         @test val <= mesh.dim*mesh.coord_numNodes
 
@@ -1331,7 +1331,7 @@ function test_coordNumbering(mesh)
     if mesh.coord_order == 2
       for entity in mesh.edges
         for i=1:mesh.dim
-          val = getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, i-1)
+          val = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, i-1)
           @test val >= 1
           @test val <= mesh.dim*mesh.coord_numNodes
 

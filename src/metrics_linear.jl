@@ -79,7 +79,7 @@ function getCoordinates(mesh::PumiMeshDG, sbp::AbstractSBP)
   for i=1:mesh.numEl  # loop over elements
     
     el_i = mesh.elements[i]
-    getAllEntityCoords(mesh.m_ptr, el_i, coords_i)
+    apf.getAllEntityCoords(mesh.m_ptr, el_i, coords_i)
     mesh.vert_coords[:, :, i] = coords_i[:, :]
     mesh.coords[:, :, i] = vertToVolumeCoords(mesh, sbp, coords_i)
 #    coords_it[:,:] = coords_i[1:mesh.dim, :].'
@@ -226,14 +226,14 @@ end
 function getElementCoords(mesh::PumiMesh2D, entity::Ptr{Void}, coords::AbstractMatrix)
   # coords must be 3 x numVertsPerElement
   sx, sy = size(coords)
-  getFaceCoords(mesh.m_ptr, entity, coords, sx, sy)
+  apf.getFaceCoords(mesh.m_ptr, entity, coords, sx, sy)
 end
 
 
 function getElementCoords(mesh::PumiMesh3D, entity::Ptr{Void}, coords::AbstractMatrix)
 
   sx, sy = size(coords)
-  getElCoords(mesh.m_ptr, entity, coords, sx, sy)
+  apf.getElCoords(mesh.m_ptr, entity, coords, sx, sy)
 end
 
 
@@ -304,7 +304,7 @@ function getBndryCoordinates(mesh::PumiMeshDG2{Tmsh},
     face = bndry_i.face
 
     sizex, sizey = size(coords_i)
-    getFaceCoords(mesh.m_ptr, el_ptr, coords_i, sizex, sizey)
+    apf.getFaceCoords(mesh.m_ptr, el_ptr, coords_i, sizex, sizey)
 
     coords_it[:, :] = coords_i[1:2, :].'
 
@@ -381,7 +381,7 @@ function getInterfaceCoordinates(mesh::PumiMeshDG2{Tmsh},
     face = bndry_i.faceL
 
     sizex, sizey = size(coords_i)
-    getFaceCoords(mesh.m_ptr, el_ptr, coords_i, sizex, sizey)
+    apf.getFaceCoords(mesh.m_ptr, el_ptr, coords_i, sizex, sizey)
 
     coords_it[:, :] = coords_i[1:2, :].'
 

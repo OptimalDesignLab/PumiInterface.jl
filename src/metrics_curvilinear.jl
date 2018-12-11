@@ -102,7 +102,7 @@ function getMeshCoordinates(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP) where Tmsh
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
     coords_i = sview(mesh.vert_coords, :, :, i)
-    getAllEntityCoords(mesh.m_ptr, el_i, coords_tmp)
+    apf.getAllEntityCoords(mesh.m_ptr, el_i, coords_tmp)
     copy!(coords_i, coords_tmp)
   end
 
@@ -513,12 +513,12 @@ function is_inward_normal(mesh, iface::Union{Boundary, Interface},
   facenum_local = getFaceL(iface)
 
 #  el_i = mesh.elements[elnum]
-#  getDownward(mesh.m_ptr, el_i, 0, el_verts)
+#  apf.getDownward(mesh.m_ptr, el_i, 0, el_verts)
 
   for j=1:numVertPerFace
     v_j = topo.face_verts[j, facenum_local]
 #    face_verts[j] = el_verts[topo.face_verts[j, facenum_local]]
-#    getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
+#    apf.getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
 
     for p=1:mesh.dim
       face_vert_coords[p, j] = mesh.vert_coords[p, v_j, elnum]
@@ -541,7 +541,7 @@ function is_inward_normal(mesh, iface::Union{Boundary, Interface},
     other_vert_coords[p] = mesh.vert_coords[p, other_vert, elnum]
   end
   #=
-  getPoint(mesh.m_ptr, other_vert, 0, tmp)
+  apf.getPoint(mesh.m_ptr, other_vert, 0, tmp)
   for p=1:mesh.dim
     other_vert_coords[p] = tmp[p]
   end
@@ -888,7 +888,7 @@ function calcEone_rev(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
   # R times vector of ones
   # the permutation doesn't matter because it is being multiplied by a constant
   # vector.
-  # also R1 = 1 by definition
+  # also R1 = 1 by def.inition
   Rone = ones(Float64, mesh.numNodesPerFace)
 #  Rone = vec(sum(mesh.sbpface.interp.', 2))
   sbpface = mesh.sbpface

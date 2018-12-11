@@ -3,7 +3,7 @@
 function getEntityOrientations(mesh::PumiMesh)
 # get the offset for node access of each mesh entity of each element
 # to read/write from a Pumi field, accessing the data stored on an edge looks like:
-# getComponents(f, e, abs(offset - node) - 1, vals)
+# apf.getComponents(f, e, abs(offset - node) - 1, vals)
 # where f is the field, e is a mesh entity, node is the node index (one based),
 # and vals is an array of values to be written to the field
 # offset = 0 corresponds to the original ordering
@@ -34,12 +34,12 @@ function getEntityOrientations(mesh::PumiMesh)
   edges_start = mesh.typeOffsetsPerElement[2]
   nnodes_per_edge = mesh.numNodesPerType[2]
   for i=1:mesh.numEl
-    getDownward(mesh.m_ptr, mesh.elements[i], 1, edges_i)
+    apf.getDownward(mesh.m_ptr, mesh.elements[i], 1, edges_i)
  
     for j=1:mesh.numTypePerElement[2]  # loop over edges on element i
       # get orientation of edge j on element i
       # get global number of edge j
-      edgenum_global = getNumberJ(mesh.edge_Nptr, edges_i[j], 0, 0) + 1
+      edgenum_global = apf.getNumberJ(mesh.edge_Nptr, edges_i[j], 0, 0) + 1
 
       orient, edge_idx = getEdgeOrientation(mesh, i, edgenum_global)
       
@@ -83,14 +83,14 @@ function getEdgeOrientation(mesh::PumiMesh, elnum::Integer, edgenum::Integer)
 
 #  println("\nEntered getEdgeOrientation")
   # get all the vertices
-  el_verts, tmp = getDownward(mesh.m_ptr, mesh.elements[elnum], 0)
-  edge_verts, tmp = getDownward(mesh.m_ptr, mesh.edges[edgenum], 0)
-  el_edges, tmp = getDownward(mesh.m_ptr, mesh.elements[elnum], 1)
+  el_verts, tmp = apf.getDownward(mesh.m_ptr, mesh.elements[elnum], 0)
+  edge_verts, tmp = apf.getDownward(mesh.m_ptr, mesh.edges[edgenum], 0)
+  el_edges, tmp = apf.getDownward(mesh.m_ptr, mesh.elements[elnum], 1)
 
   # find out which edge of the face it is
   edge_idx = 0
   for i=1:3
-    edgenum_ret = getNumberJ(mesh.edge_Nptr, el_edges[i], 0, 0) + 1
+    edgenum_ret = apf.getNumberJ(mesh.edge_Nptr, el_edges[i], 0, 0) + 1
     if edgenum_ret == edgenum
       edge_idx = i
       break
@@ -180,8 +180,8 @@ face = mesh.faces[facenum]
 # get rotations to bring faces into canonical orientation
 # for each element
 # we can ignore flip because one of the faces will always be flipped
-whichL, flipL, rotateL = getAlignment(mesh.m_ptr, eL, face)
-whichR, flipR, rotateR = getAlignment(mesh.m_ptr, eR, face)
+whichL, flipL, rotateL = apf.getAlignment(mesh.m_ptr, eL, face)
+whichR, flipR, rotateR = apf.getAlignment(mesh.m_ptr, eR, face)
 
 r1 = EntityOrientation(whichL, flipL, rotateL)
 r2 = EntityOrientation(whichR, flipR, rotateR)
@@ -296,8 +296,8 @@ function getRelativeOrientation(fdata::FaceData, mesh::PumiMesh3DG)
   vertmap = mesh.topo.face_verts
 
   # get all vertices of the tet
-  getDownward(mesh.m_ptr, fdata.elL, 0, fdata.vertsL)
-  getDownward(mesh.m_ptr, fdata.elR, 0, fdata.vertsR)
+  apf.getDownward(mesh.m_ptr, fdata.elL, 0, fdata.vertsL)
+  apf.getDownward(mesh.m_ptr, fdata.elR, 0, fdata.vertsR)
   # extract the face vertices 
   # uses the user suppied topology information to order the face verts
   for i=1:3
@@ -322,8 +322,8 @@ function getMatchedVertsR(fdata::FaceData, mesh::PumiMesh3DG)
 
   # if any have matches, replace with remote pointer
   for i=1:3
-    n = countMatches(mesh.m_ptr, fdata.facevertsR[i])
-    getMatches(part_nums, matched_entities)
+    n = apf.countMatches(mesh.m_ptr, fdata.facevertsR[i])
+    apf.getMatches(part_nums, matched_entities)
     # make sure it is possible to correlate the vertices uniquely
     assertUnique(sview(part_nums, 1:Int(n)), sview(matched_entities, 1:Int(n)), 
                  mesh.myrank, fdata.facevertsL)

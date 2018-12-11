@@ -13,6 +13,7 @@
 
 #include "funcs1.h"
 #include <cassert>
+#include "pumiInterface_config.h"
 //#include "a2.h"
 
 //=============================================================================

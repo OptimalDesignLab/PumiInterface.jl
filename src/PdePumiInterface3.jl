@@ -71,10 +71,10 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
   mesh.order = order
   mesh.numNodesPerElement = getNumNodes(order)
   mesh.shape_type = shape_type
-  @time mesh.numEntities, mesh.m_ptr, mesh.mshape_ptr, n_arr = init(dmg_name, smb_name, order, shape_type=shape_type)
-  mesh.f_ptr = findField(mesh.m_ptr, "solution_field")
+  @time mesh.numEntities, mesh.m_ptr, mesh.mshape_ptr, n_arr = apf.init(dmg_name, smb_name, order, shape_type=shape_type)
+  mesh.f_ptr = apf.findField(mesh.m_ptr, "solution_field")
   if mesh.f_ptr == C_NULL
-    @time mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode)
+    @time mesh.f_ptr = apf.createPackedField(mesh.m_ptr, "solution_field", dofpernode)
   end
 
   mesh.numVert = convert(Int, mesh.numEntities[1])
@@ -84,10 +84,10 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
 
   # get number of nodes on each type
   mesh.numNodesPerType = zeros(Int, 4)
-  mesh.numNodesPerType[1] = countNodesOn(mesh.mshape_ptr, 0)  # number of nodes on a vertex
-  mesh.numNodesPerType[2]= countNodesOn(mesh.mshape_ptr, 1) # on edge
-  mesh.numNodesPerType[3] = countNodesOn(mesh.mshape_ptr, 2) # on face
-  mesh.numNodesPerType[4]= countNodesOn(mesh.mshape_ptr, 4) # on element interior 
+  mesh.numNodesPerType[1] = apf.countNodesOn(mesh.mshape_ptr, 0)  # number of nodes on a vertex
+  mesh.numNodesPerType[2]= apf.countNodesOn(mesh.mshape_ptr, 1) # on edge
+  mesh.numNodesPerType[3] = apf.countNodesOn(mesh.mshape_ptr, 2) # on face
+  mesh.numNodesPerType[4]= apf.countNodesOn(mesh.mshape_ptr, 4) # on element interior 
   mesh.numEntitiesPerElement = [4, 6, 4, 1]
 
   mesh.numNodesPerElement = 0
@@ -106,7 +106,7 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
   mesh.edges = Array{Ptr{Void}}(mesh.numEdge)
   mesh.faces = Array{Ptr{Void}}(mesh.numFace)
   mesh.elements = Array{Ptr{Void}}(mesh.numEl)
-  mesh.dofnums_Nptr = createNumberingJ(mesh.m_ptr, "reordered dof numbers", mesh.mshape_ptr, dofpernode)  # 1 dof per node
+  mesh.dofnums_Nptr = apf.createNumberingJ(mesh.m_ptr, "reordered dof numbers", mesh.mshape_ptr, dofpernode)  # 1 dof per node
 
 
 
@@ -115,29 +115,29 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
   # also initilize the field to zero
   resetAllIts2(mesh.m_ptr)
 #  comps = zeros(dofpernode)
-  it = MeshIterator(mesh.m_ptr, 0)
+  it = apf.MeshIterator(mesh.m_ptr, 0)
   for i=1:mesh.numVert
-    mesh.verts[i] = iterate(mesh.m_ptr, it)
+    mesh.verts[i] = apf.iterate(mesh.m_ptr, it)
   end
-  free(mesh.m_ptr, it)
+  apf.free(mesh.m_ptr, it)
 
-  it = MeshIterator(mesh.m_ptr, 1)
+  it = apf.MeshIterator(mesh.m_ptr, 1)
   for i=1:mesh.numEdge
-    mesh.edges[i] = iterate(mesh.m_ptr, it)
+    mesh.edges[i] = apf.iterate(mesh.m_ptr, it)
   end
-  free(mesh.m_ptr, it)
+  apf.free(mesh.m_ptr, it)
 
-  it = MeshIterator(mesh.m_ptr, 2)
+  it = apf.MeshIterator(mesh.m_ptr, 2)
   for i=1:mesh.numFace
-    mesh.faces[i] = iterate(mesh.m_ptr, it)
+    mesh.faces[i] = apf.iterate(mesh.m_ptr, it)
   end
-  free(mesh.m_ptr, it)
+  apf.free(mesh.m_ptr, it)
 
-  it = MeshIterator(mesh.m_ptr, 3)
+  it = apf.MeshIterator(mesh.m_ptr, 3)
   for i=1:mesh.numEl
-    mesh.elements[i] = iterate(mesh.m_ptr, it)
+    mesh.elements[i] = apf.iterate(mesh.m_ptr, it)
   end
-  free(mesh.m_ptr, it)
+  apf.free(mesh.m_ptr, it)
 
   # use partially constructed mesh object to populate arrays
   checkConnectivity(mesh)
@@ -181,7 +181,7 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
 
   printStats(mesh)
 
-  writeVtkFiles("mesh_complete", mesh.m_ptr)
+  apf.writeVtkFiles("mesh_complete", mesh.m_ptr)
   return mesh
   end
 
@@ -218,14 +218,14 @@ function countBoundaryFaces(mesh::PumiMesh3)
 #  resetFaceIt()
   bnd_faces_cnt = 0
   bnd_faces = Array{Int}(mesh.numFace, 2)
-  it = MeshIterator(mesh.m_ptr, 2)
+  it = apf.MeshIterator(mesh.m_ptr, 2)
   for i=1:mesh.numFace
-    face_i = iterate(mesh.m_ptr, it)
-    numRegion = countAdjacent(mesh.m_ptr, face_i, 3)  # should be count upward
+    face_i = apf.iterate(mesh.m_ptr, it)
+    numRegion = apf.countAdjacent(mesh.m_ptr, face_i, 3)  # should be count upward
 
     if numRegion == 1  # if an exterior edge
-      elements = getAdjacent(numRegion)
-      elnum = getNumberJ(mesh.el_Nptr, elements[1], 0, 0) + 1
+      elements = apf.getAdjacent(numRegion)
+      elnum = apf.getNumberJ(mesh.el_Nptr, elements[1], 0, 0) + 1
 
 #      println("face number ", i, " is part of only one element")
 
@@ -234,7 +234,7 @@ function countBoundaryFaces(mesh::PumiMesh3)
       bnd_faces[bnd_faces_cnt, 2] = i
     end
   end
-  free(mesh.m_ptr, it)
+  apf.free(mesh.m_ptr, it)
 
 
   mesh.boundary_nums = bnd_faces[1:bnd_faces_cnt, :] # copy, bad but unavoidable
@@ -278,10 +278,10 @@ function getBoundaryEntityLocalNum(mesh::PumiMesh3, entity_num::Integer, entity_
   end
 
   # get mesh face or region associated with edge
-  countAdjacent(mesh.m_ptr, entity_i, entity_dim+1)
-  parent = getAdjacent(1)[1]  # get the single face (not an array)
+  apf.countAdjacent(mesh.m_ptr, entity_i, entity_dim+1)
+  parent = apf.getAdjacent(1)[1]  # get the single face (not an array)
 
-  local_num = getEntityLocalNumber(mesh.m_ptr, entity_i, parent, entity_dim, entity_dim+1)
+  local_num = apf.getEntityLocalNumber(mesh.m_ptr, entity_i, parent, entity_dim, entity_dim+1)
 
   return local_num
 
@@ -325,16 +325,16 @@ function numberDofs(mesh::PumiMesh3)
   curr_dof = numDof+1
   for etype = 1:length(num_nodes_entity) # loop over entity types
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
-      it = MeshIterator(mesh.m_ptr, etype - 1)
+      it = apf.MeshIterator(mesh.m_ptr, etype - 1)
       for entity = 1:num_entities[etype]  # loop over all entities of this type
 #	println("  entity number: ", entity)
-        entity_ptr = iterate(mesh.m_ptr, it)
+        entity_ptr = apf.iterate(mesh.m_ptr, it)
 #	entity_ptr = iterators_get[etype]()  # get entity
 
 	for node = 1:num_nodes_entity[etype]
 #	  println("    node : ", node)
 	  for dof = 1:mesh.numDofPerNode
-	    numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, dof-1, curr_dof)
+	    apf.numberJ(mesh.dofnums_Nptr, entity_ptr, node-1, dof-1, curr_dof)
 #	    println("      entity ", entity_ptr, " labelled ", curr_dof)
 	    curr_dof += 1
 	  end  # end loop over dof
@@ -342,7 +342,7 @@ function numberDofs(mesh::PumiMesh3)
 
 #      iterators_inc[etype]()
       end  # end loop over entitiesaa
-      free(mesh.m_ptr, it)
+      apf.free(mesh.m_ptr, it)
     end  # end if 
   end  # end loop over entity types
 
@@ -354,13 +354,13 @@ function numberDofs(mesh::PumiMesh3)
 
     el_i = mesh.elements[i]
     # get vertices, edges for this element
-    (verts_i, numVert) = getDownward(mesh.m_ptr, mesh.elements[i], 0)
+    (verts_i, numVert) = apf.getDownward(mesh.m_ptr, mesh.elements[i], 0)
 #    println("verts_i = ", verts_i)
 #    println("mesh.verts = ", mesh.verts)
-    (edges_i, numEdge) = getDownward(mesh.m_ptr, mesh.elements[i], 1)
+    (edges_i, numEdge) = apf.getDownward(mesh.m_ptr, mesh.elements[i], 1)
 
     if mesh.numEntitiesPerElement[3] > 1  # don't call get downward if el_i is a face
-      (face_i, numFace) = getDownward(mesh.m_ptr, mesh.elements[i], 2)
+      (face_i, numFace) = apf.getDownward(mesh.m_ptr, mesh.elements[i], 2)
       regions_i = [mesh.elements[i]]  # make this an array for consistency
       numRegions = 1
     else  # this is a 2d mesh
@@ -378,10 +378,10 @@ function numberDofs(mesh::PumiMesh3)
       for k=1:mesh.numDofPerNode # loop over vertex dofs
 #	println("    dof number: ", k)
 #	println("    vert_j = ", vert_j)
-        dofnum_k = getNumberJ(mesh.dofnums_Nptr, vert_j, 0, k-1)
+        dofnum_k = apf.getNumberJ(mesh.dofnums_Nptr, vert_j, 0, k-1)
 	if dofnum_k > numDof  # still has initial number
 	  # give it new (final) number
-	  numberJ(mesh.dofnums_Nptr, vert_j, 0, k-1, curr_dof)
+	  apf.numberJ(mesh.dofnums_Nptr, vert_j, 0, k-1, curr_dof)
 #	  println("numbering a vertex ", curr_dof)
 	  curr_dof += 1
 	end
@@ -395,10 +395,10 @@ function numberDofs(mesh::PumiMesh3)
       # loop over nodes on edge
       for k=1:num_nodes_entity[2]  # loop over all nodes on the edge
 	for p=1:mesh.numDofPerNode  # loop over dofs
-	  dofnum_p = getNumberJ(mesh.dofnums_Nptr, edge_j, k-1, p-1)
+	  dofnum_p = apf.getNumberJ(mesh.dofnums_Nptr, edge_j, k-1, p-1)
 	  if dofnum_p > numDof  # still has initial number
 	    # give it new (final) number
-	    numberJ(mesh.dofnums_Nptr, edge_j, k-1, p-1, curr_dof)
+	    apf.numberJ(mesh.dofnums_Nptr, edge_j, k-1, p-1, curr_dof)
 	    curr_dof += 1
 	  end
 	end
@@ -411,9 +411,9 @@ function numberDofs(mesh::PumiMesh3)
       face_j = face_i[j]
       for k=1:num_nodes_entity[3]  # loop over nodes on faces
 	for p=1:mesh.numDofPerNode  # loop over dofs
-	  dofnum_p = getNumberJ(mesh.dofnums_Nptr, face_j, k-1, p-1)
+	  dofnum_p = apf.getNumberJ(mesh.dofnums_Nptr, face_j, k-1, p-1)
 	  if dofnum_p > numDof
-	    numberJ(mesh.dofnums_Nptr, face_j, k-1, p-1, curr_dof)
+	    apf.numberJ(mesh.dofnums_Nptr, face_j, k-1, p-1, curr_dof)
 	    curr_dof += 1
 	  end
 	end
@@ -426,9 +426,9 @@ function numberDofs(mesh::PumiMesh3)
       region_j = regions_i[j]
       for k=1:num_nodes_entity[4]
 	for p=1:mesh.numDofPerNode
-	  dofnum_p = getNumberJ(mesh.dofnums_Nptr, region_j, k-1, p-1)
+	  dofnum_p = apf.getNumberJ(mesh.dofnums_Nptr, region_j, k-1, p-1)
 	  if dofnum_p > numDof
-	    numberJ(mesh.dofnums_Nptr, region_j, k-1, p-1, curr_dof)
+	    apf.numberJ(mesh.dofnums_Nptr, region_j, k-1, p-1, curr_dof)
 	    curr_dof += 1
 	  end
 	end
@@ -477,7 +477,7 @@ function getGlobalNodeNumbers(mesh::PumiMesh3, elnum::Integer)
 # gets global node numbers of all dof on all nodes of the element
 # output formap is array [numdofpernode, nnodes]  (each column contains dof numbers for a node)
 el_i = mesh.elements[elnum]
-#type_i = getType(mesh.m_ptr, el_i)
+#type_i = apf.getType(mesh.m_ptr, el_i)
 
 
 # use apf::getElementNumbers to ensure everything is in the proper orientation
@@ -486,7 +486,7 @@ el_i = mesh.elements[elnum]
   numdof = nnodes*mesh.numDofPerNode
   nums = zeros(Int32, numdof)
 
-getElementNumbers(mesh.dofnums_Nptr, el_i, numdof, nums::Array{Int32, 1})
+apf.getElementNumbers(mesh.dofnums_Nptr, el_i, numdof, nums::Array{Int32, 1})
 
 # reshape into output format
 # underlying memory is shared
@@ -509,7 +509,7 @@ for i=1:mesh.numEl  # loop over elements
   
   el_i = mesh.elements[i]
   (sizex, sizey) = size(coords_i)
-  getElCoords(mesh.m_ptr, el_i, coords_i, sizex, sizey)  # populate coords
+  apf.getElCoords(mesh.m_ptr, el_i, coords_i, sizex, sizey)  # populate coords
 
 #  println("coords_i = ", coords_i)
 
@@ -544,7 +544,7 @@ function getInterfaceArray(mesh::PumiMesh3)
 
 #  interfaces = Array{typeof(new_interface}(num_int_edges)
   # get number of nodes affecting an edge
-  num_face_nodes = countAllNodes(mesh.mshape_ptr, 2)
+  num_face_nodes = apf.countAllNodes(mesh.mshape_ptr, 2)
 
   # store whether the node map has been calculated for each case
   # index = relative rotation of faces + 1
@@ -572,8 +572,8 @@ function getInterfaceArray(mesh::PumiMesh3)
 
       coords_1 = zeros(3,4)
       coords_2 = zeros(3,4)
-      getElCoords(mesh.m_ptr, mesh.elements[element1], coords_1, 3, 4)
-      getElCoords(mesh.m_ptr, mesh.elements[element2], coords_2, 3, 4)
+      apf.getElCoords(mesh.m_ptr, mesh.elements[element1], coords_1, 3, 4)
+      apf.getElCoords(mesh.m_ptr, mesh.elements[element2], coords_2, 3, 4)
 
       # calculate centroid
       centroid1 = sum(coords_1, 2)
@@ -597,8 +597,8 @@ function getInterfaceArray(mesh::PumiMesh3)
         end
       end
 
-      faceL = getEntityLocalNumber(mesh.m_ptr, mesh.faces[i], mesh.elements[elementL], 2, 3)
-      faceR = getEntityLocalNumber(mesh.m_ptr, mesh.faces[i], mesh.elements[elementR], 2, 3)
+      faceL = apf.getEntityLocalNumber(mesh.m_ptr, mesh.faces[i], mesh.elements[elementL], 2, 3)
+      faceR = apf.getEntityLocalNumber(mesh.m_ptr, mesh.faces[i], mesh.elements[elementR], 2, 3)
 #      edgeL = getFaceLocalNum(mesh, i, elementL)
 #      edgeR = getFaceLocalNum(mesh, i, elementR)
 
@@ -647,8 +647,8 @@ face = mesh.faces[facenum]
 # get rotations to bring faces into canonical orientation
 # for each element
 # we can ignore flip because one of the faces will always be flipped
-which, flipL, rotateL = getAlignment(mesh.m_ptr, eL, face)
-which, flipR, rotateR = getAlignment(mesh.m_ptr, eR, face)
+which, flipL, rotateL = apf.getAlignment(mesh.m_ptr, eL, face)
+which, flipR, rotateR = apf.getAlignment(mesh.m_ptr, eR, face)
 
 if flipL && flipR
   println("Warning both faces are flipped, nodemap may  be incorrect")

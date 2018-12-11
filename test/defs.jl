@@ -1,4 +1,4 @@
-# some temporary definitions
+# some temporary defapf.initions
 struct MySBP{Tsbp} <: AbstractSBP{Tsbp}
   degree::Int
   numnodes::Int

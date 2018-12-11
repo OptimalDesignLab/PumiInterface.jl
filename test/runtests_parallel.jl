@@ -21,18 +21,18 @@ include("test_adapt.jl")
   order = 1
 @testset "Testing PUMIInterface.jl" begin
 
-  m_ptr, dim = loadMesh(dmg_name, smb_name, order)
-  mshape_ptr, num_Entities, n_arr = initMesh(m_ptr)
-#  num_Entities, m_ptr, mshape_ptr = init2(dmg_name, smb_name, order)
+  m_ptr, dim = apf.loadMesh(dmg_name, smb_name, order)
+  mshape_ptr, num_Entities, n_arr = apf.initMesh(m_ptr)
+#  num_Entities, m_ptr, mshape_ptr = apf.init2(dmg_name, smb_name, order)
 
   myrank = MPI.Comm_rank(MPI.COMM_WORLD)
   @test ( num_Entities[1] )== 6
   @test ( num_Entities[2] )== 9
   @test ( num_Entities[3] )== 4
 
-  @test ( countPeers(m_ptr, apfVERTEX) )== 1
+  @test ( apf.countPeers(m_ptr, apf.VERTEX) )== 1
   peers = Array{Int32}(1)
-  getPeers(m_ptr, peers)
+  apf.getPeers(m_ptr, peers)
 
 
   @test ( peers[1] )== 1-myrank
@@ -41,25 +41,25 @@ include("test_adapt.jl")
   edges = Array{Ptr{Void}}(num_Entities[2])
   faces = Array{Ptr{Void}}(num_Entities[3])
 
-  it = MeshIterator(m_ptr, 0)
+  it = apf.MeshIterator(m_ptr, 0)
   for i=1:length(verts)
-    verts[i] = iterate(m_ptr, it)
+    verts[i] = apf.iterate(m_ptr, it)
   end
-  free(m_ptr, it)
+  apf.free(m_ptr, it)
 
-  it = MeshIterator(m_ptr, 1)
+  it = apf.MeshIterator(m_ptr, 1)
   for i=1:length(edges)
-    edges[i] = iterate(m_ptr, it)
+    edges[i] = apf.iterate(m_ptr, it)
   end
-  free(m_ptr, it)
+  apf.free(m_ptr, it)
 
-  it = MeshIterator(m_ptr, 2)
+  it = apf.MeshIterator(m_ptr, 2)
   for i=1:length(faces)
-    faces[i] = iterate(m_ptr, it)
+    faces[i] = apf.iterate(m_ptr, it)
   end
-  free(m_ptr, it)
+  apf.free(m_ptr, it)
 
-  # check the countRemotes function
+  # check the apf.countRemotes function
   # the only thing that can really be tested is the number of total remotes
   remote_cnt = 0 # count the total number of remotes
   remote_sum = 0 # sum of the remote values
@@ -68,10 +68,10 @@ include("test_adapt.jl")
 
   sleep(5*myrank)
   for i=1:length(verts)
-    nremotes = countRemotes(m_ptr, verts[i])
+    nremotes = apf.countRemotes(m_ptr, verts[i])
     remote_cnt += Int(nremotes)
     if nremotes != 0
-      getRemotes(part_nums, entities)
+      apf.getRemotes(part_nums, entities)
       remote_sum += Int(part_nums[1])
     end
   end
@@ -82,10 +82,10 @@ include("test_adapt.jl")
   remote_cnt = 0
   remote_sum = 0
   for i=1:length(edges)
-    nremotes =  countRemotes(m_ptr, edges[i])
+    nremotes =  apf.countRemotes(m_ptr, edges[i])
     remote_cnt += Int(nremotes)
     if nremotes != 0
-      getRemotes(part_nums, entities)
+      apf.getRemotes(part_nums, entities)
       remote_sum += Int(part_nums[1])
     end
   end
@@ -165,20 +165,20 @@ end
     for j = 1:length(local_els)
       el = local_els[j]
       el_ptr = mesh.elements[el]
-      down, tmp = PumiInterface.getDownward(mesh.m_ptr, el_ptr, apfEDGE)
+      down, tmp = PumiInterface.apf.getDownward(mesh.m_ptr, el_ptr, apf.EDGE)
       cnt = 0 # count number of shared edges
       for k=1:3
-        if isShared(mesh.m_ptr, down[k])
-          nremotes = PumiInterface.countRemotes(mesh.m_ptr, down[k])
+        if apf.isShared(mesh.m_ptr, down[k])
+          nremotes = PumiInterface.apf.countRemotes(mesh.m_ptr, down[k])
           partnums = Array{Cint}(nremotes)
           entities = Array{Ptr{Void}}(nremotes)
-          PumiInterface.getRemotes(partnums, entities)
+          PumiInterface.apf.getRemotes(partnums, entities)
           for p=1:nremotes
             if partnums[p] == peernum
               cnt += 1
             end  # end if
           end  # end loop p
-        end  # end if isShared
+        end  # end if apf.isShared
       end  # end loop k
 
       @test  cnt  > 0

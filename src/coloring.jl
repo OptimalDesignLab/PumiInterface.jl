@@ -24,7 +24,7 @@ function colorMesh0(mesh::PumiMesh)
 
   # make every element color 1
   for i=1:mesh.numEl
-    numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 1)
+    apf.numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 1)
   end
 
   return 1  # return number of colors
@@ -43,7 +43,7 @@ function colorMesh1(mesh::PumiMesh, masks::Array{BitArray{1}})
 # shares and edge
 
 for i=1:mesh.numEl
-  numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
+  apf.numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
 end
 
 adj_size = 6  # guess number of neighboring faces
@@ -69,7 +69,7 @@ for i=1:mesh.numEl
   # thus, this is a logical system where a double negative
   # is not a positive
  
-  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 0, 2)
+  num_adj = apf.countBridgeAdjacent(mesh.m_ptr, el_i, 0, 2)
 
   if num_adj > adj_size
     println("resizing adj")
@@ -81,10 +81,10 @@ for i=1:mesh.numEl
 
 
   # need to verify this works in parallel (proper ghosting)
-  getBridgeAdjacent(adj)
+  apf.getBridgeAdjacent(adj)
 
   for j=1:num_adj
-    adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
+    adj_color[j] = apf.getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
   end
 
   min_color = getMinColor2(adj_color, numc)
@@ -95,7 +95,7 @@ for i=1:mesh.numEl
     numc = min_color
   end
 
-  numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
+  apf.numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
 
   cnt_colors[min_color] += 1  # update counts
 #  masks[min_color][i] = true  # update mask
@@ -129,7 +129,7 @@ function colorMesh2(mesh::PumiMeshDG, colordata::ColoringData)
 println(mesh.f, "----- Entered colorMesh2 -----")
 
 for i=1:mesh.numEl
-  numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
+  apf.numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
 end
 
 nfaces = mesh.numFacesPerElement
@@ -187,7 +187,7 @@ for i=1:mesh.numEl
     numc = min_color
   end
 
-  numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
+  apf.numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
 
   cnt_colors[min_color] += 1  # update counts
 
@@ -215,7 +215,7 @@ function colorMesh2(mesh::PumiMesh2)
 # this is a lot of random memory access
 
 for i=1:mesh.numEl
-  numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
+  apf.numberJ(mesh.coloring_Nptr, mesh.elements[i], 0, 0, 0)
 end
 
 nfaces = mesh.numFacesPerElement
@@ -271,7 +271,7 @@ for i=1:mesh.numEl
     numc = min_color
   end
 
-  numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
+  apf.numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
 
   cnt_colors[min_color] += 1  # update counts
 
@@ -343,7 +343,7 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
       numc = min_color
     end
     # record the color
-    numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
+    apf.numberJ(mesh.coloring_Nptr, el_i, 0, 0, min_color)
     cnt_colors[min_color] += 1  # update counts
 
     fill!(colors, 0)
@@ -399,7 +399,7 @@ function colorMeshBoundary2(mesh::PumiMeshDG, colordata::ColoringData, numc, cnt
       if neighbor != 0
         # get d1 neighbor color
         d1_ptr[1] = mesh.elements[neighbor]
-        d1_neighbors[j] = getNumberJ(mesh.coloring_Nptr, d1_ptr[1], 0, 0)
+        d1_neighbors[j] = apf.getNumberJ(mesh.coloring_Nptr, d1_ptr[1], 0, 0)
 
         # get d2 local and nonlocal neighbor colors (by getting the d1
         # neighbors of neighbor of the d1 neighbor)
@@ -441,21 +441,21 @@ function getNeighborMatches(mesh::PumiMesh, el::Ptr{Void}, adj::AbstractArray{Pt
 # num_used is the number of entries in adj already used
 
   faces = Array{Ptr{Void}}(mesh.numFacesPerElement)
-  n = getDownward(mesh.m_ptr, el, mesh.dim-1, faces)
+  n = apf.getDownward(mesh.m_ptr, el, mesh.dim-1, faces)
 
   part_nums = Array{Cint}(1)
   matched_entities = Array{Ptr{Void}}(1)
   adj_entities = Array{Ptr{Void}}(1)
   for i=1:n
-    nmatches = countMatches(mesh.m_ptr, faces[i])
-    getMatches(part_nums, matched_entities)
+    nmatches = apf.countMatches(mesh.m_ptr, faces[i])
+    apf.getMatches(part_nums, matched_entities)
     @assert nmatches <= 1
 
     if nmatches == 1 && part_nums[1] == mesh.myrank
       other_entity = matched_entities[1]
-      nel = countAdjacent(mesh.m_ptr, other_entity, mesh.dim)
+      nel = apf.countAdjacent(mesh.m_ptr, other_entity, mesh.dim)
       @assert nel == 1
-      getAdjacent(adj_entities)
+      apf.getAdjacent(adj_entities)
 
       # put it in the next spot in the array
       num_used += 1
@@ -481,9 +481,9 @@ function getDistance2Colors(mesh::PumiMesh, elnum::Integer, adj::AbstractArray{P
 
   el_i = mesh.elements[elnum]
 
-  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
+  num_adj = apf.countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
 #  adj = Array{Ptr{Void}}(3)
-  getBridgeAdjacent(adj)
+  apf.getBridgeAdjacent(adj)
 
   # check for matches
   if num_adj < mesh.numFacesPerElement
@@ -494,9 +494,9 @@ function getDistance2Colors(mesh::PumiMesh, elnum::Integer, adj::AbstractArray{P
 
   adj_cnt = zeros(Int, num_adj)
   for j=1:num_adj
-    num_adj_j = countBridgeAdjacent(mesh.m_ptr, adj[j], mesh.dim-1, mesh.dim)
+    num_adj_j = apf.countBridgeAdjacent(mesh.m_ptr, adj[j], mesh.dim-1, mesh.dim)
  #   adj2[j] = Array{Ptr{Void}}(num_adj_j + 1)
-    getBridgeAdjacent(adj2[j])
+    apf.getBridgeAdjacent(adj2[j])
 
     if num_adj_j < mesh.numFacesPerElement
       num_adj_j = getNeighborMatches(mesh, adj[j], adj2[j], num_adj_j, matchdata)
@@ -515,7 +515,7 @@ function getDistance2Colors(mesh::PumiMesh, elnum::Integer, adj::AbstractArray{P
   index = 1
   for i=1:num_adj
     for j=1:adj_cnt[i]
-      colors[index] = getNumberJ(mesh.coloring_Nptr, adj2[i][j], 0, 0)
+      colors[index] = apf.getNumberJ(mesh.coloring_Nptr, adj2[i][j], 0, 0)
       index += 1
     end
   end
@@ -540,7 +540,7 @@ function getNonlocalDistance2Colors(mesh::PumiMeshDG, elnum::Integer, colordata:
           neighbor = colordata.revadj[vals[i] - mesh.numEl, j]
           if neighbor != 0 && neighbor != elnum
             neighbor_ptr = mesh.elements[neighbor]
-            colors[pos] = getNumberJ(mesh.coloring_Nptr, neighbor_ptr, 0, 0)
+            colors[pos] = apf.getNumberJ(mesh.coloring_Nptr, neighbor_ptr, 0, 0)
             pos += 1
           end
         end
@@ -556,11 +556,11 @@ function getDistance1Colors(mesh::PumiMeshDG, elnum::Integer, adj, colors)
 # get the distance1 colors of a specified element
 
   el = mesh.elements[elnum]
-  num_adj = countBridgeAdjacent(mesh.m_ptr, el, mesh.dim-1, mesh.dim)
-  getBridgeAdjacent(adj)
+  num_adj = apf.countBridgeAdjacent(mesh.m_ptr, el, mesh.dim-1, mesh.dim)
+  apf.getBridgeAdjacent(adj)
 
   for i=1:num_adj
-    colors[i] = getNumberJ(mesh.coloring_Nptr, adj[i], 0, 0)
+    colors[i] = apf.getNumberJ(mesh.coloring_Nptr, adj[i], 0, 0)
   end
 
   return num_adj
@@ -573,7 +573,7 @@ function getNonLocalColors(mesh, adj::AbstractArray{Ptr{Void}}, colordata::Color
   adj_dict = colordata.adj_dict
   pos = 1
   for i=1:length(adj)
-    elnum = getNumberJ(mesh.el_Nptr, adj[i], 0, 0) + 1
+    elnum = apf.getNumberJ(mesh.el_Nptr, adj[i], 0, 0) + 1
     if haskey(adj_dict, elnum)
       vals = adj_dict[elnum]
       for j=1:length(vals)
@@ -695,9 +695,9 @@ for i=1:mesh.numEl
   el_i = mesh.elements[i]
 
   # check edge neighbors only
-  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
+  num_adj = apf.countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
   @assert num_adj <= nfaces
-  getBridgeAdjacent(adj)
+  apf.getBridgeAdjacent(adj)
 
   if num_adj < mesh.numFacesPerElement
     num_adj = getNeighborMatches(mesh, el_i, adj, num_adj, matchdata)
@@ -706,9 +706,9 @@ for i=1:mesh.numEl
   adj[num_adj + 1] = el_i  # insert the current element
   # get color, element numbers
   for j=1:(num_adj + 1)
-    adj_color[j] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
+    adj_color[j] = apf.getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
     neighbor_colors[j, i] = adj_color[j]
-    neighbor_nums[j, i] = getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
+    neighbor_nums[j, i] = apf.getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
   end
 
   color_i = adj_color[num_adj + 1]  # color of current element
@@ -781,12 +781,12 @@ end
 cnt = 0
 for i=1:mesh.numEl
   el_i = mesh.elements[i]
-  elnum = getNumberJ(mesh.el_Nptr, el_i, 0, 0) + 1
+  elnum = apf.getNumberJ(mesh.el_Nptr, el_i, 0, 0) + 1
 
   # check edge neighbors only
-  num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
+  num_adj = apf.countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
   @assert num_adj <= nfaces
-  getBridgeAdjacent(adj)  
+  apf.getBridgeAdjacent(adj)  
   adj[num_adj + 1] = el_i  # insert the current elementa
 
   # get color, element numbers for non-local elements
@@ -806,8 +806,8 @@ for i=1:mesh.numEl
 
   # get color, element numbers for local elements + self
   for j=1:(num_adj + 1)
-    adj_color[pos] = getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
-    adj_elnum[pos] = getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
+    adj_color[pos] = apf.getNumberJ(mesh.coloring_Nptr, adj[j], 0, 0)
+    adj_elnum[pos] = apf.getNumberJ(mesh.el_Nptr, adj[j], 0, 0) + 1
     pos += 1
   end
 
@@ -947,24 +947,24 @@ function getPertEdgeNeighbors(mesh::PumiMesh)
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
 
-    getDownward(mesh.m_ptr, el_i, 1, edges)
+    apf.getDownward(mesh.m_ptr, el_i, 1, edges)
 
 
     #=
     # check edge neighbors only
-    num_adj = countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
+    num_adj = apf.countBridgeAdjacent(mesh.m_ptr, el_i, 1, 2)
     @assert num_adj <= 3
-    getBridgeAdjacent(adj)
+    apf.getBridgeAdjacent(adj)
     =#
 
     # get color, element numbers
     for j=1:3 # loop over edges
       # in use, this array is traveres by numEl first, so we have to 
       # populate it by rows here
-      num_adj = countAdjacent(mesh.m_ptr, edges[j], 2)
+      num_adj = apf.countAdjacent(mesh.m_ptr, edges[j], 2)
       @assert num_adj <= 2
       if num_adj == 2  # if there is another adjacnet element
-	getAdjacent(adj)
+	apf.getAdjacent(adj)
 
 	# figure out which adjacent element is the *other* one
 	if adj[1] == el_i
@@ -973,7 +973,7 @@ function getPertEdgeNeighbors(mesh::PumiMesh)
 	  other_el = adj[1]
 	end
 
-        neighbor_nums[i, j] = getNumberJ(mesh.el_Nptr, other_el, 0, 0) + 1
+        neighbor_nums[i, j] = apf.getNumberJ(mesh.el_Nptr, other_el, 0, 0) + 1
       end  # end if num_adj == 2
     end  # end loop j=1:3
   end  # end i=1:mesh.numEl

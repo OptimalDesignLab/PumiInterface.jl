@@ -4,21 +4,21 @@
 
 export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities, getEntityLocalNumber, printElementVertNumbers, isShared_sharing
 
-export apfVERTEX, apfEDGE, apfTRIANGLE, apfQUAD, apfTET, apfHEX, apfPRISM, apfPYRAMIX, simplexTypes, getTypeDimension, getDimension
+export VERTEX, EDGE, TRIANGLE, QUAD, TET, HEX, PRISM, PYRAMIX, simplexTypes, getTypeDimension, getDimension
 
 export ElementNodeEntities
 
 # declare the enums
-global const apfVERTEX=0
-global const apfEDGE=1
-global const apfTRIANGLE=2
-global const apfQUAD=3
-global const apfTET=4
-global const apfHEX=5
-global const apfPRISM=6
-global const apfPYRAMID=7
+global const VERTEX=0
+global const EDGE=1
+global const TRIANGLE=2
+global const QUAD=3
+global const TET=4
+global const HEX=5
+global const PRISM=6
+global const PYRAMID=7
 
-global const simplexTypes = [apfVERTEX, apfEDGE, apfTRIANGLE, apfTET]
+global const simplexTypes = [VERTEX, EDGE, TRIANGLE, TET]
 
 _tmp1, _tmp2, _tmp3 = getTopologyMaps()
 global const tri_edge_verts = _tmp1 + 1
@@ -27,14 +27,14 @@ global const tet_tri_verts = _tmp3 + 1
 
 # this is not exported, use the getter function
 global const typeDimension = Array{Int}(8)
-typeDimension[apfVERTEX + 1]   = 0
-typeDimension[apfEDGE + 1]     = 1
-typeDimension[apfTRIANGLE + 1] = 2
-typeDimension[apfQUAD + 1]     = 2
-typeDimension[apfTET + 1]      = 3
-typeDimension[apfHEX + 1]      = 3
-typeDimension[apfPRISM + 1]    = 3
-typeDimension[apfPYRAMID + 1]  = 3
+typeDimension[VERTEX + 1]   = 0
+typeDimension[EDGE + 1]     = 1
+typeDimension[TRIANGLE + 1] = 2
+typeDimension[QUAD + 1]     = 2
+typeDimension[TET + 1]      = 3
+typeDimension[HEX + 1]      = 3
+typeDimension[PRISM + 1]    = 3
+typeDimension[PYRAMID + 1]  = 3
 
 """
   Returns the dimension of a given type (one of the apf::Type enums)

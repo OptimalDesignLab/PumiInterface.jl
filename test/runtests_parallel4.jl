@@ -49,7 +49,7 @@ include("test_parallel_types.jl")
 
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
-    cnt = countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
+    cnt = apf.countBridgeAdjacent(mesh.m_ptr, el_i, mesh.dim-1, mesh.dim)
     @test  countnz(mesh.pertNeighborEls[i, :])  > cnt
   end
 
