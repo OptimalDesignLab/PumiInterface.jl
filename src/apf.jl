@@ -4,6 +4,10 @@ module apf
 
 using MPI
 using PumiConfig
+using apf_types
+
+# import these names, so they can be accessed as apf.foo
+import apf_types: IsoFuncJ, SolutionTransfers, MAInput, ModelEntity, MeshIterator, SubMeshData
 
 # no names should exported because there should be higher level functions
 # wrapping these
@@ -188,41 +192,6 @@ export createSubMesh, getNewMesh, getOldMesh, writeNewMesh, getParentNumbering,
        getNewMeshData, getGeoTag, SubMeshData
 
 
-# struct declarations
-# these have same memory layout as their contents, so they can be passed in
-# in place of a Ptr{Void}
-
-"""
-  Isotropic mesh size function used for mesh adapation
-
-  In reality, it is just a (typed) container for a pointer to a C++ 
-  IsotropicFunctionJ.
-"""
-struct IsoFuncJ
-  p::Ptr{Void}
-end
-
-"""
-  A ma::SolutionTransfers*
-"""
-struct SolutionTransfers
-  p::Ptr{Void}
-end
-
-"""
-  A ma::Input*
-"""
-struct MAInput
-  p::Ptr{Void}
-end
-
-"""
-  An :ModelEntity* aka. gmi_ent*
-"""
-struct ModelEntity
-  p::Ptr{Void}
-end
-
 
 
 @doc """
@@ -389,14 +358,7 @@ function getConstantShapePtr(dimension::Integer)
 
 end
 
-"""
-  Immutable wrapper for a MeshIterator of any dimension entity.
-
-  This grants some type safety to the interface
-"""
-struct MeshIterator
-  p::Ptr{Void}
-end
+import apf_types.MeshIterator
 
 function MeshIterator(m_ptr::Ptr{Void}, dim::Integer)
 
@@ -1518,13 +1480,6 @@ function getTopologyMaps()
   return tri_edge_verts, tet_edge_verts, tet_tri_verts
 end
 
-
-"""
-  Type to encapsulate a pointer to a SubMeshData class
-"""
-struct SubMeshData
-  pobj::Ptr{Void}
-end
 
 """
   Create a submesh, returning an object that contains information about the
