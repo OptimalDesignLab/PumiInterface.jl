@@ -388,7 +388,7 @@ function finalizeMesh(mesh::PumiMesh)
 
   if ( :subdata in fnames) && mesh.subdata.pobj != C_NULL
     apf.free(mesh.subdata)
-    mesh.subdata = SubMeshData(C_NULL)
+    mesh.subdata = apf.SubMeshData(C_NULL)
   end
 
 
