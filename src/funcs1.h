@@ -78,6 +78,7 @@ extern void writeVtkFiles(char* name, apf::Mesh2* m_local);
 
 // geometric model functions
 
+gmi_model* getModel(apf::Mesh* m);
 apf::ModelEntity* toModel(apf::Mesh* m_local, apf::MeshEntity* e);
 int getModelType(apf::Mesh* m_local, apf::ModelEntity* e);
 int getModelTag(apf::Mesh* m_local, apf::ModelEntity* e);
@@ -217,6 +218,9 @@ void getTopologyMaps(int* tri_edge_verts_in, int* tet_edge_verts_in, int* tet_tr
 int gmi_adjacent_count(struct gmi_model* g, struct gmi_ent* e, int dim);
 struct gmi_set* gmi_adjacent_get(gmi_ent* v[]);
 
+void gmi_sim_startJ();
+void gmi_sim_stopJ();
+void gmi_register_simJ();
 }  // extern c
 
 

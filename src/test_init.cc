@@ -111,7 +111,7 @@ void printMidpointErrors(apf::Mesh* m)
 {
   gmi_model* g = m->getModel();
 
-  const int dim = 0;
+  const int dim = 1;
   apf::MeshIterator* it = m->begin(dim);
   apf::MeshEntity* e;
   gmi_ent* ge;
@@ -135,6 +135,9 @@ void printMidpointErrors(apf::Mesh* m)
       midpoint[1] =( x1.y() + x2.y())/2;
       midpoint[2] =( x1.z() + x2.z())/2;
     }
+
+    for (int i=0; i < 3; ++i)
+      newpoint[i] = 0;
 
     gmi_closest_point(g, ge, midpoint, newpoint, newp);
 

@@ -5,6 +5,7 @@ module apf
 using MPI
 using PumiConfig
 using apf_types
+using gmi_types
 
 # import these names, so they can be accessed as apf.foo
 import apf_types: IsoFuncJ, SolutionTransfers, MAInput, ModelEntity, MeshIterator, SubMeshData
@@ -35,6 +36,7 @@ global const getMeshShapePtr_name = "getMeshShapePtr"
 global const count_name = "count"
 global const writeVtkFiles_name = "writeVtkFiles"
 
+global const getModel_name = "getModel"
 global const toModel_name = "toModel"
 global const getModelType_name = "getModelType"
 global const getModelTag_name = "getModelTag"
@@ -177,7 +179,7 @@ export MeshIterator, iterate, iteraten, free, deref
 
 export createSubMeshDG, transferFieldDG, getFieldShape
 
-export toModel, getModelType, getModelTag
+export getModel, toModel, getModelType, getModelTag
 export countPeers, getPeers
 export countPeers, getPeers, countRemotes, getRemotes, isShared
 export getEntity, incrementIt, resetIt
@@ -409,6 +411,12 @@ function writeVtkFiles(name::AbstractString, m_ptr)
   return nothing
 end
 
+
+function getModel(m_ptr::Ptr{Void})
+
+  g = ccall( (getModel_name, pumi_libname), Ptr{Void}, (Ptr{Void},) m_ptr)
+  return Model(g)
+end
 
 function toModel(m_ptr, entity_ptr)
 # get the model entity a mesh entity is classified on

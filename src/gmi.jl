@@ -235,4 +235,28 @@ function is_in_closure_of(g::Model, ge1::ModelEntity, ge2::ModelEntity)
 end
 
 
+#------------------------------------------------------------------------------
+# gmi_sim
+
+
+function sim_start()
+  ccall( (:gmi_sim_startJ, pumi_libname), Void, (), )
+end
+
+function sim_stop()
+  ccall( (:gmi_sim_stopJ, pumi_libname), Void, (), )
+end
+
+
+function register_sim()
+  ccall( (:gmi_register_simJ, pumi_libname), Void, (), )
+end
+
+
+# the functions gmi_sim_startJ/stopJ check if Simmetrix is supported, so call
+# these unconditionally
+sim_start()
+atexit(sim_stop)
+
+
 end # end module
