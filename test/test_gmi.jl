@@ -1,10 +1,16 @@
 # test for gmi
 
 using gmi
+using PumiConfig
 
 function test_gmi()
 
+  if !HAVE_SIMMETRIX
+    return nothing
+  end
+
   @testset "GMI" begin
+
     fname = "meshes/airfoil.smd"
     gmi.sim_start()
     gmi.register_sim()
