@@ -1,5 +1,5 @@
 // configuration info for pumiInterface
-#ifdef  PUMIINTERFACE_H
+#ifndef  PUMIINTERFACE_H
 #define PUMIINTERFACE_H
 
 #cmakedefine HAVE_SIMMETRIX

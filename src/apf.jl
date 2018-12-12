@@ -4,6 +4,11 @@ module apf
 
 using MPI
 using PumiConfig
+using apf_types
+using gmi_types
+
+# import these names, so they can be accessed as apf.foo
+import apf_types: IsoFuncJ, SolutionTransfers, MAInput, ModelEntity, MeshIterator, SubMeshData
 
 # no names should exported because there should be higher level functions
 # wrapping these
@@ -20,7 +25,6 @@ using PumiConfig
 
 #function declareNames()
 # declare variables that hold the (possible mangled) names of c++ library functions
-global const pumi_libname = joinpath(CONFIG_PATHS["PUMIINTERFACE_LIBDIR"], "libpumiInterface")
 global const init_name = "initABC"
 global const init2_name = "initABC2"
 global const pushMeshRef_name = "pushMeshRef"
@@ -32,6 +36,7 @@ global const getMeshShapePtr_name = "getMeshShapePtr"
 global const count_name = "count"
 global const writeVtkFiles_name = "writeVtkFiles"
 
+global const getModel_name = "getModel"
 global const toModel_name = "toModel"
 global const getModelType_name = "getModelType"
 global const getModelTag_name = "getModelTag"
@@ -174,7 +179,7 @@ export MeshIterator, iterate, iteraten, free, deref
 
 export createSubMeshDG, transferFieldDG, getFieldShape
 
-export toModel, getModelType, getModelTag
+export getModel, toModel, getModelType, getModelTag
 export countPeers, getPeers
 export countPeers, getPeers, countRemotes, getRemotes, isShared
 export getEntity, incrementIt, resetIt
@@ -187,41 +192,6 @@ export hasMatching, getSharing, getNormalSharing, freeSharing, isOwned,
 export createSubMesh, getNewMesh, getOldMesh, writeNewMesh, getParentNumbering, 
        getNewMeshData, getGeoTag, SubMeshData
 
-
-# struct declarations
-# these have same memory layout as their contents, so they can be passed in
-# in place of a Ptr{Void}
-
-"""
-  Isotropic mesh size function used for mesh adapation
-
-  In reality, it is just a (typed) container for a pointer to a C++ 
-  IsotropicFunctionJ.
-"""
-struct IsoFuncJ
-  p::Ptr{Void}
-end
-
-"""
-  A ma::SolutionTransfers*
-"""
-struct SolutionTransfers
-  p::Ptr{Void}
-end
-
-"""
-  A ma::Input*
-"""
-struct MAInput
-  p::Ptr{Void}
-end
-
-"""
-  An :ModelEntity* aka. gmi_ent*
-"""
-struct ModelEntity
-  p::Ptr{Void}
-end
 
 
 
@@ -389,14 +359,7 @@ function getConstantShapePtr(dimension::Integer)
 
 end
 
-"""
-  Immutable wrapper for a MeshIterator of any dimension entity.
-
-  This grants some type safety to the interface
-"""
-struct MeshIterator
-  p::Ptr{Void}
-end
+import apf_types.MeshIterator
 
 function MeshIterator(m_ptr::Ptr{Void}, dim::Integer)
 
@@ -446,6 +409,13 @@ function writeVtkFiles(name::AbstractString, m_ptr)
 
   ccall( (writeVtkFiles_name, pumi_libname), Void, (Ptr{UInt8}, Ptr{Void}), name, m_ptr)
   return nothing
+end
+
+
+function getModel(m_ptr::Ptr{Void})
+
+  g = ccall( (getModel_name, pumi_libname), Ptr{Void}, (Ptr{Void},), m_ptr)
+  return Model(g)
 end
 
 
@@ -1518,13 +1488,6 @@ function getTopologyMaps()
   return tri_edge_verts, tet_edge_verts, tet_tri_verts
 end
 
-
-"""
-  Type to encapsulate a pointer to a SubMeshData class
-"""
-struct SubMeshData
-  pobj::Ptr{Void}
-end
 
 """
   Create a submesh, returning an object that contains information about the

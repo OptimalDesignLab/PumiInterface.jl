@@ -9,7 +9,8 @@ push!(LOAD_PATH, dirname(@__FILE__))
 
 using PumiConfig
 using apf
+using gmi
 
-export apf
+export apf, gmi
 
 end # end module

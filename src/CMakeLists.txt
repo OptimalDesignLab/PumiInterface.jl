@@ -41,10 +41,10 @@ MESSAGE( STATUS "installation prefix: " ${CMAKE_INSTALL_PREFIX})
 get_target_property(SCOREC_LIBS SCOREC::core INTERFACE_LINK_LIBRARIES)
 #MESSAGE(STATUS ${SCOREC_LIBS})
 if(SCOREC_LIBS MATCHES "gmi_sim")
-  MESSAGE(STATUS "Founds gmi_sim")
+  MESSAGE(STATUS "Found gmi_sim")
   set (HAVE_SIMMETRIX ON)
-elseif()
-  MESSAGE(STATUS "Match not found")
+else()
+  MESSAGE(STATUS "gmi_sim not found")
 endif()
 
 configure_file (
@@ -55,7 +55,8 @@ include_directories("${PROJECT_BINARY_DIR}")
 
 # write the path info to be read from Julia
 file(WRITE "PUMI_RPATH" "PUMI_CMAKE_PATH ${SCOREC_CONFIG}\n")
-file(APPEND "PUMI_RPATH" "PUMIINTERFACE_PREFIX ${CMAKE_INSTALL_PREFIX}")
+file(APPEND "PUMI_RPATH" "PUMIINTERFACE_PREFIX ${CMAKE_INSTALL_PREFIX}\n")
+file(APPEND "PUMI_RPATH" "HAVE_SIMMETRIX ${HAVE_SIMMETRIX}")
 
 # set RPATH for binaries
 # use, i.e. don't skip the full RPATH for the build tree
