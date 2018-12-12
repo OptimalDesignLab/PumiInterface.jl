@@ -518,6 +518,9 @@ end
 end
 =#
 
+include("test_gmi.jl")
+test_gmi()
+
 
 println("about to test pdepumiinterface")
 include("test_math.jl")

@@ -3,6 +3,7 @@
 module gmi
 
 using PumiConfig
+using apf_types
 using gmi_types
 
 # allow types to be accessed as gmi.foo
@@ -13,7 +14,7 @@ import gmi_types: ModelEntity, Model, Gmi_set, Gmi_iter
 import Base: start, next, done, eltype, iteratorsize, eltype
 
 
-const gmi_lib = joinpath(CONFIG_PATHS["PUMIINTERFACE_LIBDIR"], "libgmi")
+const gmi_lib = joinpath(CONFIG_PATHS["PUMI_LIBDIR"], "libgmi")
 
 #------------------------------------------------------------------------------
 # gmi_set stuff
@@ -71,16 +72,14 @@ function gmi_end(g::Model, it::_Gmi_iter)
 end
 
 function gmi_end(obj::Gmi_iter)
-  gmi_end(obj.it)
+  gmi_end(obj.g, obj.it)
 end
 
 
 function Gmi_iter(g::Model, dim::Integer)
   it = _gmi_begin(g, dim)
-  obj = new(it, g)
+  obj = Gmi_iter(it, g)
 
-  # if not for the finalizer, this struct could be immutable
-  finalizer(obj, gmi_end)
   return obj
 end
 
@@ -108,7 +107,7 @@ function done(obj::Gmi_iter, state::ModelEntity)
 end
 
 
-function eltype(::Gmi_iter) return ModelEntity end
+function eltype(::Type{Gmi_iter}) return ModelEntity end
 
 
 
@@ -145,6 +144,12 @@ function adjacent(g::Model, ge::ModelEntity, dim::Integer)
   return obj
 end
 
+
+function can_eval(g::Model)
+
+  val = ccall( (:gmi_can_eval, gmi_lib), Cint, (Model,), g)
+  return val != 0
+end
 
 """
   Note the prefix `g`, to avoid conflict with Julia's eval
@@ -229,11 +234,27 @@ end
 
 function is_in_closure_of(g::Model, ge1::ModelEntity, ge2::ModelEntity)
 
-  val = vvall( (:gmi_is_in_closure_of, gmi_lib), Cint, (Model, ModelEntity, ModelEntity), g, ge1, g2)
+  val = ccall( (:gmi_is_in_closure_of, gmi_lib), Cint, (Model, ModelEntity, ModelEntity), g, ge1, ge2)
 
   return val != 0
 end
 
+
+"""
+  Note that users must manually call `destroy` on the resulting model (ie.
+  no finalizer is attached).
+"""
+function load(fname::String)
+
+  g = ccall( (:gmi_load, gmi_lib), Ptr{Void}, (Cstring,), fname)
+  return Model(g)
+end
+
+
+function destroy(g::Model)
+
+  ccall( (:gmi_destroy, gmi_lib), Void, (Model,), g)
+end
 
 #------------------------------------------------------------------------------
 # gmi_sim

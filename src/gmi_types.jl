@@ -19,7 +19,7 @@ end
 
   Users can call `finalize` on this object to free it if needed.
 """
-struct Gmi_set
+mutable struct Gmi_set
   p::Ptr{Void}
   v::Vector{ModelEntity}
 end
@@ -36,9 +36,10 @@ end
 """
   A Julia iterator that behaves like `_Gmi_iter` does in C
 
-  This type has to be mutable because of the finalizer
+  There is no need to free these object when done, they are automatically
+  freed when iteration is complete.
 """
-mutable struct Gmi_iter
+struct Gmi_iter
   it::_Gmi_iter
   g::Model
 end

@@ -4,7 +4,7 @@ module PumiConfig
 
 using MPI
 
-export CppBool, CONFIG_PATHS
+export CppBool, CONFIG_PATHS, HAVE_SIMMETRIX
 
 # make MeshEntity* passable by MPI
 if sizeof(Ptr{Void}) == sizeof(Int32)
@@ -77,5 +77,7 @@ end
 
 
 readConfigFile()
+
+global const HAVE_SIMMETRIX = CONFIG_PATHS["HAVE_SIMMETRIX"] == "ON"
 
 end  # end module

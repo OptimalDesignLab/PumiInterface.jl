@@ -414,9 +414,10 @@ end
 
 function getModel(m_ptr::Ptr{Void})
 
-  g = ccall( (getModel_name, pumi_libname), Ptr{Void}, (Ptr{Void},) m_ptr)
+  g = ccall( (getModel_name, pumi_libname), Ptr{Void}, (Ptr{Void},), m_ptr)
   return Model(g)
 end
+
 
 function toModel(m_ptr, entity_ptr)
 # get the model entity a mesh entity is classified on
