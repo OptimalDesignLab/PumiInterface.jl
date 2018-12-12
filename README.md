@@ -308,10 +308,123 @@ Constructing a mesh object with `Tmsh = Complex128` is supported.  This allows
 using the complex step method to calculate derivative with respect to the mesh
 coordinate and metrics.  The function `recalcCoordinatesAndMetrics` can be used
 to recalculate the volume coordinates and metrics after the `mesh.vert_coords`
-field has been updated.
+field has been updated. 
 
-Some initial work on reverse mode differentiation has been started, but it
-has not been extended to parallel yet.  See `getAllCoordinatesAndMetrics_rev()`.
+Reverse mode differentiation is supported, both in serial and in parallel,
+with keyword arguments to control how non-owned entities are handled.
+ See `getAllCoordinatesAndMetrics_rev()`.
+
+
+## Geometry Interaction
+
+### Geometric Formats
+
+Loading geometric models is supported through Pumi's `gmi` library, which
+is wrapped in the Julia `gmi` module.  Currently, three types of models are
+supported:
+
+ * null model: if `dmg_name` in the options dictionary is ".null", then
+               the null model will be loaded.  This is a fake model used for
+               testing only.  Internally, every time a model entity is queried,
+               it is created (so by using the model you build the list of
+               geometric entities.
+ * MDS model: if `dmg_name` specifies a file with extension `.dmg`, then the
+              Pumi mds model will be used.  This model contains the topology
+              of the original CAD model, but no shape information.  See below
+              for how to make these.
+ * GeomSim model: If Pumi is linked with the (proprietary) Simmetrix libraries,
+                  then it is possible to load certain kinds of `.smd` files.
+                  These files contain geometry topology, geometry shape, and
+                  may contain additional attribute data that was created during
+                  the mesh generation process by SimModeler.  See below for
+                  how to create these.
+
+It is also possible to load other kinds of geometry files when Pumi is linked
+to Simmetrix, although doing so is discouraged.
+
+ * Parasolid (`.x_t` or `.xmt_txt` extension): these files can only be loaded
+             on x86 platform (no BG/Q or Power9).
+ * ACIS: (`.sat` extension): limited Linux support
+
+
+### Conversion 
+
+To demonstrate how to create the different files, lets assume a Parasolid CAD
+model called `airfoil.x_t` exists (for example, do steps 1-6 [here]( ))
+
+To make a GeomSim model from a Parasolid or ACIS model (must be done on an
+x86 machine):
+
+```
+  mdlConvert airfoil.x_t airfoil.smd
+```
+
+The `airfoil.smd` file can be opened by SimModeler to make a mesh.  After
+creating the mesh, SimModeler will offer the user the chance to save both the
+model (`.smd`) and mesh `.sms` files.  It is recommended to use this `smd`,
+not `airfoil.smd`, when loading the mesh (more on mesh loading below).
+
+Note that `SimModeler` can open the `airfoil.x_t` directly and create a mesh
+off of that, however this is not recommended.  Parasolid and GeomSim use
+different geometric representations.  The same geometric model should be
+use for creating the mesh and loading the mesh with PumiInterface.
+
+
+
+To make an MDS model from the Parasolid model:
+```
+  mdlConvert airfoil.x_t airfoil.dmg
+```
+
+Note that this conversion loses all geometry shape information, as described
+above.  `mdlConvert` can also take a GeomSim `.smd` file as the first argument.
+
+As mentioned above, SimModeler saves an `sms` mesh file.  It is recommended
+to convert it to the MDS mesh format `smd`.  Assuming SimModeler files were
+saved as `airfoil_meshmodel.smd` and `airfoil_mesh.sms`:
+
+```
+  convert airfoil_meshmodel.smd airfoil_mesh.sms airfoil_mesh.smb
+```
+
+### SimModeler Quirks
+
+There are 2 types of SimModeler model files, and both have the extension `.smd`,
+which makes things a bit confusing.  The first type is an attribute file which
+does not contain geometry shape information.  The second type is a GeomSim
+file, which contains both geometry shape and attribute information.  Only
+the second type can be used by PumiInterface.
+
+If SimModeler opens a Parasolid file, generates a mesh, and then saves the
+`.smd` and `.sms` files, this creates an `.smd of the first kind.
+If `mdlConvert` is used to convert the Parasolid file to a GeomSim `.smd`,
+then this `.smd` is opened by SimModeler, the `.smd` that SimModeler saves
+will be a `.smd` of the second kind.  I believe this `.smd` has both 
+geometry shape and attribute information (the instructions for how SimModeler
+made the mesh) in it, but this needs to be verified.
+
+### Recommended Workflow
+
+If you want geometry shape information (required Pumi linked to Simmetrix at
+runtime):
+
+ 1. Make CAD model and save to Parasolid or ACIS
+ 2. Use ``mdlConvert` to convert to `foo.smd`
+ 3. Use SimModeler to open `foo.smd`
+ 4. Make the mesh and save to `bar.smd`. and `bar.sms`
+ 5. Use `convert` to convert `bar.sms` to `bar.smb`
+ 6. Load with PumiInterface by setting `smb_name` to `bar.smb` and `dmg_name` to `bar.smd`
+
+
+If you don't want geometry shape information (or don't have Pumi linked to Simmetrix at runtime)
+
+ 1. Make CAD model and save to Parasolid or ACIS
+ 2. Use ``mdlConvert` to convert to `foo.dmg`
+ 3. Use SimModeler to open the Parasolid or ACIS file
+ 4. Make the mesh and save to `bar.smd`. and `bar.sms`
+ 5. Use `convert` to convert `bar.sms` to `bar.smb`
+ 6. Load with PumiInterface by setting `smb_name` to `bar.smb` and `dmg_name` to `foo.dmg`
+
 
 
 # Version History
