@@ -16,6 +16,7 @@
 #include "pumiInterface_config.h"
 #ifdef HAVE_SIMMETRIX
 #include <gmi_sim.h>
+#include <SimUtil.h>
 #endif
 //#include "a2.h"
 
@@ -1484,6 +1485,7 @@ struct gmi_set* gmi_adjacent_get(gmi_ent* v[])
 void gmi_sim_startJ()
 {
 #ifdef HAVE_SIMMETRIX
+  Sim_readLicenseFile(0);
   gmi_sim_start();
 #endif
 }
