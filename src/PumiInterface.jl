@@ -440,9 +440,6 @@ using ODLCommonTools  #TEMPORARY
 function writeVtkFiles(name::AbstractString, m_ptr; writeall::Bool=false)
 # write vtk files to be read by paraview
 
-  println("about to writeVtkFiles")
-  printbacktrace()
-
   ccall( (writeVtkFiles_name, pumi_libname), Void, (Ptr{UInt8}, Ptr{Void}, CppBool), name, m_ptr, writeall)
   return nothing
 end

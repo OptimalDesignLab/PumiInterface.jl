@@ -134,7 +134,6 @@ end
   for i=1:num_down
     down_nums[i] = getNumberJ(edgeN_ptr, down_entities[i], 0, 0)
   end
-#  println("down_nums = ", down_nums)
    @test ( down_nums )== [1, 5, 0]
 
   down_entities, num_down = getDownward(m_ptr, face, 0) # face -> verts
@@ -355,26 +354,45 @@ end
  numberJ(n_ptr, vert, 0, 0, 1)
  @test ( getNumberJ(n_ptr, vert, 0, 0) )== 1
 
-#=
+
   # test writeVtk all fields option
   # the mesh has a first order lagrange field, so make a 2nd order numbering
-  nshape = getFieldShape(0, 2, 2)
-  n_ptr = createNumberingJ(m_ptr, "test2ndOrderNumbering", nshape, 1)
+  nname = "testOmegaNumbering"
+  nshape = getFieldShape(2, 1, 2)
+  n_ptr = createNumberingJ(m_ptr, nname, nshape, 1)
 
-  for d=0:1  # dimensions
-    it = MeshIterator(m_ptr, d)
-    for i=1:num_Entities[d+1]
-      vert_i = iterate(m_ptr, it)
-      numberJ(n_ptr, vert_i, 0, 0, i)
+  it = MeshIterator(m_ptr, 2)
+  for i=1:num_Entities[3]
+    el_i = iterate(m_ptr, it)
+    for j=0:2
+      numberJ(n_ptr, el_i, j, 0, i)
     end
-    free(m_ptr, it)
   end
+  free(m_ptr, it)
 
   writeVtkFiles("test_vtk", m_ptr)
   writeVtkFiles("test_vtk_all", m_ptr, writeall=true)
 
-  #TODO grep for name 
-=#
+  found_name = false
+  for line in eachline("test_vtk/test_vtk.pvtu")
+    if contains(line, nname)
+      found_name = true
+      break
+    end
+  end
+
+  found_name_all = false
+  for line in eachline("test_vtk_all/test_vtk_all.pvtu")
+    if contains(line, "faceNums")
+      found_name_all = true
+      break
+    end
+  end
+
+  @test !found_name
+  @test found_name_all
+
+
 
  # test mesh warping functions
 

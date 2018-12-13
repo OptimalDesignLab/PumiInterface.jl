@@ -481,7 +481,7 @@ void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall)
 {
 
 //   apf::writeASCIIVtkFiles(name, m_local);
-    
+  std::cerr << "writing Vtk file name" << name << std::endl; 
   if (writeall)
    apf::writeVtkFiles(name, m_local);
   else  // only print fields to vtk that have compatible fieldshape
@@ -541,29 +541,24 @@ std::vector<std::string> getWritableFields(apf::Mesh* m)
 // field shape
 bool isWritable(apf::FieldShape* fshape, apf::FieldShape* cshape, int dim)
 {
+  bool is_shape_compatible = true;
   for (int d=0; d <= dim; ++d)
     if (fshape->hasNodesIn(d) && !cshape->hasNodesIn(d))
-      return false;
+    {
+      is_shape_compatible = false;
+      break;
+    }
 
+  // check if this is vertex or element numbering
+  bool is_el_numbering = fshape->countNodesOn(apf::Mesh::simplexTypes[dim]) == 1;
+  for (int d=0; d < dim; ++d)
+    if (fshape->hasNodesIn(d))
+    {
+      is_el_numbering = false;
+      break;
+    }
 
-  return true;
-}
-
-// this is equivalent to apfVtk.cc/isPrintable, but that function is static
-bool isPrintable(apf::Field* f)
-{
-  apf::HasAll op;
-  return PCU_Ans(op.run(f));
-}
-
-bool isPrintable(apf::Numbering* f)
-{
-  return true;
-}
-
-bool isPrintable(apf::GlobalNumbering* f);
-{
-  return true;
+  return is_shape_compatible || is_el_numbering;
 }
 
 // get model info of a mesh element
