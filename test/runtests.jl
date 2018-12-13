@@ -358,20 +358,20 @@ end
   # test writeVtk all fields option
   # the mesh has a first order lagrange field, so make a 2nd order numbering
   nname = "testOmegaNumbering"
-  nshape = getFieldShape(2, 1, 2)
-  n_ptr = createNumberingJ(m_ptr, nname, nshape, 1)
+  nshape = apf.getFieldShape(2, 1, 2)
+  n_ptr = apf.createNumberingJ(m_ptr, nname, nshape, 1)
 
-  it = MeshIterator(m_ptr, 2)
+  it = apf.MeshIterator(m_ptr, 2)
   for i=1:num_Entities[3]
-    el_i = iterate(m_ptr, it)
+    el_i = apf.iterate(m_ptr, it)
     for j=0:2
-      numberJ(n_ptr, el_i, j, 0, i)
+      apf.numberJ(n_ptr, el_i, j, 0, i)
     end
   end
-  free(m_ptr, it)
+  apf.free(m_ptr, it)
 
-  writeVtkFiles("test_vtk", m_ptr)
-  writeVtkFiles("test_vtk_all", m_ptr, writeall=true)
+  apf.writeVtkFiles("test_vtk", m_ptr)
+  apf.writeVtkFiles("test_vtk_all", m_ptr, writeall=true)
 
   found_name = false
   for line in eachline("test_vtk/test_vtk.pvtu")
