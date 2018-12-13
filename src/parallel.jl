@@ -30,9 +30,9 @@ function getParallelInfo(mesh::PumiMeshDG)
 #       it might be worthwhile.
 
   myrank = mesh.myrank
-  npeers = countPeers(mesh.m_ptr, mesh.dim-1)  # get edge peers
+  npeers = apf.countPeers(mesh.m_ptr, mesh.dim-1)  # get edge peers
   peer_nums = zeros(Cint, npeers)
-  getPeers(mesh.m_ptr, peer_nums)
+  apf.getPeers(mesh.m_ptr, peer_nums)
 
   # count the number of edges shared with each peer
   partnums = zeros(Cint, 1)
@@ -41,10 +41,10 @@ function getParallelInfo(mesh::PumiMeshDG)
                                # with each peer
   for i=1:mesh.numFace
     edge = mesh.faces[i]
-    nshares = countCopies(mesh.shr_ptr, edge)
+    nshares = apf.countCopies(mesh.shr_ptr, edge)
     if nshares > 0
       @assert nshares == 1
-      getCopies(partnums, remotes)
+      apf.getCopies(partnums, remotes)
       if partnums[1] == mesh.myrank
         continue
       end
@@ -72,7 +72,7 @@ function getParallelInfo(mesh::PumiMeshDG)
   # for matching meshes, it is possible for one vertex to have several 
   # Copies on a given remote process, so we send them all and sort it 
   # out on the other side
-  if hasMatching(mesh.m_ptr)
+  if apf.hasMatching(mesh.m_ptr)
     num_orientation_verts = 3*(Max_Vert_Matches[mesh.dim] + Max_Vert_Remotes)
   else
     num_orientation_verts = mesh.dim
@@ -102,10 +102,10 @@ function getParallelInfo(mesh::PumiMeshDG)
   curr_pos = ones(Int, npeers)  # hold the current position in each edge array
   for i=1:mesh.numFace
     edge_i = mesh.faces[i]
-    nshares = countCopies(mesh.shr_ptr, edge_i)
+    nshares = apf.countCopies(mesh.shr_ptr, edge_i)
     if nshares > 0
       @assert nshares == 1
-      getCopies(partnums, remotes)
+      apf.getCopies(partnums, remotes)
       peer_i = partnums[1]
       if peer_i == mesh.myrank
         continue
@@ -139,12 +139,12 @@ function getParallelInfo(mesh::PumiMeshDG)
         bndry_j = bndries_i[j]
         # get the edge
         el_j = mesh.elements[bndry_j.element]
-        getDownward(mesh.m_ptr, el_j, mesh.dim-1, down)
+        apf.getDownward(mesh.m_ptr, el_j, mesh.dim-1, down)
         edge_j = down[bndry_j.face]
 
         # get the remote edge pointer
-        nremotes = countCopies(mesh.shr_ptr, edge_j)
-        getCopies(partnums, remotes)
+        nremotes = apf.countCopies(mesh.shr_ptr, edge_j)
+        apf.getCopies(partnums, remotes)
         @assert nremotes == 1
         edges_i[j] = remotes[1]
       end
@@ -266,24 +266,24 @@ function getEdgeBoundaries(mesh::PumiMeshDG, edges::Array{Ptr{Void}},
   for i=1:length(edges)
     edge_i = edges[i]
 
-    numFace = countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward
+    numFace = apf.countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward
 
     @assert( numFace == 1)
 
-    getAdjacent(faces)
-    facenum = getNumberJ(mesh.el_Nptr, faces[1], 0, 0) + 1
-    edgenum = getNumberJ(mesh.face_Nptr, edge_i, 0, 0) + 1
+    apf.getAdjacent(faces)
+    facenum = apf.getNumberJ(mesh.el_Nptr, faces[1], 0, 0) + 1
+    edgenum = apf.getNumberJ(mesh.face_Nptr, edge_i, 0, 0) + 1
 #    facenum = getFaceNumber2(faces[1]) + 1
 #    edgenum = getEdgeNumber2(edge_i) + 1  # unneeded?
     edgenum_local = getFaceLocalNum(mesh, edgenum, facenum)
 
     # verify
-    down, numdown = getDownward(mesh.m_ptr, mesh.elements[facenum], mesh.dim-1)
+    down, numdown = apf.getDownward(mesh.m_ptr, mesh.elements[facenum], mesh.dim-1)
     @assert down[edgenum_local] == edge_i
 
     bndries[i] = Boundary(facenum, edgenum_local)
 
-    ncopies = countCopies(mesh.shr_ptr, edge_i)
+    ncopies = apf.countCopies(mesh.shr_ptr, edge_i)
     if ncopies == 0
       println("face ", facenums, " has zero copies")
     end
@@ -328,17 +328,17 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
     bndry_i = bndries[i]
     el_i = mesh.elements[bndry_i.element]
     facelocal_i = bndry_i.face
-    getDownward(mesh.m_ptr, el_i, 0, downward_verts)
+    apf.getDownward(mesh.m_ptr, el_i, 0, downward_verts)
     verts_startidx = 1
 
     # figure out if this face has a remote or a match (it can't have both)
-    getDownward(mesh.m_ptr, el_i, mesh.dim - 1, downward_faces)
+    apf.getDownward(mesh.m_ptr, el_i, mesh.dim - 1, downward_faces)
     face_i = downward_faces[facelocal_i]
 
     # because we are dealing with faces, we don't need to check the part
     # number of the pair
-    nremotes = countRemotes(mesh.m_ptr, face_i)
-    nmatches = countMatches(mesh.m_ptr, face_i)
+    nremotes = apf.countRemotes(mesh.m_ptr, face_i)
+    nmatches = apf.countMatches(mesh.m_ptr, face_i)
 
     is_remote = nremotes > 0
     @assert is_remote || nmatches > 0
@@ -352,11 +352,11 @@ function getBndryOrientations(mesh::PumiMeshDG, peer_num::Integer, bndries::Abst
       # this helps resolve ambiguities on the receiving end when determining
       # orientation in some corner cases
       if is_remote
-        nremotes = countRemotes(mesh.m_ptr, vert_j)
-        getRemotes(remote_partnums, remote_ptrs)
+        nremotes = apf.countRemotes(mesh.m_ptr, vert_j)
+        apf.getRemotes(remote_partnums, remote_ptrs)
       else
-        nremotes = countMatches(mesh.m_ptr, vert_j)
-        getMatches(remote_partnums, remote_ptrs)
+        nremotes = apf.countMatches(mesh.m_ptr, vert_j)
+        apf.getMatches(remote_partnums, remote_ptrs)
       end
 
       @assert nremotes <= 400
@@ -513,7 +513,7 @@ function numberBoundaryEls(mesh, startnum, bndries_local::Array{Boundary},
       # get the local face vertices
       el_ptr = mesh.elements[bndry_l.element]
       face_local = bndry_l.face
-      getDownward(mesh.m_ptr, el_ptr, 0, el_verts)
+      apf.getDownward(mesh.m_ptr, el_ptr, 0, el_verts)
       for j=1:3
         face_verts[j] = el_verts[face_vertmap[j, face_local]]
       end
@@ -620,9 +620,9 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
 # this will enable sending data back and forth
 
   myrank = mesh.myrank
-  npeers = countPeers(mesh.m_ptr, 0)  # count vertex peers
+  npeers = apf.countPeers(mesh.m_ptr, 0)  # count vertex peers
   peer_nums = zeros(Cint, npeers)
-  getPeers(mesh.m_ptr, peer_nums)  # get the identifiers of the peers
+  apf.getPeers(mesh.m_ptr, peer_nums)  # get the identifiers of the peers
   # storage for all shares of a vertex
   partnums = zeros(Cint, 400 + Max_Vert_Matches[mesh.dim])
   remotes = Array{Ptr{Void}}(400 + Max_Vert_Matches[mesh.dim])
@@ -630,10 +630,10 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
 
   for i=1:mesh.numVert
     vert = mesh.verts[i]
-    nshares = countCopies(mesh.shr_ptr, vert)
+    nshares = apf.countCopies(mesh.shr_ptr, vert)
     if nshares > 0
       @assert nshares < (400 + Max_Vert_Matches[mesh.dim])
-      getCopies(partnums, remotes)
+      apf.getCopies(partnums, remotes)
 
       for j=1:nshares
         if partnums[j] == myrank  # this is not shared with another part, ignore
@@ -642,7 +642,7 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
 
         part_idx = getElIndex(peer_nums, partnums[j])
         if part_idx == 0  # this part has not been seen before and it was not
-                          # on the list from getPeers(), so it must be
+                          # on the list from apf.getPeers(), so it must be
                           # a periodic share
 
           push!(peer_nums, partnums[j])
@@ -671,9 +671,9 @@ function getVertexParallelInfo(mesh::PumiMeshDG)
 #  verts_remotes = Array{Array{Ptr{Void}, 1}}(npeers)
   for j=1:mesh.numVert
     vert_j = mesh.verts[j]
-    nshares = countCopies(mesh.shr_ptr, vert_j)
+    nshares = apf.countCopies(mesh.shr_ptr, vert_j)
     if nshares > 0
-      getCopies(partnums, remotes)
+      apf.getCopies(partnums, remotes)
       for k=1:nshares
         if partnums[k] == myrank
           continue
@@ -760,7 +760,7 @@ function getVertReverseMapping(mesh::PumiMeshDG, peer_nums::Array{Cint, 1}, coun
     verts_local_i = verts_local[i]
     for j=1:counts[i]
       vert_j = verts_local_i[j]
-      vertnum_j = getNumberJ(mesh.vert_Nptr, vert_j, 0, 0) + 1
+      vertnum_j = apf.getNumberJ(mesh.vert_Nptr, vert_j, 0, 0) + 1
 
       vert_nums_i[j] = vertnum_j
 

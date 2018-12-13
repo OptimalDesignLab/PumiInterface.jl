@@ -6,6 +6,7 @@
 // header file for funcs1
 #include <iostream>
 #include <apf.h>
+#include <gmi.h>
 #include <gmi_mesh.h>
 #include <gmi_null.h>
 #include <apfMDS.h>
@@ -77,6 +78,7 @@ extern void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall);
 
 // geometric model functions
 
+gmi_model* getModel(apf::Mesh* m);
 apf::ModelEntity* toModel(apf::Mesh* m_local, apf::MeshEntity* e);
 int getModelType(apf::Mesh* m_local, apf::ModelEntity* e);
 int getModelTag(apf::Mesh* m_local, apf::ModelEntity* e);
@@ -198,16 +200,27 @@ void getPoint(apf::Mesh* m, apf::MeshEntity* e,  int node, double* coords);
 // matched entity functions
 bool hasMatching(apf::Mesh* m);
 apf::Sharing* getSharing(apf::Mesh* m);
+apf::Sharing* getNormalSharing(apf::Mesh* m);
+void freeSharing(apf::Sharing* shr);
 bool isOwned(apf::Sharing* shr, apf::MeshEntity* e);
 std::size_t countCopies(apf::Sharing* shr, apf::MeshEntity* e);
 void getCopies(int part_nums[], apf::MeshEntity* entities[]);
-
+int getOwner(apf::Sharing* shr, apf::MeshEntity* e);
+bool isSharedShr(apf::Sharing* shr, apf::MeshEntity* e);
 
 std::size_t countMatches(apf::Mesh* m, apf::MeshEntity* e);
 void getMatches(int part_nums[], apf::MeshEntity* entities[]);
 
 
 void getTopologyMaps(int* tri_edge_verts_in, int* tet_edge_verts_in, int* tet_tri_verts_in);
+
+// gmi functions
+int gmi_adjacent_count(struct gmi_model* g, struct gmi_ent* e, int dim);
+struct gmi_set* gmi_adjacent_get(gmi_ent* v[]);
+
+void gmi_sim_startJ();
+void gmi_sim_stopJ();
+void gmi_register_simJ();
 }  // extern c
 
 

@@ -7,7 +7,7 @@ vertCoords = zeros(3, numV)  # storage for all vertex coordinates
 coords_tmp = zeros(3,1)  # temporary storage for vetex coordinates
 
 for i=1:numV
-  getVertCoords(coords_tmp, 3, 1)
+  apf.getVertCoords(coords_tmp, 3, 1)
   vertCoords[:, i] = coords_tmp
   incrementVertIt()
 end
@@ -27,7 +27,7 @@ coords_tmp = zeros(3, numPerEl)
 sbpMatrix = zeros(3, numPerEl, numEl)
 
 for i = 1:numEl 
-    getElCoords( coords_tmp, 3,  numPerEl)
+    apf.getElCoords( coords_tmp, 3,  numPerEl)
     sbpMatrix[:, :, i] = coords_tmp
     incrementElIt()
 end

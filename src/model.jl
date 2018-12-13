@@ -45,25 +45,25 @@ function getMeshEdgesFromModel(mesh::PumiMesh, medges::AbstractArray{I, 1}, offs
   print_warning = false
   for i=1:mesh.numFace
     edge_i = mesh.faces[i]
-    me_i = toModel(mesh.m_ptr, edge_i)
-    me_dim = getModelType(mesh.m_ptr, me_i)
-    me_tag = getModelTag(mesh.m_ptr, me_i)
+    me_i = apf.toModel(mesh.m_ptr, edge_i)
+    me_dim = apf.getModelType(mesh.m_ptr, me_i)
+    me_tag = apf.getModelTag(mesh.m_ptr, me_i)
     if me_dim == (mesh.dim-1)  # face (edge in 2d)
       onBoundary = findfirst(medges, me_tag)
 
       # check if face is periodic
-      isPeriodic = countMatches(mesh.m_ptr, edge_i) > 0
+      isPeriodic = apf.countMatches(mesh.m_ptr, edge_i) > 0
       print_warning = print_warning || (isPeriodic && onBoundary != 0)
 
       if onBoundary != 0 && !isPeriodic # if mesh face is on any of the  model faces
         
 	# get face number
-        numFace = countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward
+        numFace = apf.countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward
 
 	@assert( numFace == 1)
 
-        getAdjacent(faces)
-        facenum = getNumberJ(mesh.el_Nptr, faces[1], 0, 0) + 1
+        apf.getAdjacent(faces)
+        facenum = apf.getNumberJ(mesh.el_Nptr, faces[1], 0, 0) + 1
 #        facenum = getFaceNumber2(faces[1]) + 1
 #        edgenum = getEdgeNumber2(edge_i)  # unneeded?
 
@@ -126,15 +126,15 @@ function countBoundaryEdges(mesh::PumiMesh)
     end
 
     # get  model edge info
-    me_i = toModel(mesh.m_ptr, edge_i)
-    me_dim = getModelType(mesh.m_ptr, me_i)
-    me_tag = getModelTag(mesh.m_ptr, me_i)
+    me_i = apf.toModel(mesh.m_ptr, edge_i)
+    me_dim = apf.getModelType(mesh.m_ptr, me_i)
+    me_tag = apf.getModelTag(mesh.m_ptr, me_i)
 
     # get mesh face info
-    numEl = countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward 
-    nremotes = countRemotes(mesh.m_ptr, edge_i)
-    nmatches = countMatches(mesh.m_ptr, edge_i)
-    getMatches(part_nums, matched_entities)
+    numEl = apf.countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward 
+    nremotes = apf.countRemotes(mesh.m_ptr, edge_i)
+    nmatches = apf.countMatches(mesh.m_ptr, edge_i)
+    apf.getMatches(part_nums, matched_entities)
     has_local_match = (nmatches > 0) && part_nums[1] == mesh.myrank
 
     # internal interfaces (not including shared parallel edges)
@@ -148,8 +148,8 @@ function countBoundaryEdges(mesh::PumiMesh)
     end
 
     if me_dim == (mesh.dim-1) && nmatches == 0  # if classified on model edge
-      getAdjacent(elements)
-      elnum = getNumberJ(mesh.el_Nptr, elements[1], 0, 0) + 1
+      apf.getAdjacent(elements)
+      elnum = apf.getNumberJ(mesh.el_Nptr, elements[1], 0, 0) + 1
       bnd_edges_cnt += 1
 
       # accumulate all geometric edges with non-matched mesh edges
@@ -192,21 +192,21 @@ function getBoundaries(mesh::PumiMesh, geo_face_nums::Array{Int, 1},
   for i=1:mesh.numFace
     edge_i = mesh.faces[i]
 
-    me_i = toModel(mesh.m_ptr, edge_i)
-    me_dim = getModelType(mesh.m_ptr, me_i)
-    me_tag = getModelTag(mesh.m_ptr, me_i)
+    me_i = apf.toModel(mesh.m_ptr, edge_i)
+    me_dim = apf.getModelType(mesh.m_ptr, me_i)
+    me_tag = apf.getModelTag(mesh.m_ptr, me_i)
 
     if me_dim == mesh.dim-1
       idx = findfirst(geo_face_nums, me_tag)
       if idx != 0  # this mesh edge is on one of the geometric edges
 
         # get mesh face info
-        numEl = countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward 
+        numEl = apf.countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward 
         if length(geo_region_nums) == 0
           @assert numEl == 1
-          getAdjacent(adjacent_els)
+          apf.getAdjacent(adjacent_els)
           el_ptr = adjacent_els[1]
-          elnum = getNumberJ(mesh.el_Nptr, el_ptr, 0, 0) + 1
+          elnum = apf.getNumberJ(mesh.el_Nptr, el_ptr, 0, 0) + 1
         else
           @assert numEl <= 400
           el_tag = geo_region_nums[idx]
@@ -216,12 +216,12 @@ function getBoundaries(mesh::PumiMesh, geo_face_nums::Array{Int, 1},
           # find the element that is on the geo_region_nums
           for j=1:numEl
             el_j = adjacent_els[j]
-            me_i = toModel(mesh.m_ptr, el_j)
-            me_dim = getModelType(mesh.m_ptr, me_i)
-            me_tag = getModelTag(mesh.m_ptr, me_i)
+            me_i = apf.toModel(mesh.m_ptr, el_j)
+            me_dim = apf.getModelType(mesh.m_ptr, me_i)
+            me_tag = apf.getModelTag(mesh.m_ptr, me_i)
 
             if me_dim == mesh.dim && me_tag == el_tag
-              elnum = getNumberJ(mesh.el_Nptr, el_j, 0, 0) + 1
+              elnum = apf.getNumberJ(mesh.el_Nptr, el_j, 0, 0) + 1
               el_count += 1
             end
           end

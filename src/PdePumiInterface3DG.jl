@@ -122,6 +122,7 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
   fexactshape_ptr::Ptr{Void}  # apf::FieldShape of fexact_ptr
 
   shr_ptr::Ptr{Void} # pointer to apf::Sharing object
+  normalshr_ptr::Ptr{Void}  # NormalSharing object
   shape_type::Int  #  type of shape functions
   min_node_dist::Float64  # minimum distance between nodes
   min_el_size::Float64 # size of the smallest element (units of length)
@@ -162,13 +163,15 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
   coord_numNodesPerElement::Int
   coord_numNodesPerType::Array{Int, 1}
   coord_typeOffsetsPerElement::Array{Int, 1}
+  coord_numNodes::Int  # total number of coordinate nodes (on this part)
   coord_numNodesPerFace::Int
   coord_xi::Array{Float64, 2}  # xi coordinates of nodes on reference element
                                 # in the Pumi order
                                 # dim x coords_numNodesPerElement
   coord_facexi::Array{Float64, 2}  # like coord_xi, but for the face of an
-                                     # element
- 
+                                     # element 
+  coord_nodenums_Nptr::Ptr{Void}  # numbering for nodes of coordinate field,
+
   # constants needed by Pumi
   el_type::Int  # apf::Type for the elements of the mesh
   face_type::Int # apf::Type for the faces of the mesh
@@ -361,6 +364,7 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
   topo_pumi::ElementTopology{3}  # Pumi topology
 
   vert_sharing::VertSharing
+  coordscatter::ScatterData{T1}  # abstract type, used by coords3DTo1D
 
   # temporarily allow nested meshes for the staggered grid work
   mesh2::AbstractMesh
@@ -406,9 +410,9 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
     mesh.dim = 3
 
     mesh.comm = comm
-    topo2 = ElementTopology{2}(PumiInterface.tri_edge_verts.')
-    mesh.topo_pumi = ElementTopology{3}(PumiInterface.tet_tri_verts.',
-                                      PumiInterface.tet_edge_verts.', topo2=topo2)
+    topo2 = ElementTopology{2}(apf.tri_edge_verts.')
+    mesh.topo_pumi = ElementTopology{3}(apf.tet_tri_verts.',
+                                        apf.tet_edge_verts.', topo2=topo2)
     mesh.myrank = MPI.Comm_rank(mesh.comm)
     mesh.commsize = MPI.Comm_size(mesh.comm)
     myrank = mesh.myrank
@@ -419,9 +423,9 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
       println("  dmg_name = ", dmg_name)
     end
 
-    mesh.m_ptr, dim = loadMesh(dmg_name, smb_name, order, shape_type=shape_type)
+    mesh.m_ptr, dim = apf.loadMesh(dmg_name, smb_name, order, shape_type=shape_type)
 
-    pushMeshRef(mesh.m_ptr)
+    apf.pushMeshRef(mesh.m_ptr)
     if dim != mesh.dim
       throw(ErrorException("loaded mesh is not 3 dimensional"))
     end
@@ -454,9 +458,9 @@ function PumiMeshDG3(old_mesh::PumiMeshDG3{T, Tface}) where {T, Tface}
   mesh.isDG = true
   mesh.dim = 3
   mesh.comm = old_mesh.comm
-  topo2 = ElementTopology{2}(PumiInterface.tri_edge_verts.')
-  mesh.topo_pumi = ElementTopology{3}(PumiInterface.tet_tri_verts.',
-                              PumiInterface.tet_edge_verts.', topo2=topo2)
+  topo2 = ElementTopology{2}(apf.tri_edge_verts.')
+  mesh.topo_pumi = ElementTopology{3}(apf.tet_tri_verts.',
+                                      apf.tet_edge_verts.', topo2=topo2)
 
   mesh.sbpface = old_mesh.sbpface
   mesh.myrank = old_mesh.myrank
@@ -535,7 +539,7 @@ function PumiMeshDG3(old_mesh::PumiMeshDG3{T, Tface}, sbp, opts) where {T, Tface
 
   mesh = PumiMeshDG3(old_mesh)
   mesh.m_ptr = old_mesh.m_ptr
-  pushMeshRef(mesh.m_ptr)
+  apf.pushMeshRef(mesh.m_ptr)
 
   finishMeshInit(mesh, sbp, opts, old_mesh.topo, dofpernode=old_mesh.numDofPerNode,
                  shape_type=old_mesh.shape_type)
@@ -614,18 +618,18 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
 #    # leave mesh.sbpface undefined - bad practice
 #  end
 
-  mesh.coordshape_ptr, num_Entities, n_arr = initMesh(mesh.m_ptr)
+  mesh.coordshape_ptr, num_Entities, n_arr = apf.initMesh(mesh.m_ptr)
 
-#  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
+#  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = apf.init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
 
   # create the solution field
-  mesh.mshape_ptr = getFieldShape(field_shape_type, order, mesh.dim)
+  mesh.mshape_ptr = apf.getFieldShape(field_shape_type, order, mesh.dim)
   # use coordinate fieldshape for solution, because it will be interpolated
-  # create new field only if it doesn't already exist (re-init after mesh
+  # create new field only if it doesn't already exist (re-apf.init after mesh
   # adapt)
-  mesh.f_ptr = findField(mesh.m_ptr, "solution_field")
+  mesh.f_ptr = apf.findField(mesh.m_ptr, "solution_field")
   if mesh.f_ptr == C_NULL
-    mesh.f_ptr = createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.coordshape_ptr)
+    mesh.f_ptr = apf.createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.coordshape_ptr)
   end
   mesh.fnew_ptr = mesh.f_ptr
   mesh.mnew_ptr = mesh.m_ptr
@@ -634,7 +638,8 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   mesh.fexact_ptr = C_NULL
   mesh.fexactshape_ptr = C_NULL
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
-  mesh.shr_ptr = getSharing(mesh.m_ptr)
+  mesh.shr_ptr = apf.getSharing(mesh.m_ptr)
+  mesh.normalshr_ptr = apf.getNormalSharing(mesh.m_ptr)
 
   # count the number of all the different mesh attributes
   mesh.numVert = convert(Int, num_Entities[1])
@@ -644,14 +649,14 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   mesh.numEntitiesPerType = [mesh.numVert, mesh.numEdge, mesh.numFace, mesh.numEl]
   mesh.numTypePerElement = [4, 6, 4, 1]
   mesh.numFacesPerElement = mesh.numTypePerElement[end-1]
-  mesh.el_type = apfTET
-  mesh.face_type = apfTRIANGLE
+  mesh.el_type = apf.TET
+  mesh.face_type = apf.TRIANGLE
 
 
-  num_nodes_v = countNodesOn(mesh.mshape_ptr, 0)  # number of nodes on a vertex
-  num_nodes_e = countNodesOn(mesh.mshape_ptr, 1) # on edge
-  num_nodes_f = countNodesOn(mesh.mshape_ptr, 2) # on face
-  num_nodes_r = countNodesOn(mesh.mshape_ptr, apfTET)  # on region
+  num_nodes_v = apf.countNodesOn(mesh.mshape_ptr, 0)  # number of nodes on a vertex
+  num_nodes_e = apf.countNodesOn(mesh.mshape_ptr, 1) # on edge
+  num_nodes_f = apf.countNodesOn(mesh.mshape_ptr, 2) # on face
+  num_nodes_r = apf.countNodesOn(mesh.mshape_ptr, apf.TET)  # on region
   num_nodes_entity = [num_nodes_v, num_nodes_e, num_nodes_f, num_nodes_r]
   # count numbers of different things per other thing
   # use for bookkeeping
@@ -669,7 +674,7 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   # get coordinate field info
   mesh.coord_numNodesPerType, mesh.coord_typeOffsetsPerElement = getNodeInfo(mesh.coordshape_ptr, mesh.dim, mesh.numTypePerElement)
   mesh.coord_numNodesPerElement = mesh.coord_typeOffsetsPerElement[end] - 1
-  mesh.coord_order = getOrder(mesh.coordshape_ptr)
+  mesh.coord_order = apf.getOrder(mesh.coordshape_ptr)
   mesh.coord_xi = getXiCoords(mesh.coord_order, mesh.dim)
   mesh.coord_facexi = getXiCoords(mesh.coord_order, mesh.dim-1)
   mesh.coord_numNodesPerFace = size(mesh.coord_facexi, 2)
@@ -696,19 +701,24 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   mesh.entity_Nptrs = [mesh.vert_Nptr, mesh.edge_Nptr, mesh.face_Nptr, mesh.el_Nptr]
 
   # create the coloring_Nptr
-  el_mshape = getConstantShapePtr(mesh.dim)
-  mesh.coloring_Nptr = createNumberingJ(mesh.m_ptr, "coloring", el_mshape, 1)
+  el_mshape = apf.getConstantShapePtr(mesh.dim)
+  mesh.coloring_Nptr = apf.createNumberingJ(mesh.m_ptr, "coloring", el_mshape, 1)
 
   # create node status numbering (node, not dof)
-  mesh.nodestatus_Nptr = createNumberingJ(mesh.m_ptr, "dof status", 
+  mesh.nodestatus_Nptr = apf.createNumberingJ(mesh.m_ptr, "dof status", 
                          mesh.mshape_ptr, 1)   
   # create node numbering
-  mesh.nodenums_Nptr = createNumberingJ(mesh.m_ptr, "reordered node numbers",
+  mesh.nodenums_Nptr = apf.createNumberingJ(mesh.m_ptr, "reordered node numbers",
                        mesh.mshape_ptr, 1)
 
   # create dof numbering
-  mesh.dofnums_Nptr = createNumberingJ(mesh.m_ptr, "reordered dof numbers", 
+  mesh.dofnums_Nptr = apf.createNumberingJ(mesh.m_ptr, "reordered dof numbers", 
                       mesh.mshape_ptr, dofpernode)
+
+  # coordinate node numbering
+  mesh.coord_nodenums_Nptr = apf.createNumberingJ(mesh.m_ptr, "coord node numbers",
+                                               mesh.coordshape_ptr, mesh.dim)
+
 
   # get entity pointers
 #  println("about to get entity pointers")
@@ -721,19 +731,37 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
 
 
   # do node reordering
+  coord_numnodes = 0
+  for i=1:(mesh.dim+1)
+    coord_numnodes += mesh.coord_numNodesPerType[i]*mesh.numEntitiesPerType[i]
+  end
+  mesh.coord_numNodes = coord_numnodes
+
 
  if opts["reordering_algorithm"] == "adjacency"
-    start_coords = opts["reordering_start_coords"]
+    start_coords = opts["eordering_start_coords"]
     numberNodesWindy(mesh, start_coords)
     # tell the algorithm there is only 1 dof per node because we only
     # want to label nodes
-#    reorder(mesh.m_ptr, mesh.numNodes, 1, 
+#    apf.reorder(mesh.m_ptr, mesh.numNodes, 1, 
 #            mesh.nodestatus_Nptr, mesh.nodenums_Nptr, mesh.el_Nptr, 
 #	    start_coords[1], start_coords[2])
+    apf.reorder(mesh.m_ptr, mesh.dim*mesh.coord_numNodes, mesh.dim, 
+            C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
+	    start_coords)
+
 
  elseif opts["reordering_algorithm"] == "default"
 #    println("about to number nodes")
   numberNodesElement(mesh)
+
+  # coordinate node numbering
+  start_coords = zeros(3)
+  apf.getPoint(mesh.m_ptr, mesh.verts[1], 0, start_coords)
+  apf.reorder(mesh.m_ptr, mesh.dim*mesh.coord_numNodes, mesh.dim, 
+          C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
+          start_coords)
+
 
   else
     throw(ErrorException("invalid dof reordering algorithm requested"))
@@ -761,6 +789,8 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   # start parallel initializiation
   colordata = getParallelInfo(mesh)
   mesh.vert_sharing = getVertexParallelInfo(mesh)
+  mesh.coordscatter = initSendToOwner(mesh, mesh.coordshape_ptr, (mesh.dim,))
+
 
 #  println("about to get degree of freedom numbers")
   getDofNumbers(mesh)  # store dof numbers
@@ -837,21 +867,21 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   if opts["write_edge_vertnums"]
     rmfile("edge_vertnums_$myrank.dat")
     f = open("edge_vertnums_$myrank.dat", "a+")
-    printEdgeVertNumbers(mesh.edge_Nptr, mesh.vert_Nptr, fstream=f)
+    apf.printEdgeVertNumbers(mesh.edge_Nptr, mesh.vert_Nptr, fstream=f)
     close(f)
   end
 
   if opts["write_face_vertnums"]
     rmfile("face_vertnums_$myrank.dat")
     f = open("face_vertnums_$myrank.dat", "a+")
-    printFaceVertNumbers(mesh.face_Nptr, mesh.vert_Nptr, fstream=f)
+    apf.printFaceVertNumbers(mesh.face_Nptr, mesh.vert_Nptr, fstream=f)
     close(f)
   end
 
   if opts["write_element_vertnums"]
     rmfile("el_vertnums_$myrank.dat")
     f = open("el_vertnums_$myrank.dat", "a+")
-    printElementVertNumbers(mesh.el_Nptr, mesh.vert_Nptr, fstream=f)
+    apf.printElementVertNumbers(mesh.el_Nptr, mesh.vert_Nptr, fstream=f)
     close(f)
   end
 
@@ -971,8 +1001,8 @@ function PumiMeshDG3Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
 
   mesh.coloringDistance = coloring_distance
   # create the coloring_Nptr
-  el_mshape = getConstantShapePtr(2)
-  mesh.coloring_Nptr = createNumberingJ(mesh.m_ptr, "preconditioning coloring", el_mshape, 1)
+  el_mshape = apf.getConstantShapePtr(2)
+  mesh.coloring_Nptr = apf.createNumberingJ(mesh.m_ptr, "preconditioning coloring", el_mshape, 1)
 
   if coloring_distance == 2
     numc = colorMesh2(mesh)

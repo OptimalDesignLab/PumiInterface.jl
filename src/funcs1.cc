@@ -13,6 +13,11 @@
 
 #include "funcs1.h"
 #include <cassert>
+#include "pumiInterface_config.h"
+#ifdef HAVE_SIMMETRIX
+#include <gmi_sim.h>
+#include <SimUtil.h>
+#endif
 //#include "a2.h"
 
 //=============================================================================
@@ -25,6 +30,7 @@ const char *names[] = { "vertex", "edge", "face", "element"};  // array of strin
 
 std::map<apf::Mesh*, int> meshref; // store reference count for mesh
 
+// Deprecated
 // init for 3d mesh
 // order = order of shape functions to use
 // load_mesh = load mesh from files or not (for reinitilizing after mesh adaptation, do not load from file)
@@ -159,22 +165,13 @@ apf::Mesh2* loadMesh(const char* dmg_name, const char* smb_name, int shape_type,
  
   int myrank = PCU_Comm_Self();
 
-  int dim;
-  apf::Mesh2* m;
-  if (strcmp(dmg_name, ".null") == 0)
-  {
-    gmi_register_null();
-//      std::cout << "loading null geometric model" << std::endl;
-    gmi_model* g = gmi_load(".null");
-//      std::cout << "finished loading geometric model" << std::endl;
-    m = apf::loadMdsMesh(g, smb_name);
-    // m->verify();
-  } else {
-    gmi_register_mesh();
-//      std::cout << "loading geometric model from file" << std::endl;
-    m = apf::loadMdsMesh(dmg_name, smb_name);
-  }
-  dim = m->getDimension();
+  gmi_register_null();
+  gmi_register_mesh();
+#ifdef HAVE_SIMMETRIX
+  gmi_register_sim();
+#endif
+  apf::Mesh2* m = apf::loadMdsMesh(dmg_name, smb_name);
+  int dim = m->getDimension();
 //    meshloaded = true;  // record the fact that a mesh is now loaded
   apf::reorderMdsMesh(m);
 
@@ -559,6 +556,12 @@ bool isWritable(apf::FieldShape* fshape, apf::FieldShape* cshape, int dim)
     }
 
   return is_shape_compatible || is_el_numbering;
+}
+
+
+gmi_model* getModel(apf::Mesh* m)
+{
+  return m->getModel();
 }
 
 // get model info of a mesh element
@@ -1416,6 +1419,18 @@ apf::Sharing* getSharing(apf::Mesh* m)
   return apf::getSharing(m);
 }
 
+
+apf::Sharing* getNormalSharing(apf::Mesh* m)
+{
+  return new apf::NormalSharing(m);
+}
+
+
+void freeSharing(apf::Sharing* shr)
+{
+  delete shr;
+}
+
 bool isOwned(apf::Sharing* shr, apf::MeshEntity* e)
 {
 //  bool tmp = shr->isOwned(e);
@@ -1443,6 +1458,19 @@ void getCopies(int part_nums[], apf::MeshEntity* entities[])
     entities[i] = copies1[i].entity;
   }
 }
+
+
+int getOwner(apf::Sharing* shr, apf::MeshEntity* e)
+{
+  return shr->getOwner(e);
+}
+
+bool isSharedShr(apf::Sharing* shr, apf::MeshEntity* e)
+{
+  return shr->isShared(e);
+}
+
+
 
 apf::Matches matches1;
 std::size_t countMatches(apf::Mesh* m, apf::MeshEntity* e)
@@ -1499,4 +1527,50 @@ void getTopologyMaps(int* tri_edge_verts_in, int* tet_edge_verts_in, int* tet_tr
     {
       tet_tri_verts_in[getindex_c(i, j, si, sj)] = apf::tet_tri_verts[i][j];
     }
+}
+
+
+//-----------------------------------------------------------------------------
+// GMI functions
+//-----------------------------------------------------------------------------
+
+struct gmi_set* _gmi_adjacent_set = NULL;
+int gmi_adjacent_count(struct gmi_model* g, struct gmi_ent* e, int dim)
+{
+  _gmi_adjacent_set = gmi_adjacent(g, e, dim);
+  return _gmi_adjacent_set->n;
+}
+
+
+struct gmi_set* gmi_adjacent_get(gmi_ent* v[])
+{
+  for (int i=0; i < _gmi_adjacent_set->n; ++i)
+    v[i] = _gmi_adjacent_set->e[i];
+
+  return _gmi_adjacent_set;
+}
+
+// wrappers around gmi_sim functions, add suffix J just in case some compiler
+// decides not to mangle the names in apf_sim.cc
+void gmi_sim_startJ()
+{
+#ifdef HAVE_SIMMETRIX
+  Sim_readLicenseFile(0);
+  gmi_sim_start();
+#endif
+}
+
+void gmi_sim_stopJ()
+{
+#ifdef HAVE_SIMMETRIX
+  gmi_sim_stop();
+#endif
+
+}
+
+void gmi_register_simJ()
+{
+#ifdef HAVE_SIMMETRIX
+  gmi_register_sim();
+#endif
 }

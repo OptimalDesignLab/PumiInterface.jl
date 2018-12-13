@@ -11,7 +11,7 @@ function _saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector,
 # note that this performs a loop over elements, so some values get
 # written several times.  This is why is is necessary to write to the
 # field in the right order
-# because this function used getNumberJ to get dof numbers, and set 
+# because this function used apf.getNumberJ to get dof numbers, and set 
 # values, it doesn't really need to use the nodemap because values
 # are set/get *consistently*, even if not in the same order for every
 # element depending on the orientation
@@ -21,30 +21,35 @@ function _saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector,
 
   num_entities = [3, 3, 1] # number of vertices, edges, faces
   q_vals = zeros(mesh.numDofPerNode)
+  node_entities = apf.ElementNodeEntities(mesh.m_ptr, mesh.mshape_ptr, mesh.dim)
 
   for el=1:mesh.numEl
     el_i = mesh.elements[el]
-    node_entities = getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
+    apf.getNodeEntities(node_entities, el_i)
+    #node_entities = apf.getNodeEntities(mesh.m_ptr, mesh.mshape_ptr, el_i)
     col = 1 # current node of the element
-    for i=1:3  # loop over verts, edges, faces
-      for j=1:num_entities[i]  # loop over all entities of this type
-	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
-	  entity = node_entities[col]  # current entity
+    for i=1:node_entities.nentities
+      entity = node_entities.entities[i]
+      for k=1:node_entities.nodecounts[i]
+#    for i=1:3  # loop over verts, edges, faces
+#      for j=1:num_entities[i]  # loop over all entities of this type
+#	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
+#          entity = node_entities[col]  # current entity
 	  offset_k = mesh.elementNodeOffsets[col, el] # offset for current node
 	  new_node = abs(offset_k - k) - 1
 
           # get solution values
 	  for p=1:mesh.numDofPerNode  # loop over all dofs
-	    dofnum_p = getNumberJ(mesh.dofnums_Nptr, entity, new_node, p-1)
+	    dofnum_p = apf.getNumberJ(mesh.dofnums_Nptr, entity, new_node, p-1)
 	    q_vals[p] = u[dofnum_p]
 	  end
           # save to mesh
-          setComponents(mesh.f_ptr, entity, abs(offset_k - k) - 1, q_vals)
+          apf.setComponents(mesh.f_ptr, entity, abs(offset_k - k) - 1, q_vals)
 
 	  col += 1
-	end  # end loop over nodes on curren entity
-      end  # end loop over entities of current type
-    end  # end loop over entity types
+	end  # end loop over nodes on current entity
+      end  # end loop over entities 
+#    end
   end  # end loop over elements
 
   transferFieldToSubmesh(mesh, u, mnew_ptr, fnew_ptr)
@@ -59,12 +64,12 @@ function saveNodalSolution(mesh::PumiMesh, u::AbstractArray{Float64, 3})
   down_verts = Array{Ptr{Void}}(12)
   for el = 1:mesh.numEl
     el_i = mesh.elements[el]
-    nverts = getDownward(mesh.m_ptr, el_i, 0, down_verts)
+    nverts = apf.getDownward(mesh.m_ptr, el_i, 0, down_verts)
 
     for j=1:nverts
       vals_j = sview(u, :, j, el)
       vert_j = down_verts[j]
-      setComponents(mesh.fnew_ptr, vert_j, 0, vals_j)
+      apf.setComponents(mesh.fnew_ptr, vert_j, 0, vals_j)
     end
   end
 
@@ -151,7 +156,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 
 # the interpolation operator *must* interpolate the solution in a particular
 # order.  The order must be the order of the nodes returned by 
-# getNodeEntities(mnew_ptr)
+# apf.getNodeEntities(mnew_ptr)
 
   @assert mesh.m_ptr == mesh.mnew_ptr  # needed for averaging step
   @assert size(mesh.interp_op, 1) == mesh.coord_numNodesPerElement
@@ -180,14 +185,17 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 
   # count nodes on solution field 
   numNodesPerType = Array{Int}(mesh.dim + 1)
-  numNodesPerType[1] = countNodesOn(fshape_ptr, 0)
-  numNodesPerType[2] = countNodesOn(fshape_ptr, 1)
-  numNodesPerType[3] = countNodesOn(fshape_ptr, 2)
+  numNodesPerType[1] = apf.countNodesOn(fshape_ptr, 0)
+  numNodesPerType[2] = apf.countNodesOn(fshape_ptr, 1)
+  numNodesPerType[3] = apf.countNodesOn(fshape_ptr, 2)
   if mesh.dim == 3
-    numNodesPerType[4] = countNodesOn(fshape_ptr, 4) # tetrahedron
+    numNodesPerType[4] = apf.countNodesOn(fshape_ptr, 4) # tetrahedron
   end
+  node_entities_mnew = apf.ElementNodeEntities(mesh.mnew_ptr, fshape_ptr, mesh.dim)
 
-  zeroField(mesh.fnew_ptr)
+  node_entities_m = apf.ElementNodeEntities(mesh.m_ptr, fshape_ptr, mesh.dim)
+
+  apf.zeroField(mesh.fnew_ptr)
 
   # data for MPI
   # values solution values in first n indices of inner array, followed
@@ -227,19 +235,24 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 
     # save values to mesh
     # assumes the solution fieldshape is the same as the coordinate fieldshape
-    getNodeEntities(mesh.mnew_ptr, fshape_ptr, el_i, node_entities)
+    apf.getNodeEntities(node_entities_mnew, el_i)
+#    apf.getNodeEntities(mesh.mnew_ptr, fshape_ptr, el_i, node_entities)
     col = 1  # current node of the element
 
-    for i=1:(mesh.dim+1)
-      for j=1:numTypePerElement[i]
-        for k=1:numNodesPerType[i]
-          entity = node_entities[col]
+    for i=1:node_entities_mnew.nentities
+      entity = node_entities_mnew.entities[i]
+      edim = node_entities_mnew.dimensions[i]
+      for k=1:node_entities_mnew.nodecounts[i]
+#    for i=1:(mesh.dim+1)
+#      for j=1:numTypePerElement[i]
+#        for k=1:numNodesPerType[i]
+#          entity = node_entities[col]
 #          @assert i == 1
-          vertnum = getNumberJ(mesh.entity_Nptrs[i], entity, 0, 0) + 1
-          getPoint(mesh.m_ptr, entity, 0, coords)
+          vertnum = apf.getNumberJ(mesh.entity_Nptrs[edim+1], entity, 0, 0) + 1
+          apf.getPoint(mesh.m_ptr, entity, 0, coords)
 
           # pack array to send to other processes
-          if i == 1 && haskey(vshare.rev_mapping, vertnum)
+          if edim == 0 && haskey(vshare.rev_mapping, vertnum)
 #            println(mesh.f, "\nvert number ", vertnum)
             pair = vshare.rev_mapping[vertnum]
 #            println(mesh.f, "peers = \n", pair.first)
@@ -261,7 +274,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 
 
           # skip elementNodeOffsets - maximum of 1 node per entity
-          getComponents(mesh.fnew_ptr, entity, 0, u_node2)
+          apf.getComponents(mesh.fnew_ptr, entity, 0, u_node2)
           for p=1:mesh.numDofPerNode
             # multiply by element volume as a weighting factor
 #            println(mesh.f, "adding contribution ", jac_verts[col]*u_verts[col, p], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
@@ -274,14 +287,14 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
           end
 
           # check for local matches
-          nmatches = countMatches(mesh.m_ptr, entity)
-          if i == 1 && nmatches > 0
+          nmatches = apf.countMatches(mesh.m_ptr, entity)
+          if edim == 0 && nmatches > 0
             @assert nmatches <= length(matches_partnums)
-            getMatches(matches_partnums, matches_entities)
+            apf.getMatches(matches_partnums, matches_entities)
             for match_idx = 1:nmatches
               if matches_partnums[match_idx] == myrank
                 # save the data to the other match
-                matched_vertnum = getNumberJ(mesh.vert_Nptr, matches_entities[match_idx], 0, 0) + 1
+                matched_vertnum = apf.getNumberJ(mesh.vert_Nptr, matches_entities[match_idx], 0, 0) + 1
                 for p=1:mesh.numDofPerNode
                   match_data[p, matched_vertnum] = reduce_op(u_verts[col, p], real(jac_verts[col]), match_data[p, matched_vertnum])
                 end
@@ -293,10 +306,10 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 
 #          println(mesh.f, "u_node is now ", u_node[1])
 
-          setComponents(mesh.fnew_ptr, entity, 0, u_node)
+          apf.setComponents(mesh.fnew_ptr, entity, 0, u_node)
           col += 1
         end
-      end
+     # end
     end  # end loop over entity dimensions
 
   end  # end loop over elements
@@ -324,8 +337,8 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 
     for i=1:length(vertnums_p)
       vert_i = mesh.verts[vertnums_p[i]]
-      getPoint(mesh.m_ptr, vert_i, 0, coords)
-      getComponents(mesh.fnew_ptr, vert_i, 0, u_node)
+      apf.getPoint(mesh.m_ptr, vert_i, 0, coords)
+      apf.getComponents(mesh.fnew_ptr, vert_i, 0, u_node)
       weight_i = peer_vals_p[mesh.numDofPerNode + 1, i]
       for p=1:mesh.numDofPerNode
 #      println(mesh.f, "adding parallel contribution ", peer_vals_p[p, i], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
@@ -335,20 +348,20 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
       end
 
       # check for local matches
-      setComponents(mesh.fnew_ptr, vert_i, 0, u_node)
+      apf.setComponents(mesh.fnew_ptr, vert_i, 0, u_node)
     end
   end
 
   # add in the local match data
   for i=1:mesh.numVert
     vert_i = mesh.verts[i]
-    getPoint(mesh.m_ptr, vert_i, 0, coords)
-    getComponents(mesh.fnew_ptr, vert_i, 0, u_node)
+    apf.getPoint(mesh.m_ptr, vert_i, 0, coords)
+    apf.getComponents(mesh.fnew_ptr, vert_i, 0, u_node)
     for p=1:mesh.numDofPerNode
 #      println(mesh.f, "adding local match contribution ", match_data[p, i], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
       u_node[p] = reduce_op(match_data[p, i], 1.0, u_node[p])
     end
-    setComponents(mesh.fnew_ptr, vert_i, 0, u_node)
+    apf.setComponents(mesh.fnew_ptr, vert_i, 0, u_node)
   end
 
 
@@ -361,27 +374,33 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
     for dim=1:(mesh.dim + 1)
       if numNodesPerType[dim] > 0
   #      @assert dim == 1
-        it = MeshIterator(mesh.m_ptr, dim - 1)
+        it = apf.MeshIterator(mesh.m_ptr, dim - 1)
   #      resetIt(dim - 1) 
         for i=1:numEntitiesPerType[dim]
   #        entity_i = getEntity(dim - 1)
-          entity_i = iterate(mesh.m_ptr, it)
-          entity_num = getNumberJ(mesh.entity_Nptrs[dim], entity_i, 0, 0) + 1
-  #        getPoint(mesh.m_ptr, entity_i, 0, coords)
-          nel = countAdjacent(mesh.mnew_ptr, entity_i, mesh.dim)
-          getAdjacent(up_els)
+          entity_i = apf.iterate(mesh.m_ptr, it)
+          entity_num = apf.getNumberJ(mesh.entity_Nptrs[dim], entity_i, 0, 0) + 1
+  #        apf.getPoint(mesh.m_ptr, entity_i, 0, coords)
+          nel = apf.countAdjacent(mesh.mnew_ptr, entity_i, mesh.dim)
+          apf.getAdjacent(up_els)
           # compute the sum of the volumes of the elements
           jac_sum = 0.0
           for j=1:nel
             el_j = up_els[j]
-            elnum_j = getNumberJ(mesh.el_Nptr, el_j, 0, 0) + 1
+            elnum_j = apf.getNumberJ(mesh.el_Nptr, el_j, 0, 0) + 1
 
             jac_el = sview(mesh.jac, :, elnum_j)
-            # searching getNodeEntities for the index guarantees we can
+            # searching apf.getNodeEntities for the index guarantees we can
             # identify the right interpolated point for all elements, 
             # independent of topology
-            getNodeEntities(mesh.m_ptr, fshape_ptr, el_j, node_entities)
-            node_idx = findfirst(node_entities, entity_i)
+            apf.getNodeEntities(node_entities_m, el_j)
+#            apf.getNodeEntities(mesh.m_ptr, fshape_ptr, el_j, node_entities)
+            entity_idx = findfirst(node_entities_m.entities, entity_i)
+            node_idx = 1
+            for p=1:(entity_idx-1)
+              node_idx += node_entities_m.nodecounts[p]
+            end
+#            node_idx = findfirst(node_entities, entity_i)
 
             # interpolate the jacobian to this point
             jac_entity = 0.0
@@ -418,7 +437,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 
           
 
-          getComponents(mesh.fnew_ptr, entity_i, 0, u_node)
+          apf.getComponents(mesh.fnew_ptr, entity_i, 0, u_node)
   #        println(mesh.f, "net solution value = ", u_node, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
           fac = 1/jac_sum
           for p=1:mesh.numDofPerNode
@@ -426,11 +445,11 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
           end
   #        println(mesh.f, "average solution value = ", u_node, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
 
-          setComponents(mesh.fnew_ptr, entity_i, 0, u_node)
+          apf.setComponents(mesh.fnew_ptr, entity_i, 0, u_node)
   #        incrementIt(dim - 1)
         end  # end loop i
 
-        free(mesh.m_ptr, it)
+        apf.free(mesh.m_ptr, it)
       end  # end if
     end  # end loop dim
   end  # end if reduce_op == avgReduce
@@ -470,11 +489,11 @@ function retrieveSolutionFromMesh_interp(mesh::PumiMeshDG, u_vec::AbstractVector
 
   # count nodes on solution field 
   numNodesPerType = Array{Int}(mesh.dim + 1)
-  numNodesPerType[1] = countNodesOn(fshape_ptr, 0)
-  numNodesPerType[2] = countNodesOn(fshape_ptr, 1)
-  numNodesPerType[3] = countNodesOn(fshape_ptr, 2)
+  numNodesPerType[1] = apf.countNodesOn(fshape_ptr, 0)
+  numNodesPerType[2] = apf.countNodesOn(fshape_ptr, 1)
+  numNodesPerType[3] = apf.countNodesOn(fshape_ptr, 2)
   if mesh.dim == 3
-    numNodesPerType[4] = countNodesOn(fshape_ptr, 4) # tetrahedron
+    numNodesPerType[4] = apf.countNodesOn(fshape_ptr, 4) # tetrahedron
   end
 
 
@@ -483,7 +502,7 @@ function retrieveSolutionFromMesh_interp(mesh::PumiMeshDG, u_vec::AbstractVector
 
     # save values to mesh
     # assumes the solution fieldshape is the same as the coordinate fieldshape
-    getNodeEntities(mesh.mnew_ptr, fshape_ptr, el_i, node_entities)
+    apf.getNodeEntities(mesh.mnew_ptr, fshape_ptr, el_i, node_entities)
     col = 1  # current node of the element
     for d=1:(mesh.dim+1)
       for j=1:numTypePerElement[d]
@@ -491,7 +510,7 @@ function retrieveSolutionFromMesh_interp(mesh::PumiMeshDG, u_vec::AbstractVector
           entity = node_entities[col]
 
           # skip elementNodeOffsets - maximum of 1 node per entity
-          getComponents(mesh.fnew_ptr, entity, 0, u_node)
+          apf.getComponents(mesh.fnew_ptr, entity, 0, u_node)
           for p=1:mesh.numDofPerNode
             u_verts[col, p] = u_node[p]
           end
@@ -522,12 +541,11 @@ end
 function writeVisFiles(mesh::PumiMeshDG, fname::AbstractString; writeall::Bool=false)
   # writes vtk files 
 
-#  println(mesh.f, "writing vtk ", fname)
-  writeVtkFiles(fname, mesh.mnew_ptr, writeall=writeall)
+  apf.writeVtkFiles(fname, mesh.mnew_ptr, writeall=writeall)
 
   if mesh.mexact_ptr != C_NULL
     fname_exact = fname*"_exact"
-    writeVtkFiles(fname_exact, mesh.mexact_ptr, writeall=writeall)
+    apf.writeVtkFiles(fname_exact, mesh.mexact_ptr, writeall=writeall)
   end
 
   return nothing
@@ -538,11 +556,9 @@ function writeVisFiles(mesh::PumiMesh2CG, fname::AbstractString; writeall::Bool=
   # writes vtk files 
 
   if mesh.order <= 2
-    println("writing original mesh vtk file")
-    writeVtkFiles(fname, mesh.m_ptr, writeall=writeall)
+    apf.writeVtkFiles(fname, mesh.m_ptr, writeall=writeall)
   else
-    println("writing subtriangulated mesh vtk file")
-    writeVtkFiles(fname, mesh.mnew_ptr, writeall=writeall)
+    apf.writeVtkFiles(fname, mesh.mnew_ptr, writeall=writeall)
   end
 
   return nothing

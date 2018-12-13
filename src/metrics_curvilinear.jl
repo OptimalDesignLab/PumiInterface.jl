@@ -102,7 +102,7 @@ function getMeshCoordinates(mesh::PumiMeshDG{Tmsh}, sbp::AbstractSBP) where Tmsh
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
     coords_i = sview(mesh.vert_coords, :, :, i)
-    getAllEntityCoords(mesh.m_ptr, el_i, coords_tmp)
+    apf.getAllEntityCoords(mesh.m_ptr, el_i, coords_tmp)
     copy!(coords_i, coords_tmp)
   end
 
@@ -142,10 +142,7 @@ end
 """
 function getFaceCoordinatesAndNormals_rev(mesh::PumiMeshDG{Tmsh},
                                           sbp::AbstractSBP) where Tmsh
-
   if length(mesh.bndryfaces) > 0  # debugging: don't call if unneeded
-    #TODO: don't allocate this every time
-#    coords_bndry_bar = zeros(mesh.dim, mesh.numNodesPerFace, mesh.numBoundaryFaces)
     calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.bndryfaces,
                                       mesh.coords_bndry,
                                       mesh.coords_bndry_bar,
@@ -153,11 +150,11 @@ function getFaceCoordinatesAndNormals_rev(mesh::PumiMeshDG{Tmsh},
                                       mesh.nrm_bndry_bar)
   end
 
-
-  coords_face_bar = zeros(mesh.dim, mesh.numNodesPerFace, mesh.numInterfaces)
+  coords_face_bar = zeros(Tmsh, mesh.dim, mesh.numNodesPerFace, mesh.numInterfaces)
   calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.interfaces, 
                                 mesh.coords_interface, coords_face_bar,
                                 mesh.nrm_face, mesh.nrm_face_bar)
+
   for i=1:mesh.npeers
     coords_sharedface_bar = zeros(Tmsh, mesh.dim, mesh.numNodesPerFace, length(mesh.bndries_local[i]))
     calcFaceCoordinatesAndNormals_rev(mesh, sbp, mesh.bndries_local[i],
@@ -281,7 +278,7 @@ function calcFaceCoordinatesAndNormals_rev(
                     coords_face::AbstractArray{Tmsh, 3},
                     coords_face_bar::AbstractArray{Tmsh, 3},
                     nrm_face::AbstractArray{Tmsh, 3},
-                    nrm_face_bar::AbstractArray{Tmsh, 3}) where {Tmsh, I <: Union{Boundary, Interface}}
+                    nrm_face_bar::AbstractArray{Tmsh, 3}; print=false) where {Tmsh, I <: Union{Boundary, Interface}}
 
   blocksize = 1000  # magic parameter: number of faces to do in a group
   nfaces = length(faces)
@@ -333,7 +330,6 @@ function calcFaceCoordinatesAndNormals_rev(
                          nrm_face_bar_block)
 
     fill!(coords_lag_face_bar, 0.0)
-
     calcFaceNormals_rev!(mesh.sbpface, mesh.coord_order, ref_verts,
                          coords_lag_face, coords_lag_face_bar,
                          coords_face_bar_block, nrm_face_bar_block)
@@ -349,7 +345,6 @@ function calcFaceCoordinatesAndNormals_rev(
       coords_bar_i = sview(coords_lag_face_bar, :, :, i)
       getMeshFaceCoordinates_rev(mesh, el_i, face_i, coords_bar_i)
     end
-
   end  # end loop over full blocks
 
   # do remainder loop
@@ -366,10 +361,10 @@ function calcFaceCoordinatesAndNormals_rev(
   coords_lag_face_block = sview(coords_lag_face, :, :, 1:nrem)
   coords_lag_face_bar_block = sview(coords_lag_face_bar, :, :, 1:nrem)
 
+    
   for i=1:nrem  # loop over remaining faces
     el_i = getElementL(faces_block[i])
     face_i = getFaceL(faces_block[i])
-    el_ptr = mesh.elements[el_i]
 
     coords_i = sview(coords_lag_face, :, :, i)
     getMeshFaceCoordinates(mesh, el_i, face_i, coords_i)
@@ -385,6 +380,8 @@ function calcFaceCoordinatesAndNormals_rev(
   fixOutwardNormal_rev(mesh, sview(faces, start_idx:end_idx), nrm_face_block,
                     nrm_face_bar_block)
 
+  fill!(coords_lag_face_bar, 0.0)
+
   calcFaceNormals_rev!(mesh.sbpface, mesh.coord_order, ref_verts, 
                    coords_lag_face_block, coords_lag_face_bar_block,
                    coords_face_bar_block, nrm_face_bar_block)
@@ -392,7 +389,6 @@ function calcFaceCoordinatesAndNormals_rev(
   for i=1:nrem
     el_i = getElementL(faces_block[i])
     face_i = getFaceL(faces_block[i])
-    el_ptr = mesh.elements[el_i]
 
     coords_bar_i = sview(coords_lag_face_bar_block, :, :, i)
     getMeshFaceCoordinates_rev(mesh, el_i, face_i, coords_bar_i)
@@ -517,12 +513,12 @@ function is_inward_normal(mesh, iface::Union{Boundary, Interface},
   facenum_local = getFaceL(iface)
 
 #  el_i = mesh.elements[elnum]
-#  getDownward(mesh.m_ptr, el_i, 0, el_verts)
+#  apf.getDownward(mesh.m_ptr, el_i, 0, el_verts)
 
   for j=1:numVertPerFace
     v_j = topo.face_verts[j, facenum_local]
 #    face_verts[j] = el_verts[topo.face_verts[j, facenum_local]]
-#    getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
+#    apf.getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
 
     for p=1:mesh.dim
       face_vert_coords[p, j] = mesh.vert_coords[p, v_j, elnum]
@@ -545,7 +541,7 @@ function is_inward_normal(mesh, iface::Union{Boundary, Interface},
     other_vert_coords[p] = mesh.vert_coords[p, other_vert, elnum]
   end
   #=
-  getPoint(mesh.m_ptr, other_vert, 0, tmp)
+  apf.getPoint(mesh.m_ptr, other_vert, 0, tmp)
   for p=1:mesh.dim
     other_vert_coords[p] = tmp[p]
   end
@@ -758,7 +754,7 @@ function getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp,
   dxidx_bar_block = sview(mesh.dxidx_bar, :, :, :, element_range)
 #  jac_block = sview(mesh.jac, :, element_range)
   jac_bar_block = sview(mesh.jac_bar, :, element_range)
-  @assert vecnorm(jac_bar_block) < 1e-13  # this is currently broken in SBP
+  #@assert vecnorm(jac_bar_block) < 1e-13  # this is currently broken in SBP
 
   # outputs
   vert_coords_bar_block = sview(mesh.vert_coords_bar, :, :, element_range)
@@ -770,7 +766,6 @@ function getCurvilinearMetricsAndCoordinates_inner_rev(mesh, sbp,
   calcMappingJacobian_rev!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
                            vert_coords_bar_block, coords_bar_block,
                            dxidx_bar_block, jac_bar_block, Eone_bar)
-
 
   # back propigate E1 to the face normals
   calcEone_rev(mesh, sbp, element_range, Eone_bar)
@@ -893,7 +888,7 @@ function calcEone_rev(mesh::PumiMeshDG{Tmsh}, sbp, element_range,
   # R times vector of ones
   # the permutation doesn't matter because it is being multiplied by a constant
   # vector.
-  # also R1 = 1 by definition
+  # also R1 = 1 by def.inition
   Rone = ones(Float64, mesh.numNodesPerFace)
 #  Rone = vec(sum(mesh.sbpface.interp.', 2))
   sbpface = mesh.sbpface
@@ -1212,7 +1207,7 @@ function getMeshFaceCoordinates(mesh::PumiMesh2DG, elnum::Integer,
   coords[1, 2] = mesh.vert_coords[1, v2_idx, elnum]
   coords[2, 2] = mesh.vert_coords[2, v2_idx, elnum]
 
-  if hasNodesIn(mesh.coordshape_ptr, 1)
+  if mesh.coord_numNodesPerType[2] > 0
     edge_idx = 3 + topo.face_edges[1, facenum]
     coords[1, 3] = mesh.vert_coords[1, edge_idx, elnum]
     coords[2, 3] = mesh.vert_coords[2, edge_idx, elnum]
@@ -1254,7 +1249,7 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh2DG, elnum::Integer,
   mesh.vert_coords_bar[1, v2_idx, elnum] += coords_bar[1, 2]
   mesh.vert_coords_bar[2, v2_idx, elnum] += coords_bar[2, 2]
 
-  if hasNodesIn(mesh.coordshape_ptr, 1)
+  if mesh.coord_numNodesPerType[2] > 0
     edge_idx = facenum + 3  # for simplex elements
     mesh.vert_coords_bar[1, edge_idx, elnum] += coords_bar[1, 3]
     mesh.vert_coords_bar[2, edge_idx, elnum] += coords_bar[2, 3]
@@ -1278,7 +1273,7 @@ function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum::Integer,
     end
   end
 
-  if hasNodesIn(mesh.coordshape_ptr, 1)
+  if mesh.coord_numNodesPerType[2] > 0
 #    println("getting 2nd order node")
 
     for i=1:3  # 3 edges per face
@@ -1314,7 +1309,7 @@ function getMeshFaceCoordinates_rev(mesh::PumiMesh3DG, elnum::Integer,
     end
   end
 
-   if hasNodesIn(mesh.coordshape_ptr, 1)
+  if mesh.coord_numNodesPerType[2] > 0
     offset = 3 + (facenum - 1)*3  # 3 vertices + 1 edge node per face
 
     for i=1:3  # 3 edges per face

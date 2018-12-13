@@ -20,16 +20,16 @@ for i=1:mesh.numBoundaryFaces
 end
 
 el = mesh.elements[1]
-downwards, numdown = getDownward(mesh.m_ptr, el, 2)
+downwards, numdown = apf.getDownward(mesh.m_ptr, el, 2)
 face = downwards[4]
 
 
 #=
 for i=1:numdown
-  numup = countAdjacent(mesh.m_ptr, downwards[i], 3)
+  numup = apf.countAdjacent(mesh.m_ptr, downwards[i], 3)
   println("i = ", i, " numup = ", numup)
 end
 =#
 
-which, flip, rotate  = getAlignment(mesh.m_ptr, el, face) 
+which, flip, rotate  = apf.getAlignment(mesh.m_ptr, el, face) 
 =#

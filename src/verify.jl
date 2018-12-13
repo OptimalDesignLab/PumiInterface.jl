@@ -47,11 +47,11 @@ function checkVertConnectivity(mesh::PumiMesh)
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
 
-    nverts = getDownward(mesh.m_ptr, el_i, 0, down_verts)
+    nverts = apf.getDownward(mesh.m_ptr, el_i, 0, down_verts)
 
     nel_sum = 0
     for j=1:nverts
-      nel = countAdjacent(mesh.m_ptr, down_verts[j], mesh.dim)
+      nel = apf.countAdjacent(mesh.m_ptr, down_verts[j], mesh.dim)
       nel_sum += nel
     end
 
@@ -77,11 +77,11 @@ function checkEdgeConnectivity(mesh::PumiMesh)
 
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
-    nedges = getDownward(mesh.m_ptr, el_i, 1, down_edges)
+    nedges = apf.getDownward(mesh.m_ptr, el_i, 1, down_edges)
 
     nel_sum = 0
     for j=1:nedges
-      nel = countAdjacent(mesh.m_ptr, down_edges[j], mesh.dim)
+      nel = apf.countAdjacent(mesh.m_ptr, down_edges[j], mesh.dim)
       nel_sum += nel
     end
 
@@ -108,11 +108,11 @@ function checkFaceConnectivity(mesh::PumiMesh)
 
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
-    nfaces = getDownward(mesh.m_ptr, el_i, 1, down_faces)
+    nfaces = apf.getDownward(mesh.m_ptr, el_i, 1, down_faces)
 
     nel_sum = 0
     for j=1:nfaces
-      nel = countAdjacent(mesh.m_ptr, down_faces[j], mesh.dim)
+      nel = apf.countAdjacent(mesh.m_ptr, down_faces[j], mesh.dim)
       nel_sum += nel
     end
 
@@ -206,9 +206,9 @@ function checkContiguity(mesh::PumiMesh)
 
   curr_el = mesh.elements[1]
   el_Nptr = mesh.el_Nptr
-  curr_elnum = getNumberJ(el_Nptr, curr_el, 0, 0) + 1
+  curr_elnum = apf.getNumberJ(el_Nptr, curr_el, 0, 0) + 1
 
-  # temporary array for getBridgeAdjacent
+  # temporary array for apf.getBridgeAdjacent
   adjacent_els = Array{Ptr{Void}}(mesh.numFacesPerElement)
 
   seen_els = falses(mesh.numEl)  # record whether or not an element either is
@@ -226,14 +226,14 @@ function checkContiguity(mesh::PumiMesh)
     curr_el = pop!(queue)
 
     # get face adjacent elements
-    n = countBridgeAdjacent(mesh.m_ptr, curr_el, mesh.dim - 1, mesh.dim)
+    n = apf.countBridgeAdjacent(mesh.m_ptr, curr_el, mesh.dim - 1, mesh.dim)
     @assert n <= mesh.numFacesPerElement
-    getBridgeAdjacent(adjacent_els)
+    apf.getBridgeAdjacent(adjacent_els)
 
     # if not already seen, add to queue
     for i=1:n
       el_i = adjacent_els[i]
-      new_elnum = getNumberJ(el_Nptr, el_i, 0, 0) + 1
+      new_elnum = apf.getNumberJ(el_Nptr, el_i, 0, 0) + 1
 
       # use seen_els to avoid growing the size of the queue unnecessarily
       if !seen_els[new_elnum]
@@ -283,7 +283,7 @@ function checkTopologyConsistency(topo1::ElementTopology, topo2::ElementTopology
 end
 
 """
-  Verify the determinent of the mapping jacobian is positive
+  apf.Verify the determinent of the mapping jacobian is positive
 """
 function checkMapping(mesh::PumiMesh)
 

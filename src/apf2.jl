@@ -4,24 +4,51 @@
 
 export getAdjacentFull, resetAllIts2, countDownwards, countAllNodes, printEdgeVertNumbers, printFaceVertNumbers,  getValues2, getLocalGradients2, getJacobian2, getNodeEntities, getEntityLocalNumber, printElementVertNumbers, isShared_sharing
 
-export apfVERTEX, apfEDGE, apfTRIANGLE, apfQUAD, apfTET, apfHEX, apfPRISM, apfPYRAMIX, simplexTypes
+export VERTEX, EDGE, TRIANGLE, QUAD, TET, HEX, PRISM, PYRAMIX, simplexTypes, getTypeDimension, getDimension
+
+export ElementNodeEntities
 
 # declare the enums
-global const apfVERTEX=0
-global const apfEDGE=1
-global const apfTRIANGLE=2
-global const apfQUAD=3
-global const apfTET=4
-global const apfHEX=5
-global const apfPRISM=6
-global const apfPYRAMID=7
+global const VERTEX=0
+global const EDGE=1
+global const TRIANGLE=2
+global const QUAD=3
+global const TET=4
+global const HEX=5
+global const PRISM=6
+global const PYRAMID=7
 
-global const simplexTypes = [apfVERTEX, apfEDGE, apfTRIANGLE, apfTET]
+global const simplexTypes = [VERTEX, EDGE, TRIANGLE, TET]
 
 _tmp1, _tmp2, _tmp3 = getTopologyMaps()
 global const tri_edge_verts = _tmp1 + 1
 global const tet_edge_verts = _tmp2 + 1
 global const tet_tri_verts = _tmp3 + 1
+
+# this is not exported, use the getter function
+global const typeDimension = Array{Int}(8)
+typeDimension[VERTEX + 1]   = 0
+typeDimension[EDGE + 1]     = 1
+typeDimension[TRIANGLE + 1] = 2
+typeDimension[QUAD + 1]     = 2
+typeDimension[TET + 1]      = 3
+typeDimension[HEX + 1]      = 3
+typeDimension[PRISM + 1]    = 3
+typeDimension[PYRAMID + 1]  = 3
+
+"""
+  Returns the dimension of a given type (one of the apf::Type enums)
+"""
+function getTypeDimension(typ::Integer)
+
+  return typeDimension[typ + 1]
+end
+
+function getDimension(m_ptr::Ptr{Void}, entity::Ptr{Void})
+
+  typ = getType(m_ptr, entity)
+  return getTypeDimension(typ)
+end
 
 function getAdjacentFull(m_ptr, entity, dimension::Integer)
 # returns an array with the adjacencies of meshentity entity of specified dimension, and the number of entries in the array
@@ -30,7 +57,7 @@ function getAdjacentFull(m_ptr, entity, dimension::Integer)
   n = countAdjacent(m_ptr, entity, dimension)
   adj = getAdjacent(n)
 
-return adj, n
+  return adj, n
 
 end
 
@@ -190,6 +217,132 @@ function getJacobian2(m_ptr, entity, coords)
    jac = getJacobian(mel_ptr, coords)
    return jac
 end
+
+"""
+  Struct that contains all the MeshEntities that have nodes on them, as
+  well as the number of nodes on each one
+
+  It might be helpful to generalize this so it works on any MeshEntity,
+  not just an element, but that would require more topology information
+
+  **Public Fields**
+
+   * entities: array of MeshEntities that have nodes on them, length `nentities`
+   * nodecounts: array containing the number of nodes on each entity,
+                 length `nentities`
+   * nentities: number of entities
+   * nnodes: total number of nodes on all the entities
+"""
+struct ElementNodeEntities
+  # public fields 
+  entities::Vector{Ptr{Void}}
+  nodecounts::Vector{Int}  # number of nodes on each entity
+  dimensions::Vector{Int}  # dimension of each entity
+  nentities::Int  # = length of above arrays
+  nnodes::Int # total number of nodes
+
+  # private fields
+  m_ptr::Ptr{Void}
+  has_nodes_in_dim::Vector{Bool}
+  dim::Int
+  
+  # temporary arrays
+  down_entities::Array{Ptr{Void}, 1}
+end
+
+function ElementNodeEntities(m_ptr::Ptr{Void}, mshape_ptr::Ptr{Void},
+                             dim::Integer)
+
+  if dim == 2  # triangle
+    num_type_per_entity = [3, 3, 1]
+    dim = 2
+  elseif dim == 3  # tetrahedron
+    num_type_per_entity = [4, 6, 4, 1]
+    numRegions = num_type_per_entity[4]
+    dim = 3
+  else
+    throw(ErrorException("unsupported dimension in getNodeEntites, dim = $dim"))
+  end
+
+  num_nodes_per_entity = zeros(Int, 4)
+  for i=1:3
+    num_nodes_per_entity[i] = countNodesOn(mshape_ptr, i-1)
+  end
+  num_nodes_per_entity[4] = countNodesOn(mshape_ptr, 4)  # tetrahedron
+
+  has_nodes_in_dim = Array{Bool}(4)
+  for i=1:4
+    has_nodes_in_dim[i] = num_nodes_per_entity[i] != 0
+  end
+
+  # compute number of entities
+  nentities = 0
+  nnodes = 0
+  for i=0:dim
+    if num_nodes_per_entity[i+1] > 0
+      nentities += num_type_per_entity[i+1]
+      nnodes += num_type_per_entity[i+1]*num_nodes_per_entity[i+1]
+    end
+  end
+
+  entities = Array{Ptr{Void}}(nentities)
+  nodecounts = Array{Int}(nentities)
+  dimensions = Array{Int}(nentities)
+  down_entities = Array{Ptr{Void}}(12)  # apf::Downward
+
+  # get the nodecounts
+  idx = 1
+  for i=0:dim
+    if num_nodes_per_entity[i+1] > 0
+      for j=1:num_type_per_entity[i+1]
+        nodecounts[idx] = num_nodes_per_entity[i+1]
+        dimensions[idx] = i
+        idx += 1
+      end
+    end
+  end
+
+  @assert idx == nentities + 1
+
+  return ElementNodeEntities(entities, nodecounts, dimensions,  nentities,
+                             nnodes, m_ptr,
+                             has_nodes_in_dim, dim, down_entities)
+end
+
+
+"""
+  Gets the apf::MeshEntities of the entities that have nodes on them.
+  The entities are retrieve in order: vertices, edges, faces, and
+  regions.  Entities of each dimension are ordered consistently with
+  Pumi's `getDownward` function.
+
+  **Inputs**
+
+   * obj: an [`ElementNodeEntities`](@ref) object.  The `entities` field
+          will be overwritten.
+   * entity: an apf::MeshEntity* for the element.  The MeshEntities of
+             the downward adjacent entities that have nodes on them will
+             be retrieve
+"""
+function getNodeEntities(obj::ElementNodeEntities, entity::Ptr{Void})
+
+  # entity must be of the same type passed to the constructor of obj
+
+  # get entities in order of increasing dimension
+  idx = 1
+  for i=1:(obj.dim+1)
+    if obj.has_nodes_in_dim[i]
+      n = getDownward(obj.m_ptr, entity, i-1, obj.down_entities)
+      for j=1:n
+        obj.entities[idx] = obj.down_entities[j]
+        idx += 1
+      end
+    end
+  end
+
+  return nothing
+end
+
 
 
 function getNodeEntities(m_ptr, mshape_ptr, entity)

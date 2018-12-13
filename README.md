@@ -43,9 +43,16 @@ install MPICH.  It will also install the MPI.jl package if needed
 
 ### Build Pumi (if needed)
 The build script attempts to locate Pumi using `cmake --find-package`.
-If not found, it will attempt to build Pumi locally.  The build requires an
+If Pumi is not located in one of CMake's standard search locations,
+users can set the `SCOREC_PREFIX` environment variable to Pumi's installation
+prefix.
+If Pumi is not found, the build system will attempt to build Pumi locally.
+The build requires an
 MPI implementation (which should be present according to the above process),
-and Cmake 3.0.0.  It will install to `deps/core/build/install`.  
+and Cmake 3.0.0.  It will install to `deps/core/build/install`.  If you want
+to build other software that links to this Pumi build, source the
+script script `deps/use_pumi.sh` first.  This will set the necessary
+environment variables.
 
 ### Build Shared Library
 At this point, MPI and Pumi should be be present, so the library itself can
@@ -56,16 +63,12 @@ respectively.  The library is installed to the `repo/install` directory.
 If you wish to rebuild the shared library, you should execute these scripts.  
 It is also recommended to execute the `cleanup.sh`
 script before doing so, to remove any old configuration files.
-The build script also creates a symlink called `use_julialib.sh` which links
-to a shell script that sets any environmental variables needed to use the
-shared library.
-You must source this shell script at runtime in order to use the library.
-CMakes `find_package` command is used to locate the Pumi installation to link
-to.  The environmental variable `SCOREC_PREFIX` can be used to specify a
-different installation.  If the installation specified is neither the Scorec
-one (see below) nor the one built by the build script then the user is
-responsible for creating their own `use_julialib.sh` script.
-See `use_julialib_scorec.sh` and `use_julialib_general.sh` for examples.
+Previous version of this package required users to source the `use_julialib.sh`
+script before each use.  This is no longer necessary.
+It is also unnecessary to set `LD_LIBRARY_PATH` or any other environment
+variables at runtime.  This package uses `RPATH` to locate the libraries
+at runtime (and an `RPATH`-like mechanism for the Julia code).
+
 
 Thats it, now you are done.
 
@@ -82,14 +85,14 @@ The build script will:
   * build MPI if it cannot find an existing installation
   * build Pumi if it cannot find an existing installation
   * build the shared library
-  * create `use_julialib.sh` in `repo/src`, which must be `sourc`ed at runtime
 
 ## Scorec Installation
 
 If you are working on a SCOREC machine (with access to the SCOREC shared file
 system), load the Pumi module before building the package.  This will ensure
 the Scorec installation of Pumi is found, which is preferable to building
-Pumi locally.
+Pumi locally because it links to Zoltan and other optional dependencies that
+provide extra features.
 
 
 ## Non Scorec Installation on Scorec machine
@@ -99,10 +102,10 @@ not loaded, it seems CMake is still able to find the Pumi installation,
 therefore the build system will use it.  
 
 To get around this:
+  * Load the compiler and MPI modules you want to use
   * run the build script normally
   * `cd` into `repo/deps` and run `build_local.sh`
-  * `cd` into `repo/src`
-  * `source` the script `use_julialib_general.sh`
+  * `source ./use_pumi.sh`
   *  execute `config.sh` and then `makeinstall.sh`
 
 This will build a local copy of Pumi and tell the shared library to
@@ -305,22 +308,136 @@ Constructing a mesh object with `Tmsh = Complex128` is supported.  This allows
 using the complex step method to calculate derivative with respect to the mesh
 coordinate and metrics.  The function `recalcCoordinatesAndMetrics` can be used
 to recalculate the volume coordinates and metrics after the `mesh.vert_coords`
-field has been updated.
+field has been updated. 
 
-Some initial work on reverse mode differentiation has been started, but it
-has not been extended to parallel yet.  See `getAllCoordinatesAndMetrics_rev()`.
+Reverse mode differentiation is supported, both in serial and in parallel,
+with keyword arguments to control how non-owned entities are handled.
+ See `getAllCoordinatesAndMetrics_rev()`.
+
+
+## Geometry Interaction
+
+### Geometric Formats
+
+Loading geometric models is supported through Pumi's `gmi` library, which
+is wrapped in the Julia `gmi` module.  Currently, three types of models are
+supported:
+
+ * null model: if `dmg_name` in the options dictionary is ".null", then
+               the null model will be loaded.  This is a fake model used for
+               testing only.  Internally, every time a model entity is queried,
+               it is created (so by using the model you build the list of
+               geometric entities.
+ * MDS model: if `dmg_name` specifies a file with extension `.dmg`, then the
+              Pumi mds model will be used.  This model contains the topology
+              of the original CAD model, but no shape information.  See below
+              for how to make these.
+ * GeomSim model: If Pumi is linked with the (proprietary) Simmetrix libraries,
+                  then it is possible to load certain kinds of `.smd` files.
+                  These files contain geometry topology, geometry shape, and
+                  may contain additional attribute data that was created during
+                  the mesh generation process by SimModeler.  See below for
+                  how to create these.
+
+It is also possible to load other kinds of geometry files when Pumi is linked
+to Simmetrix, although doing so is discouraged.
+
+ * Parasolid (`.x_t` or `.xmt_txt` extension): these files can only be loaded
+             on x86 platform (no BG/Q or Power9).
+ * ACIS: (`.sat` extension): limited Linux support
+
+
+### Conversion 
+
+To demonstrate how to create the different files, lets assume a Parasolid CAD
+model called `airfoil.x_t` exists (for example, do steps 1-6 [here]( ))
+
+To make a GeomSim model from a Parasolid or ACIS model (must be done on an
+x86 machine):
+
+```
+  mdlConvert airfoil.x_t airfoil.smd
+```
+
+The `airfoil.smd` file can be opened by SimModeler to make a mesh.  After
+creating the mesh, SimModeler will offer the user the chance to save both the
+model (`.smd`) and mesh `.sms` files.  It is recommended to use this `smd`,
+not `airfoil.smd`, when loading the mesh (more on mesh loading below).
+
+Note that `SimModeler` can open the `airfoil.x_t` directly and create a mesh
+off of that, however this is not recommended.  Parasolid and GeomSim use
+different geometric representations.  The same geometric model should be
+use for creating the mesh and loading the mesh with PumiInterface.
+
+
+
+To make an MDS model from the Parasolid model:
+```
+  mdlConvert airfoil.x_t airfoil.dmg
+```
+
+Note that this conversion loses all geometry shape information, as described
+above.  `mdlConvert` can also take a GeomSim `.smd` file as the first argument.
+
+As mentioned above, SimModeler saves an `sms` mesh file.  It is recommended
+to convert it to the MDS mesh format `smd`.  Assuming SimModeler files were
+saved as `airfoil_meshmodel.smd` and `airfoil_mesh.sms`:
+
+```
+  convert airfoil_meshmodel.smd airfoil_mesh.sms airfoil_mesh.smb
+```
+
+### SimModeler Quirks
+
+There are 2 types of SimModeler model files, and both have the extension `.smd`,
+which makes things a bit confusing.  The first type is an attribute file which
+does not contain geometry shape information.  The second type is a GeomSim
+file, which contains both geometry shape and attribute information.  Only
+the second type can be used by PumiInterface.
+
+If SimModeler opens a Parasolid file, generates a mesh, and then saves the
+`.smd` and `.sms` files, this creates an `.smd of the first kind.
+If `mdlConvert` is used to convert the Parasolid file to a GeomSim `.smd`,
+then this `.smd` is opened by SimModeler, the `.smd` that SimModeler saves
+will be a `.smd` of the second kind.  I believe this `.smd` has both 
+geometry shape and attribute information (the instructions for how SimModeler
+made the mesh) in it, but this needs to be verified.
+
+### Recommended Workflow
+
+If you want geometry shape information (required Pumi linked to Simmetrix at
+runtime):
+
+ 1. Make CAD model and save to Parasolid or ACIS
+ 2. Use ``mdlConvert` to convert to `foo.smd`
+ 3. Use SimModeler to open `foo.smd`
+ 4. Make the mesh and save to `bar.smd`. and `bar.sms`
+ 5. Use `convert` to convert `bar.sms` to `bar.smb`
+ 6. Load with PumiInterface by setting `smb_name` to `bar.smb` and `dmg_name` to `bar.smd`
+
+
+If you don't want geometry shape information (or don't have Pumi linked to Simmetrix at runtime)
+
+ 1. Make CAD model and save to Parasolid or ACIS
+ 2. Use ``mdlConvert` to convert to `foo.dmg`
+ 3. Use SimModeler to open the Parasolid or ACIS file
+ 4. Make the mesh and save to `bar.smd`. and `bar.sms`
+ 5. Use `convert` to convert `bar.sms` to `bar.smb`
+ 6. Load with PumiInterface by setting `smb_name` to `bar.smb` and `dmg_name` to `foo.dmg`
+
 
 
 # Version History
-v0.1: the old code, before Pumi switched to the CMake build system.  This version is no longer supported
 
-v0.2: after the build system switch to CMake
+ * v0.1: the old code, before Pumi switched to the CMake build system.  This version is no longer supported
 
-v0.3: curvilinear elements (compatable with SBP versions broken_ticon and fixed_ticon)
+ * v0.2: after the build system switch to CMake
 
-v0.4: 2D linear mesh reverse mode of metrics
+ * v0.3: curvilinear elements (compatable with SBP versions broken_ticon and fixed_ticon)
 
-v0.5: 3D curvilinear metrics and their reverse mode
+ * v0.4: 2D linear mesh reverse mode of metrics
+
+ * v0.5: 3D curvilinear metrics and their reverse mode
 
              Breaking changes:
 
@@ -337,13 +454,14 @@ v0.5: 3D curvilinear metrics and their reverse mode
                any geometric edges, an additional BC is created for them with
                name `defaultBC`.  See `getAllFaceData()`.
 
-v0.6: fix bug in in 3D metric calculation, also introduce asserts to make sure
+ * v0.6: fix bug in in 3D metric calculation, also introduce asserts to make sure
       face orientation can be determined when using periodic boundary conditions.
       Also, removes all global state from libfuncs1, so it is now possible to
       load multiple meshes simultaneously.
 
-v0.7: change mesh constructors to be outer constructors, add submesh creation
+ * v0.7: change mesh constructors to be outer constructors, add submesh creation
 
-v0.8: upgrade from Julia 0.4 to Julia 0.6
+ * v0.8: upgrade from Julia 0.4 to Julia 0.6
+ * v0.9: add parallel reverse mode derivative and gmi interface
 
 [![Build Status](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl.svg?branch=build_system)](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl)

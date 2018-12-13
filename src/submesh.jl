@@ -158,14 +158,14 @@ function count_entities(mesh::PumiMesh, oldmesh::PumiMesh, el_list::AbstractVect
   for dim=0:(mesh.dim - 1)
     obj_arr = entity_arrays[dim]
     
-    itr = MeshIterator(mesh.m_ptr, dim)
+    itr = apf.MeshIterator(mesh.m_ptr, dim)
     for i=1:oldmesh.numEntitiesPerType[dim+1]
-      v_i = iterate(mesh.m_ptr, itr)
+      v_i = apf.iterate(mesh.m_ptr, itr)
 
       # get elements
-      nvals = countAdjacent(mesh.m_ptr, v_i, mesh.dim)
+      nvals = apf.countAdjacent(mesh.m_ptr, v_i, mesh.dim)
       @assert nvals <= 400
-      getAdjacent(up_adj)
+      apf.getAdjacent(up_adj)
 
       for j=1:nvals
         if up_adj[j] in el_set
@@ -176,7 +176,7 @@ function count_entities(mesh::PumiMesh, oldmesh::PumiMesh, el_list::AbstractVect
 
     end  # end loop i
 
-    free(itr)
+    apf.free(itr)
   end  # end loop dim
 
   # get the elements array
@@ -207,13 +207,13 @@ end
 function injectionOperator(oldmesh::PumiMesh, oldq::AbstractVector,
                            newmesh::PumiMesh, newq::AbstractVector)
 
-  @assert oldmesh.m_ptr == getOldMesh(newmesh.subdata)
+  @assert oldmesh.m_ptr == apf.getOldMesh(newmesh.subdata)
 
-  parent_N = getParentNumbering(newmesh.subdata)
+  parent_N = apf.getParentNumbering(newmesh.subdata)
 
   for i=1:newmesh.numEl
     el_i = newmesh.elements[i]
-    oldel = getNumberJ(parent_N, el_i, 0, 0) + 1
+    oldel = apf.getNumberJ(parent_N, el_i, 0, 0) + 1
 
     for j=1:newmesh.numNodesPerElement
       for k=1:newmesh.numDofPerNode
@@ -233,13 +233,13 @@ end
 function injectionOperator(oldmesh::PumiMesh, oldq::Abstract3DArray,
                            newmesh::PumiMesh, newq::Abstract3DArray)
 
-  @assert oldmesh.m_ptr == getOldMesh(newmesh.subdata)
+  @assert oldmesh.m_ptr == apf.getOldMesh(newmesh.subdata)
 
-  parent_N = getParentNumbering(newmesh.subdata)
+  parent_N = apf.getParentNumbering(newmesh.subdata)
 
   for i=1:newmesh.numEl
     el_i = newmesh.elements[i]
-    oldel = getNumberJ(parent_N, el_i, 0, 0) + 1
+    oldel = apf.getNumberJ(parent_N, el_i, 0, 0) + 1
 
     for k=1:newmesh.numNodesPerElement
       for j=1:newmesh.numDofPerNode
@@ -270,13 +270,13 @@ end
 function rejectionOperator(newmesh::PumiMesh, newq::AbstractVector,
                            oldmesh::PumiMesh, oldq::AbstractVector)
 
-  @assert oldmesh.m_ptr == getOldMesh(newmesh.subdata)
+  @assert oldmesh.m_ptr == apf.getOldMesh(newmesh.subdata)
 
-  parent_N = getParentNumbering(newmesh.subdata)
+  parent_N = apf.getParentNumbering(newmesh.subdata)
 
   for i=1:newmesh.numEl
     el_i = newmesh.elements[i]
-    oldel = getNumberJ(parent_N, el_i, 0, 0) + 1
+    oldel = apf.getNumberJ(parent_N, el_i, 0, 0) + 1
 
     for j=1:newmesh.numNodesPerElement
       for k=1:newmesh.numDofPerNode
@@ -296,13 +296,13 @@ end
 function rejectionOperator(newmesh::PumiMesh, newq::Abstract3DArray,
                            oldmesh::PumiMesh, oldq::Abstract3DArray)
 
-  @assert oldmesh.m_ptr == getOldMesh(newmesh.subdata)
+  @assert oldmesh.m_ptr == apf.getOldMesh(newmesh.subdata)
 
-  parent_N = getParentNumbering(newmesh.subdata)
+  parent_N = apf.getParentNumbering(newmesh.subdata)
 
   for i=1:newmesh.numEl
     el_i = newmesh.elements[i]
-    oldel = getNumberJ(parent_N, el_i, 0, 0) + 1
+    oldel = apf.getNumberJ(parent_N, el_i, 0, 0) + 1
 
     for k=1:newmesh.numNodesPerElement
       for j=1:newmesh.numDofPerNode
@@ -337,7 +337,7 @@ function getBoundaryInterpArray(oldmesh::PumiMesh2D, newmesh::PumiMesh2D)
   rng = newmesh.bndry_offsets[end-1]:(newmesh.bndry_offsets[end]-1)
   interface_arr = Array{Interface}(length(rng))
 
-  parent_N = getParentNumbering(newmesh.subdata)
+  parent_N = apf.getParentNumbering(newmesh.subdata)
   edges = Array{Ptr{Void}}(12)  # apf::Downward
   el_arr = Array{Ptr{Void}}(2)  # number of elements that share an edge
   pos = 1  # position in interface_arr
@@ -347,15 +347,15 @@ function getBoundaryInterpArray(oldmesh::PumiMesh2D, newmesh::PumiMesh2D)
     face_i = newmesh.bndryfaces[i].face
     el_ptr = newmesh.elements[el_i]
 
-    parent_el = getNumberJ(parent_N, el_ptr, 0, 0) + 1
+    parent_el = apf.getNumberJ(parent_N, el_ptr, 0, 0) + 1
     parent_elptr = oldmesh.elements[parent_el]
 
-    getDownward(oldmesh.m_ptr, parent_elptr, oldmesh.dim-1, edges)
+    apf.getDownward(oldmesh.m_ptr, parent_elptr, oldmesh.dim-1, edges)
     edge_ptr = edges[face_i]
 
-    nup = countAdjacent(oldmesh.m_ptr, edge_ptr, oldmesh.dim)
+    nup = apf.countAdjacent(oldmesh.m_ptr, edge_ptr, oldmesh.dim)
     @assert nup == 2
-    getAdjacent(el_arr)
+    apf.getAdjacent(el_arr)
 
     # figure out which is left and which is right
     elL_ptr = parent_elptr
@@ -366,9 +366,9 @@ function getBoundaryInterpArray(oldmesh::PumiMesh2D, newmesh::PumiMesh2D)
     end
 
    # get local face numbers
-   elnumL = getNumberJ(oldmesh.el_Nptr, elL_ptr, 0, 0) + 1
-   elnumR = getNumberJ(oldmesh.el_Nptr, elR_ptr, 0, 0) + 1
-   edgenum = getNumberJ(oldmesh.face_Nptr, edge_ptr, 0, 0) + 1
+   elnumL = apf.getNumberJ(oldmesh.el_Nptr, elL_ptr, 0, 0) + 1
+   elnumR = apf.getNumberJ(oldmesh.el_Nptr, elR_ptr, 0, 0) + 1
+   edgenum = apf.getNumberJ(oldmesh.face_Nptr, edge_ptr, 0, 0) + 1
 
    facelocalnumL = getFaceLocalNum(oldmesh, edgenum, elnumL)
    facelocalnumR = getFaceLocalNum(oldmesh, edgenum, elnumR)

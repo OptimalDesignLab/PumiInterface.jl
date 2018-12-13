@@ -41,11 +41,11 @@ function numberSurfacePoints(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglo
 
   # we can't guarantee an existing numbering with the same name was
   # created using the same bc_nums, so delete any existing numbering
-  n_old = findNumbering(mesh.m_ptr, numbering_name)
+  n_old = apf.findNumbering(mesh.m_ptr, numbering_name)
   if n_old != C_NULL
-    destroyNumbering(n_old)
+    apf.destroyNumbering(n_old)
   end
-  n_face = createNumberingJ(mesh.m_ptr, numbering_name, 
+  n_face = apf.createNumberingJ(mesh.m_ptr, numbering_name, 
                              mesh.coordshape_ptr, 1)
   topo = mesh.topo
   num_i = 1
@@ -64,29 +64,29 @@ function numberSurfacePoints(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglo
       el_ptr = mesh.elements[el_j]
 
       # get the vertices
-      getDownward(mesh.m_ptr, el_ptr, 0, verts)
+      apf.getDownward(mesh.m_ptr, el_ptr, 0, verts)
 
       for k=1:size(mesh.topo.face_verts, 1)
         v_k = verts[mesh.topo.face_verts[k, bndry_j.face]]
 
-        if !isNumbered(n_face, v_k, 0, 0)
-#          getPoint(mesh.m_ptr, v_k, 0, coords)
-          numberJ(n_face, v_k, 0, 0, num_i)
+        if !apf.isNumbered(n_face, v_k, 0, 0)
+#          apf.getPoint(mesh.m_ptr, v_k, 0, coords)
+          apf.numberJ(n_face, v_k, 0, 0, num_i)
           push!(face_verts, v_k)
           num_i += 1
         end
       end  # end loop k
 
       # get the edges nodes too
-      if hasNodesIn(mesh.coordshape_ptr, 1)
-        getDownward(mesh.m_ptr, el_ptr, 1, edges)
+      if apf.hasNodesIn(mesh.coordshape_ptr, 1)
+        apf.getDownward(mesh.m_ptr, el_ptr, 1, edges)
         for k=1:size(topo.face_edges, 1)
           edge_k = edges[topo.face_edges[k, bndry_j.face]]
 
           # up to 2nd order fields, we don't need to worry about edge orientation
-          if !isNumbered(n_face, edge_k, 0, 0)
+          if !apf.isNumbered(n_face, edge_k, 0, 0)
 
-            numberJ(n_face, edge_k, 0, 0, num_i)
+            apf.numberJ(n_face, edge_k, 0, 0, num_i)
             push!(face_verts, edge_k)
             num_i += 1
           end  # end if
@@ -101,16 +101,16 @@ function numberSurfacePoints(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglo
   for i=1:mesh.numVert
     v_i = mesh.verts[i]
 
-    if !isNumbered(n_face, v_i, 0, 0)
-      numberJ(n_face, v_i, 0, 0, num_i)
+    if !apf.isNumbered(n_face, v_i, 0, 0)
+      apf.numberJ(n_face, v_i, 0, 0, num_i)
     end
   end
 
-  if hasNodesIn(mesh.coordshape_ptr, 1)
+  if apf.hasNodesIn(mesh.coordshape_ptr, 1)
     for i=1:mesh.numEdge
       edge_i = mesh.edges[i]
-      if !isNumbered(n_face, edge_i, 0, 0)
-        numberJ(n_face, edge_i, 0, 0, num_i)
+      if !apf.isNumbered(n_face, edge_i, 0, 0)
+        apf.numberJ(n_face, edge_i, 0, 0, num_i)
       end
     end
   end
@@ -123,11 +123,6 @@ end
 
 #------------------------------------------------------------------------------
 # Reduction operations
-
-"""
-  Abstract type for reduction operations
-"""
-abstract type Reduction{T} end
 
 """
   Assignment reduction (always returns the right hand value)
@@ -218,11 +213,17 @@ end
 
   **Inputs/Outputs**
 
-   * coords_vec: vector to be populated
+   * coords_vec: vector to be populated, length `mesh.dim*mesh.coord_numNodes`
 
+  **Keyword Arguments**
+
+   * parallel: if true (default), do the reduction in parallel, sending data
+               to the owning process.  The entry in the local vector for
+               non-owned entities will be zero (in general,
+               `reduce_op.neutral_element`)
 """
 function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
-                     coords_vec::AbstractVector, reduce_op::Reduction{T}=SumReduction{T}())  where {T}
+                     coords_vec::AbstractVector, reduce_op::Reduction{T}=SumReduction{T}(); parallel=true)  where {T}
 
   @assert mesh.coord_order <= 2
   @assert size(coords_arr, 3) == mesh.numEl
@@ -230,40 +231,74 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
   @assert size(coords_arr, 1) == mesh.dim
   @assert length(coords_vec) == mesh.coord_numNodes*mesh.dim
 
+  _parallel::Bool = parallel
+
+  if _parallel
+    sendParallelData(mesh.coordscatter, coords_arr, reduce_op)
+  end
+
   fill!(coords_vec, reduce_op.neutral_element)
+  node_entities = apf.ElementNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.dim)
 
+ 
+  #TODO: not sure if this gives enough time for data to arrive, maybe combine
+  #      with calcCoordinatesAndMetrics_rev?
+  shr = mesh.normalshr_ptr
   for i=1:mesh.numEl
-    #TODO: it would be faster to create an array for this, but it would use
-    #      more memory
-    node_entities = getNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.elements[i])
+    apf.getNodeEntities(node_entities, mesh.elements[i])
     for j=1:mesh.coord_numNodesPerElement
-      for k=1:mesh.dim
-        idx = getNumberJ(mesh.coord_nodenums_Nptr, node_entities[j], 0, k-1)
+      entity = node_entities.entities[j]
+      if !_parallel || (_parallel && apf.getOwner(shr, entity) == mesh.myrank)
+        for k=1:mesh.dim
+          idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
+          coords_vec[idx] = reduce_op(coords_vec[idx], coords_arr[k, j, i])
+        end
+      end  # end if
+    end  # end j
+  end  # end i
 
-        coords_vec[idx] = reduce_op(coords_vec[idx], coords_arr[k, j, i])
-      end
-    end
+  if _parallel
+    # lambda function for receiving
+    calc_func = (data::PeerData) -> receiveVecFunction(data, mesh, coords_vec,
+                                                       reduce_op)
+
+    receiveParallelData(mesh.coordscatter, calc_func)
   end
 
   return nothing
 end
 
 """
-  Like `coords1DTo3D`, but goes from the vector to the 3D array.
+  Like `coords1DTo3D`, but goes from the vector to the 3D array.  Unlike 
+  `coords1DTo3D`, this is an entirely local operation (does not do parallel
+  communications)
+
+  TODO: make this do parallel communication if reduce_op is not assignment
 
   **Inputs**
 
    * mesh: DG mesh
-   * coords_vec: vector of coordinate-like values
+   * coords_vec: vector of coordinate-like values, length
+                 `mesh.dim*mesh.coord_numNodes`
    * reduce_op: [`Reduction`](@ref) object, default [`AssignmnetReduction`](@ref)
 
   **Inputs/Outputs**
 
-   * coords_arr: 3D array to be populated
+   * coords_arr: 3D array to be populated (overwritten)
+
+  **Keyword Arguments**
+
+   * parallel: if true, performs a global scatter such that the elements
+               in coords_vec are overwritten by the owner's value before
+               unpacking into `coords_arr`.
+               default false.
+
+  TODO: parallel efficiency of `parallel=true` could be improved
 """
 function coords1DTo3D(mesh::PumiMeshDG, coords_vec::AbstractVector,
                       coords_arr::AbstractArray{T, 3},
-                      reduce_op::Reduction{T}=AssignReduction{T}()) where {T}
+                      reduce_op::Reduction=AssignReduction{T}();
+                      parallel::Bool=false) where {T}
 
   @assert mesh.coord_order <= 2
   @assert size(coords_arr, 3) == mesh.numEl
@@ -272,13 +307,24 @@ function coords1DTo3D(mesh::PumiMeshDG, coords_vec::AbstractVector,
   @assert length(coords_vec) == mesh.coord_numNodes*mesh.dim
 
 
+  if parallel
+    sendParallelData_rev(mesh, mesh.coordscatter, coords_vec)
+  end
+
   fill!(coords_arr, reduce_op.neutral_element)
+  node_entities = apf.ElementNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.dim)
+
+  if parallel
+    calc_func = (data::PeerData) -> receiveFromOwner(data, mesh, coords_vec)
+    receiveParallelData_rev(mesh.coordscatter, calc_func)
+  end
 
   for i=1:mesh.numEl
-    node_entities = getNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.elements[i])
+    apf.getNodeEntities(node_entities, mesh.elements[i])
     for j=1:mesh.coord_numNodesPerElement
+      entity = node_entities.entities[j]
       for k=1:mesh.dim
-        idx = getNumberJ(mesh.coord_nodenums_Nptr, node_entities[j], 0, k-1)
+        idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
 
         coords_arr[k, j, i] = reduce_op(coords_arr[k, j, i], coords_vec[idx])
       end
