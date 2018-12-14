@@ -478,7 +478,6 @@ void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall)
 {
 
 //   apf::writeASCIIVtkFiles(name, m_local);
-  std::cerr << "writing Vtk file name" << name << std::endl; 
   if (writeall)
    apf::writeVtkFiles(name, m_local);
   else  // only print fields to vtk that have compatible fieldshape
