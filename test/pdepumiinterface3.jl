@@ -490,6 +490,8 @@ include("defs.jl")
 
 
   test_adapt_3d()
+
+  test_geoNums(mesh)
  
 
 end

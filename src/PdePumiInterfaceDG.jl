@@ -189,6 +189,9 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
                                      # element
   coord_nodenums_Nptr::Ptr{Void}  # numbering for nodes of coordinate field,
                                   # number of components = mesh.dim
+  geoNums::GeometricDofs  # mapping between coordinate dofs and geometric
+                          # dofs
+
   # constants needed by Pumi
   el_type::Int  # apf::Type for the elements of the mesh
   face_type::Int # apf::Type for the faces of the mesh
@@ -797,6 +800,8 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
   mesh.coord_nodenums_Nptr = apf.createNumberingJ(mesh.m_ptr, "coord node numbers",
                                                mesh.coordshape_ptr, mesh.dim)
 
+  xiNums_Nptr = apf.createNumberingJ(mesh.m_ptr, "geometric dof numbers", mesh.coordshape_ptr, mesh.dim)
+
   # get entity pointers
 #  println("about to get entity pointers")
   mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
@@ -826,6 +831,7 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
             C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
 	    start_coords)
 
+    numXiDof = apf.reorderXi(mesh.m_ptr, xiNums_Nptr, start_coords)
  elseif opts["reordering_algorithm"] == "default"
 #    println("about to number nodes")
     numberNodesElement(mesh)
@@ -836,9 +842,14 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
     apf.reorder(mesh.m_ptr, mesh.dim*mesh.coord_numNodes, mesh.dim, 
             C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
 	    start_coords)
+
+    numXiDof = apf.reorderXi(mesh.m_ptr, xiNums_Nptr, start_coords)
   else
     throw(ErrorException("invalid dof reordering algorithm requested"))
   end
+
+  mesh.geoNums = GeometricDofs(mesh.coord_nodenums_Nptr, xiNums_Nptr,
+                                  mesh.coord_numNodes, numXiDof)
 
 
 

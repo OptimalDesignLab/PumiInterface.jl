@@ -1028,4 +1028,9 @@ end
 
   test_ScatterData(mesh)
 
+  opts["smb_name"] = "meshes/tri4x4_.smb"
+  opts["dmg_name"] = "meshes/tri4x4_.dmg"
+  mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+  test_geoNums(mesh)
+
 end

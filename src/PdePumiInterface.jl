@@ -396,6 +396,20 @@ function finalizeMesh(mesh::PumiMesh)
   return nothing
 end
 
+"""
+  Struct that defines a mapping between the coordinate field dofs and the
+  geometric dofs.  Geometric dofs are defined such the MeshEntity remains
+  on the geometric entity it is classified on.  The number of geometric
+  dofs a given MeshEntity has is exactly equal to the dimension of the
+  geometric entity it is classified on
+"""
+mutable struct GeometricDofs
+  coordNums::Ptr{Void}  # apf::Numbering for coordinate dofs
+  xiNums::Ptr{Void}  # apf::Numbering for geometric dofs
+  numCoordsDofs::Int  # number of coordinate dofs
+  numXiDofs::Int  # number of geometric dofs
+end
+
 
 include("parallel_types.jl")
 include("elements.jl")

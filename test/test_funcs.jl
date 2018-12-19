@@ -1536,3 +1536,44 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
 
   return nothing
 end
+
+
+function test_geoNums(mesh)
+
+
+  @testset "testing geometric numbering" begin
+    geonums = mesh.geoNums
+
+    for dim=0:mesh.dim
+      it = apf.MeshIterator(mesh.m_ptr, dim)
+      for i=1:mesh.numEntitiesPerType[dim+1]
+        e = apf.iterate(mesh.m_ptr, it)
+
+        me = apf.toModel(mesh.m_ptr, e)
+        me_dim = apf.getModelType(mesh.m_ptr, me)
+
+        for j=1:mesh.coord_numNodesPerType[dim+1]
+
+          for k=0:(me_dim-1)
+            n_k = apf.getNumberJ(geonums.xiNums, e, j-1, k)
+            @test n_k <= geonums.numXiDofs
+          end
+
+          for k=me_dim:(mesh.dim-1)
+            n_k = apf.getNumberJ(geonums.xiNums, e, j-1, k)
+            @test n_k == geonums.numXiDofs + 1
+          end
+        end   # end j
+      end # end i
+
+      apf.free(mesh.m_ptr, it)
+    end  # end dim
+
+  end # end testset
+
+  writeVisFiles(mesh, "geoNumbering")
+
+  return nothing
+end  
+
+

@@ -172,6 +172,8 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
                                      # element 
   coord_nodenums_Nptr::Ptr{Void}  # numbering for nodes of coordinate field,
 
+  geoNums::GeometricDofs
+
   # constants needed by Pumi
   el_type::Int  # apf::Type for the elements of the mesh
   face_type::Int # apf::Type for the faces of the mesh
@@ -720,6 +722,8 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
                                                mesh.coordshape_ptr, mesh.dim)
 
 
+  xiNums_Nptr = apf.createNumberingJ(mesh.m_ptr, "geometric dof numbers", mesh.coordshape_ptr, mesh.dim)
+
   # get entity pointers
 #  println("about to get entity pointers")
   mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
@@ -738,7 +742,7 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   mesh.coord_numNodes = coord_numnodes
 
 
- if opts["reordering_algorithm"] == "adjacency"
+  if opts["reordering_algorithm"] == "adjacency"
     start_coords = opts["eordering_start_coords"]
     numberNodesWindy(mesh, start_coords)
     # tell the algorithm there is only 1 dof per node because we only
@@ -750,22 +754,28 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
             C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
 	    start_coords)
 
+    numXiDof = apf.reorderXi(mesh.m_ptr, xiNums_Nptr, start_coords)
 
- elseif opts["reordering_algorithm"] == "default"
+  elseif opts["reordering_algorithm"] == "default"
 #    println("about to number nodes")
-  numberNodesElement(mesh)
+    numberNodesElement(mesh)
 
-  # coordinate node numbering
-  start_coords = zeros(3)
-  apf.getPoint(mesh.m_ptr, mesh.verts[1], 0, start_coords)
-  apf.reorder(mesh.m_ptr, mesh.dim*mesh.coord_numNodes, mesh.dim, 
-          C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
-          start_coords)
+    # coordinate node numbering
+    start_coords = zeros(3)
+    apf.getPoint(mesh.m_ptr, mesh.verts[1], 0, start_coords)
+    apf.reorder(mesh.m_ptr, mesh.dim*mesh.coord_numNodes, mesh.dim, 
+            C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
+            start_coords)
 
 
+    numXiDof = apf.reorderXi(mesh.m_ptr, xiNums_Nptr, start_coords)
   else
     throw(ErrorException("invalid dof reordering algorithm requested"))
   end
+
+  mesh.geoNums = GeometricDofs(mesh.coord_nodenums_Nptr, xiNums_Nptr,
+                                  mesh.coord_numNodes, numXiDof)
+
 
 #  println("finished numbering nodes")
 

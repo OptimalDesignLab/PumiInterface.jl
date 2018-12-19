@@ -96,6 +96,7 @@ global const getDoubleTag_name = "getDoubleTag"
 
 
 global const reorder_name = "reorder"
+global const reorderXi_name = "reorderXi"
 
 global const createIsoFunc_name = "createIsoFunc"
 global const deleteIsoFunc_name = "deleteIsoFunc"
@@ -165,7 +166,8 @@ export init, loadMesh, initMesh, pushMeshRef, popMeshRef,
        destroyNumberings,
        getNumberingShape, numberJ, getNumberJ, isNumbered, getDofNumbers,
        getElementNumbers, getMesh, printNumberingName, createDoubleTag,
-       setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc,
+       setDoubleTag, getDoubleTag, reorder, reorderXi,
+       createIsoFunc, createAnisoFunc,
        deleteIsoFunc, createSolutionTransfers, deleteSolutionTransfers,
        addSolutionTransfer, configureMAInput, runMA, getAvgElementSize, IsoFuncJ,
        SolutionTransfers, MAInput,
@@ -967,6 +969,41 @@ function reorder(m_ptr, ndof::Integer, ncomp::Integer, node_statusN_ptr,
 
   return nothing
 
+end
+
+
+"""
+  This function populates the `xiNums` apf::Numbering with the numbering of
+  the geometric degrees of freedom. The number of degrees of freedom a 
+  MeshEntity has is exactly equal to the dimension of the geometry entity it
+  is classified on.  Therefore, a mesh vertex classified on a geometric vertex
+  has zero degrees of freedom, while a vertex classified on a geometric edge
+  has one.  This effectively constrains the MeshEntity to remain on the
+  geometric entity it is classified on.  Any unused entries in the `xiNums`
+  have value `numXiDof + 1`.
+
+  **Inputs**
+
+   * m_ptr: apf::Mesh*
+   * xiNums: apf::Numbering* to be written to
+   * start_coords: the MeshEntity closest to this these coordinates will be
+                   used to start the numbering process.  Note that reverse
+                   numbering is performed, so this mesh entity will have the
+                   highest dof number.  This array must be of length 3, even in
+                   2D.
+  **Outputs**
+
+   * numXiDof: the number of geometric degrees of freedom
+"""
+function reorderXi(m_ptr::Ptr{Void}, xiNums::Ptr{Void},
+                   start_coords::Vector{Cdouble})
+
+  @assert length(start_coords) == 3
+
+  val = ccall( (reorderXi_name, pumi_libname), Cint, (Ptr{Void}, Ptr{Void},
+          Ptr{Cdouble}), m_ptr, xiNums, start_coords)
+
+  return val
 end
 
 #------------------------------------------------------------------------------
