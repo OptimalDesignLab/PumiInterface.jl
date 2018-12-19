@@ -1571,9 +1571,30 @@ function test_geoNums(mesh)
 
   end # end testset
 
-  writeVisFiles(mesh, "geoNumbering")
+  return nothing
+end
+
+
+function test_geoMapping(mesh)
+
+  # mesh must have loaded a CAD-based geometric model
+
+
+  @testset "testing geoMapping" begin
+    println("testing geometric mapping")
+    xivec = zeros(mesh.geoNums.numXiDofs)
+    coords_arr = copy(mesh.vert_coords)
+
+    coords_xyzToXi(mesh, coords_arr, xivec)
+    fill!(coords_arr, 0)
+    coords_XiToXYZ(mesh, xivec, coords_arr)
+
+    println("maxdiff = ", maximum(abs.(coords_arr - mesh.vert_coords)))
+    @test maximum(abs.(coords_arr - mesh.vert_coords)) < 1e-8 # CAD is not that accurate
+
+  end
 
   return nothing
-end  
+end
 
 

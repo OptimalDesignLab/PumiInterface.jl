@@ -39,6 +39,9 @@ export adaptMesh, getElementSizes
 # not exporting reduction operations because their names are too generic
 export coords1DTo3D, coords3DTo1D
 
+# interface_geo.jl
+export coords_xyzToXi, coords_XiToXYZ
+
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 
@@ -406,7 +409,7 @@ end
 mutable struct GeometricDofs
   coordNums::Ptr{Void}  # apf::Numbering for coordinate dofs
   xiNums::Ptr{Void}  # apf::Numbering for geometric dofs
-  numCoordsDofs::Int  # number of coordinate dofs
+  numCoordDofs::Int  # number of coordinate dofs
   numXiDofs::Int  # number of geometric dofs
 end
 
@@ -417,6 +420,7 @@ include("./PdePumiInterface3.jl")
 include("PdePumiInterfaceDG.jl")
 include("PdePumiInterface3DG.jl")
 include("interface.jl")
+include("interface_geo.jl")
 
 @doc """
 ### PumiInterface.PumiMesh2

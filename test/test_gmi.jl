@@ -143,17 +143,6 @@ function test_gmi()
     # is_in_closure_of
     @test gmi.is_in_closure_of(g, circle, face)
 
-
-
-
-
-
-
-
-
-
-
-
     gmi.destroy(g)
   end
 

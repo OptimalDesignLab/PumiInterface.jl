@@ -1033,4 +1033,25 @@ end
   mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
   test_geoNums(mesh)
 
+  # load airfoil CAD mesh
+  opts = Dict{Any, Any}(
+  "dimensions" => 2,
+  "run_type" => 5,
+  "jac_type" => 2,
+  "order" => 1,
+  "use_DG" => true,
+  "coloring_distance" => 2,
+  "numBC" => 2,
+  "BC1" => [8],
+  "BC1_name" => "FreeStreamBC",
+  "BC2" => [5],
+  "BC2_name" => "noPenetrationBC",
+  "smb_name" => "meshes/airfoil.smb",
+  "dmg_name" => "meshes/airfoil.smd",
+  )
+
+  mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+  test_geoMapping(mesh)
+
+
 end
