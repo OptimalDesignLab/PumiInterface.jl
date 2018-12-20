@@ -19,7 +19,7 @@
   the real part.  If you need to propigate complex number through the
   metric calculation, see [`recalcCoordinatesAndMetrics`](@ref).
 
-  After completeing all calles the update_coords, users *must* call
+  After completeing all calls to update_coords, users *must* call
   commit_coords()
 """
 function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractMatrix)

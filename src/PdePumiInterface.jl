@@ -40,7 +40,7 @@ export adaptMesh, getElementSizes
 export coords1DTo3D, coords3DTo1D
 
 # interface_geo.jl
-export coords_xyzToXi, coords_XiToXYZ
+export coords_xyzToXi, coords_XiToXYZ, coords_dXTodXi
 
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face

@@ -212,7 +212,7 @@ end
 
 
 """
-  If `ge` is an edge, only `t0` is populated with dX/dp[1].  If `get` is
+  If `ge` is an edge, only `t0` is populated with dX/dp[1].  If `ge` is
   a face`, then `t1` is also populated with dX/dp[2]
 """
 function first_derivative(g::Model, ge::ModelEntity, p::AbstractVector{Cdouble},
