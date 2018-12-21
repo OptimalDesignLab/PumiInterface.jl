@@ -172,13 +172,43 @@ void getNodeCoords(apf::Mesh* m, apf::MeshEntity* e, int node, double x[3],
     for (int d=0; d < 3; ++d)
       xi[d] = x[d];
 
+    _x.toArray(x);
   } else
   {
+    apf::Vector3 x_snap;
     m->getClosestPoint(me, _x, _newx, _xi);
-    //TODO: return getPoint x or closestPoint x?
+    m->snapToModel(me, _xi, x_snap);
     _xi.toArray(xi);
+    std::cout << "x_orig = ";
+    printArray(_x);
+    std::cout << "closest x = ";
+    printArray(_newx);
+    std::cout << "x_snap = ";
+    printArray(x_snap);
+    std::cout << "xi = ";
+    printArray(_xi);
+
+    if (xi[0] < 1e-5)
+    {
+      double h = 1e-4;
+      apf::Vector3 xp, _xi2;
+      for (int d=0; d < 3; ++d)
+        _xi2[d] = _xi[2];
+
+      // print out coordinate at increments
+      for (int i=0; i < 5; ++i)
+      {
+        _xi2[0] += h;
+        m->snapToModel(me, _xi2, xp);
+        std::cout << "point " << i << " coords = ";
+        printArray(xp);
+      }
+
+
+    }
+
+    x_snap.toArray(x);  // try to return consistent x, xi
   }
-  _x.toArray(x);
 }
 
 
@@ -195,8 +225,10 @@ void test_fd(apf::Mesh* m)
   double dxi_fd[3] = {0, 0, 0};
 
   double maxdiff = 0;
+  double absdiff[3];
 
   apf::FieldShape* fshape = m->getShape();
+  apf::Field* ferr = apf::createPackedField(m, "derivative error", m->getDimension(), fshape);
   for (int dim=0; dim <= m->getDimension(); ++dim)
   {
     if (!fshape->hasNodesIn(dim))
@@ -211,20 +243,31 @@ void test_fd(apf::Mesh* m)
 
       int ndof = countXiDofs(m, e);
       if (ndof == 0)
-        continue;
+      {
+        // write zeros to field
+        for (int d=0; d < m->getDimension(); ++d)
+          absdiff[d] = 0;
 
+        for (int j=0; j < fshape->countNodesOn(m->getType(e)); ++j)
+          apf::setComponents(ferr, e, j, absdiff);
+
+        continue;
+      }
       // The code works correctly for interior points, but the problem is
       // the boundary points, so do only those
-      if (ndof == m->getDimension())
-        continue;
+      //if (ndof == m->getDimension())
+      //  continue;
 
       for (int j=0; j < fshape->countNodesOn(m->getType(e)); ++j)
       {
         getNodeCoords(m, e, j, x, xi);
 
+
         for (int k=0; k < m->getDimension(); ++k)  // loop over xyz coords
         {
           // Note: f_x is actually a different function for every k value
+          
+          absdiff[k] = 0;
 
           std::cout << "k = " << k << std::endl;
           double val1 = f_xi(m, e, xi, k);  // value at initial point
@@ -256,12 +299,18 @@ void test_fd(apf::Mesh* m)
               std::cout << "  updating maxdiff" << std::endl;
               maxdiff = adiff;
             }
+
+            if (adiff > absdiff[k])
+              absdiff[k] = adiff;
           }
+
 
           // zero things out
           dx[k] = 0;
 
         }  // end k
+
+        apf::setComponents(ferr, e, j, absdiff);
       } // end j
     }  // end while
 
