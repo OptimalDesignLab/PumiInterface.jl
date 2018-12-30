@@ -160,7 +160,8 @@ function count_entities(mesh::PumiMesh, oldmesh::PumiMesh, el_list::AbstractVect
     
     itr = apf.MeshIterator(mesh.m_ptr, dim)
     for i=1:oldmesh.numEntitiesPerType[dim+1]
-      v_i = apf.iterate(mesh.m_ptr, itr)
+
+      v_i = apf.iterate(itr)
 
       # get elements
       nvals = apf.countAdjacent(mesh.m_ptr, v_i, mesh.dim)
@@ -175,8 +176,6 @@ function count_entities(mesh::PumiMesh, oldmesh::PumiMesh, el_list::AbstractVect
       end  # end loop j
 
     end  # end loop i
-
-    apf.free(itr)
   end  # end loop dim
 
   # get the elements array

@@ -193,7 +193,7 @@ void getNodeCoords(apf::Mesh* m, apf::MeshEntity* e, int node, double x[3],
       double h = 1e-4;
       apf::Vector3 xp, _xi2;
       for (int d=0; d < 3; ++d)
-        _xi2[d] = _xi[2];
+        _xi2[d] = _xi[d];
 
       // print out coordinate at increments
       for (int i=0; i < 5; ++i)
@@ -204,6 +204,29 @@ void getNodeCoords(apf::Mesh* m, apf::MeshEntity* e, int node, double x[3],
         printArray(xp);
       }
 
+
+      // check derivative at other end of loop
+      double rng[2];
+      m->getPeriodicRange(me, 0, rng);
+      _xi2[0] = rng[1];
+      m->snapToModel(me, _xi2, xp);
+      std::cout << "at other end of loop, xi = ";
+      printArray(_xi2);
+      std::cout << "point = ";
+      printArray(xp);
+
+      apf::Vector3 t0, t1, t2, t3, t4, t5;
+      m->getFirstDerivative(me, _xi, t0, t1);
+      m->getFirstDerivative(me, _xi2, t2, t3);
+      _xi2[0] = rng[0];
+      m->getFirstDerivative(me, _xi2, t4, t5);
+
+      std::cout << "derivative at xi of xyz point: ";
+      printArray(t0);
+      std::cout << "derivative at xi = ximax: ";
+      printArray(t2);
+      std::cout << "derivative at xi = 0: ";
+      printArray(t4);
 
     }
 

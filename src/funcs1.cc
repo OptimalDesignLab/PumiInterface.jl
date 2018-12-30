@@ -435,7 +435,7 @@ apf::FieldShape* getConstantShapePtr(int dimension)
 }
 
 
-int count(apf::Mesh2* m_local, int dimension)
+int count(apf::Mesh* m_local, int dimension)
 {
   return m_local->count(dimension);
 }
@@ -470,6 +470,10 @@ apf::MeshEntity* deref(apf::Mesh2* m, apf::MeshIterator* it)
   return m->deref(it);
 }
 
+int getDimension(apf::Mesh* m)
+{
+  return m->getDimension();
+}
 
 
 void writeVtkFiles(char* name, apf::Mesh2* m_local)

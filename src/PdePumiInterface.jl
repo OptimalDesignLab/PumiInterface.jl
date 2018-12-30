@@ -1057,25 +1057,18 @@ function reinitPumiMesh2(mesh::PumiMesh2)
 
   # get pointers to all MeshEntities
   # also initilize the field to zero
-#  comps = zeros(dofpernode)
-  comps = [1.0, 2, 3, 4]
-  it = apf.MeshIterator(mesh.m_ptr, 0)
-  for i=1:numVert
-    verts[i] = apf.iterate(mesh.m_ptr, it)
+  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 0))
+    verts[i] = e
   end
-  apf.free(mesh.m_ptr, it)
 
   it = apf.MeshIterator(mesh.m_ptr, 1)
-  for i=1:numEdge
-    edges[i] = apf.iterate(mesh.m_ptr, it)
+  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 1))
+    edges[i] = e
   end
-  apf.free(mesh.m_ptr, it)
 
-  it = apf.MeshIterator(mesh.m_ptr, it)
-  for i=1:numEl
-    elements[i] = apf.iterate(mesh.m_ptr, it)
+  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 2))
+    elements[i] = e
   end
-  apf.free(mesh.m_ptr, it)
 
   # calculate number of nodes, dofs (works for first and second order)
   numnodes = order*numVert 

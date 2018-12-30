@@ -82,7 +82,11 @@ ENDIF("${isSystemDir}" STREQUAL "-1")
 
 #this is just example code, do your own thing
 add_executable(test_init test_init.cc)
-add_executable(test_cad test_cad.cc)
+if (HAVE_SIMMETRIX)
+  add_executable(test_cad test_cad.cc)
+endif (HAVE_SIMMETRIX)
+
+add_executable(printGeoEntities printGeoEntities.cc)
 add_executable(test_meshadapt test_meshadapt.cc)
 add_library(pumiInterface funcs1.cc a2.cc apfSBPShape.cc apfSBPShape3.cc dgSBPShape1.cc dgSBPShape2.cc dgSBPShape4.cc dgSBPShape5.cc dgSBPShape6.cc dgSBP3Shape1.cc dgSBP3Shape2.cc dgSBP3Shape4.cc dgSBP3Shape5.cc triangulation.cc triangulationDG.cc submesh_create.cc)
 
@@ -94,12 +98,18 @@ add_library(pumiInterface funcs1.cc a2.cc apfSBPShape.cc apfSBPShape3.cc dgSBPSh
 #target_link_libraries(mylibrary PUBLIC SCOREC::core)
 target_link_libraries(pumiInterface PUBLIC SCOREC::core)
 target_link_libraries(test_init PRIVATE SCOREC::core)
-target_link_libraries(test_cad PRIVATE SCOREC::core)
+if (HAVE_SIMMETRIX)
+  target_link_libraries(test_cad PRIVATE SCOREC::core)
+endif (HAVE_SIMMETRIX)
+target_link_libraries(printGeoEntities PRIVATE SCOREC::core)
 target_link_libraries(test_meshadapt PRIVATE SCOREC::core)
 
 install (TARGETS pumiInterface DESTINATION lib)
 install (TARGETS test_init DESTINATION bin)
-install (TARGETS test_cad DESTINATION bin)
+if(HAVE_SIMMETRIX)
+  install (TARGETS test_cad DESTINATION bin)
+endif (HAVE_SIMMETRIX)
+install (TARGETS printGeoEntities DESTINATION bin)
 install (TARGETS test_meshadapt DESTINATION bin)
 
 install (FILES funcs1.h a2.h "${PROJECT_BINARY_DIR}/pumiInterface_config.h" DESTINATION include)

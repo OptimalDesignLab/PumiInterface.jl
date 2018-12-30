@@ -371,15 +371,8 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
     # divide by the total volume of elements that contributed to each node
     # so the result is the average value
     up_els = Array{Ptr{Void}}(400)  # equivalent of apf::Up
-    for dim=1:(mesh.dim + 1)
-      if numNodesPerType[dim] > 0
-  #      @assert dim == 1
-        it = apf.MeshIterator(mesh.m_ptr, dim - 1)
-  #      resetIt(dim - 1) 
-        for i=1:numEntitiesPerType[dim]
-  #        entity_i = getEntity(dim - 1)
-          entity_i = apf.iterate(mesh.m_ptr, it)
-          entity_num = apf.getNumberJ(mesh.entity_Nptrs[dim], entity_i, 0, 0) + 1
+        for (entity_i, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+          entity_num = apf.getNumberJ(mesh.entity_Nptrs[dim+1], entity_i, 0, 0) + 1
   #        apf.getPoint(mesh.m_ptr, entity_i, 0, coords)
           nel = apf.countAdjacent(mesh.mnew_ptr, entity_i, mesh.dim)
           apf.getAdjacent(up_els)
@@ -407,51 +400,32 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
             for p=1:size(interp, 2)
               jac_entity += interp[node_idx, p]*real(jac_el[p])
             end
-
-  #          println(mesh.f, "adding jac contribution ", jac_entity, " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
-
             jac_sum += jac_entity
           end  # end loop j
 
           # add in the parallel contributions
-          if dim == 1 && haskey(vshare.rev_mapping, entity_num)
+          if dim == 0 && haskey(vshare.rev_mapping, entity_num)
             pair = vshare.rev_mapping[entity_num]
             for i=1:length(pair.first)  # loop over peers that share this vert
-  #            println(mesh.f, "adding parallel jac contributions from peer ", pair.first[i])
               peer_idx = findfirst(vshare.peer_nums, pair.first[i])
               vert_idx = pair.second[i]
               jac_entity = peer_vals_recv[peer_idx][mesh.numDofPerNode + 1, vert_idx]
-  #            println(mesh.f, "adding parallel jac contribution ", jac_entity, " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
               jac_sum += jac_entity
             end
           end  # end if haskey
 
-          if dim == 1
+          if dim == 0
             jac_entity = match_data[mesh.numDofPerNode + 1, entity_num]
-
-  #          println(mesh.f, "adding local match jac contribution ", jac_entity , " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
             jac_sum += jac_entity
           end
 
-  #        println(mesh.f, "jac_sum = ", jac_sum, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
-
-          
-
           apf.getComponents(mesh.fnew_ptr, entity_i, 0, u_node)
-  #        println(mesh.f, "net solution value = ", u_node, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
           fac = 1/jac_sum
           for p=1:mesh.numDofPerNode
             u_node[p] = fac*u_node[p]
           end
-  #        println(mesh.f, "average solution value = ", u_node, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
-
           apf.setComponents(mesh.fnew_ptr, entity_i, 0, u_node)
-  #        incrementIt(dim - 1)
-        end  # end loop i
-
-        apf.free(mesh.m_ptr, it)
-      end  # end if
-    end  # end loop dim
+        end  # end iterator
   end  # end if reduce_op == avgReduce
 
   # wait for sends to finish before exiting

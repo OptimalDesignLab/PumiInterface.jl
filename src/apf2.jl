@@ -115,7 +115,7 @@ function printEdgeVertNumbers(edgeN_ptr, vertN_ptr; fstream=STDOUT)
   println("m = ", m)
 
   for i=1:m  # loop over edges
-    edge_i = iterate(m_ptr, it)
+    edge_i = iterate(it)
     edge_num = getNumberJ(edgeN_ptr, edge_i, 0, 0)
 
     (verts, nverts) = getDownward(m_ptr, edge_i, 0)
@@ -124,7 +124,7 @@ function printEdgeVertNumbers(edgeN_ptr, vertN_ptr; fstream=STDOUT)
     println(fstream, n1, " ", n2)
   end
 
-  free(m_ptr, it)
+  free(it)
 
 end
 
@@ -154,7 +154,7 @@ function printFaceVertNumbers(faceN_ptr, vertN_ptr; fstream=STDOUT)
   m = countJ(m_ptr, 2)  # count number of faces on the mesh
 
  for i=1:m  # loop over faces
-   face_i = iterate(m_ptr, it)
+   face_i = iterate(it)
    face_num = getNumberJ(faceN_ptr, face_i, 0, 0)
    (verts, nverts) = getDownward(m_ptr, face_i, 0)
    vertnums = zeros(Int, nverts)
@@ -165,7 +165,7 @@ function printFaceVertNumbers(faceN_ptr, vertN_ptr; fstream=STDOUT)
    print(fstream, "\n")
  end
 
- free(m_ptr, it)
+ free(it)
 
  return nothing
 end
@@ -176,7 +176,7 @@ function printElementVertNumbers(el_Nptr, vert_Nptr; fstream=STDOUT)
   m = countJ(m_ptr, 3)  # count number of element
 
   for i=1:m
-    el_i = iterate(m_ptr, it)
+    el_i = iterate(it)
     elnum = getNumberJ(el_NPtr, el_i, 0, 0)
     (verts, nverts) = getDownward(m_ptr, el_i, 0)
     vertnums = zeros(Int, nverts)
@@ -187,7 +187,7 @@ function printElementVertNumbers(el_Nptr, vert_Nptr; fstream=STDOUT)
     print(fstream, "\n")
   end
 
-  free(m_ptr, it)
+  free(it)
 
   return nothing
 end
@@ -472,3 +472,142 @@ end
 function isShared_sharing(shr::Ptr{Void},  entity::Ptr{Void})
   return  countCopies(shr, entity) != 0
 end
+
+
+#------------------------------------------------------------------------------
+# Iteration over entities with nodes on them (according to a FieldShape)
+
+import Base: start, next, done, iteratorsize, iteratoreltype, eltype, length, size
+using Base: HasLength, HasEltype
+
+"""
+  This iterator iterates over MeshEntities that have nodes on them in a given
+  FieldShape.  The iterator returns the MeshEntity* and its dimension.  The
+  iterator does not need to be freed unless the loop is exited early using a
+  `break` statement.  In this case, call `apf.free` on the iterator.
+
+  **Constructor**
+
+   * m_ptr: apf::Mesh*
+   * fshape_ptr: apf::FieldShape*
+
+  **Usage**
+
+   ```
+     for (e, e_dim) in apf.FieldEntityIt(m_ptr, fshape_ptr)
+       # do stuff
+     end
+   ```
+"""
+mutable struct FieldEntityIt
+  m_ptr::Ptr{Void}
+  fshape_ptr::Ptr{Void}
+  dim::Int  # current dimension
+  lastdim::Int  # greatest dimension entity that has nodes on it
+  mesh_dim::Int  # mesh dimension
+  its::Vector{MeshIterator}
+  has_nodes_in::Vector{Bool}
+  len::Int  # number of entities
+end
+
+
+function FieldEntityIt(m_ptr::Ptr{Void}, fshape_ptr::Ptr{Void})
+
+  dim = 0
+  lastdim = 0
+  mesh_dim = getDimension(m_ptr)
+  its = Vector{MeshIterator}(mesh_dim + 1)
+  has_nodes_in = Vector{Bool}(mesh_dim + 1)
+  for i=0:mesh_dim
+    its[i+1] = MeshIterator(m_ptr, i)
+    has_nodes_in[i+1] = hasNodesIn(fshape_ptr, i)
+  end
+
+  # find first dimension with nodes
+  for i=1:length(has_nodes_in)
+    if has_nodes_in[i]
+      dim = i-1
+      break
+    end
+  end
+
+  for i=length(has_nodes_in):-1:1
+    if has_nodes_in[i]
+      lastdim = i - 1
+      break
+    end
+  end
+
+  len = 0
+  for i=1:length(has_nodes_in)
+    if has_nodes_in[i]
+      len += apf.countJ(m_ptr, i-1)
+    end
+  end
+
+  return FieldEntityIt(m_ptr, fshape_ptr, dim, lastdim, mesh_dim, its,
+                       has_nodes_in, len)
+end
+
+
+function free(iter::FieldEntityIt)
+
+  for it in iter.its
+    free(it)
+  end
+
+  return nothing
+end
+
+
+
+function start(iter::FieldEntityIt)
+
+  dim = iter.dim
+  e = iterate(iter.its[dim+1])
+
+  return e, dim
+end
+
+
+function next(iter::FieldEntityIt, state)
+
+  # the state always leads the current element by 1, so we can do the done
+  # check
+  e_next = iterate(iter.its[iter.dim+1])
+  new_state = (e_next, iter.dim)
+  return state, new_state
+end
+
+
+function done(iter::FieldEntityIt, state)
+  
+  e = state[1]
+  if e == C_NULL
+    iter.dim += 1
+  end
+
+  isdone = iter.dim == (iter.lastdim + 1)
+  if isdone
+    free(iter)
+  end
+
+  return isdone
+end
+
+function iteratorsize(::Type{FieldEntityIt})
+  return HasLength()
+end
+
+function length(iter::FieldEntityIt)
+  return iter.len
+end
+
+function iteratoreltype(::Type{FieldEntityIt})
+  return HasEltype()
+end
+
+function eltype(::Type{FieldEntityIt})
+  return Tuple{Ptr{Void}, Int}
+end
+

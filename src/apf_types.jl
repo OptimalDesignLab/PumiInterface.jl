@@ -5,7 +5,7 @@ module apf_types
 using PumiConfig
 
 export pumi_libname, IsoFuncJ, SolutionTransfers, MAInput, ModelEntity,
-       MeshIterator, SubMeshData
+       _MeshIterator, MeshIterator, SubMeshData
 
 global const pumi_libname = joinpath(CONFIG_PATHS["PUMIINTERFACE_LIBDIR"], "libpumiInterface")
 
@@ -44,13 +44,29 @@ struct ModelEntity
   p::Ptr{Void}
 end
 
+
+"""
+  apf::MeshIterator* object itself.  Prefer [`MeshIterator`](@ref).
+"""
+struct _MeshIterator
+  p::Ptr{Void}
+end
+
+
 """
   Immutable wrapper for a MeshIterator of any dimension entity.
 
-  This grants some type safety to the interface
+  This type also supports Julia's iteration protocol, ie.
+  ```
+    for e in MeshIterator(m_ptr, dim)
+      # do stuff
+    end
+  ```
 """
 struct MeshIterator
-  p::Ptr{Void}
+  p::_MeshIterator
+  m_ptr::Ptr{Void}
+  len::Int
 end
 
 """

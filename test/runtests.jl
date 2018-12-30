@@ -72,9 +72,9 @@ end
   edgeit = apf.MeshIterator(m_ptr, 1)
   faceit = apf.MeshIterator(m_ptr, 2)
 
-  vert = apf.deref(m_ptr, vertit)
-  edge = apf.deref(m_ptr, edgeit)
-  face = apf.deref(m_ptr, faceit)
+  vert = apf.deref(vertit)
+  edge = apf.deref(edgeit)
+  face = apf.deref(faceit)
 #  vert = getVert()
 #  edge = getEdge()
 #  face = getFace()
@@ -91,28 +91,28 @@ end
 
 
   for i=1:num_Entities[1]  # loop over verts
-    entity = apf.iterate(m_ptr, vertit)
+    entity = apf.iterate(vertit)
     @test ( apf.getNumberJ(vertN_ptr, entity, 0, 0) )== i-1
 #    incrementVertIt()
   end
-  apf.free(m_ptr, vertit)
+  apf.free(vertit)
 #  resetVertIt()
 
   for i=1:num_Entities[2]  # loop over edges
-    entity = apf.iterate(m_ptr, edgeit)
+    entity = apf.iterate(edgeit)
     @test ( apf.getNumberJ(edgeN_ptr, entity, 0, 0) )== i-1
 #    incrementEdgeIt()
   end
-  apf.free(m_ptr, edgeit)
+  apf.free(edgeit)
 #  resetEdgeIt()
 
 
   for i=1:num_Entities[3]  # loop over faces
-    entity = apf.iterate(m_ptr, faceit)
+    entity = apf.iterate(faceit)
     @test ( apf.getNumberJ(faceN_ptr, entity, 0, 0) )== i-1
 #    incrementFaceIt()
   end
-  apf.free(m_ptr, faceit)
+  apf.free(faceit)
 #  resetFaceIt()
 
 
@@ -321,15 +321,41 @@ end
     @test ( apf.countRemotes(m_ptr, i) )== 0
   end
 
+  # test MeshEntity iteration
+  nvert = 0
+  for e in apf.MeshIterator(m_ptr, 0)
+    nvert += 1
+  end
+  @test nvert == num_Entities[1]
 
 
 
+  # test FieldEntity iteration
+  # count number of vertices in 1st order lagrange field
+  fshape = apf.getFieldShape(0, 1, apf.getDimension(m_ptr))
+  it = apf.FieldEntityIt(m_ptr, fshape)
+  @test Base.iteratorsize(it) == Base.HasLength()
+  @test Base.eltype(it) == Tuple{Ptr{Void}, Int}
+  state = Base.start(it)
+  old_state, new_state = Base.next(it, state)
+  @test typeof(old_state) == Base.eltype(it)
+  apf.free(it)
+
+  nvert = 0
+  for (e, edim) in apf.FieldEntityIt(m_ptr, fshape)
+    @test edim == 0
+    nvert += 1
+  end
+  @test nvert == num_Entities[1]
+  println("nvert = ", nvert)
 
 
-
-
-
-
+  # test enumerate
+  i = 1
+  for (idx, e) in enumerate(apf.FieldEntityIt(m_ptr, fshape))
+    @test idx == i
+    i += 1
+  end
 
 
   # check coordinates
@@ -374,14 +400,14 @@ end
  coords = zeros(3)
  entity = C_NULL
  for i=1:num_Entities[1]
-   vert_i = apf.iterate(m_ptr, it)
+   vert_i = apf.iterate(it)
    apf.getPoint(m_ptr, vert_i, 0, coords)
    if coords[1] < -0.5 && coords[2] < -0.5
      entity = vert_i
      break
    end
  end
-  apf.free(m_ptr, it)
+  apf.free(it)
  @test ( entity )!=C_NULL
 
  coords[1] *= 2
@@ -418,26 +444,26 @@ end
 
   it = apf.MeshIterator(m_ptr, 0)
   for i =1:numVert
-    entity = apf.iterate(m_ptr, it)
+    entity = apf.iterate(it)
     if apf.isOwned(shr_ptr, entity)
       nowned += 1
     end
 
 #    incrementVertIt()
   end
-  apf.free(m_ptr, it)
+  apf.free(it)
   @test ( nowned )== numVert - 4
 
   nowned = 0
   it = apf.MeshIterator(m_ptr, 1)
   for i=1:numEdge
-    entity = apf.iterate(m_ptr, it)
+    entity = apf.iterate(it)
     if apf.isOwned(shr_ptr, entity)
       nowned += 1
     end
 #    incrementEdgeIt()
   end
-  apf.free(m_ptr, it)
+  apf.free(it)
   @test ( nowned )== numEdge - 3
 
   ncopies = zeros(Int, 2)
@@ -448,7 +474,7 @@ end
 #  resetAllIts2(m_ptr)
   it = apf.MeshIterator(m_ptr, 1)
   for i=1:numEdge
-    entity = apf.iterate(m_ptr, it)
+    entity = apf.iterate(it)
     n = apf.countCopies(shr_ptr, entity)
     n2 = apf.countMatches(m_ptr, entity)
     ncopies[n+1] += 1  # either 0 or 1 copy
@@ -467,7 +493,7 @@ end
     end
 #    incrementEdgeIt()
   end
-  apf.free(m_ptr, it)
+  apf.free(it)
 
   @test ( ncopies[2] )== 6  # 3 x 3 element mesh has 6 shared edges
   @test ( nmatches[2] )== 6

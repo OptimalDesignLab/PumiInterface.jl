@@ -16,11 +16,7 @@ function populateDofNumbers(mesh::PumiMesh)
 
   for etype = 1:(mesh.dim+1) # loop over entity types
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
-      it = apf.MeshIterator(mesh.m_ptr, etype - 1)
-      for entity = 1:num_entities[etype]  # loop over all entities of this type
-#	entity_ptr = iterators_get[etype]()  # get entity
-        entity_ptr = apf.iterate(mesh.m_ptr, it)
-
+      for entity_ptr in apf.MeshIterator(mesh.m_ptr, etype-1)  # loop over all entities of this type
 	for node = 1:num_nodes_entity[etype]
           nodenum = apf.getNumberJ(mesh.nodenums_Nptr, entity_ptr, node-1, 0)
 	  if nodenum != 0
@@ -33,7 +29,6 @@ function populateDofNumbers(mesh::PumiMesh)
 
 #      iterators_inc[etype]()
       end  # end loop over entitiesa
-      apf.free(mesh.m_ptr, it)
     end  # end if 
   end  # end loop over entity types
 
@@ -61,18 +56,13 @@ function populateNodeStatus(mesh::PumiMesh)
 
   for etype = 1:(mesh.dim + 1) # loop over entity types
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
-      it = apf.MeshIterator(mesh.m_ptr, etype - 1)
-      for entity = 1:num_entities[etype]  # loop over all entities of this type
-#	entity_ptr = iterators_get[etype]()  # get entity
-        entity_ptr = apf.iterate(mesh.m_ptr, it)
-
+      for entity_ptr in apf.MeshIterator(mesh.m_ptr, etype-1)  # loop over all entities of this type
 	for node = 1:num_nodes_entity[etype]
 	  apf.numberJ(mesh.nodestatus_Nptr, entity_ptr, node-1, 0, 3)
 	end  # end loop over node
 
 #      iterators_inc[etype]()
       end  # end loop over entitiesa
-      apf.free(mesh.m_ptr, it)
     end  # end if 
   end  # end loop over entity types
 
@@ -249,11 +239,7 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
   el_i_ptr = Ptr{Void}(0)  # hold current element
 # TODO: move all if statements out one for loop (check only first dof on each node)
   curr_dof = 1
-  it = apf.MeshIterator(mesh.m_ptr, mesh.dim)
-  for i=1:mesh.numEl
-    el_i_ptr = apf.iterate(mesh.m_ptr, it)
-#    el_i_ptr = getFace()
-#    incrementFaceIt()
+  for el_i_ptr in apf.MeshIterator(mesh.m_ptr, mesh.dim)
     # get vertices, edges for this element
     numVert = apf.getDownward(mesh.m_ptr, el_i_ptr, 0, verts_i)
 #    println("verts_i = ", verts_i)
@@ -301,11 +287,6 @@ function numberNodes(mesh::PumiMesh, number_dofs=false)
       end
     end  # end loop over face nodes
   end  # end loop over elements
-
-  apf.free(mesh.m_ptr, it)
-#  resetAllIts2(mesh.m_ptr)
-
-
 
   if (curr_dof -1) != numDof
     error("Warning: number of dofs assigned is not equal to the expected number" *
@@ -383,11 +364,7 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
 
   for etype = 1:(mesh.dim + 1) # loop over entity types
     if (num_nodes_entity[etype] != 0)  # if no nodes on this type of entity, skip
-      it = apf.MeshIterator(mesh.m_ptr, etype - 1)
-      for entity = 1:num_entities[etype]  # loop over all entities of this type
-#	entity_ptr = iterators_get[etype]()  # get entity
-        entity_ptr = apf.iterate(mesh.m_ptr, it)
-
+      for entity_ptr in apf.MeshIterator(mesh.m_ptr, etype - 1)  # loop over all entities of this type
 	for node = 1:num_nodes_entity[etype]
           pumi_node = nodemap[node]  # this appears to only work for elements
                                      # with nodes on the interior, otherwise
@@ -398,11 +375,7 @@ function numberNodesElement(mesh::PumiMesh; number_dofs=false, start_at_one=true
 	    curr_dof += 1
 	  end  # end loop over dof
 	end  # end loop over node
-
-#      iterators_inc[etype]()
       end  # end loop over entitiesa
-
-      apf.free(mesh.m_ptr, it)
     end  # end if 
   end  # end loop over entity types
 
@@ -484,17 +457,11 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   
   # initially number all components in range (numEl+1):(2*numEl)
   curr_elnum = mesh.numEl+1
-#  resetIt(dim)
-  it = apf.MeshIterator(mesh.m_ptr, dim)
-  for i=1:mesh.numEl
-    el_i = apf.iterate(mesh.m_ptr, it)
-#    el_i = getEntity(dim)
-
+  for el_i in apf.MeshIterator(mesh.m_ptr, dim)
     apf.numberJ(el_Nptr, el_i, 0, 0, curr_elnum)
     curr_elnum += 1
 #    incrementIt(dim)
   end
-  apf.free(mesh.m_ptr, it)
   @assert (curr_elnum - 1) == 2*mesh.numEl
 
   # do the final numbering
@@ -582,10 +549,7 @@ function getStartEl(mesh::PumiMeshDG, start_coords)
   min_norm = typemin(Float64)
   min_el = Ptr{Void}(0)
 
-  it = apf.MeshIterator(mesh.m_ptr, dim)
-  for i=1:mesh.numEl
-    el_i = apf.iterate(mesh.m_ptr, it)
-#    el_i = getEntity(dim)
+  for el_i  in apf.MeshIterator(mesh.m_ptr, dim)
     getElementCoords(mesh, el_i, coords)
 
     # compute centroid

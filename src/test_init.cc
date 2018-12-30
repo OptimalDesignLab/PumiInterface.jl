@@ -14,6 +14,7 @@
 #include "pumiInterface_config.h"
 #ifdef HAVE_SIMMETRIX
 #include <gmi_sim.h>
+#include <SimUtil.h>
 #endif
 
 //#include "dgSBPShape1.h"
@@ -99,6 +100,8 @@ void printModelEntities(gmi_model* g)
       {
         gmi_range(g, ge, 0, r);
         std::cout << "    parametric range = " << r[0] << ", " << r[1] << std::endl;
+        bool isPeriodic = gmi_periodic(g, ge, 0);
+        std::cout << "    isPeriodic = " << isPeriodic << std::endl;
       }
     }
     gmi_end(g, it);
@@ -231,6 +234,7 @@ int main (int argc, char** argv)
   gmi_register_mesh();
 #ifdef HAVE_SIMMETRIX
   std::cout << "initializing geo_sim" << std::endl;
+  Sim_readLicenseFile(0);
   gmi_sim_start();
   gmi_register_sim();
 #else
@@ -258,8 +262,8 @@ int main (int argc, char** argv)
     std::cout << "tag " << i << " name = " << m->getTagName(tags[i]) << std::endl;
   }
 
-  std::cout << "before changing shape, coords = " << std::endl;
-  printCoordinates(m);
+//  std::cout << "before changing shape, coords = " << std::endl;
+//  printCoordinates(m);
 //  printRemoteInfo(m);
 
   // force the coordinates into the field
@@ -271,13 +275,13 @@ int main (int argc, char** argv)
   }
 
   // print coordinates again
-  std::cout << "after changing shape, coords = " << std::endl;
-  printCoordinates(m);
+  //std::cout << "after changing shape, coords = " << std::endl;
+  //printCoordinates(m);
 
   std::cout << "printing model classification" << std::endl;
   printModelClassification(m);
   printModelEntities(g);
-  printMidpointErrors(m);
+  //printMidpointErrors(m);
   apf::writeASCIIVtkFiles("output_check", m);
 //  apf::writeVtkFiles("output_check", m);
 

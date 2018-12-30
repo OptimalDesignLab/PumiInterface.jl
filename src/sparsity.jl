@@ -169,7 +169,7 @@ for etype=1:(mesh.dim+1)  # loop over mesh entity types
     it = apf.MeshIterator(mesh.m_ptr, etype-1)
     for entity = 1:num_entities[etype]  # loop over all entities of this type
 #      entity_ptr = iterators_get[etype]()  # get pointer to mesh entity
-      entity_ptr = apf.iterate(mesh.m_ptr, it)
+      entity_ptr = apf.iterate(it)
 
       min, max = getDofBounds(mesh, entity_ptr, getdofs=getdofs)
       for node = 1:num_nodes_entity[etype]  # loop over nodes on each entity
@@ -185,7 +185,7 @@ for etype=1:(mesh.dim+1)  # loop over mesh entity types
       end  # end loop over nodes on entity
 #      iterators_inc[etype]()
     end  # end loops over entities of this type
-    apf.free(mesh.m_ptr, it)
+    apf.free(it)
   end  # end if statement
 end  # end loop over entity types
 

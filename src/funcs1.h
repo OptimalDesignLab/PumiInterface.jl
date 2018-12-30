@@ -37,10 +37,6 @@
 #include "triangulationDG.h"
 #include "submesh_create.h"
 
-/*
- * Params[in]:
- * pointer to mesh m
- */
 extern "C" {
 // this function does not pass opaque pointers
 //extern int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numberEntities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1]);
@@ -66,13 +62,14 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
 extern apf::FieldShape* getMeshShapePtr(apf::Mesh* m);
 extern apf::FieldShape* getConstantShapePtr(int dimension);
 
-extern int count(apf::Mesh2* m_local, int dimension);
+extern int count(apf::Mesh* m_local, int dimension);
 
 apf::MeshIterator* begin(apf::Mesh* m, int dim);
 void end(apf::Mesh* m, apf::MeshIterator* it);
 apf::MeshEntity* iterate(apf::Mesh* m, apf::MeshIterator* it);
 void iteraten(apf::Mesh* m, apf::MeshIterator* it, int n);
 apf::MeshEntity* deref(apf::Mesh2* m, apf::MeshIterator* it);
+int getDimension(apf::Mesh* m);
 
 extern void writeVtkFiles(char* name, apf::Mesh2* m_local);
 

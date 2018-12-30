@@ -113,31 +113,21 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
 
   # get pointers to all MeshEntities
   # also initilize the field to zero
-  resetAllIts2(mesh.m_ptr)
-#  comps = zeros(dofpernode)
-  it = apf.MeshIterator(mesh.m_ptr, 0)
-  for i=1:mesh.numVert
-    mesh.verts[i] = apf.iterate(mesh.m_ptr, it)
+  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 0))
+    mesh.verts[i] = e
   end
-  apf.free(mesh.m_ptr, it)
 
-  it = apf.MeshIterator(mesh.m_ptr, 1)
-  for i=1:mesh.numEdge
-    mesh.edges[i] = apf.iterate(mesh.m_ptr, it)
+  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 1))
+    mesh.edges[i] = e
   end
-  apf.free(mesh.m_ptr, it)
 
-  it = apf.MeshIterator(mesh.m_ptr, 2)
-  for i=1:mesh.numFace
-    mesh.faces[i] = apf.iterate(mesh.m_ptr, it)
+  for (i, e) in eumerate(apf.MeshIterator(mesh.m_ptr, 2))
+    mesh.faces[i] = e
   end
-  apf.free(mesh.m_ptr, it)
 
-  it = apf.MeshIterator(mesh.m_ptr, 3)
-  for i=1:mesh.numEl
-    mesh.elements[i] = apf.iterate(mesh.m_ptr, it)
+  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 3))
+    mesh.elements[i] = e
   end
-  apf.free(mesh.m_ptr, it)
 
   # use partially constructed mesh object to populate arrays
   checkConnectivity(mesh)

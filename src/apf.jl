@@ -177,7 +177,7 @@ export init, loadMesh, initMesh, pushMeshRef, popMeshRef,
        getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
 # iterator functors
-export MeshIterator, iterate, iteraten, free, deref
+export MeshIterator, iterate, iteraten, free, deref, getDimension, count
 
 export createSubMeshDG, transferFieldDG, getFieldShape
 
@@ -361,48 +361,111 @@ function getConstantShapePtr(dimension::Integer)
 
 end
 
+#------------------------------------------------------------------------------
+# Iterators
+
 import apf_types.MeshIterator
+
 
 function MeshIterator(m_ptr::Ptr{Void}, dim::Integer)
 
-  it = ccall( (:begin, pumi_libname), Ptr{Void}, (Ptr{Void}, Cint,), m_ptr, dim)
+  it = ccall( (:begin, pumi_libname), _MeshIterator, (Ptr{Void}, Cint,), m_ptr, dim)
 
-  return MeshIterator(it)
+  len = countJ(m_ptr, dim)
+  return MeshIterator(it, m_ptr, len)
 end
 
-function free(m_ptr::Ptr{Void}, it::MeshIterator)
+function free(it::MeshIterator)
 
-  ccall((:end, pumi_libname), Void, (Ptr{Void}, MeshIterator), m_ptr, it)
+  ccall((:end, pumi_libname), Void, (Ptr{Void}, _MeshIterator), it.m_ptr, it.p)
 
 end
 
-function iterate(m_ptr::Ptr{Void}, it::MeshIterator)
+function iterate(it::MeshIterator)
 
-  me = ccall((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
+  me = ccall((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, _MeshIterator), it.m_ptr, it.p)
 
   return me
 end
 
-function iteraten(m_ptr::Ptr{Void}, it::MeshIterator, n::Integer)
+function iteraten(it::MeshIterator, n::Integer)
 
-  me = ccall((:iteraten, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator, Cint), m_ptr, it, n)
+  me = ccall((:iteraten, pumi_libname), Ptr{Void}, (Ptr{Void}, _MeshIterator, Cint), it.m_ptr, it.p, n)
+
+  return me
+end
+
+
+function deref(it::MeshIterator)
+
+  me = ccall((:deref, pumi_libname), Ptr{Void}, (Ptr{Void}, _MeshIterator), it.m_ptr, it.p)
 
   return me
 end
 
+import Base: start, next, done, iteratorsize, iteratoreltype, eltype, length, size
+using Base: HasLength, HasEltype
 
-function deref(m_ptr::Ptr{Void}, it::MeshIterator)
 
-  me = ccall((:deref, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
+function start(it::MeshIterator)
 
-  return me
+  return iterate(it)
 end
+
+
+function next(iter::MeshIterator, state)
+
+  # the state always leads the current element by 1, so we can do the done
+  # check
+  e_next = iterate(iter)
+  new_state = e_next
+  return state, new_state
+end
+
+
+function done(iter::MeshIterator, state)
+
+  isdone = state == C_NULL
+  if isdone
+    free(iter)
+  end
+
+  return isdone
+end
+
+
+function iteratorsize(::Type{MeshIterator})
+  return HasLength()
+end
+
+function length(iter::MeshIterator)
+  return iter.len
+end
+
+function iteratoreltype(::Type{MeshIterator})
+  return HasEltype()
+end
+
+function eltype(::Type{MeshIterator})
+  return Ptr{Void}
+end
+
+
+#------------------------------------------------------------------------------
+
+function getDimension(m_ptr::Ptr{Void})
+
+  val = ccall( (:getDimension, pumi_libname), Cint, (Ptr{Void},), m_ptr)
+
+  return val
+end
+
 
 
 function countJ(m_ptr, dimension::Integer)
 # returns the number of entities of a particular dimension
 
-  i = ccall( (count_name, pumi_libname), Int32, (Ptr{Void},Int32), m_ptr, dimension)
+  i = ccall( (count_name, pumi_libname), Cint, (Ptr{Void}, Cint), m_ptr, dimension)
   return i
 end
 

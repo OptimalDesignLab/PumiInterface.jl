@@ -51,53 +51,43 @@ function coords_xyzToXi(mesh::PumiMeshDG, xvec::AbstractVector,
   newxyz_j = zeros(Float64, 3)
 
 
-  for dim=0:mesh.dim
-    if mesh.coord_numNodesPerType[dim+1] == 0
-      continue
-    end
+  for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+    me = apf.toModel(mesh.m_ptr, e)
+    me_dim = apf.getModelType(mesh.m_ptr, me)
 
-    it = apf.MeshIterator(mesh.m_ptr, dim)
-    for i=1:mesh.numEntitiesPerType[dim+1]
-      e = apf.iterate(mesh.m_ptr, it)
-      me = apf.toModel(mesh.m_ptr, e)
-      me_dim = apf.getModelType(mesh.m_ptr, me)
+    for j=1:mesh.coord_numNodesPerType[dim+1]
+      firstidx = apf.getNumberJ(geonums.xiNums, e, j-1, 0)
 
-      for j=1:mesh.coord_numNodesPerType[dim+1]
-        firstidx = apf.getNumberJ(geonums.xiNums, e, j-1, 0)
+      # get xyz coordinates
+      for k=1:mesh.dim
+        idx = apf.getNumberJ(geonums.coordNums, e, j-1, k-1)
+        xyz_j[k] = real(xvec[idx])
+      end
 
-        # get xyz coordinates
+      # decide parametric representation
+      if me_dim == mesh.dim  # keep xyz coordinates
         for k=1:mesh.dim
-          idx = apf.getNumberJ(geonums.coordNums, e, j-1, k-1)
-          xyz_j[k] = real(xvec[idx])
+          xi_j[k] = xyz_j[k]
         end
-
-        # decide parametric representation
-        if me_dim == mesh.dim  # keep xyz coordinates
-          for k=1:mesh.dim
-            xi_j[k] = xyz_j[k]
-          end
-          
-        elseif firstidx == geonums.numXiDofs + 1  # no geometric dofs
-          for k=1:mesh.dim
-            xi_j[k] = 0
-          end
-        else  # this is a constrained entity, find parametric representation
-          gmi.closest_point(g, me, xyz_j, newxyz_j, sview(xi_j, 1:2))
+        
+      elseif firstidx == geonums.numXiDofs + 1  # no geometric dofs
+        for k=1:mesh.dim
+          xi_j[k] = 0
+        end
+      else  # this is a constrained entity, find parametric representation
+        gmi.closest_point(g, me, xyz_j, newxyz_j, sview(xi_j, 1:2))
 #          @assert norm(newxyz_j - xyz_j) < 1e-8  # xyz_j should lie on this 
 #                                                 # geometric entity
-        end
+      end
 
-        # put in output vector
-        for k=1:me_dim
-          idx = apf.getNumberJ(geonums.xiNums, e, j-1, k-1)
-          xivec[idx] = xi_j[k]
-        end
+      # put in output vector
+      for k=1:me_dim
+        idx = apf.getNumberJ(geonums.xiNums, e, j-1, k-1)
+        xivec[idx] = xi_j[k]
+      end
 
-      end  # end j
-    end  # end i
-
-    apf.free(mesh.m_ptr, it)
-  end  # end dim
+    end  # end j
+  end  # end iterator
 
   return nothing
 end
@@ -156,49 +146,38 @@ function coords_XiToXYZ(mesh::PumiMeshDG, xivec::AbstractVector,
   xi_j = zeros(Float64, 2)
   xi_idx = zeros(Cint, mesh.dim)
 
-  for dim=0:mesh.dim
-    if mesh.coord_numNodesPerType[dim+1] == 0
-      continue
-    end
+  for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+    me = apf.toModel(mesh.m_ptr, e)
+    me_dim = apf.getModelType(mesh.m_ptr, me)
 
-    it = apf.MeshIterator(mesh.m_ptr, dim)
-    for i=1:mesh.numEntitiesPerType[dim+1]
-      e = apf.iterate(mesh.m_ptr, it)
-      me = apf.toModel(mesh.m_ptr, e)
-      me_dim = apf.getModelType(mesh.m_ptr, me)
+    for j=1:mesh.coord_numNodesPerType[dim+1]
 
-      for j=1:mesh.coord_numNodesPerType[dim+1]
+      for k=1:mesh.dim
+        xi_idx[k] = apf.getNumberJ(geonums.xiNums, e, j-1, k-1)
+      end
 
+      # put the new coordinates in xyz_j
+      if me_dim == mesh.dim  # xivec has xyz coordinates
         for k=1:mesh.dim
-          xi_idx[k] = apf.getNumberJ(geonums.xiNums, e, j-1, k-1)
+          xyz_j[k] = xivec[xi_idx[k]]
         end
-
-        # put the new coordinates in xyz_j
-        if me_dim == mesh.dim  # xivec has xyz coordinates
-          for k=1:mesh.dim
-            xyz_j[k] = xivec[xi_idx[k]]
-          end
-        elseif xi_idx[1] == geonums.numXiDofs + 1  # no geometric dofs
-          apf.getPoint(mesh.m_ptr, e, j-1, xyz_j)
-        else  # constrained entity, convert parametric to xyz
-          for k=1:me_dim
-            xi_j[k] = xivec[xi_idx[k]]
-          end
-          gmi.geval(g, me, xi_j, xyz_j)
+      elseif xi_idx[1] == geonums.numXiDofs + 1  # no geometric dofs
+        apf.getPoint(mesh.m_ptr, e, j-1, xyz_j)
+      else  # constrained entity, convert parametric to xyz
+        for k=1:me_dim
+          xi_j[k] = xivec[xi_idx[k]]
         end
+        gmi.geval(g, me, xi_j, xyz_j)
+      end
 
-        # write xyz_j to xvec
-        for k=1:mesh.dim
-          idx = apf.getNumberJ(geonums.coordNums, e, j-1, k-1)
-          xvec[idx] = xyz_j[k]
-        end
+      # write xyz_j to xvec
+      for k=1:mesh.dim
+        idx = apf.getNumberJ(geonums.coordNums, e, j-1, k-1)
+        xvec[idx] = xyz_j[k]
+      end
 
-      end   # end j
-    end  # end i
-
-    apf.free(mesh.m_ptr, it)
-
-  end  # end dim
+    end   # end j
+  end  # end iterator
 
   return nothing
 end
@@ -247,8 +226,8 @@ end
 
    * xivec: vector to be overwritten with dJ/dxi
 """
-function coords_dXTodXi(mesh::PumiMeshDG, xivals::AbstractVector, xvec::AbstractVector,
-                        xivec::AbstractVector, output::Bool=false)
+function coords_dXTodXi(mesh::PumiMeshDG, xvec::AbstractVector,
+                        xivec::AbstractVector)
 
   g = apf.getModel(mesh.m_ptr)
   if !gmi.can_eval(g)
@@ -269,101 +248,51 @@ function coords_dXTodXi(mesh::PumiMeshDG, xivals::AbstractVector, xvec::Abstract
   dx_dxi1 = sview(dx_dxi, :, 1)
   dx_dxi2 = sview(dx_dxi, :, 2)
 
-  for dim=0:mesh.dim
-    if output
-      println("dim ", dim)
-    end
-    if mesh.coord_numNodesPerType[dim+1] == 0
-      continue
-    end
+  for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+    me = apf.toModel(mesh.m_ptr, e)
+    me_dim = apf.getModelType(mesh.m_ptr, me)
 
-    it = apf.MeshIterator(mesh.m_ptr, dim)
-    for i=1:mesh.numEntitiesPerType[dim+1]
+    for j=1:mesh.coord_numNodesPerType[dim+1]
+      firstidx = apf.getNumberJ(geonums.xiNums, e, j-1, 0)
 
-      if output
-        println("entity ", i)
+       # get xyz derivative
+      for k=1:mesh.dim
+        idx = apf.getNumberJ(geonums.coordNums, e, j-1, k-1)
+        dx_j[k] = real(xvec[idx])
       end
-      e = apf.iterate(mesh.m_ptr, it)
-      me = apf.toModel(mesh.m_ptr, e)
-      me_dim = apf.getModelType(mesh.m_ptr, me)
-
-      for j=1:mesh.coord_numNodesPerType[dim+1]
-        if output
-          println("\nnode ", j)
-        end
-        firstidx = apf.getNumberJ(geonums.xiNums, e, j-1, 0)
-
-         # get xyz coordinates
-        for k=1:mesh.dim
-          idx = apf.getNumberJ(geonums.coordNums, e, j-1, k-1)
-          dx_j[k] = real(xvec[idx])
-          if output
-            println("input idx ", idx)
-            println("dx = ", dx_j[k])
-          end
-        end
-          
-        # DEBUGGING
-        apf.getPoint(mesh.m_ptr, e, j-1, x_j)
-        if output
-          println("coords = ", x_j)
-        end
-
-        # decide parametric representation
-        if me_dim == mesh.dim  # keep xyz coordinates
-          if output
-            println("keeping xyz coordinates")
-          end
-          for k=1:mesh.dim
-            dxi_j[k] = dx_j[k]
-          end
-        elseif firstidx == geonums.numXiDofs + 1  # no geometric dofs
-          if output
-            println("no geometric dofs")
-          end
-          for k=1:mesh.dim
-            dxi_j[k] = 0
-          end
-        else  # this is a constrained entity, compute dx/dxi
-          if output
-            println("computing transformation")
-          end
-          fill!(xi_j, 0)
-          for k=1:me_dim
-            idx = apf.getNumberJ(geonums.xiNums, e, j-1, k-1)
-            xi_j[k] = xivals[idx]
-          end
-
-          apf.getPoint(mesh.m_ptr, e, j-1, x_j)  #TODO: debugging
-#          gmi.closest_point(g, me, x_j, xnew_j, xi_j)
-          gmi.first_derivative(g, me, xi_j, dx_dxi1, dx_dxi2)
-
-          # apply chain rule to compute dJ/dxi
-          fill!(dxi_j, 0)
-          for k=1:me_dim
-            for d=1:mesh.dim
-              dxi_j[k] += dx_j[d]*dx_dxi[d, k]
-            end
-          end
-
-        end  # end if
         
-        # put in output vector
+      # decide parametric representation
+      if me_dim == mesh.dim  # keep xyz coordinates
+        for k=1:mesh.dim
+          dxi_j[k] = dx_j[k]
+        end
+      elseif firstidx == geonums.numXiDofs + 1  # no geometric dofs
+        for k=1:mesh.dim
+          dxi_j[k] = 0
+        end
+      else  # this is a constrained entity, compute dx/dxi
+        apf.getPoint(mesh.m_ptr, e, j-1, x_j)
+        gmi.closest_point(g, me, x_j, xnew_j, xi_j)
+        gmi.first_derivative(g, me, xi_j, dx_dxi1, dx_dxi2)
+
+        # apply chain rule to compute dJ/dxi
+        fill!(dxi_j, 0)
         for k=1:me_dim
-          idx = apf.getNumberJ(geonums.xiNums, e, j-1, k-1)
-          if output
-            println("output idx ", idx)
-            println("dx_j = ", dx_j)
-            println("dxi_j = ", dxi_j)
+          for d=1:mesh.dim
+            dxi_j[k] += dx_j[d]*dx_dxi[d, k]
           end
-          xivec[idx] = dxi_j[k]
         end
 
-      end  # end j
-    end  # end i
+      end  # end if
+      
+      # put in output vector
+      for k=1:me_dim
+        idx = apf.getNumberJ(geonums.xiNums, e, j-1, k-1)
+        xivec[idx] = dxi_j[k]
+      end
 
-    apf.free(mesh.m_ptr, it)
-  end  # end dim
+    end  # end j
+  end  # end iterator
 
   return nothing
 end
@@ -398,27 +327,17 @@ function update_coords(mesh::PumiMesh, sbp, opts, xvec::AbstractVector;
 
   xyz_j = zeros(Float64, 3)
 
-  for dim=0:mesh.dim
-    if mesh.coord_numNodesPerType[dim+1] == 0
-      continue
-    end
+  for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+    for j=1:mesh.coord_numNodesPerType[dim+1]
 
-    it = apf.MeshIterator(mesh.m_ptr, dim)
-    for i=1:mesh.numEntitiesPerType[dim+1]
-      e = apf.iterate(mesh.m_ptr, it)
+      for k=1:mesh.dim
+        idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, e, j-1, k-1)
+        xyz_j[k] = xvec[idx]
+      end
 
-      for j=1:mesh.coord_numNodesPerType[dim+1]
-
-        for k=1:mesh.dim
-          idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, e, j-1, k-1)
-          xyz_j[k] = xvec[idx]
-        end
-
-        apf.setPoint(mesh.m_ptr, e, j-1, xyz_j)
-      end  # end j
-    end  # end i
-    apf.free(mesh.m_ptr, it)
-  end  # end dim
+      apf.setPoint(mesh.m_ptr, e, j-1, xyz_j)
+    end  # end j
+  end  # end iterator
 
 
   commit_coords(mesh, sbp, opts, xvec, verify=verify, write_vis=write_vis)

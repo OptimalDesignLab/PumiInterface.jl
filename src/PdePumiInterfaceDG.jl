@@ -1306,25 +1306,18 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
 
   # get pointers to all MeshEntities
   # also apf.initilize the field to zero
-#  comps = zeros(dofpernode)
-  comps = [1.0, 2, 3, 4]
-  it = apf.MeshIterator(mesh.m_ptr, 0)
-  for i=1:numVert
-    verts[i] = apf.iterate(mesh.m_ptr, it)
+  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 0))
+    verts[i] = e
   end
-  apf.free(mesh.m_ptr, it)
 
-  it = apf.MeshIterator(mesh.m_ptr, 1)
-  for i=1:numEdge
-    edges[i] = apf.iterate(mesh.m_ptr, it)
+  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 1))
+    edges[i] = e
   end
-  apf.free(mesh.m_ptr, it)
 
   it = apf.MeshIterator(mesh.m_ptr, it)
-  for i=1:numEl
-    elements[i] = apf.iterate(mesh.m_ptr, it)
+  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 2))
+    elements[i] = e
   end
-  apf.free(mesh.m_ptr, it)
 
   # calculate number of nodes, dofs (works for first and second order)
   numnodes = order*numVert 
@@ -1349,13 +1342,11 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
   end
 
  
-
+#=
   # count boundary edges
   bnd_edges_cnt = 0
   bnd_edges = Array{Int}(numEdge, 2)
-  it = apf.MeshIterator(mesh.m_ptr, 1)
-  for i=1:numEdge
-    edge_i = apf.iterate(mesh.m_ptr, it)
+  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 1))
     numFace = apf.countAdjacent(m_ptr, edge_i, 2)  # should be count upward
 
     if numFace == 1  # if an exterior edge
@@ -1367,17 +1358,16 @@ function reinitPumiMeshDG2(mesh::PumiMeshDG2)
       bnd_edges[bnd_edges_cnt, 2] = i
     end
   end
-  apf.free(mesh.m_ptr, it)
+=#
 
-  bnd_edges_small = bnd_edges[1:bnd_edges_cnt, :]
-
+  #TODO: aren't these done elsewhere?
   # replace exising fields with new values
   mesh.numVert = numVert
   mesh.numEdge = numEdge
   mesh.numEl = numEl
   mesh.numDof = numdof
   mesh.numNodes= numnodes
-  mesh.numBoundaryFaces = bnd_edges_cnt
+#  mesh.numBoundaryFaces = bnd_edges_cnt
   mesh.verts = verts  # does this need to be a deep copy?
   mesh.edges = edges
   mesh.elements = elements

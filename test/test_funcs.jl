@@ -1545,28 +1545,25 @@ function test_geoNums(mesh)
     geonums = mesh.geoNums
 
     for dim=0:mesh.dim
-      it = apf.MeshIterator(mesh.m_ptr, dim)
-      for i=1:mesh.numEntitiesPerType[dim+1]
-        e = apf.iterate(mesh.m_ptr, it)
-
+      for e in apf.MeshIterator(mesh.m_ptr, dim)
         me = apf.toModel(mesh.m_ptr, e)
         me_dim = apf.getModelType(mesh.m_ptr, me)
 
         for j=1:mesh.coord_numNodesPerType[dim+1]
 
           for k=0:(me_dim-1)
+            @assert apf.isNumbered(geonums.xiNums, e, j-1, k)
             n_k = apf.getNumberJ(geonums.xiNums, e, j-1, k)
             @test n_k <= geonums.numXiDofs
           end
 
           for k=me_dim:(mesh.dim-1)
+            @assert apf.isNumbered(geonums.xiNums, e, j-1, k)
             n_k = apf.getNumberJ(geonums.xiNums, e, j-1, k)
             @test n_k == geonums.numXiDofs + 1
           end
         end   # end j
-      end # end i
-
-      apf.free(mesh.m_ptr, it)
+      end # end iterator
     end  # end dim
 
   end # end testset
@@ -1653,51 +1650,26 @@ function test_geoDerivative(mesh)
     # to have f = sum( xi_i), so test each component individually
 
     for i=1:length(xvec)
-      println("\ni = ", i)
       # function at initial x value
       val1 = f_x(i, xvec)
       fill!(df_dx, 0)
       f_x_deriv(i, xvec, df_dx)
-      coords_dXTodXi(mesh, xivec, df_dx, df_dxi, i == 5)
-      println("finished initial evaluation")
+      coords_dXTodXi(mesh, df_dx, df_dxi)
 
       # only do j values related to i
       for j in xi_indices[i]
-        println("j = ", j)
         # compute finite difference
-        println("xi = ", xivec[j])
         xivec[j] += h
         coords_XiToXYZ(mesh, xivec, xvec_pert)
         val2 = f_x(i, xvec_pert)
         xivec[j] -= h
-#=
-        if j == 15
-          println("found selected coordinate")
-          println("xvec[20] = ", xvec[20])
-          println("xvec_pert[20] = ", xvec_pert[20])
-          println("xdiff = ", xvec_pert[20] - xvec[20])
-          println("val1 = ", val1)
-          println("val2 = ", val2)
-          println("val_diff = ", val2 - val1)
-
-          # check for differences elsewhere in the array
-          for k=1:length(xvec)
-            if k == 20
-              continue
-            end
-            diff_k = abs(xvec_pert[k] - xvec[k])
-            if diff_k > 1e-13
-              println("diff of ", diff_k, " detected at index ", k)
-            end
-          end
-        end
-=#
+        
         dfdxi_fd = (val2 - val1)/h
-        println("df_dxi = ", df_dxi[j])
-        println("df_dxi_fd = ", dfdxi_fd)
+        #println("df_dxi = ", df_dxi[j])
+        #println("df_dxi_fd = ", dfdxi_fd)
 
-        println("diff = ", abs(df_dxi[j] - dfdxi_fd))
-        @test abs(df_dxi[j] - dfdxi_fd) < 1e-4
+        #println("diff = ", abs(df_dxi[j] - dfdxi_fd))
+        @test abs(df_dxi[j] - dfdxi_fd) < 1e-3
       end  # end j
     end  # end i
   end  # end testset
@@ -1718,29 +1690,19 @@ function constructGeoMapping(mesh)
     indices[i] = Array{Int}(0)
   end
 
-  for dim=0:mesh.dim
-    if mesh.coord_numNodesPerType[dim+1] == 0
-      continue
-    end
-
-    it = apf.MeshIterator(mesh.m_ptr, dim)
-    for i=1:mesh.numEntitiesPerType[dim+1]
-      e = apf.iterate(mesh.m_ptr, it)
-
-      for j=1:mesh.coord_numNodesPerType[dim+1]
-        for k=1:mesh.dim
-          idx_in = apf.getNumberJ(geonums.coordNums, e, j-1, k-1)
-          idx_out = apf.getNumberJ(geonums.xiNums, e, j-1, k-1)
-          if idx_out != geonums.numXiDofs + 1
-            for d=1:mesh.dim
-              push!(indices[idx_in], idx_out)
-            end
-          end  # end if
-        end   # end k
-      end  # end j
-    end  # end i
-    apf.free(mesh.m_ptr, it)
-  end  # end dim
+  for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+    for j=1:mesh.coord_numNodesPerType[dim+1]
+      for k=1:mesh.dim
+        idx_in = apf.getNumberJ(geonums.coordNums, e, j-1, k-1)
+        idx_out = apf.getNumberJ(geonums.xiNums, e, j-1, k-1)
+        if idx_out != geonums.numXiDofs + 1
+          for d=1:mesh.dim
+            push!(indices[idx_in], idx_out)
+          end
+        end  # end if
+      end   # end k
+    end  # end j
+  end  # end iterator
 
   return indices
 end

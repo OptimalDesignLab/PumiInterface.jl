@@ -36,7 +36,6 @@
 """
 function getAllFaceData(mesh::PumiMesh, opts)
 
-  # TODO: change countBoundaryEdges to only take 1 argument
   nbndryfaces, ninterfaces, npinterfaces, geo_edge_nums = countBoundaryEdges(mesh)
   mesh.numBoundaryFaces = nbndryfaces
   mesh.numInterfaces = ninterfaces
