@@ -22,7 +22,7 @@ export PumiMesh2CG, PumiMesh2DG, PumiMesh3CG, PumiMesh3DG, PumiMesh, PumiMeshCG,
        PumiMeshDG
 
 #TODO: revise this list
-export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, reinitPumiMesh2, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryFaceLocalNum, getFaceLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles, update_coords, commit_coords
+export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryFaceLocalNum, getFaceLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles, update_coords, commit_coords
 
 export zeroBarArrays, recalcCoordinatesAndMetrics, getAllCoordinatesAndMetrics_rev
 
@@ -1018,126 +1018,8 @@ function getMinElementSize(mesh::AbstractMesh)
 end
 
 
-# for re.initilizeing after mesh adaptation
-function reinitPumiMesh2(mesh::PumiMesh2)
-  # construct pumi mesh by loading the files named
-  # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
-  # smb_name = name of .smb (mesh) file to load
-  # order = order of shape functions
-  # dofpernode = number of dof per node, default = 1
-
-  println("Reinitilizng PumiMesh2")
-
-  # create random filenames because they are not used
-  smb_name = "a"
-  dmg_name = "b"
-  order = mesh.order
-  dofpernode = mesh.numDofPerNode
-  dim = mesh.dim
-
-  mshape_ptr, num_Entities, n_arr = apf.initMesh(mesh.m_ptr)
-#  tmp, num_Entities, m_ptr, mshape_ptr, dim, n_arr = init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
-  f_ptr = mesh.f_ptr  # use existing solution field
-
-  numVert = convert(Int, num_Entities[1])
-  numEdge =convert(Int,  num_Entities[2])
-  numEl = convert(Int, num_Entities[3])
-
-  mesh.vert_Nptr = n_arr[1] #getVertNumbering()
-  mesh.edge_Nptr = n_arr[2] #getEdgeNumbering()
-  mesh.el_Nptr = n_arr[3] #getFaceNumbering()
-
-
-
-
-  verts = Array{Ptr{Void}}(numVert)
-  edges = Array{Ptr{Void}}(numEdge)
-  elements = Array{Ptr{Void}}(numEl)
-  dofnums_Nptr = mesh.dofnums_Nptr  # use existing dof pointers
-
-  # get pointers to all MeshEntities
-  # also initilize the field to zero
-  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 0))
-    verts[i] = e
-  end
-
-  it = apf.MeshIterator(mesh.m_ptr, 1)
-  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 1))
-    edges[i] = e
-  end
-
-  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 2))
-    elements[i] = e
-  end
-
-  # calculate number of nodes, dofs (works for first and second order)
-  numnodes = order*numVert 
-  numdof = numnodes*dofpernode
-  # number dofs
-  ctr= 1
-  for i=1:numVert
-    for j=1:dofpernode
-      apf.numberJ(dofnums_Nptr, verts[i], 0, j-1, ctr)
-#      println("vertex ", i,  " numbered ", ctr)
-      ctr += 1
-    end
-  end
-
-  if order >= 2
-    for i=1:numEdges
-      for j=1:dofpernode
-        apf.numberJ(dofnums_Nptr, edges[i], 0, j-1, ctr)
-        ctr += 1
-      end
-    end
-  end
-
- 
-
-  # count boundary edges
-  bnd_edges_cnt = 0
-  bnd_edges = Array{Int}(numEdge, 2)
-  it = apf.MeshIterator(mesh.m_ptr, it)
-  for i=1:numEdge
-    edge_i = apf.iterate(mesh.m_ptr, it)
-    numFace = apf.countAdjacent(m_ptr, edge_i, 2)  # should be count upward
-
-    if numFace == 1  # if an exterior edge
-      faces = apf.getAdjacent(numFace)
-      facenum = apf.getNumberJ(mesh.el_Nptr, faces[1], 0, 0) + 1
-
-      bnd_edges_cnt += 1
-      bnd_edges[bnd_edges_cnt, 1] = facenum
-      bnd_edges[bnd_edges_cnt, 2] = i
-    end
-  end
-  apf.free(mesh.m_ptr, it)
-
-  bnd_edges_small = bnd_edges[1:bnd_edges_cnt, :]
-
-  # replace exising fields with new values
-  mesh.numVert = numVert
-  mesh.numEdge = numEdge
-  mesh.numEl = numEl
-  mesh.numDof = numdof
-  mesh.numNodes= numnodes
-  mesh.numBoundaryFaces = bnd_edges_cnt
-  mesh.verts = verts  # does this need to be a deep copy?
-  mesh.edges = edges
-  mesh.elements = elements
-#  mesh.boundary_nums = bnd_edges_small
-
-  printStats(mesh)
-
-  registerFinalizer(mesh)
-
-  apf.writeVtkFiles("mesh_complete", m_ptr)
-end
-
-
 function getShapeFunctionOrder(mesh::PumiMesh2)
-
-return mesh.order
+ return mesh.order
 end
 
 
