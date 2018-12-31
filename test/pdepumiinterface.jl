@@ -1049,14 +1049,15 @@ end
     "BC1_name" => "FreeStreamBC",
     "BC2" => [5],
     "BC2_name" => "noPenetrationBC",
-    "smb_name" => "meshes/airfoil.smb",
-    "dmg_name" => "meshes/airfoil.smd",
+    "smb_name" => "meshes/airfoil2_.smb",
+    "dmg_name" => "meshes/airfoil2.smd",
     )
 
     mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
     test_geoMapping(mesh)
     test_geoWrapping(mesh)
-    #test_geoDerivative(mesh)
+    @time test_geoDerivative(mesh)
+    println("test_geoDerivative @time printed above")
   end
 
 

@@ -2,4 +2,8 @@ airfoil.smb/airfoil.smd: NACA 0012 airfoil, airfoil surface 5, free stream 8,
                          chord length 1, free stream diameter 20, ~2700
                          elements
 
+airfoil2_.smb/airfoil2.smd: NACA 0012 airfoil, airfoil surface 5, free stream
+                            40, free stream diameter 20, ~2700 elements,
+                            has trailing edge vertex
+
 tri4x4.smb/.dmg: 4 x 4 mesh, square domain, -1 to 1, nothing periodic

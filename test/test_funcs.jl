@@ -1691,6 +1691,22 @@ function test_geoDerivative(mesh)
     #end
   end  # end function
 
+  function f2_x(xvec::AbstractVector)
+
+    val = 0.0
+    for i=1:length(xvec)
+      val += xvec[i]*xvec[i]
+    end
+
+    return val
+  end
+
+  function f2_x_deriv(xvec::AbstractVector, df_dx::AbstractVector)
+    for i=1:length(xvec)
+      df_dx[i] = 2*xvec[i]
+    end
+  end
+
 
 
   @testset "Geometric Derivative" begin
@@ -1711,9 +1727,9 @@ function test_geoDerivative(mesh)
     xi_indices = constructGeoMapping(mesh)
     h = 1e-6
 
-    # the CAD evaluation routines are too inaccurate (and inconsistent)
-    # to have f = sum( xi_i), so test each component individually
-
+#=
+    # test each component individually
+    # this test is rather slow, so don't run it.
     for i=1:length(xvec)
       # function at initial x value
       val1 = f_x(i, xvec)
@@ -1734,12 +1750,41 @@ function test_geoDerivative(mesh)
         #println("df_dxi_fd = ", dfdxi_fd)
 
         #println("diff = ", abs(df_dxi[j] - dfdxi_fd))
-        @test abs(df_dxi[j] - dfdxi_fd) < 1e-3
+        @test abs(df_dxi[j] - dfdxi_fd) < 5e-3
       end  # end j
     end  # end i
-  end  # end testset
+=#
+    #TODO: test vector mode
+    h = 1e-6
+    pert = rand(length(xivec))
 
-  #TODO: test vector mode
+    # finite difference
+    J1 = f2_x(xvec)
+    for i=1:length(pert)
+      xivec[i] += h*pert[i]
+    end
+    coords_XiToXYZ(mesh, xivec, xvec_pert)
+    J2 = f2_x(xvec_pert)
+    for i=1:length(pert)
+      xivec[i] -= h*pert[i]
+    end
+    val1 = (J2 - J1)/h
+
+
+    # using CAD derivative
+    dJdx = zeros(xvec)
+    dJdxi = zeros(xivec)
+    f2_x_deriv(xvec, dJdx)
+    coords_dXTodXi(mesh, dJdx, dJdxi)
+
+    val2 = dot(dJdxi, pert)
+
+    println("val1 = ", val1)
+    println("val2 = ", val2)
+    println("diff = ", abs(val1 - val2))
+    @test abs(val1 - val2) < 1e-2
+
+  end  # end testset
 
   return nothing
 end
