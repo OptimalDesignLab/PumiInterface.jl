@@ -104,7 +104,7 @@ end
 
   **Inputs/Outputs**
 
-   * xivec: vector, length `mesh.geoNums,numXiDofs`
+   * xivec: vector, length `mesh.geoNums.numXiDofs`
 """
 function coords_xyzToXi(mesh::PumiMeshDG, xarr::Abstract3DArray{T},
                         xivec::AbstractVector) where {T}
@@ -117,6 +117,100 @@ function coords_xyzToXi(mesh::PumiMeshDG, xarr::Abstract3DArray{T},
 end
 
 
+"""
+  For non-periodic geometric entities, this function asserts the xi coordinates
+  are in the allowed range.  If periodic geometric entities, this function wraps
+  the coordinates to ensure they are in the correct range.  This function
+  correctly preserves complex values if `xivec` is complex.
+
+  This function is called by the other geometric interface functions when
+  needed, users generally do not need to call it.
+
+  **Inputs**
+
+   * mesh
+
+  **Inputs/Outputs**
+
+   * xivec: vector of xi coordinates, length `mesh.geoNums.numXiDofs`.
+"""
+function wrapXiCoords(mesh::PumiMeshDG, xivec::AbstractVector)
+
+  g = apf.getModel(mesh.m_ptr)
+  if !gmi.can_eval(g)
+    error("geometric model does not support evaluating parametric coordinates")
+  end
+
+  xi_idx = zeros(Int, 2)
+  rng = zeros(Float64, 2)
+  geonums = mesh.geoNums
+
+  for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+    me = apf.toModel(mesh.m_ptr, e)
+    me_dim = apf.getModelType(mesh.m_ptr, me)
+
+    for j=1:mesh.coord_numNodesPerType[dim+1]
+
+      for k=1:mesh.dim
+        xi_idx[k] = apf.getNumberJ(geonums.xiNums, e, j-1, k-1)
+      end
+
+      # if not in geometric interior and has geometric degrees of freedom
+      if !(me_dim == mesh.dim) && !(xi_idx[1] == geonums.numXiDofs + 1)
+        for k=1:me_dim
+          idx = xi_idx[k]
+          gmi.range(g, me, k-1, rng)
+
+          if gmi.periodic(g, me, k-1)
+            xivec[idx] = wrapPeriodicXi(rng, xivec[idx])
+          else
+            @assert real(xivec[idx]) >= rng[1]
+            @assert real(xivec[idx]) <= rng[2]
+          end
+        end  # end for
+      end  # end if
+    end  # end j
+  end  # end iterator
+
+  return nothing
+end
+
+
+"""
+  Wraps a periodic xi value such that it represents the same location, but has
+  value within the given range.  Methods are available for real and complex
+  numbers.
+
+  **Inputs**
+
+   * rng: vector of length 2, containing the range of parametric values
+   * xival: the xi value
+
+  **Outputs**
+
+   * xival: a new xi value
+"""
+function wrapPeriodicXi(rng::AbstractVector, xival::Real)
+
+  # the algorithm is to shift to the range (0, rng[2] - rng[1]),
+  # compute the modulus with the length of the parameter value range, then
+  # shift back to the original range.
+  delta = rng[2] - rng[1]
+  t1 = (xival - rng[1]) % delta
+  return t1 + rng[1]
+end
+
+
+function wrapPeriodicXi(rng::AbstractVector, xival::T) where {T <: Complex}
+
+  xival_imag = imag(xival)
+  xival_real = wrapPeriodicXi(rng, real(xival))
+
+  # because the geometric entity is periodic, wrapping by a multiple of the
+  # period shouldn't change the derivative
+  return T(xival_real, xival_imag)
+end
+
 
 """
   This function is the inverse of [`coords_XiToXYZ`](@ref).  It recomputes
@@ -127,7 +221,10 @@ end
   **Inputs**
 
    * mesh
-   * xivec: vector of CAD parametric coordinates, length `mesh.geoNums.numXiDofs`.
+   * xivec: vector of CAD parametric coordinates, length
+            `mesh.geoNums.numXiDofs`.  This vector may be modified if any
+            periodic parametric values are out of range.  see
+            [`wrapXiCoords`](@ref)
    
   **Inputs/Outputs**
 
@@ -139,6 +236,9 @@ function coords_XiToXYZ(mesh::PumiMeshDG, xivec::AbstractVector,
   if !gmi.can_eval(g)
     error("geometric model does not support evaluating parametric coordinates")
   end
+
+  # make sure all values are valid
+  wrapXiCoords(mesh, xivec)
 
   geonums = mesh.geoNums
 

@@ -177,13 +177,13 @@ Discontinuous Galerkin (DG), in two dimensions, 2D and 3D.  Currently,
 The DG outer constructors constructors are
 
 ```julia
-PumiMeshDG2{T, Tface}(::Type{T}, sbp::AbstractSBP, opts, 
+PumiMeshDG2{T, Tface}(::Type{T}, sbp::AbstractSBP, opts,
                       sbpface::Tface; dofpernode=1, shape_type=2,
                       comm=MPI.COMM_WORLD)
 
 function PumiMeshDG3{T, Tface}(::Type{T}, sbp::AbstractSBP, opts,
                                sbpface::Tface,
-                               topo::ElementTopology{3}; 
+                               topo::ElementTopology{3};
                                dofpernode=1, shape_type=2, comm=MPI.COMM_WORLD)
 
 ```
@@ -308,7 +308,7 @@ Constructing a mesh object with `Tmsh = Complex128` is supported.  This allows
 using the complex step method to calculate derivative with respect to the mesh
 coordinate and metrics.  The function `recalcCoordinatesAndMetrics` can be used
 to recalculate the volume coordinates and metrics after the `mesh.vert_coords`
-field has been updated. 
+field has been updated.
 
 Reverse mode differentiation is supported, both in serial and in parallel,
 with keyword arguments to control how non-owned entities are handled.
@@ -329,7 +329,7 @@ supported:
                it is created (so by using the model you build the list of
                geometric entities.
  * MDS model: if `dmg_name` specifies a file with extension `.dmg`, then the
-              Pumi mds model will be used.  This model contains the topology
+              Pumi `mds` model will be used.  This model contains the topology
               of the original CAD model, but no shape information.  See below
               for how to make these.
  * GeomSim model: If Pumi is linked with the (proprietary) Simmetrix libraries,
@@ -343,20 +343,41 @@ It is also possible to load other kinds of geometry files when Pumi is linked
 to Simmetrix, although doing so is discouraged.
 
  * Parasolid (`.x_t` or `.xmt_txt` extension): these files can only be loaded
-             on x86 platform (no BG/Q or Power9).
+             on x86 platforms (no BG/Q or Power9).
  * ACIS: (`.sat` extension): limited Linux support
 
 
-### Conversion 
+### Conversion
 
 To demonstrate how to create the different files, lets assume a Parasolid CAD
-model called `airfoil.x_t` exists (for example, do steps 1-6 [here]( ))
+model called `airfoil.x_t` exists (for example, do steps 1-5 [here](http://www.optimaldesignlab.com/optimaldesignlab-wiki/en/#!pages/pdesolver/airfoil_mesh.md))
 
 To make a GeomSim model from a Parasolid or ACIS model (must be done on an
 x86 machine):
 
+If the Parasolid model is an assembly model, it must be converted to a
+non-manifold model first.  This can be done by:
 ```
-  mdlConvert airfoil.x_t airfoil.smd
+  - Open SimModeler
+  - File - Import Geometry - Select the airfoil.x_t
+  - If the left pane shows Assembly 1 as the first item with a list of parts
+    below it, then this is an assembly model. If this is not an assembly model,
+    skip the remaining steps in this box.
+  - Modeling - Make NonManifold Model
+  - In the window that appears: File - Save As - enter airfoil_nonmanifold as
+    the file name
+```
+
+The final step will create the files `airfoil_nonmanifold.smd` and
+`airfoil_nonmanifold_nat.x_t`.  The second file contains a new, nonmanifold
+Parasolid model.  If the original Parasolid model was not an assembly model,
+do `cp -v airfoil.x_t airfoil_nonmanifold_nat.x_t` to make the remainder of this
+tutorial simipler.
+
+
+Now make a GeomSim model from the new Parasolid model:
+```
+  simTranslate airfoil_nonmanifold_nat.x_t airfoil.smd
 ```
 
 The `airfoil.smd` file can be opened by SimModeler to make a mesh.  After
@@ -373,14 +394,14 @@ use for creating the mesh and loading the mesh with PumiInterface.
 
 To make an MDS model from the Parasolid model:
 ```
-  mdlConvert airfoil.x_t airfoil.dmg
+  mdlConvert airfoil_nonmanifold_nat.x_t airfoil.dmg
 ```
 
 Note that this conversion loses all geometry shape information, as described
 above.  `mdlConvert` can also take a GeomSim `.smd` file as the first argument.
 
 As mentioned above, SimModeler saves an `sms` mesh file.  It is recommended
-to convert it to the MDS mesh format `smd`.  Assuming SimModeler files were
+to convert it to the MDS mesh format `smb`.  Assuming SimModeler files were
 saved as `airfoil_meshmodel.smd` and `airfoil_mesh.sms`:
 
 ```
@@ -399,7 +420,7 @@ If SimModeler opens a Parasolid file, generates a mesh, and then saves the
 `.smd` and `.sms` files, this creates an `.smd of the first kind.
 If `mdlConvert` is used to convert the Parasolid file to a GeomSim `.smd`,
 then this `.smd` is opened by SimModeler, the `.smd` that SimModeler saves
-will be a `.smd` of the second kind.  I believe this `.smd` has both 
+will be a `.smd` of the second kind.  I believe this `.smd` has both
 geometry shape and attribute information (the instructions for how SimModeler
 made the mesh) in it, but this needs to be verified.
 
@@ -409,21 +430,23 @@ If you want geometry shape information (required Pumi linked to Simmetrix at
 runtime):
 
  1. Make CAD model and save to Parasolid or ACIS
- 2. Use ``mdlConvert` to convert to `foo.smd`
- 3. Use SimModeler to open `foo.smd`
- 4. Make the mesh and save to `bar.smd`. and `bar.sms`
- 5. Use `convert` to convert `bar.sms` to `bar.smb`
- 6. Load with PumiInterface by setting `smb_name` to `bar.smb` and `dmg_name` to `bar.smd`
+ 2. Make non-manifold model if needed
+ 3. Use `simTranslate to convert to `foo.smd`
+ 4. Use SimModeler to open `foo.smd`
+ 5. Make the mesh and save to `bar.smd`. and `bar.sms`
+ 6. Use `convert` to convert `bar.sms` to `bar.smb`
+ 7. Load with PumiInterface by setting `smb_name` to `bar.smb` and `dmg_name` to `bar.smd`
 
 
 If you don't want geometry shape information (or don't have Pumi linked to Simmetrix at runtime)
 
  1. Make CAD model and save to Parasolid or ACIS
- 2. Use ``mdlConvert` to convert to `foo.dmg`
- 3. Use SimModeler to open the Parasolid or ACIS file
- 4. Make the mesh and save to `bar.smd`. and `bar.sms`
- 5. Use `convert` to convert `bar.sms` to `bar.smb`
- 6. Load with PumiInterface by setting `smb_name` to `bar.smb` and `dmg_name` to `foo.dmg`
+ 2. Make non-manifold model if needed
+ 3. Use `mdlConvert` to convert to `foo.dmg`
+ 4. Use SimModeler to open the Parasolid or ACIS file
+ 5. Make the mesh and save to `bar.smd`. and `bar.sms`
+ 6. Use `convert` to convert `bar.sms` to `bar.smb`
+ 7. Load with PumiInterface by setting `smb_name` to `bar.smb` and `dmg_name` to `foo.dmg`
 
 
 

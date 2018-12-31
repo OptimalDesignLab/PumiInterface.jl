@@ -179,23 +179,18 @@ void getNodeCoords(apf::Mesh* m, apf::MeshEntity* e, int node, double x[3],
     m->getClosestPoint(me, _x, _newx, _xi);
     m->snapToModel(me, _xi, x_snap);
     _xi.toArray(xi);
-    std::cout << "x_orig = ";
-    printArray(_x);
-    std::cout << "closest x = ";
-    printArray(_newx);
-    std::cout << "x_snap = ";
-    printArray(x_snap);
-    std::cout << "xi = ";
-    printArray(_xi);
 
-    if (xi[0] < 1e-5)
+    // the problem point is on the airfoil surface (tag 5) at xi = ~2e-6
+    // print out some data about it
+    int me_tag = m->getModelTag(me);
+    if (me_tag == 5 && (xi[0] < 1e-5))
     {
       double h = 1e-4;
       apf::Vector3 xp, _xi2;
       for (int d=0; d < 3; ++d)
         _xi2[d] = _xi[d];
 
-      // print out coordinate at increments
+      // print out coordinate at increments to trace the surface
       for (int i=0; i < 5; ++i)
       {
         _xi2[0] += h;
@@ -203,31 +198,6 @@ void getNodeCoords(apf::Mesh* m, apf::MeshEntity* e, int node, double x[3],
         std::cout << "point " << i << " coords = ";
         printArray(xp);
       }
-
-
-      // check derivative at other end of loop
-      double rng[2];
-      m->getPeriodicRange(me, 0, rng);
-      _xi2[0] = rng[1];
-      m->snapToModel(me, _xi2, xp);
-      std::cout << "at other end of loop, xi = ";
-      printArray(_xi2);
-      std::cout << "point = ";
-      printArray(xp);
-
-      apf::Vector3 t0, t1, t2, t3, t4, t5;
-      m->getFirstDerivative(me, _xi, t0, t1);
-      m->getFirstDerivative(me, _xi2, t2, t3);
-      _xi2[0] = rng[0];
-      m->getFirstDerivative(me, _xi2, t4, t5);
-
-      std::cout << "derivative at xi of xyz point: ";
-      printArray(t0);
-      std::cout << "derivative at xi = ximax: ";
-      printArray(t2);
-      std::cout << "derivative at xi = 0: ";
-      printArray(t4);
-
     }
 
     x_snap.toArray(x);  // try to return consistent x, xi
@@ -277,9 +247,11 @@ void test_fd(apf::Mesh* m)
         continue;
       }
       // The code works correctly for interior points, but the problem is
-      // the boundary points, so do only those
-      //if (ndof == m->getDimension())
-      //  continue;
+      // the boundary points, so do only those.
+      // Comment this back in to have the vtk file printed with the max error
+      // for each point.
+      if (ndof == m->getDimension())
+        continue;
 
       for (int j=0; j < fshape->countNodesOn(m->getType(e)); ++j)
       {
@@ -316,6 +288,7 @@ void test_fd(apf::Mesh* m)
             std::cout << ", df/dxi fd = " << dxi_fd[d];
             std::cout << ", diff = " << dxi[d] - dxi_fd[d] << std::endl;
 
+            // record the maximum derivative error
             double adiff = std::fabs(dxi[d] - dxi_fd[d]);
             if (adiff > maxdiff)
             {

@@ -1594,6 +1594,71 @@ function test_geoMapping(mesh)
 end
 
 
+function test_geoWrapping(mesh)
+# mesh must have loaded a CAD-based geometric model
+
+  println("testing geometric wrapping")
+  @testset "testing geoWrapping" begin
+    # test the kernel function
+    rng = [0.0, 1.0]
+    @test abs(PdePumiInterface.wrapPeriodicXi(rng, 1.5) - 0.5) < 1e-12
+    @test abs(PdePumiInterface.wrapPeriodicXi(rng, 1.4) - 0.4) < 1e-12
+    @test abs(PdePumiInterface.wrapPeriodicXi(rng, 2.4) - 0.4) < 1e-12
+    @test abs(PdePumiInterface.wrapPeriodicXi(rng, 3.4) - 0.4) < 1e-12
+
+    rng = [1.5, 3.5]
+    @test abs(PdePumiInterface.wrapPeriodicXi(rng, 4.0) - 2.0) < 1e-12
+
+    val = Complex128(4.0, 1.5)
+    val2 = Complex128(2.0, 1.5)
+    @test abs(PdePumiInterface.wrapPeriodicXi(rng, val) - val2) < 1e-12
+
+
+    # test the overall function
+    
+    # get periodic model entities
+    g = apf.getModel(mesh.m_ptr)
+    periodic_mes = Array{gmi.ModelEntity}(0)
+    for me in gmi.Gmi_iter(g, mesh.dim-1)
+      if gmi.periodic(g, me, 0)  # only check first dimension
+        push!(periodic_mes, me)
+      end
+    end
+
+    xvec = zeros(Float64, mesh.geoNums.numCoordDofs)
+    op = PdePumiInterface.AssignReduction{Float64}()
+    coords3DTo1D(mesh, mesh.vert_coords, xvec, op, parallel=false)
+
+    xivec = zeros(mesh.geoNums.numXiDofs)
+    coords_xyzToXi(mesh, xvec, xivec)
+    xivec2 = copy(xivec)
+
+    rng = zeros(Float64, 2)
+    geonums = mesh.geoNums
+    for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+      me = apf.toModel(mesh.m_ptr, e)
+      me_dim = apf.getModelType(mesh.m_ptr, me)
+      if me in periodic_mes
+        # add a multiple of the period to the xivec2
+        gmi.range(g, me, 0, rng)
+        delta = rng[2] - rng[1]
+
+        idx = apf.getNumberJ(geonums.xiNums, e, 0, 0)
+        xivec2[idx] += 2*delta
+      end
+    end
+
+    # call wrapXiVals, check xivec2 == xivec
+    PdePumiInterface.wrapXiCoords(mesh, xivec2)
+    @test maximum(abs.(xivec - xivec2)) < 1e-12
+
+
+  end  # end testset
+
+  return nothing
+end
+
+
 
 function test_geoDerivative(mesh)
 # mesh must have loaded a CAD-based geometric model.

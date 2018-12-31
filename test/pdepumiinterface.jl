@@ -1055,6 +1055,7 @@ end
 
     mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
     test_geoMapping(mesh)
+    test_geoWrapping(mesh)
     #test_geoDerivative(mesh)
   end
 
