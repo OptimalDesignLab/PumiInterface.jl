@@ -94,15 +94,15 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
     fshape = apf::getLagrange(order);
   }
 
+  if (myrank == 0)
+    std::cout << "chaning coordinate FieldShape to " << fshape->getName() << std::endl;
 
 
-    if ( order == 1)
-    {
-      apf::changeMeshShape(m, fshape, false);
-    } else
-    {
-      apf::changeMeshShape(m, fshape, true);
-    }
+  if ( order == 1)
+    apf::changeMeshShape(m, fshape, false);
+  else
+    apf::changeMeshShape(m, fshape, true);
+
 
 //    std::cout << "finished loading mesh, changing shape" << std::endl;
 
@@ -196,6 +196,15 @@ apf::Mesh2* loadMesh(const char* dmg_name, const char* smb_name, int shape_type,
   if ( change_shape && order_orig > order && myrank == 0)
   {
     std::cerr << "Warning: changing mesh coordinate field from " << order_orig << " to " << order << " will result in loss of resolution" << std::endl;
+  }
+
+  // workaround for bug in hasNodesIn for LagrangeQuadratic
+  // This sould be deleted when LagrangeQuadratic is fixed
+  // ref: https://github.com/SCOREC/core/issues/203
+  if (m->getShape() == apf::getLagrange(2))
+  {
+    change_shape = true;
+    fshape = apf::getSerendipity();
   }
 
   if (change_shape)
@@ -333,7 +342,15 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     }
     else if ( shape_type == 0)  // use lagrange
     {
-      fshape = apf::getLagrange(order);
+      if (order == 2)
+      {
+        std::cout << "getting serendipity field" << std::endl;
+        fshape = apf::getSerendipity();  // always returns quadratic
+      } else
+      {
+        std::cout << "getting lagrange field" << std::endl;
+        fshape = apf::getLagrange(order);
+      }
       change_shape = true;
     } else if ( shape_type == 1)  // use SBP shape functions (SBP-Gamma CG)
     {
@@ -379,7 +396,11 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     }
     else if (shape_type == 0) // use lagrange
     {
-      fshape = apf::getLagrange(order);
+      if (order == 2)
+        fshape = apf::getSerendipity();  // always returns quadratic
+      else
+        fshape = apf::getLagrange(order);
+
       change_shape = true;
     } else if (shape_type == 2)  // use SBP DG1 shape functions (3d Omega?)
     {
@@ -647,6 +668,11 @@ apf::EntityShape* getEntityShape(apf::FieldShape* mshape_local, int type)
 int getOrder(apf::FieldShape* fshape)
 {
   return fshape->getOrder();
+}
+
+const char* getFieldShapeName(apf::FieldShape* fshape)
+{
+  return fshape->getName();
 }
 
 

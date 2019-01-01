@@ -138,6 +138,13 @@ PumiMeshCG{T1} =  Union{PumiMesh2CG{T1}, PumiMesh3CG{T1}}
 """
 PumiMeshDG{T1} =  Union{PumiMesh2DG{T1}, PumiMesh3DG{T1}}
 
+
+import Base.show
+function Base.show(io::IO, mesh::T) where {T <: PumiMesh}
+  println(io, mesh.dim, " dimensional mesh of type $(T) with ", mesh.numEl, " elements")
+end
+
+
 """
   Holds data describing vertices shared between parts
 

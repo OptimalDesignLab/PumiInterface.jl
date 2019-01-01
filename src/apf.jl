@@ -159,6 +159,7 @@ export init, loadMesh, initMesh, pushMeshRef, popMeshRef,
        getConstantShapePtr, getMeshShapePtr, countJ, writeVtkFiles,
        getMeshDimension, getType, getDownward, countAdjacent, getAdjacent,
        getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder,
+       getFieldShapeName,
        createMeshElement, countIntPoints, getIntPoint, getIntWeight,
        getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes,
        getVertCoords, getEdgeCoords, getFaceCoords, getElCoords,
@@ -651,6 +652,15 @@ function getOrder(mshape_ptr::Ptr{Void})
 
   return Int(order)  # make order an Int for convenience
 end
+
+
+function getFieldShapeName(mshape_ptr::Ptr{Void})
+
+  str= ccall( (:getFieldShapeName, pumi_libname), Cstring, (Ptr{Void},), mshape_ptr)
+
+  return unsafe_string(str)
+end
+
 
 
 function createMeshElement(m_ptr, entity)

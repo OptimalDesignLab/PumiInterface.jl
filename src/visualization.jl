@@ -183,7 +183,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
   matches_partnums = zeros(Cint, 400 + 8)  # upper bound
   matches_entities = Array{Ptr{Void}}(400 + 8)
 
-  # count nodes on solution field 
+  # count nodes on solution field
   numNodesPerType = Array{Int}(mesh.dim + 1)
   numNodesPerType[1] = apf.countNodesOn(fshape_ptr, 0)
   numNodesPerType[2] = apf.countNodesOn(fshape_ptr, 1)
@@ -371,7 +371,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
     # divide by the total volume of elements that contributed to each node
     # so the result is the average value
     up_els = Array{Ptr{Void}}(400)  # equivalent of apf::Up
-        for (entity_i, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+        for (entity_i, dim) in apf.FieldEntityIt(mesh.m_ptr, fshape_ptr)
           entity_num = apf.getNumberJ(mesh.entity_Nptrs[dim+1], entity_i, 0, 0) + 1
   #        apf.getPoint(mesh.m_ptr, entity_i, 0, coords)
           nel = apf.countAdjacent(mesh.mnew_ptr, entity_i, mesh.dim)

@@ -440,7 +440,7 @@ function update_coords(mesh::PumiMesh, sbp, opts, xvec::AbstractVector;
   end  # end iterator
 
 
-  commit_coords(mesh, sbp, opts, xvec, verify=verify, write_vis=write_vis)
+  commit_coords(mesh, sbp, opts, verify=verify, write_vis=write_vis)
 
   return nothing
 end

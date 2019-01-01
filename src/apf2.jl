@@ -510,6 +510,13 @@ mutable struct FieldEntityIt
   len::Int  # number of entities
 end
 
+mutable struct FieldEntityItState
+  e::Ptr{Void}
+  dim::Int
+end
+
+
+using ODLCommonTools
 
 function FieldEntityIt(m_ptr::Ptr{Void}, fshape_ptr::Ptr{Void})
 
@@ -566,28 +573,32 @@ function start(iter::FieldEntityIt)
   dim = iter.dim
   e = iterate(iter.its[dim+1])
 
-  return e, dim
+  return FieldEntityItState(e, dim)
 end
 
 
-function next(iter::FieldEntityIt, state)
+function next(iter::FieldEntityIt, state::FieldEntityItState)
 
   # the state always leads the current element by 1, so we can do the done
   # check
-  e_next = iterate(iter.its[iter.dim+1])
-  new_state = (e_next, iter.dim)
-  return state, new_state
+  new_val = (state.e, state.dim)
+  state.e = iterate(iter.its[iter.dim+1])
+  state.dim = iter.dim
+  return new_val, state
 end
 
 
 function done(iter::FieldEntityIt, state)
   
-  e = state[1]
-  if e == C_NULL
+  e = state.e
+  isdone = e == C_NULL && iter.dim == (iter.lastdim)
+  if e == C_NULL && !isdone
+    # start iterating over next dimension entities
     iter.dim += 1
+    state.e = iterate(iter.its[iter.dim+1])
+    state.dim = iter.dim
   end
 
-  isdone = iter.dim == (iter.lastdim + 1)
   if isdone
     free(iter)
   end
