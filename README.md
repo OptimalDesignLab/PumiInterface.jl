@@ -448,7 +448,33 @@ If you don't want geometry shape information (or don't have Pumi linked to Simme
  6. Use `convert` to convert `bar.sms` to `bar.smb`
  7. Load with PumiInterface by setting `smb_name` to `bar.smb` and `dmg_name` to `foo.dmg`
 
+### Functionality
 
+The main functionality is the expression of the mesh coordinates in terms of the
+CAD parametric coordinates for entities on the boundary.  The conversion of
+derivatives wrt xyz to derivatives wrt the parametric coordinates is also
+supported (although accuracy varies depending on how the underlying CAD system
+computes derivatives).  See the functions in `interface_geo.jl`.
+
+
+# Utilities
+
+A few C++ executables are built with PumiInterface that are useful as standalone tools.
+
+ * `test_init` this executable mirrors the initialization process used when
+               PumiInterface loads a mesh. Useful for experimenting with new
+               functionality (before wrapping it in Julia) and for developing
+               standalone minimal reproducable examples for filing bug reports.
+ * `printGeoClassification`: prints all the geometric entities for a given
+                             geometric model, as well as their parametric ranges
+                             and whether they are periodic or not.  Useful for
+                             quickly inspecting a CAD model.
+ * `uniform_refine`: run's Pumi's uniform refinement + snapping + shape
+                     correction.  Useful for doing refinement studies on
+                     unstructured meshes
+
+If invoked with no arguments, each of these executables prints a message
+their arguments.
 
 # Version History
 v0.1: the old code, before Pumi switched to the CMake build system.  This version is no longer supported
