@@ -343,14 +343,10 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     else if ( shape_type == 0)  // use lagrange
     {
       if (order == 2)
-      {
-        std::cout << "getting serendipity field" << std::endl;
         fshape = apf::getSerendipity();  // always returns quadratic
-      } else
-      {
-        std::cout << "getting lagrange field" << std::endl;
-        fshape = apf::getLagrange(order);
-      }
+      else
+        fshape = apf::getLagrange(order);a
+
       change_shape = true;
     } else if ( shape_type == 1)  // use SBP shape functions (SBP-Gamma CG)
     {

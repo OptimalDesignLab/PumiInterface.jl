@@ -131,8 +131,8 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double start_coords
 
   m_local->getPoint(e_min, 0, coords);
 
-  if (PCU_Comm_Self() == 0)
-    std::cout << "starting entity coordinates = " << coords[0] << ", " << coords[1] << ", " << coords[2]  << std::endl;
+//  if (PCU_Comm_Self() == 0)
+//    std::cout << "starting entity coordinates = " << coords[0] << ", " << coords[1] << ", " << coords[2]  << std::endl;
 
   return e_min;
 

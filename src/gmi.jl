@@ -290,7 +290,9 @@ end
 # the functions gmi_sim_startJ/stopJ check if Simmetrix is supported, so call
 # these unconditionally
 sim_start()
-atexit(sim_stop)
+#atexit(sim_stop)  # atexit hooks run before finalizers, so if a finalizer
+#                  # causes the mesh to be destroyed, it won't be able to
+#                  # destroy the geometric model (causes a segfault)
 
 
 end # end module

@@ -122,7 +122,6 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
       mesh.fnew_ptr = C_NULL
     end
   else
-    println("setting up visualization field")
     # I don't think subtriangulation will work in this case, so create a 
     # field with the same degree as a coordinate field on the existing mesh, 
     # and interpolate the solution onto it
