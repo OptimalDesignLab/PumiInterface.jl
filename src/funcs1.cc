@@ -345,7 +345,7 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
       if (order == 2)
         fshape = apf::getSerendipity();  // always returns quadratic
       else
-        fshape = apf::getLagrange(order);a
+        fshape = apf::getLagrange(order);
 
       change_shape = true;
     } else if ( shape_type == 1)  // use SBP shape functions (SBP-Gamma CG)
