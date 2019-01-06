@@ -88,7 +88,7 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
 
     shr = apf.getNormalSharing(mesh.m_ptr)
     # test that all entities owned by another process are present
-    for (e, dim) in apf.FieldEntityIterator(mesh.m_ptr, mesh.coordshape_ptr)
+    for (entity, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
       owner = apf.getOwner(shr, entity)
       if apf.isSharedShr(shr, entity) && owner != mesh.myrank && apf.countNodesOn(mesh.coordshape_ptr, dim) != 0
         owner_idx = getPeerIdx(data, owner)
@@ -132,8 +132,7 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
 
     receiveParallelData(data, calc_func)
     coords = Array{Float64}(3)
-    for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
-      entity = apf.iterate(mesh.m_ptr, it)
+    for (entity, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
       owner = apf.getOwner(shr, entity)
       #typ = apf.getType(mesh.m_ptr, entity)
 
@@ -170,7 +169,7 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
     calc_func2 = (data::PeerData) -> PdePumiInterface.receiveFromOwner(data, mesh, coords_vec2)
     PdePumiInterface.receiveParallelData_rev(data, calc_func2)
     # check the rank-specific offset
-    for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+    for (entity, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
       for j=1:mesh.coord_numNodesPerType[dim+1]
         apf.getPoint(mesh.m_ptr, entity, j-1, coords)
         for k=1:mesh.dim

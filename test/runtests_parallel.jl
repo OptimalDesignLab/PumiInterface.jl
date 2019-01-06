@@ -41,15 +41,15 @@ include("test_adapt.jl")
   edges = Array{Ptr{Void}}(num_Entities[2])
   faces = Array{Ptr{Void}}(num_Entities[3])
 
-  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 0))
+  for (i, e) in enumerate(apf.MeshIterator(m_ptr, 0))
     verts[i] = e
   end
 
-  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 1))
+  for (i, e) in enumerate(apf.MeshIterator(m_ptr, 1))
     edges[i] = e
   end
 
-  for (i, e) in enumerate(apf.MeshIterator(mesh.m_ptr, 2))
+  for (i, e) in enumerate(apf.MeshIterator(m_ptr, 2))
     faces[i] = e
   end
 

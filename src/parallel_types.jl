@@ -301,10 +301,10 @@ function pushKey!(data::ScatterData{T, N, N2}, e_local::Ptr{Void},
                   localidx::Union{T2, AbstractVector{T2}}) where {T, N, N2, T2 <: CartesianIndex}
 
   peeridx = getPeerIdx(data, peernum)
-
   if peeridx == 0
     push!(data.send, PeerData(T, peernum, data.tag, data.comm))
     push!(data.peernums_send, peernum)
+    push!(data.curridx, 1)
     peeridx = length(data.send)
   end
 
@@ -313,7 +313,6 @@ function pushKey!(data::ScatterData{T, N, N2}, e_local::Ptr{Void},
   push!(data_i._entities_local, e_local)
   pushorappend!(data_i.local_indices, localidx)
   push!(data_i.colptr, length(data_i.local_indices) + 1)
-  push!(data.curridx, 1)
 
   return nothing
 end
@@ -721,7 +720,7 @@ function initSendToOwner(mesh::PumiMesh{T}, fshape::Ptr{Void}, dims::NTuple) whe
 
   nnodes_per_type = zeros(Int, mesh.dim + 1)
   for i=1:mesh.dim
-    nnodes_per_type[i] = apf.countNodesOn(fshape, i)  # dim == apf::Type up to faces
+    nnodes_per_type[i] = apf.countNodesOn(fshape, i-1)  # dim == apf::Type up to faces
   end
 
   for (entity, dim) in apf.FieldEntityIt(mesh.m_ptr, fshape)
@@ -757,6 +756,7 @@ function initSendToOwner(mesh::PumiMesh{T}, fshape::Ptr{Void}, dims::NTuple) whe
     end  # end if
   end  # end iterator
 
+  flush(mesh.f)
   exchangeKeys(data)
 
   return data
