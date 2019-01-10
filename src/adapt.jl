@@ -66,6 +66,7 @@ function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
 end
 
 
+#TODO: expose more of MA::Inputs options
 """
   This is the main entry point for runing mesh adaptation (h refinement).
   
@@ -88,15 +89,22 @@ end
    * u_vec_new: `u_vec` interpolated to the new mesh.  A vector of length
                  zero if `u_vec` was not supplied
 
+  **Keyword Arguments**
+
+   * free_mesh: if true, free the old mesh object.  Note that the old mesh
+                object cannot correctly call Pumi functions after adaptation.
+                Default true,  Only set to false if you are knowledgeable
+                about PdePumiInterface's internals.
+
   **Implementation Notes**
 
     The original and new mesh objects have the same apf::Mesh*.
 
 """
-function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0))
+function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0); free_mesh::Bool=true)
 
   # run the mesh adaptation
-  _adaptMesh(oldmesh, el_sizes, u_vec)
+  _adaptMesh(oldmesh, el_sizes, u_vec; free_mesh=free_mesh)
 
   # now construct new mesh object
   # To avoid the mesh reference count reaching zero and destroying the
@@ -104,7 +112,9 @@ function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_
   # old one
 
   newmesh = PumiMeshDG2(oldmesh, sbp, opts)
-  finalize(oldmesh)
+  if free_mesh
+    finalize(oldmesh)
+  end
 
   if length(u_vec) > 0
     u_vec_new = zeros(Float64, newmesh.numDof)
@@ -117,13 +127,15 @@ function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_
 end
 
 # method for 3D DG meshes
-function adaptMesh(oldmesh::PumiMeshDG3, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0))
+function adaptMesh(oldmesh::PumiMeshDG3, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0); free_mesh::Bool=true)
 
   # run the mesh adaptation
-  _adaptMesh(oldmesh, el_sizes, u_vec)
+  _adaptMesh(oldmesh, el_sizes, u_vec, free_mesh=free_mesh)
 
   newmesh = PumiMeshDG3(oldmesh, sbp, opts)
-  finalize(oldmesh)
+  if free_mesh
+    finalize(oldmesh)
+  end
 
   if length(u_vec) > 0
     u_vec_new = zeros(Float64, newmesh.numDof)
@@ -152,8 +164,12 @@ end
    * el_sizes: desired size for each element (vector)
    * u_vec: solution field to interpolate to the adapted mesh (optional)
 
+  **Keyword Arguments**
+
+   * free_mesh: if true, destroys old data on the mesh data structure after
+                adaptation
 """
-function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVector)
+function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVector; free_mesh::Bool=true)
 
   # get size function
   size_f = getSizeField(mesh, el_sizes)
@@ -182,8 +198,10 @@ function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVec
   # because we are going to reinitialize the mesh, and Pumi will return
   # an existing Numbering (and possibly Field?) if a new one is created
   # with the same name, we have to delete all existing Numberings/Fields
-  apf.destroyNumberings(mesh.m_ptr)
-  apf.destroyFields(mesh.m_ptr, [mesh.fnew_ptr])
+  if free_mesh
+    apf.destroyNumberings(mesh.m_ptr)
+    apf.destroyFields(mesh.m_ptr, [mesh.fnew_ptr])
+  end
 
   return nothing
 end
