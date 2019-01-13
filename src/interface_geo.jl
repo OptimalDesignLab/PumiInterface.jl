@@ -7,7 +7,7 @@ function getXiCoords(mesh::PumiMeshDG, xivec::AbstractVector)
 end
 
 
-function getCoordsVec(mesh::PUmiMeshDG, xvec::AbstractVector)
+function getCoordsVec(mesh::PumiMeshDG, xvec::AbstractVector)
 
 end
 

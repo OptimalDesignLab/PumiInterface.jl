@@ -1749,7 +1749,7 @@ function test_geoDerivative(mesh)
         #println("df_dxi = ", df_dxi[j])
         #println("df_dxi_fd = ", dfdxi_fd)
 
-        #println("diff = ", abs(df_dxi[j] - dfdxi_fd))
+        println("diff = ", abs(df_dxi[j] - dfdxi_fd))
         @test abs(df_dxi[j] - dfdxi_fd) < 1e-5
       end  # end j
     end  # end i
