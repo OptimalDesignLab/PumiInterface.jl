@@ -1343,6 +1343,12 @@ void setPoint(apf::Mesh2* m, apf::MeshEntity* e, int node, double* coords)
   m->setPoint(e, node, vec);
 }
 
+void setParam(apf::Mesh2* m, apf::MeshEntity* e, double* coords)
+{
+  apf::Vector3 vec(coords);
+  m->setParam(e, vec);
+}
+
 void acceptChanges(apf::Mesh2* m)
 {
   m->acceptChanges();
@@ -1359,6 +1365,13 @@ void getPoint(apf::Mesh* m, apf::MeshEntity* e,  int node, double* coords)
   
   m->getPoint(e, node, vec);
   vec.toArray(coords);
+}
+
+void getParam(apf::Mesh* m, apf::MeshEntity* e, double* coords)
+{
+  apf::Vector3 p;
+  m->getParam(e, p);
+  p.toArray(coords);
 }
 
 //-----------------------------------------------------------------------------

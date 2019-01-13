@@ -1056,8 +1056,34 @@ end
     mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
     test_geoMapping(mesh)
     test_geoWrapping(mesh)
+
+    # the airfoil has large curvature at the trailing edge, so its hard to find
+    # a finite difference step size that works.  Use a smoother shape instead.
+
+    # load airfoil CAD mesh
+    opts = Dict{Any, Any}(
+    "dimensions" => 2,
+    "run_type" => 5,
+    "jac_type" => 2,
+    "order" => 1,
+    "use_DG" => true,
+    "coloring_distance" => 2,
+    "numBC" => 2,
+    "BC1" => [8],
+    "BC1_name" => "FreeStreamBC",
+    "BC2" => [5],
+    "BC2_name" => "noPenetrationBC",
+    "smb_name" => "meshes/UnitSquare/UnitSquare.smb",
+    "dmg_name" => "meshes/UnitSquare/UnitSquare.x_t",
+    )
+    
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
     @time test_geoDerivative(mesh)
     println("test_geoDerivative @time printed above")
+
+    #TODO: test moving vertices in a consistent manner
+
+    #TODO: test quadratic mesh once that works
   end
 
 

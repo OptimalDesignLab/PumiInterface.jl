@@ -341,8 +341,8 @@ function coords_dXTodXi(mesh::PumiMeshDG, xvec::AbstractVector,
   dxi_j = zeros(Float64, 3)
   xidx = zeros(Cint, 3)
 
-  x_j = zeros(Float64, 3)
-  xnew_j = zeros(Float64, 3)
+#  x_j = zeros(Float64, 3)
+#  xnew_j = zeros(Float64, 3)
   xi_j = zeros(Float64, 2)
   dx_dxi = zeros(Float64, 3, 2)
   dx_dxi1 = sview(dx_dxi, :, 1)
@@ -371,8 +371,9 @@ function coords_dXTodXi(mesh::PumiMeshDG, xvec::AbstractVector,
           dxi_j[k] = 0
         end
       else  # this is a constrained entity, compute dx/dxi
-        apf.getPoint(mesh.m_ptr, e, j-1, x_j)
-        gmi.closest_point(g, me, x_j, xnew_j, xi_j)
+#        apf.getPoint(mesh.m_ptr, e, j-1, x_j)
+#        gmi.closest_point(g, me, x_j, xnew_j, xi_j)
+        apf.getParam(mesh.m_ptr, e, xi_j)
         gmi.first_derivative(g, me, xi_j, dx_dxi1, dx_dxi2)
 
         # apply chain rule to compute dJ/dxi

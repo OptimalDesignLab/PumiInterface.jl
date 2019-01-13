@@ -187,7 +187,7 @@ export countPeers, getPeers
 export countPeers, getPeers, countRemotes, getRemotes, isShared
 export getEntity, incrementIt, resetIt
 
-export setPoint, acceptChanges, Verify, getPoint
+export setPoint, setParam,  acceptChanges, Verify, getPoint, getParam
 export hasMatching, getSharing, getNormalSharing, freeSharing, isOwned,
        countCopies, getCopies, countMatches, getMatches, getOwner, isSharedShr
 
@@ -1476,6 +1476,16 @@ function setPoint(m_ptr, entity, node, coords::AbstractArray{Float64})
   return nothing
 end
 
+function setParam(m_ptr, entity, coords::AbstractArray{Float64})
+  @assert length(coords) >= 2
+
+  ccall((:setParam, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}), m_ptr, entity, coords)
+
+  return nothing
+end
+
+
+
 function acceptChanges(m_ptr)
 
   ccall( (acceptChanges_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
@@ -1496,6 +1506,16 @@ function getPoint(m_ptr, entity, node, coords::AbstractArray{Float64})
 
   return nothing
 end
+
+function getParam(m_ptr, entity, coords::AbstractArray{Float64})
+  @assert length(coords) >= 2
+
+  ccall((:getParam, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}), m_ptr, entity, coords)
+
+  return nothing
+end
+
+
 
 function hasMatching(m_ptr::Ptr{Void})
 

@@ -191,9 +191,11 @@ void getRemotes(int part_nums[], apf::MeshEntity* entities[]);
 
 // mesh warping functions
 void setPoint(apf::Mesh2* m, apf::MeshEntity* e, int node, double* coords);
+void setParam(apf::Mesh2* m, apf::MeshEntity* e, double* coords);
 void acceptChanges(apf::Mesh2* m);
 void Verify(apf::Mesh* m);
 void getPoint(apf::Mesh* m, apf::MeshEntity* e,  int node, double* coords);
+void getParam(apf::Mesh* m, apf::MeshEntity* e, double* coords);
 
 // matched entity functions
 bool hasMatching(apf::Mesh* m);

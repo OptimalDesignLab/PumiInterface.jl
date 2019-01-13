@@ -1710,7 +1710,7 @@ function test_geoDerivative(mesh)
 
 
   @testset "Geometric Derivative" begin
-    println("testing geometric derivative")
+    println("\ntesting geometric derivative")
     xvec = zeros(Float64, mesh.geoNums.numCoordDofs)
     xvec_pert = zeros(xvec)
     op = PdePumiInterface.AssignReduction{Float64}()
@@ -1727,7 +1727,7 @@ function test_geoDerivative(mesh)
     xi_indices = constructGeoMapping(mesh)
     h = 1e-6
 
-#=
+
     # test each component individually
     # this test is rather slow, so don't run it.
     for i=1:length(xvec)
@@ -1750,11 +1750,10 @@ function test_geoDerivative(mesh)
         #println("df_dxi_fd = ", dfdxi_fd)
 
         #println("diff = ", abs(df_dxi[j] - dfdxi_fd))
-        @test abs(df_dxi[j] - dfdxi_fd) < 5e-3
+        @test abs(df_dxi[j] - dfdxi_fd) < 1e-5
       end  # end j
     end  # end i
-=#
-    #TODO: test vector mode
+#=
     h = 1e-6
     pert = rand(length(xivec))
 
@@ -1783,7 +1782,7 @@ function test_geoDerivative(mesh)
     println("val2 = ", val2)
     println("diff = ", abs(val1 - val2))
     @test abs(val1 - val2) < 1e-2
-
+=#
   end  # end testset
 
   return nothing
