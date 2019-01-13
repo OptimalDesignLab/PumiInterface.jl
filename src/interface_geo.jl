@@ -1,5 +1,19 @@
 # interface functions for mapping between xyz and CAD parametric coordinates
 
+
+function getXiCoords(mesh::PumiMeshDG, xivec::AbstractVector)
+# retrieve Xi coordinates
+
+end
+
+
+function getCoordsVec(mesh::PUmiMeshDG, xvec::AbstractVector)
+
+end
+
+# update_coords method that takes both xvec and xivec
+# update_coords method that takes only xvec and uses findClosest to get xi
+
 """
   This function takes a vector of the mesh xyz coordinate field and turns it
   into a parametric representation using the CAD system.  The transformation
@@ -22,6 +36,9 @@
 
   This function cannot be complex-stepped.  The complex part of the input
   vector will be ignored, and the output vector will have zero complex part.
+
+  This function has limited accuracy for entities classified on boundaries.
+  TODO: what function to use instead.
 
   **Inputs**
 
