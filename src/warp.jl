@@ -7,29 +7,49 @@
   the topology of the mesh (ie. the adjacency of mesh entities), only 
   their positions.
 
-  elnum is the element number to update
-  coords_new is the mesh.dim x coord_numNodesPerElement array of new coordinates.
-    Each column contains the coordinate of a coordinate node, starting
-    with the vertices, followed by the edges (if quadratic).
-    The entities must be ordered the same as the downward adjacencies of
-    the elements.  The mesh.topo field combined with mesh.element_vertnums
-    can be used to figure this out.
+  **Inputs**
+
+   * elnum: the element number to update
+   * coords_new: the `mesh.dim` x `coord_numNodesPerElement` array of new
+            coordinates.
+   * snap: if true, snap the coordinates to the geometry (if the geometric
+           model supports snapping).  Setting this to false is strongly
+           discouraged and can cause inaccurate coordinate and derivative
+           evaluations in other function.  If true, coords_new will be
+           overwritten with the snapped coordinates
+
+
+  For `coords_new`, each column contains the coordinate of a coordinate node,
+  starting
+  with the vertices, followed by the edges (if quadratic).
+  The entities must be ordered the same as the downward adjacencies of
+  the elements.  The mesh.topo field combined with mesh.element_vertnums
+  can be used to figure this out.
 
   Note that even if `coords_new` is complex valued, this function only uses
   the real part.  If you need to propigate complex number through the
   metric calculation, see [`recalcCoordinatesAndMetrics`](@ref).
 
   After completeing all calls to update_coords, users *must* call
-  commit_coords()
+  commit_coords().
+
+  This function is supported for backwards compatability, see the other
+  methods of `update_coords` which work on the entire mesh at once, which may
+  be more efficient.
 """
-function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractMatrix)
+function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractMatrix, snap::Bool=true)
 
 #  @assert size(coords_new, 1) == mesh.dim
 #  @assert (size(coords_new, 2) == mesh.dim + 1 || size(coords_new, 2) == mesh.dim+1 + mesh.numTypePerElement[2]) # number of verts or number of verts + edges
 
   verts = Array{Ptr{Void}}(12)
   coords_j = zeros(Float64, 3)
-  
+  newx_j = zeros(Float64, 3)
+  xi_j = zeros(Float64, 2)
+  g = apf.getModel(mesh.m_ptr)
+  can_eval = gmi.can_eval(g)
+  snap = snap && can_eval
+
   el_i = mesh.elements[elnum]
   apf.getDownward(mesh.m_ptr, el_i, 0, verts)
 
@@ -38,7 +58,7 @@ function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractMatr
   elseif mesh.coord_order == 2
     @assert (size(coords_new, 2) == (mesh.numTypePerElement[1] + mesh.numTypePerElement[2]))
   else
-    throw(ErrorException("Unsupported corodinate order"))
+    throw(ErrorException("Unsupported coordinate order"))
   end
 
   #TODO: make this a proper master loop construct
@@ -46,8 +66,21 @@ function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractMatr
     for k=1:mesh.dim
       coords_j[k] = real(coords_new[k, j])
     end
-    apf.setPoint(mesh.m_ptr, verts[j], 0, coords_j)
-  end
+
+    # get parametric coordinates if possible
+    if can_eval
+      has_xi = getSnappedCoords(mesh, verts[j], snap, coords_j, newx_j, xi_j)
+
+      # set the values
+      if has_xi
+        apf.setParam(mesh.m_ptr, verts[j], xi_j)
+      end
+      apf.setPoint(mesh.m_ptr, verts[j], 0, newx_j)
+    else
+      apf.setPoint(mesh.m_ptr, verts[j], 0, coords_j)
+    end  # if can_eval
+
+  end  # end j
 
   if apf.hasNodesIn(mesh.coordshape_ptr, 1)
     offset = mesh.dim + 1
@@ -56,14 +89,76 @@ function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractMatr
       for k=1:mesh.dim
         coords_j[k] = real(coords_new[k, j + offset])
       end
-      apf.setPoint(mesh.m_ptr, verts[j], 0, coords_j)
-    end
+
+      if can_eval
+        has_xi = getSnappedCoords(mesh, verts[j], snap, coords, newx, xi)
+
+        # set the values
+        #TODO: I think this is broken in Pumi for edges, re-enable when fixed
+        #if has_xi
+        #  apf.setParam(mesh.m_ptr, verts[j], xi_j)
+        #end
+        apf.setPoint(mesh.m_ptr, verts[j], 0, newx_j)
+      else
+        apf.setPoint(mesh.m_ptr, verts[j], 0, coords_j)
+      end  # if can eval
+    end  # end j
   end
 
 
   return nothing
 end
 
+
+"""
+  Internal function to snap coordinates to the geometry.  Only call this
+  function if the geometric model supports evaluating coordinates.
+
+  **Inputs**
+
+   * mesh
+   * entity: the MeshEntity
+   * snap: if the xyz coordinates should be snapped
+   * coords: vector of length 3 containing xyz coordinates
+
+  **Inputs/Outputs**
+  
+   * newx: new xyz coordinates, snapped to the geometry if `snap` is true,
+           same as `coords` if false
+   * xi: the CAD parametric coordinates
+
+  **Outputs**
+
+   * has_xi: Bool, if true, the model entity that `entity` is classified on
+             has parametric coordinates.  If false, the value of `xi` on exit
+             is undefined.
+"""
+function getSnappedCoords(mesh::PumiMesh, entity::Ptr{Void}, snap::Bool,
+                          coords::AbstractVector, newx::AbstractVector,
+                          xi::AbstractVector)
+
+  g = apf.getModel(mesh.m_ptr)
+  me = apf.toModel(mesh.m_ptr, entity)
+  me_dim = apf.getModelType(mesh.m_ptr, me)
+  has_xi = me_dim != 3  # only snap if the parametric coordinates exist
+
+  if has_xi
+    if me_dim == 0  # Simmetrix doesn't have closest_point for vertices
+      fill!(xi, 0)
+      gmi.geval(g, me, xi, newx)
+    else
+      gmi.closest_point(g, me, coords, newx, xi)
+    end
+  end
+
+  if !snap || !has_xi
+    for k=1:mesh.dim
+      newx[k] = coords[k]
+    end
+  end
+
+  return has_xi
+end
 """
   This must be called after all calls to update_coords are complete. It
   update all fields of the mesh that are derived from the coordinates

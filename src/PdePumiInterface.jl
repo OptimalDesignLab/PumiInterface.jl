@@ -22,7 +22,7 @@ export PumiMesh2CG, PumiMesh2DG, PumiMesh3CG, PumiMesh3DG, PumiMesh, PumiMeshCG,
        PumiMeshDG
 
 #TODO: revise this list
-export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryFaceLocalNum, getFaceLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles, update_coords, commit_coords
+export AbstractMesh,PumiMesh2, PumiMesh2Preconditioning, getShapeFunctionOrder, getGlobalNodeNumber, getGlobalNodeNumbers, getNumEl, getNumEdges, getNumVerts, getNumNodes, getNumDofPerNode, getAdjacentEntityNums, getBoundaryEdgeNums, getBoundaryFaceNums, getBoundaryFaceLocalNum, getFaceLocalNum, getBoundaryArray, saveSolutionToMesh, retrieveSolutionFromMesh, retrieveNodeSolution, getAdjacentEntityNums, getNumBoundaryElements, getInterfaceArray, printBoundaryEdgeNums, printdxidx, getdiffelementarea, writeVisFiles, update_coords, update_coordsXi, commit_coords
 
 export zeroBarArrays, recalcCoordinatesAndMetrics, getAllCoordinatesAndMetrics_rev
 
@@ -40,7 +40,7 @@ export adaptMesh, getElementSizes
 export coords1DTo3D, coords3DTo1D
 
 # interface_geo.jl
-export coords_xyzToXi, coords_XiToXYZ, coords_dXTodXi
+export coords_xyzToXi, coords_XiToXYZ, coords_dXTodXi, getXiCoords, getXCoords
 
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face

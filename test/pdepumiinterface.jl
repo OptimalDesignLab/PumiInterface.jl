@@ -1079,6 +1079,7 @@ end
     @time test_geoDerivative(mesh)
     println("test_geoDerivative @time printed above")
 
+    println("\n\nTesting geometric derivative on curved geometry")
     # load airfoil CAD mesh
     opts = Dict{Any, Any}(
     "dimensions" => 2,
@@ -1098,12 +1099,19 @@ end
     @time test_geoDerivative(mesh)
     println("test_geoDerivative @time printed above")
 
+    xivec = getXiCoords(mesh)
+    xivec_pert = rand(length(xivec))
+    for i=1:length(xivec)
+      xivec[i] += 1e-3*xivec[i]
+    end
+    update_coordsXi(mesh, sbp, opts, xivec)
+    test_geoDerivative(mesh)
+    test_geoWarp(mesh, sbp, opts)
 
 
-    #TODO: test moving vertices in a consistent manner
 
     #TODO: test quadratic mesh once that works
-  end
 
+  end 
 
 end

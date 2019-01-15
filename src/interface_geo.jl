@@ -1,18 +1,129 @@
 # interface functions for mapping between xyz and CAD parametric coordinates
 
+"""
+  This function gets the vector of CAD parametric coordinates from the
+  mesh database.  See [`coords_xyzToXi`](@ref) for a description of the
+  parametric coordinate system.
 
+  **Inputs**
+
+   * mesh
+
+  **Inputs/Outputs**
+
+   * xivec: vector to be overwritten with parametric coordinates.  Length
+            `mesh.geoNums.numXiDofs`.
+"""
 function getXiCoords(mesh::PumiMeshDG, xivec::AbstractVector)
 # retrieve Xi coordinates
 
+  g = apf.getModel(mesh.m_ptr)
+  if !gmi.can_eval(g)
+    error("geometric model does not support evaluating parametric coordinates")
+  end
+
+  xi_j = zeros(Float64, 3)
+  xyz_j = zeros(Float64, 3)
+
+  for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+    me = apf.toModel(mesh.m_ptr, e)
+    me_dim = apf.getModelType(mesh.m_ptr, me)
+
+    for j=1:mesh.coord_numNodesPerType[dim+1]
+      firstidx = apf.getNumberJ(mesh.geoNums.xiNums, e, j-1, 0)
+      @assert dim == 0
+      @assert j == 1
+
+
+      # put the new coordinates in xyz_j
+      if me_dim == mesh.dim  # xyz coordinates == xi coordinates
+        apf.getPoint(mesh.m_ptr, e, j-1, xi_j)
+        ndof = mesh.dim
+      elseif firstidx == mesh.geoNums.numXiDofs + 1  # no geometric dofs
+        fill!(xi_j, 0)
+        ndof = 0
+      else  # constrained entity, convert parametric to xyz
+        ndof = me_dim
+        apf.getParam(mesh.m_ptr, e, xi_j)
+      end
+
+      # write into output vector
+      for k=1:ndof
+        idx = apf.getNumberJ(mesh.geoNums.xiNums, e, j-1, k-1)
+        xivec[idx] = xi_j[k]
+      end
+    end  # end j
+  end  # end iterator
+
+  return nothing
+end
+
+"""
+  Similar to the other method, but allocates a new vector and returns it.
+
+  **Inputs**
+
+   * mesh
+
+  **Outputs**
+
+   * vector containing xi coordinates.  The vector has element type Float64
+"""
+function getXiCoords(mesh::PumiMeshDG)
+
+  xivec = zeros(Float64, mesh.geoNums.numXiDofs)
+  getXiCoords(mesh, xivec)
+
+  return xivec
 end
 
 
-function getCoordsVec(mesh::PumiMeshDG, xvec::AbstractVector)
+"""
+  Gets the vector of xyz coordinates for the entire mesh.
 
+  **Inputs**
+
+   * mesh
+
+  **Inputs/Outputs**
+
+   * xvec: vector to be overwritten, length `mesh.dim*mesh.coord_numNodes`.
+"""
+function getXCoords(mesh::PumiMeshDG, xvec::AbstractVector)
+
+  xyz_j = zeros(Float64, 3)
+  for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+    for j=1:mesh.coord_numNodesPerType[dim+1]
+
+      apf.getPoint(mesh.m_ptr, e, j-1, xyz_j)
+      for k=1:mesh.dim
+        idx = apf.getNumberJ(mesh.geoNums.coordNums, e, j-1, k-1)
+        xvec[idx] = xyz_j[k]
+      end
+    end  # end j
+  end # end iterator
+
+  return nothing
 end
 
-# update_coords method that takes both xvec and xivec
-# update_coords method that takes only xvec and uses findClosest to get xi
+"""
+  Similar to the other method, but allocates a new vector and returns it.
+
+  **Inputs**
+
+   * mesh
+
+  **Outputs**
+
+   * vector containing the xyz coordinates.  Element type Float64.
+"""
+function getXCoords(mesh::PumiMeshDG)
+
+  xvec = zeros(Float64, mesh.dim*mesh.coord_numNodes)
+  getXCoords(mesh, xvec)
+
+  return xvec
+end
 
 """
   This function takes a vector of the mesh xyz coordinate field and turns it
@@ -424,28 +535,51 @@ end
 
   Unlike the per-element method, this function calls [`commit_coords`](@ref).
 
+  Prefer the method that takes both `xvec` and `xivec` as arguments.  This
+  method may lead to somewhat less accurate derivatives computed by
+  [`coords_dXTodXi`](@ref).  This method is useful only when the caller
+  has no interest in the parametric coordinates.
+
   **Inputs**
 
    * mesh
    * sbp
    * opts
+
+  **Inputs/Outputs**
+
    * xvec: vector of new coordinates, length `mesh.dim*mesh.coord_numNodes`
 
   **Keyword Arguments**
 
+   * snap: if true, the coordinates in `xvec` will be snapped to the
+           nearest point on the geometry.  The updates coordinates will
+           be saved to the mesh database and written back into `xvec`.
+           If false, the coordinates in `xvec` will be entered into the
+           mesh database without snapping.  This can lead to inconsistent
+           parametric and Cartesian coordinates, as well as inaccurate
+           derivatives.  Use only if the caller absolutely requires the
+           coordinates be entered exactly as they appear in `xvec`
    * verify: run Pumi's verifier on the new mesh, default true
    * write_vis: write visulzation files after updating the coordinates but
                 before recalculating the metrics (which errors if an element
                 is turned inside out), default false.
 """
 function update_coords(mesh::PumiMesh, sbp, opts, xvec::AbstractVector;
-                       verify=true, write_vis=false)
+                       snap::Bool=true, verify=true, write_vis=false)
 
   @assert length(xvec) == mesh.dim*mesh.coord_numNodes
 
   xyz_j = zeros(Float64, 3)
+  newx_j = zeros(Float64, 3)
+  xi_j = zeros(Float64, 2)
+
+  g = apf.getModel(mesh.m_ptr)
+  _snap::Bool = snap && gmi.can_eval(g)   # make type-stable
+  can_eval = gmi.can_eval(g)
 
   for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+    me = apf.toModel(mesh.m_ptr, e)
     for j=1:mesh.coord_numNodesPerType[dim+1]
 
       for k=1:mesh.dim
@@ -453,7 +587,27 @@ function update_coords(mesh::PumiMesh, sbp, opts, xvec::AbstractVector;
         xyz_j[k] = xvec[idx]
       end
 
+      if _snap
+        getSnappedCoords(mesh, e, xyz_j, _snap, newx_j, xi_j)
+        #gmi.closest_point(g, me, xyz_j, newx_j, xi_j)
+
+        # write back into xvec
+        for k=1:mesh.dim
+          idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, e, j-1, k-1)
+          xvec[idx] = newx_j[k]
+        end
+      else
+        for k=1:mesh.dim
+          newx_j[k] = xyz_j[k]
+        end
+      end
+
       apf.setPoint(mesh.m_ptr, e, j-1, xyz_j)
+      @assert dim == 0
+      @assert j == 1
+      if can_eval
+        apf.setParam(mesh.m_ptr, e, xi_j)
+      end
     end  # end j
   end  # end iterator
 
@@ -462,4 +616,121 @@ function update_coords(mesh::PumiMesh, sbp, opts, xvec::AbstractVector;
 
   return nothing
 end
+
+#TODO: single elemet version of update_coords
+
+# It looks like the MeshAdapt Snapper updates the parametric coords for
+# vertices, but not mid edge nodes (I also recall that MeshAdapt doesn't
+# support quadratic triangles either).
+
+"""
+  This function updates the mesh coordinates and the CAD parametric coordinates.
+  `xvec` should be obtained from `xivec` using [`coords_XiToXYZ`](@ref).
+
+  **Inputs**
+  
+   * mesh
+   * sbp
+   * opts
+   * xvec: vector of xyz coordinates, length `mesh.dim*mesh.coord_numNodes`
+   * xivec: vector of xi coordinates, length `mesh.geoNums.numXiDofs`
+
+  **Keyword Arguments**
+
+   * verify: run Pumi's verifier on the new mesh, default true
+   * write_vis: write visulzation files after updating the coordinates but
+                before recalculating the metrics (which errors if an element
+                is turned inside out), default false.
+
+"""
+function update_coords(mesh::PumiMesh, sbp, opts, xvec::AbstractVector,
+                       xivec::AbstractVector;
+                       verify=true, write_vis=false)
+  @assert length(xvec) == mesh.dim*mesh.coord_numNodes
+  @assert length(xivec) == mesh.geoNums.numXiDofs
+
+  xyz_j = zeros(Float64, 3)
+  xi_j = zeros(Float64, 3)
+  geonums = mesh.geoNums
+  for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+
+    me = apf.toModel(mesh.m_ptr, e)
+    me_dim = apf.getModelType(mesh.m_ptr, me)
+
+    for j=1:mesh.coord_numNodesPerType[dim+1]
+
+      # get xyz coordinates
+      for k=1:mesh.dim
+        idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, e, j-1, k-1)
+        xyz_j[k] = xvec[idx]
+      end
+
+      # decide parametric representation
+      firstidx = apf.getNumberJ(geonums.xiNums, e, j-1, 0)
+      if me_dim == mesh.dim
+        # don't have parametric coordinate in xivec.  In 3D, most CAD systems
+        # don't even have parametric coordinates, so just zero these out.
+        fill!(xi_j, 0)
+      elseif firstidx == geonums.numXiDofs + 1  # no geometric dofs
+        # this must be classified on a vertex, which always has parametric
+        # coordinates 0
+        fill!(xi_j, 0)
+      else  # this is a constrained entity, get the values from xivec
+        fill!(xi_j, 0)
+        for k=1:me_dim
+          xi_j[k] = xivec[apf.getNumberJ(geonums.xiNums, e, j-1, k-1)]
+        end
+      end  # end if
+
+
+      apf.setPoint(mesh.m_ptr, e, j-1, xyz_j)
+      @assert j == 1  # setParam doesn't take a node argument...
+      @assert dim == 0 # setParam only works for vertices, I think
+      apf.setParam(mesh.m_ptr, e, xi_j)
+    end  # end j
+  end  # end iterator
+
+  commit_coords(mesh, sbp, opts, verify=verify, write_vis=write_vis)
+
+  return nothing
+end
+
+"""
+  Convenience method that computes the xyz coordinates from the parametric
+  coordinates and updates the mesh database.  This method is more accurate than
+  the function that updates the mesh database using the xyz coordinates
+
+  **Inputs**
+  
+   * mesh
+   * sbp
+   * opts
+   * xivec: vector of xi coordinates, length `mesh.geoNums.numXiDofs`
+
+  **Keyword Arguments**
+
+   * verify: run Pumi's verifier on the new mesh, default true
+   * write_vis: write visulzation files after updating the coordinates but
+                before recalculating the metrics (which errors if an element
+                is turned inside out), default false.
+
+
+
+"""
+function update_coordsXi(mesh::PumiMesh, sbp, opts, xivec::AbstractVector{T},
+                         verify=true, write_vis=false) where {T}
+
+  xvec = zeros(T, mesh.dim*mesh.coord_numNodes)
+  coords_XiToXYZ(mesh, xivec, xvec)
+  update_coords(mesh, sbp, opts, xvec, xivec, verify=verify, write_vis=write_vis)
+
+  return nothing
+end
+
+
+# update_coords method that takes both xvec and xivec
+# update_coords method that takes only xvec and uses findClosest to get xi
+# update_coords method that takes only xvec and uses findClosest to get xi, but
+# does not update x
+
 
