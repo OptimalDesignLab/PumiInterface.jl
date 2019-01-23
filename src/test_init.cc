@@ -11,8 +11,7 @@
 #include <apfNumbering.h>
 #include <apfShape.h>
 #include "mpi.h"
-//#include "pumiInterface_config.h"
-#define HAVE_SIMMETRIX
+#include "pumiInterface_config.h"
 #ifdef HAVE_SIMMETRIX
 #include <gmi_sim.h>
 #include <SimUtil.h>
