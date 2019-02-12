@@ -504,6 +504,7 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   numEdge::Int # number of edges in the mesh
   numFace::Int # alias for numEdge
   numEl::Int  # number of elements (faces)
+  numGlobalEl::Int  # needed for compatability with parallel things
   order::Int # order of shape functions
   numDof::Int # number of degrees of freedom
   numNodes::Int  # number of nodes
@@ -687,6 +688,7 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   mesh.numEdge =convert(Int,  num_Entities[2])
   mesh.numFace = mesh.numEdge
   mesh.numEl = convert(Int, num_Entities[3])
+  mesh.numGlobalEl = mesh.numEl  #TODO: change when parallelizing
   mesh.numEntitiesPerType = [mesh.numVert, mesh.numEdge, mesh.numEl]
   mesh.numTypePerElement = [3, 3, 1]
   mesh.numFacesPerElement = mesh.numTypePerElement[end-1]

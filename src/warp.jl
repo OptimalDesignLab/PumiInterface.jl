@@ -159,6 +159,8 @@ function getSnappedCoords(mesh::PumiMesh, entity::Ptr{Void}, snap::Bool,
 
   return has_xi
 end
+
+
 """
   This must be called after all calls to update_coords are complete. It
   update all fields of the mesh that are derived from the coordinates

@@ -50,6 +50,9 @@ void initMesh(apf::Mesh* m, int number_entities[],
        apf::FieldShape* mshape_ptr_array[1], apf::Numbering* n_array[]);
 
 
+apf::Field* initGeometry(apf::Mesh2* m);
+void snapEdgeNodes(apf::Mesh2* m, apf::Field* fedge);
+
 // these functions are not user accessible
 void cleanup(apf::Mesh* m_local);
 

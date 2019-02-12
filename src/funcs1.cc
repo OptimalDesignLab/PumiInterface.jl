@@ -279,6 +279,76 @@ void initMesh(apf::Mesh* m, int number_entities[],
 */
 }  // function initMesh()
 
+
+// This function returns the apf::Field that has the CAD parametric coordinates
+// of the mid-edge nodes, if possible, otherwise returns the null pointer.
+// This is necessary because Pumi does not store mid-edge node parametric
+// coordinates.
+apf::Field* initGeometry(apf::Mesh2* m)
+{
+  gmi_model* g = m->getModel();
+  const char* fname = "edge_params";
+
+  if (!gmi_can_eval(g))
+    return NULL;
+
+  if (!m->getShape()->hasNodesIn(1))  // linear mesh
+    return NULL;
+
+  // this is the field convertSimMesh is supposed to write for quadratic
+  // meshes.  If it didn't for some reason, use gmi_closest_point to make it,
+  // even though that is less accurate/requires snapping the mesh
+  apf::Field* fedge = m->findField(fname);
+
+  if (!fedge)
+  {
+    std::cout << "Adding quadratic parameter field: derivatives may be less accurate" << std::endl;
+    apf::FieldShape* fshape_edges = apf::getConstant(1);
+    apf::Field* fedge = apf::createPackedField(m, fname, 2, fshape_edges);
+
+    snapEdgeNodes(m, fedge);
+  }  // end if
+
+
+  return fedge;
+}
+
+// Snaps mid-edge nodes to the geometry and updates the field that stores their
+// parametric coordinates
+void snapEdgeNodes(apf::Mesh2* m, apf::Field* fedge)
+{
+  apf::MeshEntity* e;
+  apf::MeshIterator* it = m->begin(1);
+
+  //pMesh smesh_local = PM_mesh(smesh, 0);
+  double params[2];
+  double xnew[3];
+  apf::Vector3 x;
+  while ((e = m->iterate(it)))
+  {
+
+    apf::ModelEntity* me = m->toModel(e);
+    int me_dim = m->getModelType(me);
+    m->getPoint(e, 0, x);
+
+    if (me_dim < 3)
+    {
+      gmi_closest_point(g, (gmi_ent*)me, &x[0], xnew, params);
+      //  because gmi_closest_point is not that accurate (and noisy), evaluate
+      //  p to make sure x and p are consistent
+      gmi_eval(g, (gmi_ent*)me, params, &x[0]);
+    } else  // regions don't have parametric coordinates
+    {
+      params[0] = 0;
+      params[1] = 0;
+    }
+
+    m->setPoint(e, 0, x);
+    apf::setComponents(fedge, e, 0, params);
+  }  // end while
+
+}
+
 // perform cleanup activities, making it safe to load a new mesh
 void cleanup(apf::Mesh* m_local)
 {

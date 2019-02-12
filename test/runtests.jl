@@ -9,6 +9,7 @@ using ODLCommonTools
 import ODLCommonTools.sview
 using SummationByParts
 using PdePumiInterface
+using PumiConfig
 
 import Base.isapprox
 
@@ -498,6 +499,30 @@ end
   @test ( ncopies[2] )== 6  # 3 x 3 element mesh has 6 shared edges
   @test ( nmatches[2] )== 6
 
+
+  # test that convertSimMesh works correctly
+  if HAVE_SIMMETRIX
+    dirname = "test_convertSim"
+    srcdir = joinpath(pwd(), "meshes", "UnitCubeCurve")
+    if isdir(dirname)
+      rm(dirname, recursive=true)
+    end
+    mkdir(dirname)
+    cd(dirname)
+    fname = "UnitCubeCurve"
+    cp(joinpath(srcdir, "$fname.smd"), "./$fname.smd")
+    cp(joinpath(srcdir, "$fname.sms"), "./$fname.sms")
+    exepath = joinpath(pwd(), "..", "..", "install", "bin")
+    run(`$exepath/convertSimMesh $fname.smd $fname.sms $fname.smb`)
+
+    order = 2  # linear elements
+    m_ptr, dim = apf.loadMesh("$fname.smd", "$fname.smb", order)
+    # check that the quadratic parameter field is present
+    f_ptr = apf.findField(m_ptr, "edge_params")
+    @test f_ptr != C_NULL
+  end
+
+
 end  # end context
 end
 
@@ -543,7 +568,7 @@ end
 
 end
 =#
-
+#=
 include("test_gmi.jl")
 test_gmi()
 
@@ -556,7 +581,7 @@ include("test_adapt.jl") # mesh adaptation
 include("test_parallel_types.jl")
 include("pdepumiinterface.jl")
 include("pdepumiinterface3.jl")
-
+=#
 MPI.Barrier(MPI.COMM_WORLD)
 if MPI.Initialized()
   MPI.Finalize()

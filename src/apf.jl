@@ -155,7 +155,8 @@ global const getMatches_name = "getMatches"
 
 
 # export low level interface functions
-export init, loadMesh, initMesh, pushMeshRef, popMeshRef,
+export init, loadMesh, initMesh, initGeometry, snapEdgeNodes, pushMeshRef,
+       popMeshRef,
        getConstantShapePtr, getMeshShapePtr, countJ, writeVtkFiles,
        getMeshDimension, getType, getDownward, countAdjacent, getAdjacent,
        getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder,
@@ -334,6 +335,47 @@ function initMesh(m_ptr::Ptr{Void})
     m_ptr, num_entities, mshape_ptr_array, n_arr)
 
   return mshape_ptr_array[1], num_entities, n_arr
+end
+
+
+"""
+  This function initializes the field used for storing the CAD parametric
+  coordinates of the mid-edge nodes.
+
+  **Inputs**
+
+   * m_ptr: the apf::Mesh2 *
+
+  **Outputs**
+
+   * f_ptr: pointer to the apf::Field holding the CAD parametric coordinates
+            of the mid-edge nodes.  If geometric model does not have parametric
+            coordinates or if the mesh is linear, the null pointer is returned.
+            The field has one node per edge with 2 values at each node.
+"""
+function initGeometry(m_ptr::Ptr{Void})
+
+  f_ptr = ccall( (:initGeometry, pumi_libname), Ptr{Void}, (Ptr{Void},), m_ptr)
+
+  return f_ptr
+end
+
+
+"""
+  This function snaps the mid-edge nodes to the geometry and updates the
+  apf::Field with the new parametric values.  Only call this function if the
+  geometry model is capable of snapping.
+
+  **Inputs**
+
+   * m_ptr: the mesh pointer
+   * f_ptr: the Field pointer
+"""
+function snapEdgeNodes(m_ptr::Ptr{Void}, f_ptr::Ptr{Void})
+
+  ccall( (:snapEdgeNodes, pumi_libname), Void, (Ptr{Void}, Ptr{Void}), m_ptr, f_ptr)
+
+  return nothing
 end
 
 
