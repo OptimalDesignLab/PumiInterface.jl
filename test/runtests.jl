@@ -502,6 +502,7 @@ end
 
   # test that convertSimMesh works correctly
   if HAVE_SIMMETRIX
+    startdir = pwd()
     dirname = "test_convertSim"
     srcdir = joinpath(pwd(), "meshes", "UnitCubeCurve")
     if isdir(dirname)
@@ -520,6 +521,7 @@ end
     # check that the quadratic parameter field is present
     f_ptr = apf.findField(m_ptr, "edge_params")
     @test f_ptr != C_NULL
+    cd(startdir)
   end
 
 
@@ -568,7 +570,7 @@ end
 
 end
 =#
-#=
+
 include("test_gmi.jl")
 test_gmi()
 
@@ -581,7 +583,7 @@ include("test_adapt.jl") # mesh adaptation
 include("test_parallel_types.jl")
 include("pdepumiinterface.jl")
 include("pdepumiinterface3.jl")
-=#
+
 MPI.Barrier(MPI.COMM_WORLD)
 if MPI.Initialized()
   MPI.Finalize()

@@ -319,6 +319,7 @@ void snapEdgeNodes(apf::Mesh2* m, apf::Field* fedge)
 {
   apf::MeshEntity* e;
   apf::MeshIterator* it = m->begin(1);
+  gmi_model* g = m->getModel();
 
   //pMesh smesh_local = PM_mesh(smesh, 0);
   double params[2];
@@ -445,6 +446,10 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     } else if (shape_type == 7)  // 2p SBP Omega (not optimized)
     {
       fshape = apf::getDG7SBPShape(order);
+      change_shape = true;
+    } else if (shape_type == 8)
+    {
+      fshape = apf::getDG8SBPShape(order);
       change_shape = true;
     } else  // default to lagrange shape functions
     {

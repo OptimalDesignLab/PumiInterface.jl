@@ -1445,7 +1445,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
 
   val1 = MPI.Allreduce(val1, MPI.SUM, mesh.comm)
   val2 = MPI.Allreduce(val2, MPI.SUM, mesh.comm)
-  @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
+  @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-12)
 
   #----------------------------------------------------------------------------
   # test back-propigation of the metrics (locally)
@@ -1489,7 +1489,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   val2 = sum(mesh.vert_coords_bar .* vert_coords_dot)
   #val2 = sum(xvec_bar .* xvec_dot)
 
-  @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
+  @test abs(val1 - val2) < max(abs(val1)*1e-12, 1e-12)
 
   #----------------------------------------------------------------------------
   # test back-propigation of metrics (parallel)
@@ -1532,7 +1532,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   val1 = MPI.Allreduce(val1, MPI.SUM, mesh.comm)
   val2 = MPI.Allreduce(val2, MPI.SUM, mesh.comm)
 
-  @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
+  @test abs(val1 - val2) < max(abs(val1)*1e-12, 1e-12)
 
   return nothing
 end

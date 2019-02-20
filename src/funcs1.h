@@ -29,6 +29,7 @@
 #include "dgSBPShape4.h"
 #include "dgSBPShape5.h"
 #include "dgSBPShape6.h"
+#include "dgSBPShape8.h"
 #include "dgSBP3Shape1.h"
 #include "dgSBP3Shape2.h"
 #include "dgSBP3Shape4.h"
