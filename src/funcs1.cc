@@ -304,7 +304,7 @@ apf::Field* initGeometry(apf::Mesh2* m)
   {
     std::cout << "Adding quadratic parameter field: derivatives may be less accurate" << std::endl;
     apf::FieldShape* fshape_edges = apf::getConstant(1);
-    apf::Field* fedge = apf::createPackedField(m, fname, 2, fshape_edges);
+    fedge = apf::createPackedField(m, fname, 2, fshape_edges);
 
     snapEdgeNodes(m, fedge);
   }  // end if

@@ -1030,6 +1030,10 @@ end
 
   test_ScatterData(mesh)
 
+  # do this last since it rewrites the mesh coordinate field
+  test_setPoint(mesh, opts)
+
+
   opts["smb_name"] = "meshes/tri4x4_.smb"
   opts["dmg_name"] = "meshes/tri4x4_.dmg"
   mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
@@ -1080,7 +1084,7 @@ end
     println("test_geoDerivative @time printed above")
 
     println("\n\nTesting geometric derivative on curved geometry")
-    # load airfoil CAD mesh
+    # load smooth CAD mesh
     opts = Dict{Any, Any}(
     "dimensions" => 2,
     "run_type" => 5,
@@ -1108,9 +1112,32 @@ end
     test_geoDerivative(mesh)
     test_geoWarp(mesh, sbp, opts)
 
+    # this following test messes up the coordinate field, so load a new mesh
+    # for this test
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+    test_setPoint(mesh, opts)
 
 
     #TODO: test quadratic mesh once that works
+ 
+    opts = Dict{Any, Any}(
+    "dimensions" => 2,
+    "run_type" => 5,
+    "jac_type" => 2,
+    "order" => 1,
+    "use_DG" => true,
+    "coloring_distance" => 2,
+    "numBC" => 1,
+    "BC1" => [4, 7, 10, 13],
+    "BC1_name" => "FreeStreamBC",
+    "smb_name" => "meshes/UnitSquareCurve/UnitSquareCurve_quadratic.smb",
+    "dmg_name" => "meshes/UnitSquareCurve/UnitSquareCurve.x_t",
+    )
+
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+    println("testing quadratic mesh")
+    test_setPoint(mesh, opts)
+
 
   end 
 

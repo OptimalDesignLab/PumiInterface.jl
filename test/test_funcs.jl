@@ -1825,6 +1825,138 @@ function constructGeoMapping(mesh)
 end
 
 
+function test_setPoint(mesh, opts)
+
+  coords_orig = zeros(Float64, 3)
+  coords = zeros(Float64, 3)
+  coords2 = zeros(Float64, 3)
+  coords3 = zeros(Float64, 3)
+  xi_orig = zeros(Float64, 3)
+  xi = zeros(Float64, 3)
+  xi3 = zeros(Float64, 3)
+
+  geoname = opts["dmg_name"]
+  if endswith(geoname, ".x_t") || endswith(geoname, ".smd")
+    println("\nTesting setPoint")
+    @test mesh.geoNums.can_eval
+
+    println("testing setCoordsXi")
+    for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+      for j=1:mesh.coord_numNodesPerType[dim+1]
+        g = apf.getModel(mesh.m_ptr)
+        me = apf.toModel(mesh.m_ptr, e)
+        me_dim = apf.getModelType(mesh.m_ptr, me)
+
+        # skip things that don't have parametric coords/can't change them
+        if me_dim == 0 || me_dim == 3
+          continue
+        end
+
+        getCoordsXi(mesh, e, j-1, xi_orig, coords_orig)
+        getCoordsXi(mesh, e, j-1, xi, coords)
+
+        for i=1:me_dim
+          xi[i] += 0.1
+        end
+      
+        setCoordsXi(mesh, e, j-1, xi, coords2)
+        getCoordsXi(mesh, e, j-1, xi3, coords3)
+
+        @test maximum(abs.(coords2 - coords3)) < 1e-8
+        @test maximum(abs.(xi - xi3)) < 1e-13
+      end
+    end
+
+  end  # end if
+
+  # test setCoords
+  println("testing setCoords")
+  for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+    for j=1:mesh.coord_numNodesPerType[dim+1]
+      g = apf.getModel(mesh.m_ptr)
+      me = apf.toModel(mesh.m_ptr, e)
+      me_dim = apf.getModelType(mesh.m_ptr, me)
+
+      getCoords(mesh, e, j-1, coords_orig)
+
+      if mesh.geoNums.can_eval
+        if me_dim > 0 && me_dim < 3
+          getCoordsXi(mesh, e, j-1, xi_orig, coords)
+        else
+          getCoords(mesh, e, j-1, coords)
+        end
+
+        # test snapping
+        for i=1:mesh.dim
+          coords[i] += 0.1
+        end
+
+        setCoords(mesh, e, j-1, coords, true)
+
+        if me_dim == 0
+          getCoords(mesh, e, j-1, coords3)
+          @test maximum(abs.(coords3 - coords_orig)) < 1e-8
+        elseif me_dim == 3
+          getCoords(mesh, e, j-1, coords3)
+          @test maximum(abs.(coords3 - coords)) < 1e-8
+        else
+          getCoordsXi(mesh, e, j-1, xi3, coords3)
+          gmi.geval(g, me, xi3, coords2)
+          @test maximum(abs.(coords2 - coords)) < 1e-8
+          @test maximum(abs.(coords3 - coords)) < 1e-8
+        end
+
+        # test non snapping
+        fill!(coords2, 0); fill!(coords3, 0)
+        fill!(xi, 0); fill!(xi3, 0)
+
+        setCoords(mesh, e, j-1, coords_orig, true)
+        for i=1:3
+          coords[i] = coords_orig[i] + 0.1
+        end
+        setCoords(mesh, e, j-1, coords, false)
+
+        if me_dim == 0
+          getCoords(mesh, e, j-1, coords3)
+          @test maximum(abs.(coords3 - coords)) < 1e-8
+        elseif me_dim == 3
+          getCoords(mesh, e, j-1, coords3)
+          @test maximum(abs.(coords3 - coords)) < 1e-8
+        else
+          # check that the xi coordinates changed, even though they are
+          # not consistent with the xyz coordinates
+          getCoordsXi(mesh, e, j-1, xi3, coords3)
+          gmi.geval(g, me, xi3, coords2)
+          coords_tmp = zeros(Float64, 3)
+          gmi.geval(g, me, xi_orig, coords_tmp)
+          @test maximum(abs.(coords2 - coords)) > 1e-8
+          @test maximum(abs.(coords3 - coords)) < 1e-8
+        end
+      else  # cannot eval
+
+        for i=1:mesh.dim
+          coords[i] += 0.1
+        end
+
+        setCoords(mesh, e, j-1, coords, true)
+        getCoords(mesh, e, j-1, coords2)
+
+        @test maximum(abs.(coords2 - coords)) < 1e-13
+      end
+    end
+  end
+
+  return nothing
+end
+        
+
+
+
+
+
+
+
+
 """
   Tests the single-element version of update_coords with snapping
 """

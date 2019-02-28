@@ -343,7 +343,7 @@ end
 """
   This function is the inverse of [`coords_XiToXYZ`](@ref).  It recomputes
   the xyz coordinates from the parametric coordinates.  For MeshEntities which
-  do not have any geometric degrees of freedom (and therefore no entires in
+  do not have any geometric degrees of freedom (and therefore no entries in
   `xivec`, the coordinates are retrieved from Pumi.
 
   **Inputs**

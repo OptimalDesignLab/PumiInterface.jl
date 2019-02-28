@@ -42,6 +42,9 @@ export coords1DTo3D, coords3DTo1D
 # interface_geo.jl
 export coords_xyzToXi, coords_XiToXYZ, coords_dXTodXi, getXiCoords, getXCoords
 
+# warp.jl
+export getCoordsXi, setCoordsXi, getCoords, setCoords
+
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 
@@ -414,10 +417,26 @@ end
   geometric entity it is classified on
 """
 mutable struct GeometricDofs
+  m_ptr::Ptr{Void}  # mesh pointer
   coordNums::Ptr{Void}  # apf::Numbering for coordinate dofs
   xiNums::Ptr{Void}  # apf::Numbering for geometric dofs
   numCoordDofs::Int  # number of coordinate dofs
   numXiDofs::Int  # number of geometric dofs
+  xi_fptr::Ptr{Void}  # field to hold xi coordinates for all entities that
+                      # are not vertices
+  can_eval::Bool  # cached gmi.can_eval
+
+  function GeometricDofs(m_ptr::Ptr{Void}, coordNums::Ptr{Void},
+                         xiNums::Ptr{Void},
+                         numCoordDofs::Integer, numXiDofs::Integer)
+
+    xi_fptr = apf.initGeometry(m_ptr)
+    g = apf.getModel(m_ptr)
+    can_eval = gmi.can_eval(g)
+
+    return new(m_ptr, coordNums, xiNums, numCoordDofs, numXiDofs, xi_fptr,
+               can_eval)
+  end
 end
 
 

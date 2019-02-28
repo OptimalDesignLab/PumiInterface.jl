@@ -575,7 +575,6 @@ include("test_gmi.jl")
 test_gmi()
 
 
-println("about to test pdepumiinterface")
 include("test_math.jl")
 include("test_funcs.jl")  # include functions used by both 2d and 3D
 include("common_functions.jl")

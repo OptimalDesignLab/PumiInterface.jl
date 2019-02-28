@@ -848,8 +848,9 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
     throw(ErrorException("invalid dof reordering algorithm requested"))
   end
 
-  mesh.geoNums = GeometricDofs(mesh.coord_nodenums_Nptr, xiNums_Nptr,
-                               mesh.dim*mesh.coord_numNodes, numXiDof)
+  mesh.geoNums = GeometricDofs(mesh.m_ptr, mesh.coord_nodenums_Nptr,
+                               xiNums_Nptr, mesh.dim*mesh.coord_numNodes,
+                               numXiDof)
 
 
 

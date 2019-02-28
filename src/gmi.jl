@@ -170,9 +170,16 @@ end
 function geval(g::Model, ge::ModelEntity, p::AbstractVector{Cdouble},
                x::AbstractVector{Cdouble})
 
-  @assert length(p) == 2
+  @assert length(p) >= 2
   @assert length(x) == 3
   ccall( (:gmi_eval, gmi_lib), Void, (Model, ModelEntity, Ptr{Cdouble}, Ptr{Cdouble}), g, ge, p, x)
+
+  # make sure any unused components are zeroed out
+  for i=3:length(p)
+    p[i] = 0
+  end
+
+
 end
 
 
@@ -207,9 +214,16 @@ function closest_point(g::Model, ge::ModelEntity,
 
   @assert length(from) == 3
   @assert length(to) == 3
-  @assert length(to_p) == 2
+  @assert length(to_p) >= 2
 
   ccall( (:gmi_closest_point, gmi_lib), Void, (Model, ModelEntity, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}), g, ge, from, to, to_p)
+
+  # make sure any unused components are zeroed out
+  for i=3:length(to_p)
+    to_p[i] = 0
+  end
+
+
 end
 
 
