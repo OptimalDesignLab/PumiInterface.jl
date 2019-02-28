@@ -463,6 +463,11 @@ all coordinate nodes.  In order to keep a consistent data structure, use
 mesh, or `get/setCoords` and `get/setCoordsXi` to node-level granularity.
 Do *not* call `apf.setPoint` directly.
 
+Its is generally preferable to work with the CAD parametric coordinates, because
+the mapping parametric -> Cartesian is faster and more accurate to compute,
+but this only works if the underlying CAD system supports parametric coordinates
+(`.dmg` models do not).
+
 # Utilities
 
 A few C++ executables are built with PumiInterface that are useful as standalone tools.
