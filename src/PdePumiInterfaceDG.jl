@@ -837,8 +837,9 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
     numberNodesElement(mesh)
 
     # coordinate node numbering
+    # have to use getPoint here because mesh.geoNums hasn't been assigned yet
     start_coords = zeros(3)
-    apf.getPoint(mesh.m_ptr, mesh.verts[1], 0, start_coords)
+    apf.getPoint(mesh.m_ptr, mesh.verts[1], 0, start_coords)  
     apf.reorder(mesh.m_ptr, mesh.dim*mesh.coord_numNodes, mesh.dim, 
             C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
 	    start_coords)

@@ -1111,6 +1111,7 @@ end
     update_coordsXi(mesh, sbp, opts, xivec)
     test_geoDerivative(mesh)
     test_geoWarp(mesh, sbp, opts)
+    test_update_coords(mesh, sbp, opts)
 
     # this following test messes up the coordinate field, so load a new mesh
     # for this test

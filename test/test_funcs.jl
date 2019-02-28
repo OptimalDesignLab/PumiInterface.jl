@@ -1948,13 +1948,6 @@ function test_setPoint(mesh, opts)
 
   return nothing
 end
-        
-
-
-
-
-
-
 
 
 """
@@ -1997,3 +1990,26 @@ function test_geoWarp(mesh, sbp, opts)
 end
 
 
+function test_update_coords(mesh, sbp, opts)
+
+  @assert mesh.geoNums.can_eval
+
+  # test updateCoords works
+  xivec = getXiCoords(mesh)
+  xvec = getXCoords(mesh)
+  println("initially, xvec = \n", xvec)
+
+  xivec .+= 1e-3*rand(length(xivec))
+  update_coordsXi(mesh, sbp, opts, xivec)
+  update_coords(mesh, sbp, opts, xvec)
+  xvec2 = getXCoords(mesh)
+
+  println("xvec = \n", xvec)
+  println("xvec2 = \n", xvec2)
+  println("diff = \n", xvec2 - xvec)
+  @test maximum(abs.(xvec2 - xvec)) < 1e-12
+
+  return nothing
+end
+
+  

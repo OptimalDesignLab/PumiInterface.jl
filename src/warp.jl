@@ -44,11 +44,11 @@ function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractMatr
 
   verts = Array{Ptr{Void}}(12)
   coords_j = zeros(Float64, 3)
-  newx_j = zeros(Float64, 3)
-  xi_j = zeros(Float64, 2)
-  g = apf.getModel(mesh.m_ptr)
-  can_eval = gmi.can_eval(g)
-  snap = snap && can_eval
+#  newx_j = zeros(Float64, 3)
+#  xi_j = zeros(Float64, 2)
+#  g = apf.getModel(mesh.m_ptr)
+#  can_eval = gmi.can_eval(g)
+#  snap = snap && can_eval
 
   el_i = mesh.elements[elnum]
   apf.getDownward(mesh.m_ptr, el_i, 0, verts)
@@ -66,21 +66,11 @@ function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractMatr
     for k=1:mesh.dim
       coords_j[k] = real(coords_new[k, j])
     end
-
-    # get parametric coordinates if possible
-    if can_eval
-      has_xi = getSnappedCoords(mesh, verts[j], snap, coords_j, newx_j, xi_j)
-
-      # set the values
-      if has_xi
-        apf.setParam(mesh.m_ptr, verts[j], xi_j)
-      end
-      apf.setPoint(mesh.m_ptr, verts[j], 0, newx_j)
-    else
-      apf.setPoint(mesh.m_ptr, verts[j], 0, coords_j)
-    end  # if can_eval
-
-  end  # end j
+    setCoords(mesh, verts[j], 0, coords_j, snap)
+    for k=1:mesh.dim
+      coords_new[k, j] = coords_j[k]
+    end
+  end
 
   if apf.hasNodesIn(mesh.coordshape_ptr, 1)
     offset = mesh.dim + 1
@@ -90,21 +80,12 @@ function update_coords(mesh::PumiMesh, elnum::Integer,  coords_new::AbstractMatr
         coords_j[k] = real(coords_new[k, j + offset])
       end
 
-      if can_eval
-        has_xi = getSnappedCoords(mesh, verts[j], snap, coords, newx, xi)
-
-        # set the values
-        #TODO: I think this is broken in Pumi for edges, re-enable when fixed
-        #if has_xi
-        #  apf.setParam(mesh.m_ptr, verts[j], xi_j)
-        #end
-        apf.setPoint(mesh.m_ptr, verts[j], 0, newx_j)
-      else
-        apf.setPoint(mesh.m_ptr, verts[j], 0, coords_j)
-      end  # if can eval
-    end  # end j
+      setCoords(mesh, verts[j], 0, coords_j, snap)
+      for k=1:mesh.dim
+        coords_new[k, j + offset] = coords_j[k]
+      end
+    end
   end
-
 
   return nothing
 end

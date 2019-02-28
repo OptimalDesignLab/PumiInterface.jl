@@ -249,7 +249,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 #          entity = node_entities[col]
 #          @assert i == 1
           vertnum = apf.getNumberJ(mesh.entity_Nptrs[edim+1], entity, 0, 0) + 1
-          apf.getPoint(mesh.m_ptr, entity, 0, coords)
+          getCoords(mesh, entity, 0, coords)
 
           # pack array to send to other processes
           if edim == 0 && haskey(vshare.rev_mapping, vertnum)
@@ -337,7 +337,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 
     for i=1:length(vertnums_p)
       vert_i = mesh.verts[vertnums_p[i]]
-      apf.getPoint(mesh.m_ptr, vert_i, 0, coords)
+      getCoords(mesh, vert_i, 0, coords)
       apf.getComponents(mesh.fnew_ptr, vert_i, 0, u_node)
       weight_i = peer_vals_p[mesh.numDofPerNode + 1, i]
       for p=1:mesh.numDofPerNode
@@ -355,7 +355,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
   # add in the local match data
   for i=1:mesh.numVert
     vert_i = mesh.verts[i]
-    apf.getPoint(mesh.m_ptr, vert_i, 0, coords)
+    getCoords(mesh, vert_i, 0, coords)
     apf.getComponents(mesh.fnew_ptr, vert_i, 0, u_node)
     for p=1:mesh.numDofPerNode
 #      println(mesh.f, "adding local match contribution ", match_data[p, i], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
@@ -373,7 +373,6 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
     up_els = Array{Ptr{Void}}(400)  # equivalent of apf::Up
         for (entity_i, dim) in apf.FieldEntityIt(mesh.m_ptr, fshape_ptr)
           entity_num = apf.getNumberJ(mesh.entity_Nptrs[dim+1], entity_i, 0, 0) + 1
-  #        apf.getPoint(mesh.m_ptr, entity_i, 0, coords)
           nel = apf.countAdjacent(mesh.mnew_ptr, entity_i, mesh.dim)
           apf.getAdjacent(up_els)
           # compute the sum of the volumes of the elements

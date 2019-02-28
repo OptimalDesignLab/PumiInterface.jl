@@ -70,7 +70,6 @@ function numberSurfacePoints(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglo
         v_k = verts[mesh.topo.face_verts[k, bndry_j.face]]
 
         if !apf.isNumbered(n_face, v_k, 0, 0)
-#          apf.getPoint(mesh.m_ptr, v_k, 0, coords)
           apf.numberJ(n_face, v_k, 0, 0, num_i)
           push!(face_verts, v_k)
           num_i += 1
