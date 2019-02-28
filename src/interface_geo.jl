@@ -31,8 +31,6 @@ function getXiCoords(mesh::PumiMeshDG, xivec::AbstractVector)
 
     for j=1:mesh.coord_numNodesPerType[dim+1]
       firstidx = apf.getNumberJ(mesh.geoNums.xiNums, e, j-1, 0)
-      @assert dim == 0
-      @assert j == 1
 
 
       # put the new coordinates in xyz_j
