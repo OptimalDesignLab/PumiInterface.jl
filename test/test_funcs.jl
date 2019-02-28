@@ -1726,7 +1726,7 @@ function test_geoDerivative(mesh)
     xi_indices = constructGeoMapping(mesh)
     h = 1e-6
 
-
+#=
     # test each component individually
     # this test is rather slow, so don't run it.
     maxdiff = 0.0
@@ -1761,7 +1761,7 @@ function test_geoDerivative(mesh)
       end  # end j
     end  # end i
     println("maxdiff = ", maxdiff)
-
+=#
     h = 1e-6
     pert = rand(length(xivec))
 
@@ -1786,9 +1786,6 @@ function test_geoDerivative(mesh)
 
     val2 = dot(dJdxi, pert)
 
-    println("val1 = ", val1)
-    println("val2 = ", val2)
-    println("diff = ", abs(val1 - val2))
     @test abs(val1 - val2) < 1e-2
 
   end  # end testset

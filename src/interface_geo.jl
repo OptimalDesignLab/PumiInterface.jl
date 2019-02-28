@@ -42,7 +42,7 @@ function getXiCoords(mesh::PumiMeshDG, xivec::AbstractVector)
         ndof = 0
       else  # constrained entity, convert parametric to xyz
         ndof = me_dim
-        getCoordsXi(mesh, e, j, xi_j)
+        getCoordsXi(mesh, e, j-1, xi_j)
       end
 
       # write into output vector
@@ -278,7 +278,7 @@ function wrapXiCoords(mesh::PumiMeshDG, xivec::AbstractVector)
 
     for j=1:mesh.coord_numNodesPerType[dim+1]
 
-      for k=1:mesh.dim
+      for k=1:2
         xi_idx[k] = apf.getNumberJ(geonums.xiNums, e, j-1, k-1)
       end
 

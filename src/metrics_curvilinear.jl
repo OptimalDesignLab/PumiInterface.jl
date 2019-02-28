@@ -713,13 +713,13 @@ function getCurvilinearMetricsAndCoordinates_inner(mesh, sbp,
   end
   =#
 
-  #=
+#= 
   println("sbp.numnodes = ", sbp.numnodes)
-  println("size(coords) = ", size(coords))
-  println("size(dxidx) = ", size(dxidx))
-  println("size(jac) = ", size(jac))
+  println("size(coords) = ", size(coords_block))
+  println("size(dxidx) = ", size(dxidx_block))
+  println("size(jac) = ", size(jac_block))
   println("size(Eone) = ", size(Eone))
-  =#
+=# 
   calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
                        coords_block, dxidx_block, jac_block, Eone)
 
@@ -1262,8 +1262,6 @@ function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum::Integer,
   end
 
   if mesh.coord_numNodesPerType[2] > 0
-#    println("getting 2nd order node")
-
     for i=1:3  # 3 edges per face
       edge_idx = topo.face_edges[i, facenum] + 4 # 4 = numVerts
       for j=1:3  # 3 coordinates per face

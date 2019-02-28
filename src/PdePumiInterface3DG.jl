@@ -774,7 +774,7 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   end
 
   mesh.geoNums = GeometricDofs(mesh.m_ptr, mesh.coord_nodenums_Nptr,
-                               xiNums_Nptr, mesh.coord_numNodes, numXiDof)
+                        xiNums_Nptr, mesh.dim*mesh.coord_numNodes, numXiDof)
 
 
 #  println("finished numbering nodes")

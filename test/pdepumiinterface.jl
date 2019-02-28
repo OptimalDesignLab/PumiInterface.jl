@@ -1139,6 +1139,9 @@ end
     println("testing quadratic mesh")
     test_setPoint(mesh, opts)
 
+    # load new mesh because test_setPoint messes up the coordinate field
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+    test_geoDerivative(mesh)
 
   end 
 

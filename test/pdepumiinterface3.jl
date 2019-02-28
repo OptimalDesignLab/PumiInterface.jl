@@ -16,6 +16,7 @@ include("defs.jl")
   face_verts = SummationByParts.SymCubatures.getfacevertexindices(sbp.cub)
   topo = ElementTopology{3}(face_verts)
   sbpface = TetFace{Tsbp}(degree, sbp.cub, ref_verts)
+  shape_type = 2
 
   dmg_name = ".null"
 #  smb_name = "tet1.smb"
@@ -493,6 +494,43 @@ include("defs.jl")
 
   test_geoNums(mesh)
  
+  if HAVE_SIMMETRIX
+    opts = PdePumiInterface.get_defaults()
+    opts["smb_name"] = "./meshes/UnitCube/UnitCube.smb"
+    opts["dmg_name"] = "./meshes/UnitCube/UnitCube.x_t"
+    opts["order"] = degree
+    opts["coloring_distance"] = 2
+    opts["numBC"] = 1
+    opts["BC1"] = [85, 83, 81, 79, 1, 43]
+
+    edge_verts = [1 2 1 1 2 3;  # TODO: SBP should provide this
+                  2 3 3 4 4 4]
+
+    topo2 = ElementTopology2()
+    topo = ElementTopology{3}(face_verts, edge_verts, topo2=topo2)
+
+    mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo, shape_type=4)
+    test_setPoint(mesh, opts)
+
+    mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo, shape_type=4)
+    test_geoNums(mesh)
+    test_geoDerivative(mesh)
+
+    # 3D cuvilinear meshes don't work yet due to missing topo information
+    
+    opts["smb_name"] = "./meshes/UnitCubeCurve/UnitCubeCurve.smb"
+    opts["dmg_name"] = "./meshes/UnitCubeCurve/UnitCubeCurve.x_t"
+
+    mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo, shape_type=4)
+    test_setPoint(mesh, opts)
+
+    mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo, shape_type=4)
+    test_geoDerivative(mesh)
+    
+
+  end
+
+
 
 end
 
