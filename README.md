@@ -457,6 +457,12 @@ supported (although accuracy varies depending on how the underlying CAD system
 computes derivatives).  See the functions in `interface_geo.jl`.
 
 
+The `PumiMesh` types also keep track of the CAD parametric coordinates for
+all coordinate nodes.  In order to keep a consistent data structure, use
+`update_coords` or `update_coordsXi` to update the coordinates of the entire
+mesh, or `get/setCoords` and `get/setCoordsXi` to node-level granularity.
+Do *not* call `apf.setPoint` directly.
+
 # Utilities
 
 A few C++ executables are built with PumiInterface that are useful as standalone tools.
