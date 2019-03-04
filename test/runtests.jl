@@ -135,7 +135,6 @@ end
   for i=1:num_down
     down_nums[i] = apf.getNumberJ(edgeN_ptr, down_entities[i], 0, 0)
   end
-#  println("down_nums = ", down_nums)
    @test ( down_nums )== [1, 5, 0]
 
   down_entities, num_down = apf.getDownward(m_ptr, face, 0) # face -> verts
@@ -330,7 +329,6 @@ end
   @test nvert == num_Entities[1]
 
 
-
   # test FieldEntity iteration
   # count number of vertices in 1st order lagrange field
   fshape = apf.getFieldShape(0, 1, apf.getDimension(m_ptr))
@@ -391,6 +389,45 @@ end
 
  apf.numberJ(n_ptr, vert, 0, 0, 1)
  @test ( apf.getNumberJ(n_ptr, vert, 0, 0) )== 1
+
+
+  # test writeVtk all fields option
+  # the mesh has a first order lagrange field, so make a 2nd order numbering
+  nname = "testOmegaNumbering"
+  nshape = apf.getFieldShape(2, 1, 2)
+  n_ptr = apf.createNumberingJ(m_ptr, nname, nshape, 1)
+
+  it = apf.MeshIterator(m_ptr, 2)
+  for i=1:num_Entities[3]
+    el_i = apf.iterate(m_ptr, it)
+    for j=0:2
+      apf.numberJ(n_ptr, el_i, j, 0, i)
+    end
+  end
+  apf.free(m_ptr, it)
+
+  apf.writeVtkFiles("test_vtk", m_ptr)
+  apf.writeVtkFiles("test_vtk_all", m_ptr, writeall=true)
+
+  found_name = false
+  for line in eachline("test_vtk/test_vtk.pvtu")
+    if contains(line, nname)
+      found_name = true
+      break
+    end
+  end
+
+  found_name_all = false
+  for line in eachline("test_vtk_all/test_vtk_all.pvtu")
+    if contains(line, "faceNums")
+      found_name_all = true
+      break
+    end
+  end
+
+  @test !found_name
+  @test found_name_all
+
 
 
  # test mesh warping functions

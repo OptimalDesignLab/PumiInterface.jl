@@ -488,15 +488,16 @@ If invoked with no arguments, each of these executables prints a message
 their arguments.
 
 # Version History
-v0.1: the old code, before Pumi switched to the CMake build system.  This version is no longer supported
 
-v0.2: after the build system switch to CMake
+ * v0.1: the old code, before Pumi switched to the CMake build system.  This version is no longer supported
 
-v0.3: curvilinear elements (compatable with SBP versions broken_ticon and fixed_ticon)
+ * v0.2: after the build system switch to CMake
 
-v0.4: 2D linear mesh reverse mode of metrics
+ * v0.3: curvilinear elements (compatable with SBP versions broken_ticon and fixed_ticon)
 
-v0.5: 3D curvilinear metrics and their reverse mode
+ * v0.4: 2D linear mesh reverse mode of metrics
+
+ * v0.5: 3D curvilinear metrics and their reverse mode
 
              Breaking changes:
 
@@ -513,13 +514,14 @@ v0.5: 3D curvilinear metrics and their reverse mode
                any geometric edges, an additional BC is created for them with
                name `defaultBC`.  See `getAllFaceData()`.
 
-v0.6: fix bug in in 3D metric calculation, also introduce asserts to make sure
+ * v0.6: fix bug in in 3D metric calculation, also introduce asserts to make sure
       face orientation can be determined when using periodic boundary conditions.
       Also, removes all global state from libfuncs1, so it is now possible to
       load multiple meshes simultaneously.
 
-v0.7: change mesh constructors to be outer constructors, add submesh creation
+ * v0.7: change mesh constructors to be outer constructors, add submesh creation
 
-v0.8: upgrade from Julia 0.4 to Julia 0.6
+ * v0.8: upgrade from Julia 0.4 to Julia 0.6
+ * v0.9: add parallel reverse mode derivative and gmi interface
 
 [![Build Status](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl.svg?branch=build_system)](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl)

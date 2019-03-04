@@ -511,30 +511,27 @@ end
 
 
 
-function writeVisFiles(mesh::PumiMeshDG, fname::AbstractString)
+function writeVisFiles(mesh::PumiMeshDG, fname::AbstractString; writeall::Bool=false)
   # writes vtk files 
 
-#  println(mesh.f, "writing vtk ", fname)
-  apf.writeVtkFiles(fname, mesh.mnew_ptr)
+  apf.writeVtkFiles(fname, mesh.mnew_ptr, writeall=writeall)
 
   if mesh.mexact_ptr != C_NULL
     fname_exact = fname*"_exact"
-    apf.writeVtkFiles(fname_exact, mesh.mexact_ptr)
+    apf.writeVtkFiles(fname_exact, mesh.mexact_ptr, writeall=writeall)
   end
 
   return nothing
 end
 
 
-function writeVisFiles(mesh::PumiMesh2CG, fname::AbstractString)
+function writeVisFiles(mesh::PumiMesh2CG, fname::AbstractString; writeall::Bool=false)
   # writes vtk files 
 
   if mesh.order <= 2
-    println("writing original mesh vtk file")
-    apf.writeVtkFiles(fname, mesh.m_ptr)
+    apf.writeVtkFiles(fname, mesh.m_ptr, writeall=writeall)
   else
-    println("writing subtriangulated mesh vtk file")
-    apf.writeVtkFiles(fname, mesh.mnew_ptr)
+    apf.writeVtkFiles(fname, mesh.mnew_ptr, writeall=writeall)
   end
 
   return nothing

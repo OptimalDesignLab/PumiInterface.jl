@@ -568,12 +568,19 @@ int getDimension(apf::Mesh* m)
 }
 
 
-void writeVtkFiles(char* name, apf::Mesh2* m_local)
+// writeall: if true, write all fiels to vtk, even if they are not cleanly
+//           representable
+void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall)
 {
 
 //   apf::writeASCIIVtkFiles(name, m_local);
-    
+  if (writeall)
    apf::writeVtkFiles(name, m_local);
+  else  // only print fields to vtk that have compatible fieldshape
+  {
+    std::vector<std::string> writeFields = getWritableFields(m_local);
+    apf::writeVtkFiles(name, m_local, writeFields);
+  }
 /*
     apf::FieldShape* mshape = m->getShape();
     crv::writeControlPointVtuFiles(m, name);
@@ -582,6 +589,68 @@ void writeVtkFiles(char* name, apf::Mesh2* m_local)
 
   }
   */
+}
+
+std::vector<std::string> getWritableFields(apf::Mesh* m)
+{
+    std::vector<std::string> writeFields;
+    apf::FieldShape* cshape = m->getShape();
+    int dim = m->getDimension();
+
+    // isWritable checks that the FieldShape is compatible
+    // isPrintable is an apf function that checks if the field is complete
+
+    // apf::Fields
+    for (int i=0; i < m->countFields(); ++i)
+    {
+      apf::Field* f = m->getField(i);
+      if (isWritable(apf::getShape(f), cshape, dim) && isPrintable(f))
+        writeFields.push_back(apf::getName(f));
+    }
+
+    // apf::Numberings
+    for (int i=0; i < m->countNumberings(); ++i)
+    {
+      apf::Numbering* n = m->getNumbering(i);
+      if (isWritable(apf::getShape(n), cshape, dim) && isPrintable(n))
+        writeFields.push_back(apf::getName(n));
+    }
+
+    // apf::GlobalNumberings
+    for (int i=0; i < m->countGlobalNumberings(); ++i)
+    {
+      apf::GlobalNumbering* n = m->getGlobalNumbering(i);
+      if (isWritable(apf::getShape(n), cshape, dim) && isPrintable(n))
+        writeFields.push_back(apf::getName(n));
+    }
+
+    return writeFields;
+}
+
+// is field (cleanly) representable in VTK.  Checks that the field does not
+// have nodes that are not present on the coordinate fields
+// fshape is the shape of the field to be printed, cshape is the mesh coordinate
+// field shape
+bool isWritable(apf::FieldShape* fshape, apf::FieldShape* cshape, int dim)
+{
+  bool is_shape_compatible = true;
+  for (int d=0; d <= dim; ++d)
+    if (fshape->hasNodesIn(d) && !cshape->hasNodesIn(d))
+    {
+      is_shape_compatible = false;
+      break;
+    }
+
+  // check if this is vertex or element numbering
+  bool is_el_numbering = fshape->countNodesOn(apf::Mesh::simplexTypes[dim]) == 1;
+  for (int d=0; d < dim; ++d)
+    if (fshape->hasNodesIn(d))
+    {
+      is_el_numbering = false;
+      break;
+    }
+
+  return is_shape_compatible || is_el_numbering;
 }
 
 

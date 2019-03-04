@@ -75,7 +75,7 @@ void iteraten(apf::Mesh* m, apf::MeshIterator* it, int n);
 apf::MeshEntity* deref(apf::Mesh2* m, apf::MeshIterator* it);
 int getDimension(apf::Mesh* m);
 
-extern void writeVtkFiles(char* name, apf::Mesh2* m_local);
+extern void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall);
 
 // geometric model functions
 
@@ -230,4 +230,6 @@ void gmi_register_simJ();
 
 int getindex_c(const int i, const int j, const int si, const int sj);
 
+std::vector<std::string> getWritableFields(apf::Mesh* m);
+bool isWritable(apf::FieldShape* fshape, apf::FieldShape* cshape, int dim);
 #endif
