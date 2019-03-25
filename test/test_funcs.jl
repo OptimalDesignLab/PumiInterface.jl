@@ -2009,4 +2009,58 @@ function test_update_coords(mesh, sbp, opts)
   return nothing
 end
 
-  
+function test_refcounting()
+
+  order = 1
+  smb_name = "vortex.smb"
+  dmg_name = "vortex.dmg"
+
+  opts = Dict{Any, Any}(
+    "dmg_name" => dmg_name,
+    "smb_name" => smb_name,
+    "order" => order,
+    "coloring_distance" => 2,
+    "numBC" => 1,
+    "BC1" =>  [0],
+    "run_type" => 4,
+    )
+#    interp_op = [0.5 0 0; 0 0.5 0; 0 0 0.5]
+
+  sbp = getTriSBPOmega(degree=order)
+  vtx = sbp.vtx
+  sbpface = TriFace{Float64}(order, sbp.cub, vtx)
+
+  mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+
+  fshape_ptr = apf.getConstantShapePtr(0)
+  f_ptr = apf.createPackedField(mesh, "testfield1", 1, fshape_ptr)
+
+  @test PdePumiInterface.countFieldRef(f_ptr) == 1
+
+  f_ptr2 = apf.createPackedField(mesh, "testfield1", 1, fshape_ptr)
+  @test f_ptr2 != f_ptr
+  @test PdePumiInterface.countFieldRef(f_ptr2) == 1
+
+  # load the same mesh from disk again, check the fields are not shared
+  mesh2 = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+
+  f_ptr3 = apf.createPackedField(mesh2, "testfield1", 1, fshape_ptr)
+
+  @test mesh.m_ptr != mesh2.m_ptr
+  for f in mesh.fields.orig
+    @test !(f in mesh2.fields.orig)
+  end
+  for f in mesh.fields.user
+    @test !(f in mesh2.fields.user)
+  end
+
+  m1_ptr = mesh.m_ptr
+  finalize(mesh)
+  @test apf.countMeshRefs(m1_ptr) == 0
+  @test PdePumiInterface.countFieldRef(f_ptr) == 0
+
+  # make sure finalizer is freeing fields
+  finalize(mesh2)
+  @test PdePumiInterface.countFieldRef(f_ptr3) == 0
+  return nothing
+end

@@ -381,6 +381,8 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
                           # grid, numNodesPerElement_s x numNodesPerElement_f
   I_F2ST::Matrix{Float64} # transpose of above
 
+  fields::AttachedData
+
   """
     This inner constructor loads a Pumi mesh from files and sets a few fields
     that must be consistent with how the mesh was loaded.
@@ -418,6 +420,7 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
     mesh.myrank = MPI.Comm_rank(mesh.comm)
     mesh.commsize = MPI.Comm_size(mesh.comm)
     myrank = mesh.myrank
+    mesh.fields = AttachedData()
 
     if myrank == 0
       println("\nConstructing PumiMeshDG3 Object")
@@ -428,6 +431,7 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
     mesh.m_ptr, dim = apf.loadMesh(dmg_name, smb_name, order, shape_type=shape_type)
 
     apf.pushMeshRef(mesh.m_ptr)
+    recordAllFields(mesh)
     if dim != mesh.dim
       throw(ErrorException("loaded mesh is not 3 dimensional"))
     end
@@ -467,6 +471,7 @@ function PumiMeshDG3(old_mesh::PumiMeshDG3{T, Tface}) where {T, Tface}
   mesh.sbpface = old_mesh.sbpface
   mesh.myrank = old_mesh.myrank
   mesh.commsize = old_mesh.commsize
+  mesh.fields = AttachedData()
 
   return mesh
 end
@@ -631,7 +636,7 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   # adapt)
   mesh.f_ptr = apf.findField(mesh.m_ptr, "solution_field")
   if mesh.f_ptr == C_NULL
-    mesh.f_ptr = apf.createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.coordshape_ptr)
+    mesh.f_ptr = apf.createPackedField(mesh, "solution_field", dofpernode, mesh.coordshape_ptr)
   end
   mesh.fnew_ptr = mesh.f_ptr
   mesh.mnew_ptr = mesh.m_ptr

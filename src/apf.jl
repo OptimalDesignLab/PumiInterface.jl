@@ -174,7 +174,8 @@ export init, loadMesh, initMesh, initGeometry, snapEdgeNodes, pushMeshRef,
        addSolutionTransfer, configureMAInput, runMA, getAvgElementSize, IsoFuncJ,
        SolutionTransfers, MAInput,
        createPackedField, setComponents,
-       getComponents, zeroField, reduceField, getCoordinateField, findField, destroyField, destroyFields,
+       getComponents, zeroField, reduceField, getCoordinateField, findField,
+       countFields, getField, destroyField, destroyFields,
        countBridgeAdjacent,
        getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
@@ -387,6 +388,13 @@ end
 function popMeshRef(m_ptr::Ptr{Void})
   ccall( (popMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
 end
+
+function countMeshRefs(m_ptr::Ptr{Void})
+  n = ccall( (:countMeshRefs, pumi_libname), Cint, (Ptr{Void},), m_ptr)
+
+  return n
+end
+
 
 
 # no longer needed
@@ -895,7 +903,7 @@ function getAllEntityCoords(m_ptr::Ptr{Void}, entity::Ptr{Void},
   return nothing
 end
 
-function createNumberingJ(m_ptr, name::AbstractString, field, components::Integer)
+function createNumberingJ(m_ptr, name::AbstractString, field::Ptr{Void}, components::Integer)
 # create a generally defined numbering, get a pointer to it
 # this just passes through to :createNumbering
 # field is an :FieldShape*
@@ -1343,6 +1351,22 @@ function findField(m_ptr::Ptr{Void}, fieldname::String)
 
   return f_ptr
 end
+
+function countFields(m_ptr::Ptr{Void})
+
+  n = ccall( (:countFields, pumi_libname), Cint, (Ptr{Void},), m_ptr)
+
+  return n
+end
+
+function getField(m_ptr::Ptr{Void}, i::Integer)
+
+  f_ptr = ccall( (:getField, pumi_libname), Ptr{Void}, (Ptr{Void}, Cint), m_ptr, i)
+
+  return f_ptr
+end
+
+
 
 function destroyField(f_ptr::Ptr{Void})
 

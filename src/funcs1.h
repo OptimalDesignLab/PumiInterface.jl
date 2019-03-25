@@ -59,6 +59,7 @@ void cleanup(apf::Mesh* m_local);
 
 void pushMeshRef(apf::Mesh* m);
 void popMeshRef(apf::Mesh* m);
+int countMeshRefs(apf::Mesh* m);
 
 apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_shape);
 
@@ -179,6 +180,8 @@ void reduceField(apf::Field* f, apf::Sharing* shr, int reduce_op);
 apf::Field* getCoordinateField(apf::Mesh* m_ptr);
 
 apf::Field* findField(apf::Mesh* m, char* fieldname);
+int countFields(apf::Mesh* m);
+apf::Field* getField(apf::Mesh*m, int i);
 void destroyField(apf::Field* f);
 void destroyFields(apf::Mesh* m, apf::Field* save_n[], int n_save);
 

@@ -397,14 +397,11 @@ end
   nshape = apf.getFieldShape(2, 1, 2)
   n_ptr = apf.createNumberingJ(m_ptr, nname, nshape, 1)
 
-  it = apf.MeshIterator(m_ptr, 2)
-  for i=1:num_Entities[3]
-    el_i = apf.iterate(m_ptr, it)
+  for (i, el_i) in enumerate(apf.MeshIterator(m_ptr, 2))
     for j=0:2
       apf.numberJ(n_ptr, el_i, j, 0, i)
     end
   end
-  apf.free(m_ptr, it)
 
   apf.writeVtkFiles("test_vtk", m_ptr)
   apf.writeVtkFiles("test_vtk_all", m_ptr, writeall=true)

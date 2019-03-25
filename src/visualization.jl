@@ -514,6 +514,7 @@ end
 function writeVisFiles(mesh::PumiMeshDG, fname::AbstractString; writeall::Bool=false)
   # writes vtk files 
 
+  println("writing visualization files ", fname)
   apf.writeVtkFiles(fname, mesh.mnew_ptr, writeall=writeall)
 
   if mesh.mexact_ptr != C_NULL

@@ -24,7 +24,7 @@
 function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
 
   # create apf::Field
-  fsize = apf.createPackedField(mesh.m_ptr, "size_field", 1, mesh.coordshape_ptr)
+  fsize = apf.createPackedField(mesh, "size_field", 1, mesh.coordshape_ptr)
 
   apf.zeroField(fsize)
 

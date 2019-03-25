@@ -249,6 +249,46 @@ end
 
 
 """
+  Struct to keep track of Fields/Numberings attached to the apf::Mesh* and
+  which PumiMesh object they belong to.
+
+  **Fields**
+
+   * orig: vector of the Fields/Numberings attached to the apf::Mesh* when
+           it is first loaded from disk
+   * user: Fields/Numberings the user has attached
+"""
+struct AttachedData
+  orig::Vector{Ptr{Void}}
+  user::Vector{Ptr{Void}}
+end
+
+function AttachedData()
+  orig = Vector{Ptr{Void}}(0)
+  user = Vector{Ptr{Void}}(0)
+
+  return AttachedData(orig, user)
+end
+
+
+"""
+  Constructor that shared the `orig` fields with the existing `AttachedData`,
+  but has different `user` fields
+
+  **Inputs**
+
+   * old: existing `AttachedData` object
+"""
+function AttachedData(old::AttachedData)
+
+  orig = old.orig # make a copy here?
+  user = Vector{Ptr{Void}}(0)
+
+  return AttachedData(orig, user)
+end
+
+
+"""
   Abstract type for reduction operations
 """
 abstract type Reduction{T} end
@@ -358,8 +398,21 @@ function finalizeMesh(mesh::PumiMesh)
 
   fnames = fieldnames(mesh)
 
+ 
   # only do the main mesh for now
   if mesh.m_ptr != C_NULL
+
+    println("freeing user fields")
+    for f_ptr in mesh.fields.user
+      destroyField(mesh, f_ptr)
+    end
+
+    println("freeing orig fields")
+    for f_ptr in mesh.fields.orig
+      destroyField(mesh, f_ptr)
+    end
+
+
     apf.popMeshRef(mesh.m_ptr)
 
     # figure out which other mesh pointers need to be zeroed
@@ -439,8 +492,8 @@ mutable struct GeometricDofs
   end
 end
 
-
 include("parallel_types.jl")
+include("pde_fields.jl")
 include("elements.jl")
 include("./PdePumiInterface3.jl")
 include("PdePumiInterfaceDG.jl")
@@ -639,6 +692,8 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
                             # corresponds to each face node
                             # this is a temporary hack to keep the PDESolver
                             # test running
+  fields::AttachedData  # apf::Fields associated with this mesh
+
  function PumiMesh2{T1, Tface}(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface; dofpernode=1, shape_type=1, coloring_distance=2) where {T1, Tface}
   # construct pumi mesh by loading the files named
   # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
@@ -653,6 +708,7 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   mesh.comm = MPI.COMM_WORLD
   mesh.commsize = MPI.Comm_size(MPI.COMM_WORLD)
   mesh.myrank = MPI.Comm_rank(MPI.COMM_WORLD)
+  mesh.fields = AttachedData()
 
   if mesh.myrank == 0
     println("\nConstructing PumiMesh2 Object")
@@ -681,6 +737,7 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   mesh.m_ptr, dim = apf.loadMesh(dmg_name, smb_name, order, shape_type=shape_type)
 
   apf.pushMeshRef(mesh.m_ptr)
+  recordAllFields(mesh)
   if dim != mesh.dim
     throw(ErrorException("loaded mesh is not 2 dimensions"))
   end
@@ -697,7 +754,7 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
 
   mesh.f_ptr = apf.findField(mesh.m_ptr, "solution_field")
   if mesh.f_ptr == C_NULL
-    mesh.f_ptr = apf.createPackedField(mesh.m_ptr, "solution_field", dofpernode)
+    mesh.f_ptr = apf.createPackedField(mesh, "solution_field", dofpernode)
   end
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
   mesh.ref_verts = [0.0 1 0; 0 0 1]

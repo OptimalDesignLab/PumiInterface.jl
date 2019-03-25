@@ -394,8 +394,16 @@ void popMeshRef(apf::Mesh* m)
   {
     meshref[m] = nrefs - 1;
   }
+}
 
+int countMeshRefs(apf::Mesh* m)
+{
 
+  std::map<apf::Mesh*, int>::size_type nfound = meshref.count(m);
+  if (nfound == 0)
+    return 0;
+  else
+    return meshref[m];
 }
 
 // this function defines the mapping from the shape_type integer to the
@@ -1397,6 +1405,17 @@ apf::Field* findField(apf::Mesh* m, char* fieldname)
 {
   return m->findField(fieldname);
 }
+
+int countFields(apf::Mesh* m)
+{
+  return m->countFields();
+}
+
+apf::Field* getField(apf::Mesh*m, int i)
+{
+  return m->getField(i);
+}
+
 void destroyField(apf::Field* f)
 {
   apf::destroyField(f);
