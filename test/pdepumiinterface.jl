@@ -907,6 +907,7 @@ end
   # coordinates
   opts["smb_name"] = "square_05_curve.smb"
   opts["use_linear_metrics"] = false
+  opts["BC1"] = [0, 1, 2, 3]
   mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
   mesh_c = PumiMeshDG2(Complex128, sbp, opts, sbpface, dofpernode=4)
 #  mesh =  PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
@@ -1049,7 +1050,7 @@ end
     "use_DG" => true,
     "coloring_distance" => 2,
     "numBC" => 2,
-    "BC1" => [8],
+    "BC1" => [40],
     "BC1_name" => "FreeStreamBC",
     "BC2" => [5],
     "BC2_name" => "noPenetrationBC",

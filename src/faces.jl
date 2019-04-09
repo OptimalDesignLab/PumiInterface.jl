@@ -45,6 +45,7 @@ function getAllFaceData(mesh::PumiMesh, opts)
     @assert mesh.numPeriodicInterfaces == 0
   end
 
+  println("found mesh edges on geometric edges ", geo_edge_nums)
   unused_geo_edge_nums = popBCEdges(geo_edge_nums, opts)
   # create an additional BC if needed to make sure the face integral gets
   # done for the unused edges
@@ -55,6 +56,10 @@ function getAllFaceData(mesh::PumiMesh, opts)
     opts["numBC"] = numBC
     opts[string("BC", numBC)] = unused_geo_edge_nums
     opts[string("BC", numBC, "_name")] = "defaultBC"
+
+    if opts["error_undefined_bc"]
+      error("dimension $(mesh.dim-1) geometric entities $unused_geo_edge_nums do not have assigned boundary condition")
+    end
   end
 
   # populate mesh.bndry_faces from options dictionary
@@ -137,10 +142,12 @@ end
 
   Inputs:
     geo_edge_nums: vector containing the numbers of all the geometric edges
+                   that have non-periodic mesh edges on them
     opts: the options dictionary
 
   Outputs:
-    unused_geo_edge_nums: numbers of the geometric edges that do not have
+    unused_geo_edge_nums: numbers of the geometric edges (with mesh edges on
+                          them) that do not have
                           boundary conditions applied to them
 
 """
@@ -158,6 +165,8 @@ function popBCEdges(geo_edge_nums::AbstractArray{I, 1}, opts) where I <: Integer
     end
   end
 
+  println("boundary conditions specified on geometric edges ", bndry_edges_BC)
+
   # find the (first) duplicate BC, throw error
   for i=1:length(bndry_edges_BC)
     for j=(i+1):length(bndry_edges_BC)
@@ -174,7 +183,9 @@ function popBCEdges(geo_edge_nums::AbstractArray{I, 1}, opts) where I <: Integer
 
   for i=1:length(geo_edge_nums)
     edge_i = geo_edge_nums[i]
+    println("checking if geometric edge ", edge_i, " has a boundary condition specified")
     if !(edge_i in bndry_edges_BC)
+      println("  boundary condition not found")
       push!(unused_geo_edge_nums, edge_i)
       continue
     end
@@ -184,8 +195,6 @@ function popBCEdges(geo_edge_nums::AbstractArray{I, 1}, opts) where I <: Integer
 
   return unused_geo_edge_nums
 end
-
-      
 
 
 """
