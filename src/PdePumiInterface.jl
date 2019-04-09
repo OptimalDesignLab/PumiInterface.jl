@@ -45,6 +45,9 @@ export coords_xyzToXi, coords_XiToXYZ, coords_dXTodXi, getXiCoords, getXCoords
 # warp.jl
 export getCoordsXi, setCoordsXi, getCoords, setCoords
 
+# file io
+export writeCoordsBinary, readCoordsBinary
+
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 
@@ -447,6 +450,7 @@ include("PdePumiInterfaceDG.jl")
 include("PdePumiInterface3DG.jl")
 include("interface.jl")
 include("interface_geo.jl")
+include("write_coords.jl")
 
 @doc """
 ### PumiInterface.PumiMesh2

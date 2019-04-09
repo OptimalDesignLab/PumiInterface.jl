@@ -135,7 +135,6 @@ function setCoordsXi(mesh::PumiMesh, entity::Ptr{Void}, node::Integer,
   gmi.geval(g, me, xi, coords2)
   apf.setPoint(mesh.m_ptr, entity, node, coords2)
 
-  #TODO: get xyz coordinates
   if length(coords) > 0
     for i=1:3
       coords[i] = coords2[i]
@@ -202,7 +201,7 @@ end
            and the `coords` overwritten with the new coordinates, default
            true.  Setting this to false can result in inaccurate derivative
            calculations.  If the geometric model does not support evaluation
-           points, this options has no effect.
+           points, this option has no effect.
 """
 function setCoords(mesh::PumiMesh, entity::Ptr{Void}, node::Integer,
                    coords::AbstractArray{Float64}, snap::Bool=true)

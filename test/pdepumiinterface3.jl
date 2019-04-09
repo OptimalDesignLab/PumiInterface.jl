@@ -516,8 +516,6 @@ include("defs.jl")
     test_geoNums(mesh)
     test_geoDerivative(mesh)
 
-    # 3D cuvilinear meshes don't work yet due to missing topo information
-    
     opts["smb_name"] = "./meshes/UnitCubeCurve/UnitCubeCurve.smb"
     opts["dmg_name"] = "./meshes/UnitCubeCurve/UnitCubeCurve.x_t"
 
@@ -526,7 +524,9 @@ include("defs.jl")
 
     mesh = PumiMeshDG3(Float64, sbp, opts, sbpface, topo, shape_type=4)
     test_geoDerivative(mesh)
-    
+   
+    ctor = (T, sbp, opts, sbpface)-> PumiMeshDG3(T, sbp, opts, sbpface, topo, shape_type=4)
+    test_coords_file(opts, sbp, sbpface, ctor)
 
   end
 

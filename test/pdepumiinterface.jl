@@ -1040,6 +1040,9 @@ end
   mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
   test_geoNums(mesh)
 
+  println("\nTesting coords file")
+  test_coords_file(opts, sbp, sbpface)
+
   if HAVE_SIMMETRIX
     # load airfoil CAD mesh
     opts = Dict{Any, Any}(
@@ -1101,8 +1104,9 @@ end
     )
  
     mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
-    @time test_geoDerivative(mesh)
-    println("test_geoDerivative @time printed above")
+    test_geoDerivative(mesh)
+  
+    test_coords_file(opts, sbp, sbpface)
 
     xivec = getXiCoords(mesh)
     xivec_pert = rand(length(xivec))
@@ -1139,6 +1143,7 @@ end
     mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
     println("testing quadratic mesh")
     test_setPoint(mesh, opts)
+    test_coords_file(opts, sbp, sbpface)
 
     # load new mesh because test_setPoint messes up the coordinate field
     mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)

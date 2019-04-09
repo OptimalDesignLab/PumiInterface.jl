@@ -638,9 +638,12 @@ function update_coordsXi(mesh::PumiMesh, sbp, opts, xivec::AbstractVector;
       # decide parametric representation
       firstidx = apf.getNumberJ(geonums.xiNums, e, j-1, 0)
       if me_dim == mesh.dim
-        # don't have parametric coordinate in xivec.  In 3D, most CAD systems
-        # don't even have parametric coordinates, so just zero these out.
+        # parametric coords == xyz coordinates 
         fill!(xi_j, 0)
+        for k=1:me_dim
+          xi_j[k] = xivec[apf.getNumberJ(geonums.xiNums, e, j-1, k-1)]
+        end
+        setCoords(mesh, e, j-1, xi_j)
       elseif firstidx == geonums.numXiDofs + 1  # no geometric dofs
         # this must be classified on a vertex, which always has parametric
         # coordinates 0

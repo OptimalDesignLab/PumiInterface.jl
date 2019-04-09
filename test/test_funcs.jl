@@ -2009,4 +2009,59 @@ function test_update_coords(mesh, sbp, opts)
   return nothing
 end
 
+function test_coords_file(opts, sbp, sbpface, mesh_ctor=PumiMeshDG2)
+
+
+  mesh = mesh_ctor(Float64, sbp, opts, sbpface)
+
+  # perturb coordinates
+  if mesh.geoNums.can_eval
+    xivec = getXiCoords(mesh)
+    pert = 0.001*rand(size(xivec))
+    xivec .+= pert
+    update_coordsXi(mesh, sbp, opts, xivec)
+  else
+    xvec = getXCoords(mesh)
+    pert = 0.01*rand(size(xvec))
+    xvec .+= pert
+    update_coords(mesh, sbp, opts, xvec)
+  end
+    
+  writeCoordsBinary(mesh, "coordsb.dat")
+
+  # load new mesh and check coordinates
+  mesh2 = mesh_ctor(Float64, sbp, opts, sbpface)
+  readCoordsBinary(mesh2, sbp, opts, "coordsb.dat")
+
+  println("coords maxdiff = ", maximum(abs.(mesh.coords - mesh2.coords)))
+  @test maximum(abs.(mesh.coords - mesh2.coords)) < 1e-15
+
+  if mesh.geoNums.can_eval
+    xivec2 = getXiCoords(mesh2)
+    @test maximum(abs.(xivec2 - xivec)) < 1e-15
+  end
+
+  # test loading when mesh does not support xi coordinates
+  opts2 = copy(opts)
+  opts2["dmg_name"] = ".null"
+  mesh3 = mesh_ctor(Float64, sbp, opts, sbpface)
+  readCoordsBinary(mesh3, sbp, opts, "coordsb.dat")
+  @test maximum(abs.(mesh.coords - mesh3.coords)) < 1e-15
+
+  if mesh.geoNums.can_eval
+    # save from mesh that does not support xi coordinates and load on mesh
+    # that does
+    writeCoordsBinary(mesh3, "coordsb2.dat")
+
+    mesh4 = mesh_ctor(Float64, sbp, opts, sbpface)
+    readCoordsBinary(mesh4, sbp, opts, "coordsb2.dat")
+
+    @test maximum(abs.(mesh.coords - mesh4.coords)) < 1e-15
   
+    xivec2 = getXiCoords(mesh4)
+    @test maximum(abs.(xivec2 - xivec)) < 1e-7
+  end
+
+  #TODO: test Complex128
+  return nothing
+end
