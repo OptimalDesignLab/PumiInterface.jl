@@ -624,6 +624,7 @@ function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts) where {T, Tface
   mesh.m_ptr = old_mesh.m_ptr
   apf.pushMeshRef(mesh.m_ptr)
   mesh.subdata = apf.SubMeshData(C_NULL)
+  attachOrigFields(mesh, old_mesh.fields.orig)
 
   finishMeshInit(mesh, sbp, opts, dofpernode=old_mesh.numDofPerNode,
                  shape_type=old_mesh.shape_type)

@@ -87,7 +87,7 @@ global const isNumbered_name = "isNumbered"
 global const getDofNumbers_name = "getDofNumbers"
 global const setNumberingOffset_name = "setNumberingOffset"
 global const getElementNumbers_name = "getElementNumbers"
-global const getMesh_name = "getMesh"
+global const getMesh_name = "getNumberingMesh"
 global const printNumberingName_name = "printNumberingName"
 
 global const createDoubleTag_name = "createDoubleTag"
@@ -167,14 +167,15 @@ export init, loadMesh, initMesh, initGeometry, snapEdgeNodes, pushMeshRef,
        getAllEntityCoords, createNumberingJ, destroyNumbering, findNumbering,
        destroyNumberings,
        getNumberingShape, numberJ, getNumberJ, isNumbered, getDofNumbers,
-       getElementNumbers, getMesh, printNumberingName, createDoubleTag,
+       getElementNumbers, getNumberingMesh, printNumberingName, createDoubleTag,
        setDoubleTag, getDoubleTag, reorder, reorderXi,
        createIsoFunc, createAnisoFunc,
        deleteIsoFunc, createSolutionTransfers, deleteSolutionTransfers,
        addSolutionTransfer, configureMAInput, runMA, getAvgElementSize, IsoFuncJ,
        SolutionTransfers, MAInput,
        createPackedField, setComponents,
-       getComponents, zeroField, reduceField, getCoordinateField, findField,
+       getComponents, zeroField, getFieldMesh,
+       reduceField, getCoordinateField, findField,
        countFields, getField, destroyField, destroyFields,
        countBridgeAdjacent,
        getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
@@ -1019,7 +1020,7 @@ function getElementNumbers(n_ptr, entity, num_dof::Integer, nums::Array{Int32, 1
 
 end
 
-function getMesh(n_ptr)
+function getNumberingMesh(n_ptr)
 # get the mesh a numbering is defined on
 
   m_ptr = ccall( (getMesh_name, pumi_libname), Ptr{Void}, (Ptr{Void},), n_ptr)
@@ -1322,6 +1323,15 @@ end
 function zeroField(f_ptr)
   ccall( (zeroField_name, pumi_libname), Void, (Ptr{Void},), f_ptr)
 end
+
+function getFieldMesh(f_ptr::Ptr{Void})
+# get the mesh a numbering is defined on
+
+  m_ptr = ccall( (:getFieldMesh, pumi_libname), Ptr{Void}, (Ptr{Void},), f_ptr)
+  return m_ptr
+end
+
+
 
 """
   Apply a reduction operation along the partition boundaries of a Field

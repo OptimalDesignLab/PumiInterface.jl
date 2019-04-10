@@ -402,12 +402,10 @@ function finalizeMesh(mesh::PumiMesh)
   # only do the main mesh for now
   if mesh.m_ptr != C_NULL
 
-    println("freeing user fields")
     for f_ptr in mesh.fields.user
       destroyField(mesh, f_ptr)
     end
 
-    println("freeing orig fields")
     for f_ptr in mesh.fields.orig
       destroyField(mesh, f_ptr)
     end

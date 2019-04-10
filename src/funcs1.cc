@@ -1259,7 +1259,7 @@ void getElementNumbers(apf::Numbering* n, apf::MeshEntity*e, int num_dof, int nu
 }
 
 
-apf::Mesh* getMesh(apf::Numbering* n)
+apf::Mesh* getNumberingMesh(apf::Numbering* n)
 {
   return apf::getMesh(n);
 }
@@ -1377,6 +1377,11 @@ void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components
 void zeroField(apf::Field* f)
 {
   apf::zeroField(f);
+}
+
+apf::Mesh* getFieldMesh(apf::Field* f)
+{
+  return apf::getMesh(f);
 }
 
 const apf::ReductionSum<double>* Sum = new apf::ReductionSum<double>();

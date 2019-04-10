@@ -143,7 +143,7 @@ extern int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t
 void setNumberingOffset(apf::Numbering* num, int off);
 
 void getElementNumbers(apf::Numbering* n, apf::MeshEntity*e, int num_nodes, int nums[]);
-extern apf::Mesh* getMesh(apf::Numbering* n);
+extern apf::Mesh* getNumberingMesh(apf::Numbering* n);
 extern void printNumberingName(apf::Numbering* n);
 
 extern apf::MeshTag* createDoubleTag(apf::Mesh2 * m_local, char* name, int size);
@@ -176,6 +176,8 @@ void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components
 
 
 void zeroField(apf::Field* f);
+apf::Mesh* getFieldMesh(apf::Field* f);
+
 void reduceField(apf::Field* f, apf::Sharing* shr, int reduce_op);
 apf::Field* getCoordinateField(apf::Mesh* m_ptr);
 
