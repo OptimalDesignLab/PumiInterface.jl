@@ -528,11 +528,35 @@ end
   Writes VTK files.  The keyword argument `writeall` determines which Numberings
   and Fields are written to the file.  By default only those with a FieldShape
   compatible with the the coordinate field are written.
+
+  **Inputs**
+
+   * name: file name
+   * m_ptr: mesh pointer
+   * f_ptrs: Vector of apf::Field*, defaults to array of zero length
+   * n_ptrs: Vector of apf::Numbering*, defaults to array of zero length
+   * gn_ptrs: Vector of apf::GlobalNumbering*, defaults to array of zero length
+
+  **Keyword Arguments**
+
+   * writeall: if true, write fields that are not representable cleanly in
+               vtk file, default false
+
+  For `f_ptrs`, `n_ptrs`, and `gn_ptrs`, only the objects in the vector will
+  be considered for writing to the vtk file (according to `writeall`).  If the
+  vector has zero length, all objects will be considered.
 """
-function writeVtkFiles(name::AbstractString, m_ptr; writeall::Bool=false)
+function writeVtkFiles(name::AbstractString, m_ptr,
+                       f_ptrs=Vector{Ptr{Void}}(0),
+                       n_ptrs=Vector{Ptr{Void}}(0),
+                       gn_ptrs=Vector{Ptr{Void}}(0);
+                       writeall::Bool=false)
 # write vtk files to be read by paraview
 
-  ccall( (writeVtkFiles_name, pumi_libname), Void, (Ptr{UInt8}, Ptr{Void}, CppBool), name, m_ptr, writeall)
+ccall( (writeVtkFiles_name, pumi_libname), Void,
+      (Ptr{UInt8}, Ptr{Void}, CppBool, Ptr{Ptr{Void}}, Cint, Ptr{Ptr{Void}},
+       Cint, Ptr{Ptr{Void}}, Cint), name, m_ptr, writeall,
+      f_ptrs, length(f_ptrs), n_ptrs, length(n_ptrs), gn_ptrs, length(gn_ptrs))
   return nothing
 end
 

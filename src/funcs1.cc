@@ -604,15 +604,41 @@ int getDimension(apf::Mesh* m)
 
 // writeall: if true, write all fiels to vtk, even if they are not cleanly
 //           representable
-void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall)
+// f_arr: list of apf::Field* to consider for printing (defaults to all
+//        fields if null)
+// n_arr: list of apf::Numbering* to consider for printing (defaults to all
+//        if null)
+// gn_arr: list of apf::GlobalNumbering* to consider for printing (defaults to
+//          all if null)
+void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall,
+                   apf::Field** f_arr, int nfields,
+                   apf::Numbering** n_arr, int n_nums,
+                   apf::GlobalNumbering** gn_arr, int n_gnums)
 {
 
 //   apf::writeASCIIVtkFiles(name, m_local);
-  if (writeall)
+  if (writeall && nfields == 0 && n_nums == 0 && n_gnums == 0)
+    // write all fields and don't use lists to check which ones
+   std::cout << "writing all fields" << std::endl;
    apf::writeVtkFiles(name, m_local);
-  else  // only print fields to vtk that have compatible fieldshape
+  else  // use lists and/or fieldshape to decide which fields to print
   {
-    std::vector<std::string> writeFields = getWritableFields(m_local);
+    std::cout << "writing selected fields" << std::endl;
+    std::vector<apf::Field*> f_vec(nfields);
+    for (int i=0; i < nfields; ++i)
+      f_vec[i] = f_arr[i];
+
+    std::vector<apf::Numbering*> n_vec(n_nums);
+    for (int i=0; i < n_nums; ++i)
+      n_vec[i] = n_arr[i];
+
+    std::vector<apf::GlobalNumbering*> gn_vec(n_gnums);
+    for (int i=0; i < n_gnums; ++i)
+      gn_vec[i] = gn_arr[i];
+
+
+    std::vector<std::string> writeFields = getWritableFields(m_local, f_vec,
+                                                      n_vec, gn_vec, writeall);
     apf::writeVtkFiles(name, m_local, writeFields);
   }
 /*
@@ -625,7 +651,11 @@ void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall)
   */
 }
 
-std::vector<std::string> getWritableFields(apf::Mesh* m)
+std::vector<std::string> getWritableFields(apf::Mesh* m,
+                                    std::vector<apf::Field*>& f_vec,
+                                    std::vector<apf::Numbering*>& n_vec,
+                                    std::vector<apf::GlobalNumbering*>& gn_vec,
+                                    bool writeall)
 {
     std::vector<std::string> writeFields;
     apf::FieldShape* cshape = m->getShape();
@@ -634,19 +664,31 @@ std::vector<std::string> getWritableFields(apf::Mesh* m)
     // isWritable checks that the FieldShape is compatible
     // isPrintable is an apf function that checks if the field is complete
 
+    std::cout << "nfields = " << f_vec.size() << std::endl;
     // apf::Fields
     for (int i=0; i < m->countFields(); ++i)
     {
       apf::Field* f = m->getField(i);
-      if (isWritable(apf::getShape(f), cshape, dim) && isPrintable(f))
+      std::cout << "considering field " << apf::getName(f) << std::endl;
+      if (f_vec.size() > 0 && !contains(f_vec, f))
+        continue;
+
+      std::cout << "Field is contained in vec" << std::endl;
+      if ((isWritable(apf::getShape(f), cshape, dim) && isPrintable(f)) || writeall)
+      {
         writeFields.push_back(apf::getName(f));
+      }
     }
 
     // apf::Numberings
     for (int i=0; i < m->countNumberings(); ++i)
     {
       apf::Numbering* n = m->getNumbering(i);
-      if (isWritable(apf::getShape(n), cshape, dim) && isPrintable(n))
+      if (n_vec.size() > 0 && !contains(n_vec, n))
+        continue;
+
+
+      if ((isWritable(apf::getShape(n), cshape, dim) && isPrintable(n)) || writeall)
         writeFields.push_back(apf::getName(n));
     }
 
@@ -654,7 +696,10 @@ std::vector<std::string> getWritableFields(apf::Mesh* m)
     for (int i=0; i < m->countGlobalNumberings(); ++i)
     {
       apf::GlobalNumbering* n = m->getGlobalNumbering(i);
-      if (isWritable(apf::getShape(n), cshape, dim) && isPrintable(n))
+      if (gn_vec.size() > 0 && !contains(gn_vec, n))
+        continue;
+
+      if ((isWritable(apf::getShape(n), cshape, dim) && isPrintable(n)) || writeall)
         writeFields.push_back(apf::getName(n));
     }
 

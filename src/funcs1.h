@@ -76,8 +76,10 @@ void iteraten(apf::Mesh* m, apf::MeshIterator* it, int n);
 apf::MeshEntity* deref(apf::Mesh2* m, apf::MeshIterator* it);
 int getDimension(apf::Mesh* m);
 
-extern void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall);
-
+extern void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall,
+                   apf::Field** f_arr, int nfields,
+                   apf::Numbering** n_arr, int n_nums,
+                   apf::GlobalNumbering** gn_arr, int n_gnums);
 // geometric model functions
 
 gmi_model* getModel(apf::Mesh* m);
@@ -241,6 +243,19 @@ void gmi_register_simJ();
 void getUniqueNumberingName(apf::Mesh* m, const char* basename, char* newname);
 int getindex_c(const int i, const int j, const int si, const int sj);
 
-std::vector<std::string> getWritableFields(apf::Mesh* m);
+std::vector<std::string> getWritableFields(apf::Mesh* m,
+                                    std::vector<apf::Field*>& f_vec,
+                                    std::vector<apf::Numbering*>& n_vec,
+                                    std::vector<apf::GlobalNumbering*>& gn_vec,
+                                    bool writeall);
+
 bool isWritable(apf::FieldShape* fshape, apf::FieldShape* cshape, int dim);
+
+template <typename T>
+bool contains(std::vector<T>& vec, const T val)
+{
+  return std::find(vec.begin(), vec.end(), val) != vec.end();
+}
+
+
 #endif

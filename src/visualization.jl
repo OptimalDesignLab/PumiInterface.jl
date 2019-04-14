@@ -514,8 +514,13 @@ end
 function writeVisFiles(mesh::PumiMeshDG, fname::AbstractString; writeall::Bool=false)
   # writes vtk files 
 
-  println("writing visualization files ", fname)
-  apf.writeVtkFiles(fname, mesh.mnew_ptr, writeall=writeall)
+  if mesh.myrank == 0
+    println("writing visualization files ", fname)
+  end
+  f_arr = collect(mesh.fields)
+  n_arr = collect(mesh.numberings)
+  gn_arr = Vector{Ptr{Void}}(0)
+  apf.writeVtkFiles(fname, mesh.mnew_ptr, f_arr, n_arr, gn_arr, writeall=writeall)
 
   if mesh.mexact_ptr != C_NULL
     fname_exact = fname*"_exact"
@@ -530,7 +535,12 @@ function writeVisFiles(mesh::PumiMesh2CG, fname::AbstractString; writeall::Bool=
   # writes vtk files 
 
   if mesh.order <= 2
-    apf.writeVtkFiles(fname, mesh.m_ptr, writeall=writeall)
+    f_arr = collect(mesh.fields)
+    n_arr = collect(mesh.numberings)
+    gn_arr = Vector{Ptr{Void}}(0)
+
+    apf.writeVtkFiles(fname, mesh.m_ptr, f_arr, n_arr, gn_arr,
+                      writeall=writeall)
   else
     apf.writeVtkFiles(fname, mesh.mnew_ptr, writeall=writeall)
   end

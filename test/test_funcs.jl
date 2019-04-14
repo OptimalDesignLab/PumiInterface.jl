@@ -2032,7 +2032,8 @@ function test_refcounting()
 
   mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
 
-  fshape_ptr = apf.getConstantShapePtr(0)
+  #fshape_ptr = apf.getConstantShapePtr(0)
+  fshape_ptr = mesh.coordshape_ptr
   f_ptr = apf.createPackedField(mesh, "testfield1", 1, fshape_ptr)
 
   @test PdePumiInterface.countFieldRef(f_ptr) == 1
@@ -2067,7 +2068,8 @@ function test_refcounting()
   # create 2 Julia meshes sharing the same apf::Mesh
   mesh1 = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
 
-  fshape_ptr = apf.getConstantShapePtr(0)
+  #fshape_ptr = apf.getConstantShapePtr(0)
+  fshape_ptr = mesh.coordshape_ptr
   f_orig_mesh1 = apf.createPackedField(mesh1.m_ptr, "origfield_mesh1",
                                        1, fshape_ptr)
   PdePumiInterface.attachOrigField(mesh1, f_orig_mesh1)
@@ -2088,6 +2090,9 @@ function test_refcounting()
 
   mesh2 = PumiMeshDG2(mesh1, sbp, opts)
 
+  n_user_mesh2 = apf.createNumberingJ(mesh2, "usernum_mesh2", 1, fshape_ptr)
+  f_user_mesh2 = apf.createPackedField(mesh2, "userfield_mesh2", 1, fshape_ptr)
+
   # test orig fields are attached to both, but user fields are not
   @test f_orig_mesh1 in mesh2.fields.orig
   @test !(f_user_mesh1 in mesh2.fields.user)
@@ -2102,6 +2107,93 @@ function test_refcounting()
 
   @test PdePumiInterface.countNumberingRef(n_orig_mesh1) == 2
   @test PdePumiInterface.countNumberingRef(n_user_mesh1) == 1
+
+  # write values to field
+  vals = Float64[1.0]
+  for (e, dim) in apf.FieldEntityIt(mesh1.m_ptr, fshape_ptr)
+    apf.numberJ(n_orig_mesh1, e, 0, 0, 1)
+    apf.numberJ(n_user_mesh1, e, 0, 0, 1)
+    apf.numberJ(n_user_mesh2, e, 0, 0, 1)
+
+    apf.setComponents(f_orig_mesh1, e, 0, vals)
+    apf.setComponents(f_user_mesh1, e, 0, vals)
+    apf.setComponents(f_user_mesh2, e, 0, vals)
+  end
+
+
+  writeVisFiles(mesh1, "mesh1_vis")
+  writeVisFiles(mesh2, "mesh2_vis")
+
+  mesh1_has_f_orig1 = false
+  mesh1_has_n_orig1 = false
+  mesh1_has_f_user1 = false
+  mesh1_has_n_user1 = false
+
+  mesh2_has_f_orig1 = false
+  mesh2_has_n_orig1 = false
+  mesh2_has_f_user1 = false
+  mesh2_has_n_user1 = false
+
+  mesh1_has_f_user2 = false
+  mesh1_has_n_user2 = false
+  mesh2_has_f_user2 = false
+  mesh2_has_n_user2 = false
+
+  for line in eachline("mesh1_vis/mesh1_vis.pvtu")
+    if contains(line, "origfield_mesh1")
+      mesh1_has_f_orig1 = true
+    end
+    if contains(line, "orignum_mesh1")
+      mesh1_has_n_orig1 = true
+    end
+    if contains(line, "userfield_mesh1")
+      mesh1_has_f_user1 = true
+    end
+    if contains(line, "usernum_mesh1")
+      mesh1_has_n_user1 = true
+    end
+    if contains(line, "userfield_mesh2")
+      mesh1_has_f_user2 = true
+    end
+    if contains(line, "usernum_mesh2")
+      mesh1_has_n_user2 = true
+    end
+  end
+
+  @test mesh1_has_f_orig1
+  @test mesh1_has_n_orig1
+  @test mesh1_has_f_user1
+  @test mesh1_has_n_user1
+  @test !mesh1_has_f_user2
+  @test !mesh1_has_n_user2
+
+  for line in eachline("mesh2_vis/mesh2_vis.pvtu")
+    if contains(line, "origfield_mesh1")
+      mesh2_has_f_orig1 = true
+    end
+    if contains(line, "orignum_mesh1")
+      mesh2_has_n_orig1 = true
+    end
+    if contains(line, "userfield_mesh1")
+      mesh2_has_f_user1 = true
+    end
+    if contains(line, "usernum_mesh1")
+      mesh2_has_n_user1 = true
+    end
+    if contains(line, "userfield_mesh2")
+      mesh2_has_f_user2 = true
+    end
+    if contains(line, "usernum_mesh2")
+      mesh2_has_n_user2 = true
+    end
+  end
+
+  @test mesh2_has_f_orig1
+  @test mesh2_has_n_orig1
+  @test !mesh2_has_f_user1
+  @test !mesh2_has_n_user1
+  @test mesh2_has_f_user2
+  @test mesh2_has_n_user2
 
 
 
