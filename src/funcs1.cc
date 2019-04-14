@@ -619,11 +619,9 @@ void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall,
 //   apf::writeASCIIVtkFiles(name, m_local);
   if (writeall && nfields == 0 && n_nums == 0 && n_gnums == 0)
     // write all fields and don't use lists to check which ones
-   std::cout << "writing all fields" << std::endl;
    apf::writeVtkFiles(name, m_local);
   else  // use lists and/or fieldshape to decide which fields to print
   {
-    std::cout << "writing selected fields" << std::endl;
     std::vector<apf::Field*> f_vec(nfields);
     for (int i=0; i < nfields; ++i)
       f_vec[i] = f_arr[i];
@@ -664,20 +662,15 @@ std::vector<std::string> getWritableFields(apf::Mesh* m,
     // isWritable checks that the FieldShape is compatible
     // isPrintable is an apf function that checks if the field is complete
 
-    std::cout << "nfields = " << f_vec.size() << std::endl;
     // apf::Fields
     for (int i=0; i < m->countFields(); ++i)
     {
       apf::Field* f = m->getField(i);
-      std::cout << "considering field " << apf::getName(f) << std::endl;
       if (f_vec.size() > 0 && !contains(f_vec, f))
         continue;
 
-      std::cout << "Field is contained in vec" << std::endl;
       if ((isWritable(apf::getShape(f), cshape, dim) && isPrintable(f)) || writeall)
-      {
         writeFields.push_back(apf::getName(f));
-      }
     }
 
     // apf::Numberings
