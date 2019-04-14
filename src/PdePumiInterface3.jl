@@ -106,7 +106,8 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
   mesh.edges = Array{Ptr{Void}}(mesh.numEdge)
   mesh.faces = Array{Ptr{Void}}(mesh.numFace)
   mesh.elements = Array{Ptr{Void}}(mesh.numEl)
-  mesh.dofnums_Nptr = apf.createNumberingJ(mesh.m_ptr, "reordered dof numbers", mesh.mshape_ptr, dofpernode)  # 1 dof per node
+  mesh.dofnums_Nptr = apf.createNumberingJ(mesh, "reordered dof numbers", 
+                                           dofpernode, mesh.mshape_ptr)  # 1 dof per node
 
 
 

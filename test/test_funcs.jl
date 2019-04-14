@@ -2062,5 +2062,60 @@ function test_refcounting()
   # make sure finalizer is freeing fields
   finalize(mesh2)
   @test PdePumiInterface.countFieldRef(f_ptr3) == 0
+
+
+  # create 2 Julia meshes sharing the same apf::Mesh
+  mesh1 = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+
+  fshape_ptr = apf.getConstantShapePtr(0)
+  f_orig_mesh1 = apf.createPackedField(mesh1.m_ptr, "origfield_mesh1",
+                                       1, fshape_ptr)
+  PdePumiInterface.attachOrigField(mesh1, f_orig_mesh1)
+
+  n_orig_mesh1 = apf.createNumberingJ(mesh1.m_ptr, "orignum_mesh1", fshape_ptr,
+                                      1)
+  PdePumiInterface.attachOrigNumbering(mesh1, n_orig_mesh1)
+
+
+  f_user_mesh1 = apf.createPackedField(mesh1.m_ptr, "userfield_mesh1",
+                                       1, fshape_ptr)
+  PdePumiInterface.attachUserField(mesh1, f_user_mesh1)
+
+  n_user_mesh1 = apf.createNumberingJ(mesh1.m_ptr, "usernum_mesh1", fshape_ptr,
+                                      1)
+  PdePumiInterface.attachUserNumbering(mesh1, n_user_mesh1)
+
+
+  mesh2 = PumiMeshDG2(mesh1, sbp, opts)
+
+  # test orig fields are attached to both, but user fields are not
+  @test f_orig_mesh1 in mesh2.fields.orig
+  @test !(f_user_mesh1 in mesh2.fields.user)
+  @test f_user_mesh1 in mesh1.fields.user
+
+  @test n_orig_mesh1 in mesh2.numberings.orig
+  @test !(n_user_mesh1 in mesh2.numberings.user)
+  @test n_user_mesh1 in mesh1.numberings.user
+
+  @test PdePumiInterface.countFieldRef(f_orig_mesh1) == 2
+  @test PdePumiInterface.countFieldRef(f_user_mesh1) == 1
+
+  @test PdePumiInterface.countNumberingRef(n_orig_mesh1) == 2
+  @test PdePumiInterface.countNumberingRef(n_user_mesh1) == 1
+
+
+
+  finalize(mesh1)
+  @test PdePumiInterface.countFieldRef(f_orig_mesh1) == 1
+  @test PdePumiInterface.countFieldRef(f_user_mesh1) == 0
+
+  @test PdePumiInterface.countNumberingRef(n_orig_mesh1) == 1
+  @test PdePumiInterface.countNumberingRef(n_user_mesh1) == 0
+
+
+
+
+  finalize(mesh2)
+
   return nothing
 end

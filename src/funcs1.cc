@@ -243,12 +243,17 @@ void initMesh(apf::Mesh* m, int number_entities[],
   }
 
   // create numberings
-  n_array[0] = apf::createNumbering(m, "vertNums", apf::getConstant(0), 1);
-  n_array[1] = apf::createNumbering(m, "edgeNums", apf::getConstant(1), 1);
-  n_array[2] = apf::createNumbering(m, "faceNums", apf::getConstant(2), 1);
-  if (dim == 3)
-    n_array[3] = apf::createNumbering(m, "regionNums", apf::getConstant(3), 1);
+  char v_name[256], e_name[256], f_name[256], r_name[256];
+  getUniqueNumberingName(m, "vertNums", v_name);
+  getUniqueNumberingName(m, "edgeNums", e_name);
+  getUniqueNumberingName(m, "faceNums", f_name);
+  getUniqueNumberingName(m, "regionNums", r_name);
 
+  n_array[0] = apf::createNumbering(m, v_name, apf::getConstant(0), 1);
+  n_array[1] = apf::createNumbering(m, e_name, apf::getConstant(1), 1);
+  n_array[2] = apf::createNumbering(m, f_name, apf::getConstant(2), 1);
+  if (dim == 3)
+    n_array[3] = apf::createNumbering(m, r_name, apf::getConstant(3), 1);
 
   apf::MeshIterator* it;
   for (int i = 0; i < (dim+1); ++i)  // loop over dimensions
@@ -279,6 +284,27 @@ void initMesh(apf::Mesh* m, int number_entities[],
 */
 }  // function initMesh()
 
+
+void getUniqueNumberingName(apf::Mesh* m, const char* basename, char* newname)
+{
+  apf::Numbering* n = m->findNumbering(basename);
+  if (!n)
+  {
+    sprintf(newname, "%s", basename);
+    return;
+  } else
+  {
+    int idx = 1;
+    while (true)
+    {
+      sprintf(newname, "%s_%d", basename, idx);
+      n = m->findNumbering(newname);
+      std::cout << "name = " << newname << " n_ptr = " << n << std::endl;
+      if (!n)
+        return;
+    }
+  }
+}
 
 // This function returns the apf::Field that has the CAD parametric coordinates
 // of the mid-edge nodes, if possible, otherwise returns the null pointer.
@@ -1093,6 +1119,17 @@ apf::FieldShape* getNumberingShape(apf::Numbering* n)
   return apf::getShape(n);
 }
 
+int countNumberings(apf::Mesh* m)
+{
+  return m->countNumberings();
+}
+
+apf::Numbering* getNumbering(apf::Mesh* m, int i)
+{
+  return m->getNumbering(i);
+}
+
+
 // number an entity in a given numbering from julia
 int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number)
 {
@@ -1262,6 +1299,11 @@ void getElementNumbers(apf::Numbering* n, apf::MeshEntity*e, int num_dof, int nu
 apf::Mesh* getNumberingMesh(apf::Numbering* n)
 {
   return apf::getMesh(n);
+}
+
+const char* getNumberingName(apf::Numbering* n)
+{
+  return apf::getName(n);
 }
 
 void printNumberingName(apf::Numbering* n)
@@ -1666,6 +1708,17 @@ void getTopologyMaps(int* tri_edge_verts_in, int* tet_edge_verts_in, int* tet_tr
     }
 }
 
+
+void printTags(apf::Mesh* m)
+{
+
+  apf::DynamicArray<apf::MeshTag*> tags;
+  m->getTags(tags);
+
+  for (std::size_t i=0; i < tags.getSize(); ++i)
+    std::cout << "Tag " << i << " name = " << m->getTagName(tags[i]) << std::endl;
+
+}
 
 //-----------------------------------------------------------------------------
 // GMI functions

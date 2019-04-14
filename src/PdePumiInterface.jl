@@ -270,7 +270,7 @@ function AttachedData()
   return AttachedData(orig, user)
 end
 
-
+#=
 """
   Constructor that shared the `orig` fields with the existing `AttachedData`,
   but has different `user` fields
@@ -286,7 +286,7 @@ function AttachedData(old::AttachedData)
 
   return AttachedData(orig, user)
 end
-
+=#
 
 """
   Abstract type for reduction operations
@@ -402,14 +402,21 @@ function finalizeMesh(mesh::PumiMesh)
   # only do the main mesh for now
   if mesh.m_ptr != C_NULL
 
-    for f_ptr in mesh.fields.user
+    for f_ptr in copy(mesh.fields.user)
       destroyField(mesh, f_ptr)
     end
 
-    for f_ptr in mesh.fields.orig
+    for f_ptr in copy(mesh.fields.orig)
       destroyField(mesh, f_ptr)
     end
 
+    for n_ptr in copy(mesh.numberings.user)
+      destroyNumbering(mesh, n_ptr)
+    end
+
+    for n_ptr in copy(mesh.numberings.orig)
+      destroyNumbering(mesh, n_ptr)
+    end
 
     apf.popMeshRef(mesh.m_ptr)
 
@@ -691,6 +698,7 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
                             # this is a temporary hack to keep the PDESolver
                             # test running
   fields::AttachedData  # apf::Fields associated with this mesh
+  numberings::AttachedData # apf::Numberings associated with this mesh
 
  function PumiMesh2{T1, Tface}(dmg_name::AbstractString, smb_name::AbstractString, order, sbp::AbstractSBP, opts, sbpface; dofpernode=1, shape_type=1, coloring_distance=2) where {T1, Tface}
   # construct pumi mesh by loading the files named
@@ -707,6 +715,7 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   mesh.commsize = MPI.Comm_size(MPI.COMM_WORLD)
   mesh.myrank = MPI.Comm_rank(MPI.COMM_WORLD)
   mesh.fields = AttachedData()
+  mesh.numberings = AttachedData()
 
   if mesh.myrank == 0
     println("\nConstructing PumiMesh2 Object")
@@ -804,18 +813,18 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
 
   # create the coloring_Nptr
   el_mshape = apf.getConstantShapePtr(2)
-  mesh.coloring_Nptr = apf.createNumberingJ(mesh.m_ptr, "coloring", el_mshape, 1)
+  mesh.coloring_Nptr = apf.createNumberingJ(mesh, "coloring", 1, el_mshape)
 
   # create node status numbering (node, not dof)
-  mesh.nodestatus_Nptr = apf.createNumberingJ(mesh.m_ptr, "dof status", 
-                         mesh.mshape_ptr, 1)   
+  mesh.nodestatus_Nptr = apf.createNumberingJ(mesh, "dof status", 
+                                              1, mesh.mshape_ptr)   
   # create node numbering
-  mesh.nodenums_Nptr = apf.createNumberingJ(mesh.m_ptr, "reordered node numbers",
-                       mesh.mshape_ptr, 1)
+  mesh.nodenums_Nptr = apf.createNumberingJ(mesh, "reordered node numbers",
+                                            1, mesh.mshape_ptr)
 
   # create dof numbering
-  mesh.dofnums_Nptr = apf.createNumberingJ(mesh.m_ptr, "reordered dof numbers", 
-                      mesh.mshape_ptr, dofpernode)
+  mesh.dofnums_Nptr = apf.createNumberingJ(mesh, "reordered dof numbers", 
+                                           dofpernode, mesh.mshape_ptr)
 
   println("about to get entity pointers")
   mesh.verts, mesh.edges, mesh.faces, mesh.elements = getEntityPointers(mesh)
@@ -1047,7 +1056,8 @@ function PumiMesh2Preconditioning(mesh_old::PumiMesh2, sbp::AbstractSBP, opts;
   mesh.coloringDistance = coloring_distance
   # create the coloring_Nptr
   el_mshape = apf.getConstantShapePtr(2)
-  mesh.coloring_Nptr = apf.createNumberingJ(mesh.m_ptr, "preconditioning coloring", el_mshape, 1)
+  mesh.coloring_Nptr = apf.createNumberingJ(mesh, "preconditioning coloring",
+                                            1, el_mshape)
 
   if coloring_distance == 2
     numc = colorMesh2(mesh)

@@ -202,7 +202,10 @@ function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVec
   # an existing Numbering (and possibly Field?) if a new one is created
   # with the same name, we have to delete all existing Numberings/Fields
   if free_mesh
-    apf.destroyNumberings(mesh.m_ptr)
+
+    for n in copy(mesh.numberings.user)
+      destroyNumbering(mesh, n)
+    end
 
     for f in copy(mesh.fields.user)
       if f == mesh.fnew_ptr

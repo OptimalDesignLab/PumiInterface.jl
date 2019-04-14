@@ -166,8 +166,10 @@ export init, loadMesh, initMesh, initGeometry, snapEdgeNodes, pushMeshRef,
        getVertCoords, getEdgeCoords, getFaceCoords, getElCoords,
        getAllEntityCoords, createNumberingJ, destroyNumbering, findNumbering,
        destroyNumberings,
-       getNumberingShape, numberJ, getNumberJ, isNumbered, getDofNumbers,
-       getElementNumbers, getNumberingMesh, printNumberingName, createDoubleTag,
+       getNumberingShape, countNumberings, getNumbering,
+       numberJ, getNumberJ, isNumbered, getDofNumbers,
+       getElementNumbers, getNumberingMesh, getNumberingName,
+       printNumberingName, createDoubleTag,
        setDoubleTag, getDoubleTag, reorder, reorderXi,
        createIsoFunc, createAnisoFunc,
        deleteIsoFunc, createSolutionTransfers, deleteSolutionTransfers,
@@ -904,7 +906,7 @@ function getAllEntityCoords(m_ptr::Ptr{Void}, entity::Ptr{Void},
   return nothing
 end
 
-function createNumberingJ(m_ptr, name::AbstractString, field::Ptr{Void}, components::Integer)
+function createNumberingJ(m_ptr::Ptr{Void}, name::AbstractString, field::Ptr{Void}, components::Integer)
 # create a generally defined numbering, get a pointer to it
 # this just passes through to :createNumbering
 # field is an :FieldShape*
@@ -947,6 +949,20 @@ end
 function getNumberingShape(n_ptr::Ptr{Void})
 
   fshape = ccall( (getNumberingShape_name, pumi_libname), Ptr{Void}, (Ptr{Void},), n_ptr)
+end
+
+function countNumberings(m_ptr::Ptr{Void})
+
+  n = ccall( (:countNumberings, pumi_libname), Cint, (Ptr{Void},), m_ptr)
+
+  return n
+end
+
+function getNumbering(m_ptr::Ptr{Void}, i::Integer)
+
+  n_ptr = ccall( (:getNumbering, pumi_libname), Ptr{Void}, (Ptr{Void}, Cint), m_ptr, i)
+
+  return n_ptr
 end
 
 function numberJ(numbering_ptr, entity, node::Integer, component::Integer, number::Integer)
@@ -1027,6 +1043,12 @@ function getNumberingMesh(n_ptr)
   return m_ptr
 end
 
+
+function getNumberingName(n_ptr::Ptr{Void})
+
+  ptr = ccall( (:getNumberingName, pumi_libname), Cstring, (Ptr{Void},), n_ptr)
+  return unsafe_string(ptr)
+end
 
 function printNumberingName(numbering)
 # print the name of a numbering
@@ -1789,6 +1811,10 @@ function free(sdata::SubMeshData)
   return n_ptr
 end
 
+function printTags(m_ptr::Ptr{Void})
+
+  ccall( (:printTags, pumi_libname), Void, (Ptr{Void},), m_ptr)
+end
 
 
 include("apf2.jl")  # higher level functions

@@ -389,6 +389,7 @@ end
 
  apf.numberJ(n_ptr, vert, 0, 0, 1)
  @test ( apf.getNumberJ(n_ptr, vert, 0, 0) )== 1
+ apf.destroyNumbering(n_ptr)
 
 
   # test writeVtk all fields option
@@ -424,7 +425,7 @@ end
 
   @test !found_name
   @test found_name_all
-
+  apf.destroyNumbering(n_ptr)
 
 
  # test mesh warping functions
