@@ -109,7 +109,7 @@ function printEdgeVertNumbers(edgeN_ptr, vertN_ptr; fstream=STDOUT)
 # fstream is the stream the data is written to, default STDOUT
 # this function uses iterators
 
-  m_ptr = getMesh(edgeN_ptr)  # get pointer to mesh
+  m_ptr = getNumberingMesh(edgeN_ptr)  # get pointer to mesh
   it = MeshIterator(m_ptr, 1)
   m = countJ(m_ptr, 1)  # count number of edges on the mesh
   println("m = ", m)
@@ -130,7 +130,7 @@ end
 
 function printFaceVertNumbers(edges::AbstractArray{Ptr{Void}}, edgeN_ptr, vertN_ptr; fstream=STDOUT)
 
-  m_ptr = getMesh(edgeN_ptr)
+  m_ptr = getNumberingMesh(edgeN_ptr)
   m = length(edges)
 
   for i=1:m
@@ -149,7 +149,7 @@ end
  
 function printFaceVertNumbers(faceN_ptr, vertN_ptr; fstream=STDOUT)
 #print the numbers of the vertices that compose a face
-  m_ptr = getMesh(faceN_ptr)
+  m_ptr = getNumberingMesh(faceN_ptr)
   it = MeshIterator(m_ptr, 2)
   m = countJ(m_ptr, 2)  # count number of faces on the mesh
 
@@ -171,7 +171,7 @@ function printFaceVertNumbers(faceN_ptr, vertN_ptr; fstream=STDOUT)
 end
 
 function printElementVertNumbers(el_Nptr, vert_Nptr; fstream=STDOUT)
-  m_ptr = getMesh(el_Nptr)
+  m_ptr = getNumberingMesh(el_Nptr)
   it = MeshIterator(m_ptr, 3)
   m = countJ(m_ptr, 3)  # count number of element
 

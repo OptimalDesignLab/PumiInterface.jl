@@ -24,7 +24,7 @@
 function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
 
   # create apf::Field
-  fsize = apf.createPackedField(mesh.m_ptr, "size_field", 1, mesh.coordshape_ptr)
+  fsize = apf.createPackedField(mesh, "size_field", 1, mesh.coordshape_ptr)
 
   apf.zeroField(fsize)
 
@@ -110,11 +110,7 @@ function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_
   # To avoid the mesh reference count reaching zero and destroying the
   # mesh, we have to create the new mesh object before finalizing the
   # old one
-
   newmesh = PumiMeshDG2(oldmesh, sbp, opts)
-  if free_mesh
-    finalize(oldmesh)
-  end
 
   if length(u_vec) > 0
     u_vec_new = zeros(Float64, newmesh.numDof)
@@ -122,6 +118,11 @@ function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_
   else
     u_vec_new = u_vec
   end
+
+  if free_mesh
+    finalize(oldmesh)
+  end
+
 
   return newmesh, u_vec_new
 end
@@ -133,9 +134,6 @@ function adaptMesh(oldmesh::PumiMeshDG3, sbp, opts, el_sizes::AbstractVector, u_
   _adaptMesh(oldmesh, el_sizes, u_vec, free_mesh=free_mesh)
 
   newmesh = PumiMeshDG3(oldmesh, sbp, opts)
-  if free_mesh
-    finalize(oldmesh)
-  end
 
   if length(u_vec) > 0
     u_vec_new = zeros(Float64, newmesh.numDof)
@@ -143,6 +141,11 @@ function adaptMesh(oldmesh::PumiMeshDG3, sbp, opts, el_sizes::AbstractVector, u_
   else
     u_vec_new = u_vec
   end
+
+  if free_mesh
+    finalize(oldmesh)
+  end
+
 
   return newmesh, u_vec_new
 end
@@ -192,15 +195,24 @@ function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVec
   # cleanup intermediate data
   apf.deleteSolutionTransfers(soltrans)
   apf.deleteIsoFunc(isofunc)
-  apf.destroyField(size_f) 
+  apf.destroyField(mesh, size_f) 
 
 
   # because we are going to reinitialize the mesh, and Pumi will return
   # an existing Numbering (and possibly Field?) if a new one is created
   # with the same name, we have to delete all existing Numberings/Fields
   if free_mesh
-    apf.destroyNumberings(mesh.m_ptr)
-    apf.destroyFields(mesh.m_ptr, [mesh.fnew_ptr])
+
+    for n in copy(mesh.numberings.user)
+      destroyNumbering(mesh, n)
+    end
+
+    for f in copy(mesh.fields.user)
+      if f == mesh.fnew_ptr
+        continue
+      end
+      destroyField(mesh, f)
+    end
   end
 
   return nothing

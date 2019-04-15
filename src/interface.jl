@@ -45,8 +45,8 @@ function numberSurfacePoints(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglo
   if n_old != C_NULL
     apf.destroyNumbering(n_old)
   end
-  n_face = apf.createNumberingJ(mesh.m_ptr, numbering_name, 
-                             mesh.coordshape_ptr, 1)
+  n_face = apf.createNumberingJ(mesh, numbering_name, 
+                                1, mesh.coordshape_ptr)
   topo = mesh.topo
   num_i = 1
   verts = Array{Ptr{Void}}(4)

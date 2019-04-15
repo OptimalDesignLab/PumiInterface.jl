@@ -2009,6 +2009,7 @@ function test_update_coords(mesh, sbp, opts)
   return nothing
 end
 
+
 function test_coords_file(opts, sbp, sbpface, mesh_ctor=PumiMeshDG2)
 
 
@@ -2063,5 +2064,204 @@ function test_coords_file(opts, sbp, sbpface, mesh_ctor=PumiMeshDG2)
   end
 
   #TODO: test Complex128
+  return nothing
+end
+
+
+function test_refcounting()
+
+  order = 1
+  smb_name = "vortex.smb"
+  dmg_name = "vortex.dmg"
+
+  opts = Dict{Any, Any}(
+    "dmg_name" => dmg_name,
+    "smb_name" => smb_name,
+    "order" => order,
+    "coloring_distance" => 2,
+    "numBC" => 1,
+    "BC1" =>  [4, 7, 10, 13],
+    "run_type" => 4,
+    )
+#    interp_op = [0.5 0 0; 0 0.5 0; 0 0 0.5]
+
+  sbp = getTriSBPOmega(degree=order)
+  vtx = sbp.vtx
+  sbpface = TriFace{Float64}(order, sbp.cub, vtx)
+
+  mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+
+  #fshape_ptr = apf.getConstantShapePtr(0)
+  fshape_ptr = mesh.coordshape_ptr
+  f_ptr = apf.createPackedField(mesh, "testfield1", 1, fshape_ptr)
+
+  @test PdePumiInterface.countFieldRef(f_ptr) == 1
+
+  f_ptr2 = apf.createPackedField(mesh, "testfield1", 1, fshape_ptr)
+  @test f_ptr2 != f_ptr
+  @test PdePumiInterface.countFieldRef(f_ptr2) == 1
+
+  # load the same mesh from disk again, check the fields are not shared
+  mesh2 = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+
+  f_ptr3 = apf.createPackedField(mesh2, "testfield1", 1, fshape_ptr)
+
+  @test mesh.m_ptr != mesh2.m_ptr
+  for f in mesh.fields.orig
+    @test !(f in mesh2.fields.orig)
+  end
+  for f in mesh.fields.user
+    @test !(f in mesh2.fields.user)
+  end
+
+  m1_ptr = mesh.m_ptr
+  finalize(mesh)
+  @test apf.countMeshRefs(m1_ptr) == 0
+  @test PdePumiInterface.countFieldRef(f_ptr) == 0
+
+  # make sure finalizer is freeing fields
+  finalize(mesh2)
+  @test PdePumiInterface.countFieldRef(f_ptr3) == 0
+
+
+  # create 2 Julia meshes sharing the same apf::Mesh
+  mesh1 = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+
+  #fshape_ptr = apf.getConstantShapePtr(0)
+  fshape_ptr = mesh.coordshape_ptr
+  f_orig_mesh1 = apf.createPackedField(mesh1.m_ptr, "origfield_mesh1",
+                                       1, fshape_ptr)
+  PdePumiInterface.attachOrigField(mesh1, f_orig_mesh1)
+
+  n_orig_mesh1 = apf.createNumberingJ(mesh1.m_ptr, "orignum_mesh1", fshape_ptr,
+                                      1)
+  PdePumiInterface.attachOrigNumbering(mesh1, n_orig_mesh1)
+
+
+  f_user_mesh1 = apf.createPackedField(mesh1.m_ptr, "userfield_mesh1",
+                                       1, fshape_ptr)
+  PdePumiInterface.attachUserField(mesh1, f_user_mesh1)
+
+  n_user_mesh1 = apf.createNumberingJ(mesh1.m_ptr, "usernum_mesh1", fshape_ptr,
+                                      1)
+  PdePumiInterface.attachUserNumbering(mesh1, n_user_mesh1)
+
+
+  mesh2 = PumiMeshDG2(mesh1, sbp, opts)
+
+  n_user_mesh2 = apf.createNumberingJ(mesh2, "usernum_mesh2", 1, fshape_ptr)
+  f_user_mesh2 = apf.createPackedField(mesh2, "userfield_mesh2", 1, fshape_ptr)
+
+  # test orig fields are attached to both, but user fields are not
+  @test f_orig_mesh1 in mesh2.fields.orig
+  @test !(f_user_mesh1 in mesh2.fields.user)
+  @test f_user_mesh1 in mesh1.fields.user
+
+  @test n_orig_mesh1 in mesh2.numberings.orig
+  @test !(n_user_mesh1 in mesh2.numberings.user)
+  @test n_user_mesh1 in mesh1.numberings.user
+
+  @test PdePumiInterface.countFieldRef(f_orig_mesh1) == 2
+  @test PdePumiInterface.countFieldRef(f_user_mesh1) == 1
+
+  @test PdePumiInterface.countNumberingRef(n_orig_mesh1) == 2
+  @test PdePumiInterface.countNumberingRef(n_user_mesh1) == 1
+
+  # write values to field
+  vals = Float64[1.0]
+  for (e, dim) in apf.FieldEntityIt(mesh1.m_ptr, fshape_ptr)
+    apf.numberJ(n_orig_mesh1, e, 0, 0, 1)
+    apf.numberJ(n_user_mesh1, e, 0, 0, 1)
+    apf.numberJ(n_user_mesh2, e, 0, 0, 1)
+
+    apf.setComponents(f_orig_mesh1, e, 0, vals)
+    apf.setComponents(f_user_mesh1, e, 0, vals)
+    apf.setComponents(f_user_mesh2, e, 0, vals)
+  end
+
+
+  writeVisFiles(mesh1, "mesh1_vis")
+  writeVisFiles(mesh2, "mesh2_vis")
+
+  mesh1_has_f_orig1 = false
+  mesh1_has_n_orig1 = false
+  mesh1_has_f_user1 = false
+  mesh1_has_n_user1 = false
+
+  mesh2_has_f_orig1 = false
+  mesh2_has_n_orig1 = false
+  mesh2_has_f_user1 = false
+  mesh2_has_n_user1 = false
+
+  mesh1_has_f_user2 = false
+  mesh1_has_n_user2 = false
+  mesh2_has_f_user2 = false
+  mesh2_has_n_user2 = false
+
+  for line in eachline("mesh1_vis/mesh1_vis.pvtu")
+    if contains(line, "origfield_mesh1")
+      mesh1_has_f_orig1 = true
+    end
+    if contains(line, "orignum_mesh1")
+      mesh1_has_n_orig1 = true
+    end
+    if contains(line, "userfield_mesh1")
+      mesh1_has_f_user1 = true
+    end
+    if contains(line, "usernum_mesh1")
+      mesh1_has_n_user1 = true
+    end
+    if contains(line, "userfield_mesh2")
+      mesh1_has_f_user2 = true
+    end
+    if contains(line, "usernum_mesh2")
+      mesh1_has_n_user2 = true
+    end
+  end
+
+  @test mesh1_has_f_orig1
+  @test mesh1_has_n_orig1
+  @test mesh1_has_f_user1
+  @test mesh1_has_n_user1
+  @test !mesh1_has_f_user2
+  @test !mesh1_has_n_user2
+
+  for line in eachline("mesh2_vis/mesh2_vis.pvtu")
+    if contains(line, "origfield_mesh1")
+      mesh2_has_f_orig1 = true
+    end
+    if contains(line, "orignum_mesh1")
+      mesh2_has_n_orig1 = true
+    end
+    if contains(line, "userfield_mesh1")
+      mesh2_has_f_user1 = true
+    end
+    if contains(line, "usernum_mesh1")
+      mesh2_has_n_user1 = true
+    end
+    if contains(line, "userfield_mesh2")
+      mesh2_has_f_user2 = true
+    end
+    if contains(line, "usernum_mesh2")
+      mesh2_has_n_user2 = true
+    end
+  end
+
+  @test mesh2_has_f_orig1
+  @test mesh2_has_n_orig1
+  @test !mesh2_has_f_user1
+  @test !mesh2_has_n_user1
+  @test mesh2_has_f_user2
+  @test mesh2_has_n_user2
+
+  finalize(mesh1)
+  @test PdePumiInterface.countFieldRef(f_orig_mesh1) == 1
+  @test PdePumiInterface.countFieldRef(f_user_mesh1) == 0
+
+  @test PdePumiInterface.countNumberingRef(n_orig_mesh1) == 1
+  @test PdePumiInterface.countNumberingRef(n_user_mesh1) == 0
+
+  finalize(mesh2)
+
   return nothing
 end

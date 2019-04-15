@@ -32,7 +32,7 @@ using PumiConfig
   a2 = rand(1, 3)
   @test_throws Exception  PdePumiInterface.copy_masked(a2, a, mask)
 
-
+  test_refcounting()
 
 
 
@@ -198,7 +198,6 @@ using PumiConfig
 #    println("mesh.coords = ", mesh.coords)
     
     @test isapprox( mesh.jac, ones(mesh.numNodesPerElement ,2)) 
-
 
     fnames = ["boundary_nums", "face_vertnums", "edge_vertnums"]
     for name in fnames

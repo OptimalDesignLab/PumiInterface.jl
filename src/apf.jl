@@ -87,7 +87,7 @@ global const isNumbered_name = "isNumbered"
 global const getDofNumbers_name = "getDofNumbers"
 global const setNumberingOffset_name = "setNumberingOffset"
 global const getElementNumbers_name = "getElementNumbers"
-global const getMesh_name = "getMesh"
+global const getMesh_name = "getNumberingMesh"
 global const printNumberingName_name = "printNumberingName"
 
 global const createDoubleTag_name = "createDoubleTag"
@@ -166,15 +166,19 @@ export init, loadMesh, initMesh, initGeometry, snapEdgeNodes, pushMeshRef,
        getVertCoords, getEdgeCoords, getFaceCoords, getElCoords,
        getAllEntityCoords, createNumberingJ, destroyNumbering, findNumbering,
        destroyNumberings,
-       getNumberingShape, numberJ, getNumberJ, isNumbered, getDofNumbers,
-       getElementNumbers, getMesh, printNumberingName, createDoubleTag,
+       getNumberingShape, countNumberings, getNumbering,
+       numberJ, getNumberJ, isNumbered, getDofNumbers,
+       getElementNumbers, getNumberingMesh, getNumberingName,
+       printNumberingName, createDoubleTag,
        setDoubleTag, getDoubleTag, reorder, reorderXi,
        createIsoFunc, createAnisoFunc,
        deleteIsoFunc, createSolutionTransfers, deleteSolutionTransfers,
        addSolutionTransfer, configureMAInput, runMA, getAvgElementSize, IsoFuncJ,
        SolutionTransfers, MAInput,
        createPackedField, setComponents,
-       getComponents, zeroField, reduceField, getCoordinateField, findField, destroyField, destroyFields,
+       getComponents, zeroField, getFieldMesh,
+       reduceField, getCoordinateField, findField,
+       countFields, getField, destroyField, destroyFields,
        countBridgeAdjacent,
        getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
@@ -388,6 +392,13 @@ function popMeshRef(m_ptr::Ptr{Void})
   ccall( (popMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
 end
 
+function countMeshRefs(m_ptr::Ptr{Void})
+  n = ccall( (:countMeshRefs, pumi_libname), Cint, (Ptr{Void},), m_ptr)
+
+  return n
+end
+
+
 
 # no longer needed
 function getMeshShapePtr(m_ptr::Ptr{Void})
@@ -517,11 +528,35 @@ end
   Writes VTK files.  The keyword argument `writeall` determines which Numberings
   and Fields are written to the file.  By default only those with a FieldShape
   compatible with the the coordinate field are written.
+
+  **Inputs**
+
+   * name: file name
+   * m_ptr: mesh pointer
+   * f_ptrs: Vector of apf::Field*, defaults to array of zero length
+   * n_ptrs: Vector of apf::Numbering*, defaults to array of zero length
+   * gn_ptrs: Vector of apf::GlobalNumbering*, defaults to array of zero length
+
+  **Keyword Arguments**
+
+   * writeall: if true, write fields that are not representable cleanly in
+               vtk file, default false
+
+  For `f_ptrs`, `n_ptrs`, and `gn_ptrs`, only the objects in the vector will
+  be considered for writing to the vtk file (according to `writeall`).  If the
+  vector has zero length, all objects will be considered.
 """
-function writeVtkFiles(name::AbstractString, m_ptr; writeall::Bool=false)
+function writeVtkFiles(name::AbstractString, m_ptr,
+                       f_ptrs=Vector{Ptr{Void}}(0),
+                       n_ptrs=Vector{Ptr{Void}}(0),
+                       gn_ptrs=Vector{Ptr{Void}}(0);
+                       writeall::Bool=false)
 # write vtk files to be read by paraview
 
-  ccall( (writeVtkFiles_name, pumi_libname), Void, (Ptr{UInt8}, Ptr{Void}, CppBool), name, m_ptr, writeall)
+ccall( (writeVtkFiles_name, pumi_libname), Void,
+      (Ptr{UInt8}, Ptr{Void}, CppBool, Ptr{Ptr{Void}}, Cint, Ptr{Ptr{Void}},
+       Cint, Ptr{Ptr{Void}}, Cint), name, m_ptr, writeall,
+      f_ptrs, length(f_ptrs), n_ptrs, length(n_ptrs), gn_ptrs, length(gn_ptrs))
   return nothing
 end
 
@@ -895,7 +930,7 @@ function getAllEntityCoords(m_ptr::Ptr{Void}, entity::Ptr{Void},
   return nothing
 end
 
-function createNumberingJ(m_ptr, name::AbstractString, field, components::Integer)
+function createNumberingJ(m_ptr::Ptr{Void}, name::AbstractString, field::Ptr{Void}, components::Integer)
 # create a generally defined numbering, get a pointer to it
 # this just passes through to :createNumbering
 # field is an :FieldShape*
@@ -938,6 +973,20 @@ end
 function getNumberingShape(n_ptr::Ptr{Void})
 
   fshape = ccall( (getNumberingShape_name, pumi_libname), Ptr{Void}, (Ptr{Void},), n_ptr)
+end
+
+function countNumberings(m_ptr::Ptr{Void})
+
+  n = ccall( (:countNumberings, pumi_libname), Cint, (Ptr{Void},), m_ptr)
+
+  return n
+end
+
+function getNumbering(m_ptr::Ptr{Void}, i::Integer)
+
+  n_ptr = ccall( (:getNumbering, pumi_libname), Ptr{Void}, (Ptr{Void}, Cint), m_ptr, i)
+
+  return n_ptr
 end
 
 function numberJ(numbering_ptr, entity, node::Integer, component::Integer, number::Integer)
@@ -1011,13 +1060,19 @@ function getElementNumbers(n_ptr, entity, num_dof::Integer, nums::Array{Int32, 1
 
 end
 
-function getMesh(n_ptr)
+function getNumberingMesh(n_ptr)
 # get the mesh a numbering is defined on
 
   m_ptr = ccall( (getMesh_name, pumi_libname), Ptr{Void}, (Ptr{Void},), n_ptr)
   return m_ptr
 end
 
+
+function getNumberingName(n_ptr::Ptr{Void})
+
+  ptr = ccall( (:getNumberingName, pumi_libname), Cstring, (Ptr{Void},), n_ptr)
+  return unsafe_string(ptr)
+end
 
 function printNumberingName(numbering)
 # print the name of a numbering
@@ -1315,6 +1370,15 @@ function zeroField(f_ptr)
   ccall( (zeroField_name, pumi_libname), Void, (Ptr{Void},), f_ptr)
 end
 
+function getFieldMesh(f_ptr::Ptr{Void})
+# get the mesh a numbering is defined on
+
+  m_ptr = ccall( (:getFieldMesh, pumi_libname), Ptr{Void}, (Ptr{Void},), f_ptr)
+  return m_ptr
+end
+
+
+
 """
   Apply a reduction operation along the partition boundaries of a Field
   to make the field globally consistent.  The field must have values
@@ -1343,6 +1407,22 @@ function findField(m_ptr::Ptr{Void}, fieldname::String)
 
   return f_ptr
 end
+
+function countFields(m_ptr::Ptr{Void})
+
+  n = ccall( (:countFields, pumi_libname), Cint, (Ptr{Void},), m_ptr)
+
+  return n
+end
+
+function getField(m_ptr::Ptr{Void}, i::Integer)
+
+  f_ptr = ccall( (:getField, pumi_libname), Ptr{Void}, (Ptr{Void}, Cint), m_ptr, i)
+
+  return f_ptr
+end
+
+
 
 function destroyField(f_ptr::Ptr{Void})
 
@@ -1755,6 +1835,10 @@ function free(sdata::SubMeshData)
   return n_ptr
 end
 
+function printTags(m_ptr::Ptr{Void})
+
+  ccall( (:printTags, pumi_libname), Void, (Ptr{Void},), m_ptr)
+end
 
 
 include("apf2.jl")  # higher level functions

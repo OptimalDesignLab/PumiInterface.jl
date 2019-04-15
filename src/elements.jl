@@ -134,7 +134,7 @@ function createSubtriangulatedMesh(mesh::AbstractMesh, opts)
     # (reloading mesh after mesh adaptation)
     mesh.fnew_ptr = apf.findField(mesh.mnew_ptr, "solution_field_interp")
     if mesh.fnew_ptr == C_NULL
-      mesh.fnew_ptr = apf.createPackedField(mesh.mnew_ptr, "solution_field_interp", dofpernode)
+      mesh.fnew_ptr = apf.createPackedField(mesh, "solution_field_interp", dofpernode)
     end
     mesh.fnewshape_ptr = fshape_new
 

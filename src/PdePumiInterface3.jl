@@ -74,7 +74,7 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
   @time mesh.numEntities, mesh.m_ptr, mesh.mshape_ptr, n_arr = apf.init(dmg_name, smb_name, order, shape_type=shape_type)
   mesh.f_ptr = apf.findField(mesh.m_ptr, "solution_field")
   if mesh.f_ptr == C_NULL
-    @time mesh.f_ptr = apf.createPackedField(mesh.m_ptr, "solution_field", dofpernode)
+    @time mesh.f_ptr = apf.createPackedField(mesh, "solution_field", dofpernode)
   end
 
   mesh.numVert = convert(Int, mesh.numEntities[1])
@@ -106,7 +106,8 @@ mutable struct PumiMesh3{T1} <: PumiMesh3CG{T1}   # 3d pumi mesh, tetrahedron on
   mesh.edges = Array{Ptr{Void}}(mesh.numEdge)
   mesh.faces = Array{Ptr{Void}}(mesh.numFace)
   mesh.elements = Array{Ptr{Void}}(mesh.numEl)
-  mesh.dofnums_Nptr = apf.createNumberingJ(mesh.m_ptr, "reordered dof numbers", mesh.mshape_ptr, dofpernode)  # 1 dof per node
+  mesh.dofnums_Nptr = apf.createNumberingJ(mesh, "reordered dof numbers", 
+                                           dofpernode, mesh.mshape_ptr)  # 1 dof per node
 
 
 

@@ -381,6 +381,9 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
                           # grid, numNodesPerElement_s x numNodesPerElement_f
   I_F2ST::Matrix{Float64} # transpose of above
 
+  fields::AttachedData
+  numberings::AttachedData
+
   """
     This inner constructor loads a Pumi mesh from files and sets a few fields
     that must be consistent with how the mesh was loaded.
@@ -418,6 +421,8 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
     mesh.myrank = MPI.Comm_rank(mesh.comm)
     mesh.commsize = MPI.Comm_size(mesh.comm)
     myrank = mesh.myrank
+    mesh.fields = AttachedData()
+    mesh.numberings = AttachedData()
 
     if myrank == 0
       println("\nConstructing PumiMeshDG3 Object")
@@ -428,6 +433,8 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
     mesh.m_ptr, dim = apf.loadMesh(dmg_name, smb_name, order, shape_type=shape_type)
 
     apf.pushMeshRef(mesh.m_ptr)
+    recordAllFields(mesh)
+    recordAllNumberings(mesh)
     if dim != mesh.dim
       throw(ErrorException("loaded mesh is not 3 dimensional"))
     end
@@ -467,6 +474,8 @@ function PumiMeshDG3(old_mesh::PumiMeshDG3{T, Tface}) where {T, Tface}
   mesh.sbpface = old_mesh.sbpface
   mesh.myrank = old_mesh.myrank
   mesh.commsize = old_mesh.commsize
+  mesh.fields = AttachedData()
+  mesh.numberings = AttachedData()
 
   return mesh
 end
@@ -542,6 +551,8 @@ function PumiMeshDG3(old_mesh::PumiMeshDG3{T, Tface}, sbp, opts) where {T, Tface
   mesh = PumiMeshDG3(old_mesh)
   mesh.m_ptr = old_mesh.m_ptr
   apf.pushMeshRef(mesh.m_ptr)
+  attachOrigFields(mesh, old_mesh.fields.orig)
+  attachOrigNumberings(mesh, old_mesh.numberings.orig)
 
   finishMeshInit(mesh, sbp, opts, old_mesh.topo, dofpernode=old_mesh.numDofPerNode,
                  shape_type=old_mesh.shape_type)
@@ -621,6 +632,9 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
 #  end
 
   mesh.coordshape_ptr, num_Entities, n_arr = apf.initMesh(mesh.m_ptr)
+  for n in n_arr
+    attachUserNumbering(mesh, n)
+  end
 
 #  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = apf.init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
 
@@ -631,7 +645,7 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   # adapt)
   mesh.f_ptr = apf.findField(mesh.m_ptr, "solution_field")
   if mesh.f_ptr == C_NULL
-    mesh.f_ptr = apf.createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.coordshape_ptr)
+    mesh.f_ptr = apf.createPackedField(mesh, "solution_field", dofpernode, mesh.coordshape_ptr)
   end
   mesh.fnew_ptr = mesh.f_ptr
   mesh.mnew_ptr = mesh.m_ptr
@@ -704,25 +718,26 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
 
   # create the coloring_Nptr
   el_mshape = apf.getConstantShapePtr(mesh.dim)
-  mesh.coloring_Nptr = apf.createNumberingJ(mesh.m_ptr, "coloring", el_mshape, 1)
+  mesh.coloring_Nptr = apf.createNumberingJ(mesh, "coloring", 1, el_mshape)
 
   # create node status numbering (node, not dof)
-  mesh.nodestatus_Nptr = apf.createNumberingJ(mesh.m_ptr, "dof status", 
-                         mesh.mshape_ptr, 1)   
+  mesh.nodestatus_Nptr = apf.createNumberingJ(mesh, "dof status", 
+                                              1, mesh.mshape_ptr)
   # create node numbering
-  mesh.nodenums_Nptr = apf.createNumberingJ(mesh.m_ptr, "reordered node numbers",
-                       mesh.mshape_ptr, 1)
+  mesh.nodenums_Nptr = apf.createNumberingJ(mesh, "reordered node numbers",
+                                            1, mesh.mshape_ptr)
 
   # create dof numbering
-  mesh.dofnums_Nptr = apf.createNumberingJ(mesh.m_ptr, "reordered dof numbers", 
-                      mesh.mshape_ptr, dofpernode)
+  mesh.dofnums_Nptr = apf.createNumberingJ(mesh, "reordered dof numbers", 
+                                           dofpernode, mesh.mshape_ptr)
 
   # coordinate node numbering
-  mesh.coord_nodenums_Nptr = apf.createNumberingJ(mesh.m_ptr, "coord node numbers",
-                                               mesh.coordshape_ptr, mesh.dim)
+  mesh.coord_nodenums_Nptr = apf.createNumberingJ(mesh, "coord node numbers",
+                                                  mesh.dim, mesh.coordshape_ptr)
 
 
-  xiNums_Nptr = apf.createNumberingJ(mesh.m_ptr, "geometric dof numbers", mesh.coordshape_ptr, mesh.dim)
+  xiNums_Nptr = apf.createNumberingJ(mesh, "geometric dof numbers", 
+                                     mesh.dim, mesh.coordshape_ptr)
 
   # get entity pointers
 #  println("about to get entity pointers")
@@ -1012,7 +1027,8 @@ function PumiMeshDG3Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
   mesh.coloringDistance = coloring_distance
   # create the coloring_Nptr
   el_mshape = apf.getConstantShapePtr(2)
-  mesh.coloring_Nptr = apf.createNumberingJ(mesh.m_ptr, "preconditioning coloring", el_mshape, 1)
+  mesh.coloring_Nptr = apf.createNumberingJ(mesh, "preconditioning coloring",
+                                            1, el_mshape)
 
   if coloring_distance == 2
     numc = colorMesh2(mesh)

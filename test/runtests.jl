@@ -389,6 +389,7 @@ end
 
  apf.numberJ(n_ptr, vert, 0, 0, 1)
  @test ( apf.getNumberJ(n_ptr, vert, 0, 0) )== 1
+ apf.destroyNumbering(n_ptr)
 
 
   # test writeVtk all fields option
@@ -397,14 +398,11 @@ end
   nshape = apf.getFieldShape(2, 1, 2)
   n_ptr = apf.createNumberingJ(m_ptr, nname, nshape, 1)
 
-  it = apf.MeshIterator(m_ptr, 2)
-  for i=1:num_Entities[3]
-    el_i = apf.iterate(it)
+  for (i, el_i) in enumerate(apf.MeshIterator(m_ptr, 2))
     for j=0:2
       apf.numberJ(n_ptr, el_i, j, 0, i)
     end
   end
-  apf.free(it)
 
   apf.writeVtkFiles("test_vtk", m_ptr)
   apf.writeVtkFiles("test_vtk_all", m_ptr, writeall=true)
@@ -427,7 +425,7 @@ end
 
   @test !found_name
   @test found_name_all
-
+  apf.destroyNumbering(n_ptr)
 
 
  # test mesh warping functions
