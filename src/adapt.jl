@@ -103,6 +103,8 @@ end
 """
 function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0); free_mesh::Bool=true)
 
+  checkMeshPtr(oldmesh)
+
   # run the mesh adaptation
   _adaptMesh(oldmesh, el_sizes, u_vec; free_mesh=free_mesh)
 
@@ -129,6 +131,8 @@ end
 
 # method for 3D DG meshes
 function adaptMesh(oldmesh::PumiMeshDG3, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0); free_mesh::Bool=true)
+
+  checkMeshPtr(oldmesh)
 
   # run the mesh adaptation
   _adaptMesh(oldmesh, el_sizes, u_vec, free_mesh=free_mesh)

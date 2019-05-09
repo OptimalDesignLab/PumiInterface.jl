@@ -43,7 +43,7 @@ export PumiMeshDG3
 # mechanism to convert from Pumi to SBP ordering is a better interface
 #         
 @doc """
-### PumiInterface.PumiMeshDG2
+### PumiInterface.PumiMeshDG3
 
   This is an implementation of AbstractMesh for a 2 dimensional equation.  
   The constructor for this type extracts all the needed information from Pumi,
@@ -459,7 +459,8 @@ end  # end PumiMeshDG3 type declaration
   The mesh.m_ptr field is not populated because this function could be used
   for creating submeshes.
 """
-function PumiMeshDG3(old_mesh::PumiMeshDG3{T, Tface}) where {T, Tface}
+function PumiMeshDG3(old_mesh::PumiMeshDG3{T},
+                     sbpface::Tface=old_mesh.sbpface) where {T, Tface}
 
   mesh = PumiMeshDG3{T, Tface}()  # get uninitailized object
 
@@ -471,7 +472,7 @@ function PumiMeshDG3(old_mesh::PumiMeshDG3{T, Tface}) where {T, Tface}
   mesh.topo_pumi = ElementTopology{3}(apf.tet_tri_verts.',
                                       apf.tet_edge_verts.', topo2=topo2)
 
-  mesh.sbpface = old_mesh.sbpface
+  mesh.sbpface = sbpface
   mesh.myrank = old_mesh.myrank
   mesh.commsize = old_mesh.commsize
   mesh.fields = AttachedData()
@@ -546,9 +547,9 @@ end
 
    * mesh: new mesh object
 """
-function PumiMeshDG3(old_mesh::PumiMeshDG3{T, Tface}, sbp, opts) where {T, Tface}
+function PumiMeshDG3(old_mesh::PumiMeshDG3{T}, sbp, opts, sbpface::Tface=old_mesh.sbpface) where {T, Tface}
 
-  mesh = PumiMeshDG3(old_mesh)
+  mesh = PumiMeshDG3(old_mesh, sbpface)
   mesh.m_ptr = old_mesh.m_ptr
   apf.pushMeshRef(mesh.m_ptr)
   attachOrigFields(mesh, old_mesh.fields.orig)

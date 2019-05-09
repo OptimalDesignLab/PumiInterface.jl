@@ -48,6 +48,9 @@ export getCoordsXi, setCoordsXi, getCoords, setCoords
 # file io
 export writeCoordsBinary, readCoordsBinary
 
+# make apf available to users if needed (avoid polluting namespace)
+export apf
+
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 

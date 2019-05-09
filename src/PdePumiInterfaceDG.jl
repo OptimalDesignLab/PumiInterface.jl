@@ -497,16 +497,17 @@ end  # end PumiMeshDG2 declaration
   The mesh.m_ptr field is not populated because this function is used
   for creating submeshes.
 """
-function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}) where {T, Tface}
+function PumiMeshDG2(old_mesh::PumiMeshDG2{T},
+                     sbpface::Tface=old_mesh.sbpface) where {T, Tface}
 
-  mesh = PumiMeshDG2{T, Tface}()  # get uninitailized object
+  mesh = PumiMeshDG2{T, Tface}()  # get uninitialized object
 
   # set essential fields from old_mesh
   mesh.isDG = true
   mesh.dim = 2
   mesh.comm = old_mesh.comm
   mesh.topo_pumi = old_mesh.topo_pumi
-  mesh.sbpface = old_mesh.sbpface
+  mesh.sbpface = sbpface
   mesh.myrank = old_mesh.myrank
   mesh.commsize = old_mesh.commsize
   mesh.fields = AttachedData()
@@ -618,14 +619,15 @@ end
                while this constructor runs
    * sbp: SBP operator
    * opts: options dictionary
+   * sbpface: an `AbstractFace` object, defaults to `old_mesh.sbpface`
 
   **Outputs**
 
    * mesh: new mesh object
 """
-function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts) where {T, Tface}
+function PumiMeshDG2(old_mesh::PumiMeshDG2{T}, sbp, opts, sbpface::Tface=old_mesh.sbpface) where {T, Tface}
 
-  mesh = PumiMeshDG2(old_mesh)
+  mesh = PumiMeshDG2(old_mesh, sbpface)
   mesh.m_ptr = old_mesh.m_ptr
   apf.pushMeshRef(mesh.m_ptr)
   mesh.subdata = apf.SubMeshData(C_NULL)

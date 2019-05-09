@@ -514,6 +514,8 @@ end
 function writeVisFiles(mesh::PumiMeshDG, fname::AbstractString; writeall::Bool=false)
   # writes vtk files 
 
+  checkMeshPtr(mesh)
+
   if mesh.myrank == 0
     println("writing visualization files ", fname)
   end
@@ -533,6 +535,8 @@ end
 
 function writeVisFiles(mesh::PumiMesh2CG, fname::AbstractString; writeall::Bool=false)
   # writes vtk files 
+
+  checkMeshPtr(mesh)
 
   if mesh.order <= 2
     f_arr = collect(mesh.fields)
