@@ -239,7 +239,7 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
   fill!(coords_vec, reduce_op.neutral_element)
   node_entities = apf.ElementNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.dim)
 
- 
+
   #TODO: not sure if this gives enough time for data to arrive, maybe combine
   #      with calcCoordinatesAndMetrics_rev?
   shr = mesh.normalshr_ptr
@@ -250,7 +250,9 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
       if !_parallel || (_parallel && apf.getOwner(shr, entity) == mesh.myrank)
         for k=1:mesh.dim
           idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
+          orig_val = coords_vec[idx]
           coords_vec[idx] = reduce_op(coords_vec[idx], coords_arr[k, j, i])
+
         end
       end  # end if
     end  # end j

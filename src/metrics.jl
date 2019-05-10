@@ -67,7 +67,7 @@ include("metrics_curvilinear.jl")
 
 
 """
-function getAllCoordinatesAndMetrics(mesh, sbp, opts)
+function getAllCoordinatesAndMetrics(mesh, sbp, opts; verify=true)
 
   if opts["use_linear_metrics"]
 #   if mesh.coord_order == 1
@@ -91,7 +91,9 @@ function getAllCoordinatesAndMetrics(mesh, sbp, opts)
   end
 
   # make sure the mapping jacobian is > 0
-  checkMapping(mesh)
+  if verify
+    checkMapping(mesh)
+  end
 
   # calculate things that depend on the above
   mesh.min_el_size = getMinElementSize(mesh)
@@ -118,8 +120,13 @@ end
    * mesh: the mesh
    * sbp: the SBP operator
    * opts: options dictionary
+
+  **Keyword Arguments**
+
+   * verify: if true, check the mapping jacobian is valid and throw an exception
+             if it is not, default true
 """
-function recalcCoordinatesAndMetrics(mesh, sbp, opts)
+function recalcCoordinatesAndMetrics(mesh, sbp, opts; verify=true)
 
   @assert !opts["use_linear_metrics"]
   @assert mesh.coord_order <= 2
@@ -128,7 +135,9 @@ function recalcCoordinatesAndMetrics(mesh, sbp, opts)
   getCurvilinearCoordinatesAndMetrics(mesh, sbp)
 
   # make sure the mapping jacobian is > 0
-  checkMapping(mesh)
+  if verify
+    checkMapping(mesh)
+  end
 
   # calculate things that depend on the above
   mesh.min_el_size = getMinElementSize(mesh)
@@ -202,6 +211,7 @@ function getAllCoordinatesAndMetrics_rev(mesh, sbp, opts, xvec_bar::AbstractVect
   #  2. start communication for coords3DTo1D
   #  3. reverse mode for elements on interior
   #  4. finish coords3DTo1D
+
   getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
   coords3DTo1D(mesh, mesh.vert_coords_bar, xvec_bar, parallel=parallel)
 

@@ -98,6 +98,11 @@ end
   apf.setParam directly, use this function instead.  This function
   updates both the parametric and xyz coordinates.
 
+  Note that this function stores the parametric coordinates as defined by
+  the CAD engine, not the hybrid xyz-xi format used by `interface_geo.jl`.
+  In particular, for 2D meshes, the xi coordinates for a mesh entity classified
+  on a model region should be the CAD parametric coordinates, not the xyz.
+
   **Inputs**
 
    * mesh: mesh object
@@ -171,7 +176,7 @@ function getCoordsXi(mesh::PumiMesh, entity::Ptr{Void}, node::Integer,
   me_dim = apf.getModelType(mesh.m_ptr, me)
 
   @assert me_dim < 3  # there are no parametric coordinates for regions
-  @assert me_dim > 0  # vertex parametric coordinates cannot be modified
+  #@assert me_dim > 0  # vertex parametric coordinates cannot be modified
   @assert mesh.geoNums.can_eval
 
   e_dim = apf.getDimension(mesh.m_ptr, entity)
@@ -347,6 +352,6 @@ function commit_coords(mesh::PumiMesh, sbp, opts; verify=true, write_vis=false)
     writeVisFiles(mesh, "pre_commit")
   end
 
-  getAllCoordinatesAndMetrics(mesh, sbp, opts)
+  getAllCoordinatesAndMetrics(mesh, sbp, opts, verify=verify)
 
 end

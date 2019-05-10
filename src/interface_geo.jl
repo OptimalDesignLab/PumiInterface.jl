@@ -176,7 +176,6 @@ function coords_xyzToXi(mesh::PumiMeshDG, xvec::AbstractVector,
 
   newxyz_j = zeros(Float64, 3)
 
-
   for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
     me = apf.toModel(mesh.m_ptr, e)
     me_dim = apf.getModelType(mesh.m_ptr, me)
@@ -324,7 +323,14 @@ function wrapPeriodicXi(rng::AbstractVector, xival::Real)
   # shift back to the original range.
   delta = rng[2] - rng[1]
   t1 = (xival - rng[1]) % delta
-  return t1 + rng[1]
+
+  t1 += rng[1]
+
+  if t1 < rng[1]
+    t1 += delta
+  end
+
+  return t1
 end
 
 
