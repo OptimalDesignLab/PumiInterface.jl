@@ -769,6 +769,8 @@ mutable struct PumiMesh2{T1, Tface} <: PumiMesh2CG{T1}   # 2d pumi mesh, triangl
   mesh.f_ptr = apf.findField(mesh.m_ptr, "solution_field")
   if mesh.f_ptr == C_NULL
     mesh.f_ptr = apf.createPackedField(mesh, "solution_field", dofpernode)
+  else
+    attachUserField(mesh, mesh.f_ptr)
   end
   mesh.min_node_dist = minNodeDist(sbp, mesh.isDG)
   mesh.ref_verts = [0.0 1 0; 0 0 1]

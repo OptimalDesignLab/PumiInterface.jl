@@ -714,6 +714,8 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
   mesh.f_ptr = apf.findField(mesh.m_ptr, "solution_field")
   if mesh.f_ptr == C_NULL
     mesh.f_ptr = apf.createPackedField(mesh, "solution_field", dofpernode, mesh.mshape_ptr)
+  else
+    attachUserField(mesh, mesh.f_ptr)
   end
 
   mesh.shr_ptr = apf.getSharing(mesh.m_ptr)

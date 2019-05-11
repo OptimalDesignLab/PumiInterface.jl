@@ -647,6 +647,8 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
   mesh.f_ptr = apf.findField(mesh.m_ptr, "solution_field")
   if mesh.f_ptr == C_NULL
     mesh.f_ptr = apf.createPackedField(mesh, "solution_field", dofpernode, mesh.coordshape_ptr)
+  else
+    attachUserField(mesh, mesh.f_ptr)
   end
   mesh.fnew_ptr = mesh.f_ptr
   mesh.mnew_ptr = mesh.m_ptr

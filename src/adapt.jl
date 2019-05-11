@@ -202,6 +202,7 @@ function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVec
   apf.destroyField(mesh, size_f) 
 
 
+  #TODO: is this unnecessary now with reference counting
   # because we are going to reinitialize the mesh, and Pumi will return
   # an existing Numbering (and possibly Field?) if a new one is created
   # with the same name, we have to delete all existing Numberings/Fields

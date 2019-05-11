@@ -78,6 +78,9 @@ end
 
 
 function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
+
+  checkMeshPtr(mesh)
+
   if mesh.isDG
     # all DG meshes interpolate directly
     interpolateToMesh(mesh, u)
