@@ -106,7 +106,7 @@ function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_
   checkMeshPtr(oldmesh)
 
   # run the mesh adaptation
-  _adaptMesh(oldmesh, el_sizes, u_vec; free_mesh=free_mesh)
+  _adaptMesh(oldmesh, el_sizes, u_vec)
 
   # now construct new mesh object
   # To avoid the mesh reference count reaching zero and destroying the
@@ -116,7 +116,7 @@ function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_
 
   if length(u_vec) > 0
     u_vec_new = zeros(Float64, newmesh.numDof)
-    retrieveSolutionFromMesh_interp(newmesh, u_vec_new)
+    retrieveSolutionFromMesh_interp(newmesh, u_vec_new, oldmesh.fnew_ptr)
   else
     u_vec_new = u_vec
   end
@@ -135,13 +135,13 @@ function adaptMesh(oldmesh::PumiMeshDG3, sbp, opts, el_sizes::AbstractVector, u_
   checkMeshPtr(oldmesh)
 
   # run the mesh adaptation
-  _adaptMesh(oldmesh, el_sizes, u_vec, free_mesh=free_mesh)
+  _adaptMesh(oldmesh, el_sizes, u_vec)
 
   newmesh = PumiMeshDG3(oldmesh, sbp, opts)
 
   if length(u_vec) > 0
     u_vec_new = zeros(Float64, newmesh.numDof)
-    retrieveSolutionFromMesh_interp(newmesh, u_vec_new)
+    retrieveSolutionFromMesh_interp(newmesh, u_vec_new, oldmesh.fnew_ptr)
   else
     u_vec_new = u_vec
   end
@@ -171,12 +171,8 @@ end
    * el_sizes: desired size for each element (vector)
    * u_vec: solution field to interpolate to the adapted mesh (optional)
 
-  **Keyword Arguments**
-
-   * free_mesh: if true, destroys old data on the mesh data structure after
-                adaptation
 """
-function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVector; free_mesh::Bool=true)
+function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVector)
 
   # get size function
   size_f = getSizeField(mesh, el_sizes)
@@ -200,25 +196,6 @@ function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVec
   apf.deleteSolutionTransfers(soltrans)
   apf.deleteIsoFunc(isofunc)
   apf.destroyField(mesh, size_f) 
-
-
-  #TODO: is this unnecessary now with reference counting
-  # because we are going to reinitialize the mesh, and Pumi will return
-  # an existing Numbering (and possibly Field?) if a new one is created
-  # with the same name, we have to delete all existing Numberings/Fields
-  if free_mesh
-
-    for n in copy(mesh.numberings.user)
-      destroyNumbering(mesh, n)
-    end
-
-    for f in copy(mesh.fields.user)
-      if f == mesh.fnew_ptr
-        continue
-      end
-      destroyField(mesh, f)
-    end
-  end
 
   return nothing
 end

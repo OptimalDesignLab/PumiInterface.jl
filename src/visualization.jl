@@ -446,8 +446,17 @@ end  # end function
   This function is the counterpart to [`interpolateToMesh`](@ref).  It retrieves
   a solution saved to the mesh and puts in into a vector
 
+  **Inputs**
+
+   * mesh
+   * fnew_ptr: the apf::Field* to retrieve from. Must have fieldshape
+               mesh.fnewshape_ptr (typically the coordinate fieldshape)
+
+  **Inputs/Outputs**
+
+   * u_vec: to be overwritten
 """
-function retrieveSolutionFromMesh_interp(mesh::PumiMeshDG, u_vec::AbstractVector)
+function retrieveSolutionFromMesh_interp(mesh::PumiMeshDG, u_vec::AbstractVector, fnew_ptr=mesh.fnew_ptr)
 
   @assert mesh.m_ptr == mesh.mnew_ptr  # needed for averaging step
   @assert size(mesh.interp_op, 1) == mesh.coord_numNodesPerElement
@@ -486,7 +495,7 @@ function retrieveSolutionFromMesh_interp(mesh::PumiMeshDG, u_vec::AbstractVector
           entity = node_entities[col]
 
           # skip elementNodeOffsets - maximum of 1 node per entity
-          apf.getComponents(mesh.fnew_ptr, entity, 0, u_node)
+          apf.getComponents(fnew_ptr, entity, 0, u_node)
           for p=1:mesh.numDofPerNode
             u_verts[col, p] = u_node[p]
           end

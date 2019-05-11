@@ -709,14 +709,10 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
   mesh.order = order
   
   mesh.mshape_ptr = apf.getFieldShape(field_shape_type, order, mesh.dim)
+
   #TODO: is mesh.f_ptr used for anything? visualization uses mesh.f_new,
   # which has the same fieldshape?
-  mesh.f_ptr = apf.findField(mesh.m_ptr, "solution_field")
-  if mesh.f_ptr == C_NULL
-    mesh.f_ptr = apf.createPackedField(mesh, "solution_field", dofpernode, mesh.mshape_ptr)
-  else
-    attachUserField(mesh, mesh.f_ptr)
-  end
+  mesh.f_ptr = apf.createPackedField(mesh, "solution_field", dofpernode, mesh.mshape_ptr)
 
   mesh.shr_ptr = apf.getSharing(mesh.m_ptr)
   mesh.normalshr_ptr = apf.getNormalSharing(mesh.m_ptr)
