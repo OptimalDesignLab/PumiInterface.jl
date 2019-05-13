@@ -51,6 +51,9 @@ export writeCoordsBinary, readCoordsBinary
 # make apf available to users if needed (avoid polluting namespace)
 export apf
 
+# copy_mesh.jl
+export copy_mesh
+
 # Element = an entire element (verts + edges + interior face)
 # Type = a vertex or edge or interior face
 # 
@@ -512,6 +515,7 @@ include("PdePumiInterface3DG.jl")
 include("interface.jl")
 include("interface_geo.jl")
 include("write_coords.jl")
+include("copy_mesh.jl")
 
 @doc """
 ### PumiInterface.PumiMesh2

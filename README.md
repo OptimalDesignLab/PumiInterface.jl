@@ -468,6 +468,26 @@ the mapping parametric -> Cartesian is faster and more accurate to compute,
 but this only works if the underlying CAD system supports parametric coordinates
 (`.dmg` models do not).
 
+# Reference Counting and P-sequencing
+
+It is possible to construct several Julia mesh objects that share an 
+underlying `apf::Mesh`.  See the `copy_mesh()` function.  These meshes
+may have different types of SBP operators and may be of different degree.
+
+In order to do proper memory managment, the `apf::Field`s and `apf::Numbering`s
+associated with each Julia mesh object are stored and reference counting
+is used to determine when to free both the fields and numberings, as well
+as the underlying mesh object.  The functions in `pde_fields.jl` should be
+used to create new fields and numberings (do *not* call
+`apf.createPackedField(mesh.m_ptr, ...)` or
+`apf.createNumberingJ(mesh.m_ptr, ...)` directly.
+
+By default, when Paraview files are written only fields which are both
+associated with the given Julia mesh object and are properly display-able
+in VTK format will be written to the Paraview file.  This second restriction
+can be removed with the keyword argument `writeall=true` to `writeVisFiles`.
+Note that this may substanially increase the file size.
+
 # Utilities
 
 A few C++ executables are built with PumiInterface that are useful as standalone tools.
@@ -486,6 +506,8 @@ A few C++ executables are built with PumiInterface that are useful as standalone
 
 If invoked with no arguments, each of these executables prints a message
 their arguments.
+
+
 
 # Version History
 
