@@ -8,16 +8,14 @@
 #include <apfMDS.h>
 #include <apfMesh2.h>
 #include <PCU.h>
-#include <apfNumbering.h>
-#include <apfShape.h>
+//#include <apfNumbering.h>
+//#include <apfShape.h>
 #include <ma.h>
 #include "mpi.h"
-#include "pumiInterface_config.h"
-#ifdef HAVE_SIMMETRIX
 #include <gmi_sim.h>
 #include <SimUtil.h>
-#endif
 
+// prototype for constructing minimal reproducable examples, using gmi_sim
 
 int main (int argc, char** argv)
 {
@@ -46,14 +44,12 @@ int main (int argc, char** argv)
   // load mesh using null geometry
   gmi_register_null();
   gmi_register_mesh();
-#ifdef HAVE_SIMMETRIX
+
   std::cout << "initializing geo_sim" << std::endl;
   Sim_readLicenseFile(0);
   gmi_sim_start();
   gmi_register_sim();
-#else
-  std::cout << "not initializing geo_sim" << std::endl;
-#endif
+
   std::cout << "loading geometric model" << std::endl;
   gmi_model* g = gmi_load(geoname);
   std::cout << "finished loading geometric model" << std::endl;
@@ -61,22 +57,6 @@ int main (int argc, char** argv)
 
   std::cout << "finished loading mesh" << std::endl;
   apf::reorderMdsMesh(m);
-/*
-  apf::FieldShape* fshape_orig = m->getShape();
-  std::cout << "fieldshape_orig name = " << fshape_orig->getName() << std::endl;
-
-  // see if coordinates were moved into tags
-  apf::MeshTag* coords_tag = m->findTag("coordinates_ver");
-  std::cout << "coords_tag = " << coords_tag << std::endl;
-
-  // force the coordinates into the field
-  if (coords_tag != 0)
-  {
-    int order_orig = m->getShape()->getOrder();
-    std::cout << "performing initial shape change" << std::endl;
-    apf::changeMeshShape(m, apf::getLagrange(order_orig), false);
-  }
-*/
 
   //apf::writeASCIIVtkFiles("output_check", m);
   apf::writeVtkFiles("output_check", m);

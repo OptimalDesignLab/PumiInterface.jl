@@ -37,8 +37,11 @@ function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
   vals = zeros(Cdouble, 1)
   down_entities = Array{Ptr{Void}}(12)  # apf::Downward
   # assign size to field
-  # for each entity, we specify the *minimum* size of any element it
+  # for each entity, we specify the *average* size of any element it
   # bounds
+  # This can be a problem because isolated elements sometimes won't be
+  # refined (if none of its neighbors are refined, the average size is too
+  # large to cause any refinement).
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
     for d=0:mesh.dim
@@ -46,11 +49,16 @@ function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
         ndown = apf.getDownward(mesh.m_ptr, el_i, d, down_entities)
         for j=1:ndown
           apf.getComponents(fsize, down_entities[j], 0, vals)
+          nel = apf.countAdjacent(mesh.m_ptr, down_entities[j], mesh.dim)
+          # compute average size
+          vals[1] += el_sizes[i]/nel
+          #=
           if vals[1] == 0
             vals[1] = el_sizes[i]
           else
             vals[1] = min(vals[1], el_sizes[i])
           end
+          =# 
 
           apf.setComponents(fsize, down_entities[j], 0, vals)
         end  # end loop j
@@ -59,6 +67,7 @@ function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
   end  # end loop i
 
   # take minimum along partition boundaries
+  # TODO: fix this to make it the average
   apf.reduceField(fsize, mesh.shr_ptr, 1);
 
   # return field

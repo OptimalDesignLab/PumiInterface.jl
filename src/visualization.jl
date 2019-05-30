@@ -464,7 +464,7 @@ function retrieveSolutionFromMesh_interp(mesh::PumiMeshDG, u_vec::AbstractVector
   myrank = mesh.myrank
   interp = mesh.interp_op2
   u_el = zeros(Float64, mesh.numNodesPerElement, mesh.numDofPerNode)
-  u_verts = zeros(Float64, size(interp, 1), mesh.numDofPerNode)
+  u_verts = zeros(Float64, size(interp, 2), mesh.numDofPerNode)
   u_node = zeros(Float64, mesh.numDofPerNode)  # hold new node values
   node_entities = Array{Ptr{Void}}(mesh.coord_numNodesPerElement)
   dofs = mesh.dofs
