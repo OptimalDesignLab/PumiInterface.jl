@@ -283,13 +283,17 @@ function checkTopologyConsistency(topo1::ElementTopology, topo2::ElementTopology
 end
 
 """
-  apf.Verify the determinent of the mapping jacobian is positive
+  Verify the determinent of the mapping jacobian is positive
 """
 function checkMapping(mesh::PumiMesh)
 
   for i=1:mesh.numEl
     for j=1:mesh.numNodesPerElement
       if real(mesh.jac[j, i]) < 0
+        println("coords_i = \n", real(mesh.coords[:, :, i]))
+        println("vert_coords_i = \n", real(mesh.vert_coords[:, :, i]))
+        println("dxidx_i = \n", real(mesh.dxidx[:, :, :, i]))
+        println("jac_i = \n", real(mesh.jac[:, i]))
         throw(ErrorException("element $i node $j has negative mapping jacobian determinant"))
       end
     end

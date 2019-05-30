@@ -29,6 +29,7 @@
 #include "dgSBPShape4.h"
 #include "dgSBPShape5.h"
 #include "dgSBPShape6.h"
+#include "dgSBPShape8.h"
 #include "dgSBP3Shape1.h"
 #include "dgSBP3Shape2.h"
 #include "dgSBP3Shape4.h"
@@ -37,10 +38,6 @@
 #include "triangulationDG.h"
 #include "submesh_create.h"
 
-/*
- * Params[in]:
- * pointer to mesh m
- */
 extern "C" {
 // this function does not pass opaque pointers
 //extern int initABC(char* dmg_name, char* smb_name, int downward_counts[4][4], int numberEntities[4], apf::Mesh2* m_ptr_array[1], apf::FieldShape* mshape_ptr_array[1]);
@@ -54,11 +51,15 @@ void initMesh(apf::Mesh* m, int number_entities[],
        apf::FieldShape* mshape_ptr_array[1], apf::Numbering* n_array[]);
 
 
+apf::Field* initGeometry(apf::Mesh2* m);
+void snapEdgeNodes(apf::Mesh2* m, apf::Field* fedge);
+
 // these functions are not user accessible
 void cleanup(apf::Mesh* m_local);
 
 void pushMeshRef(apf::Mesh* m);
 void popMeshRef(apf::Mesh* m);
+int countMeshRefs(apf::Mesh* m);
 
 apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_shape);
 
@@ -66,16 +67,19 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
 extern apf::FieldShape* getMeshShapePtr(apf::Mesh* m);
 extern apf::FieldShape* getConstantShapePtr(int dimension);
 
-extern int count(apf::Mesh2* m_local, int dimension);
+extern int count(apf::Mesh* m_local, int dimension);
 
 apf::MeshIterator* begin(apf::Mesh* m, int dim);
 void end(apf::Mesh* m, apf::MeshIterator* it);
 apf::MeshEntity* iterate(apf::Mesh* m, apf::MeshIterator* it);
 void iteraten(apf::Mesh* m, apf::MeshIterator* it, int n);
 apf::MeshEntity* deref(apf::Mesh2* m, apf::MeshIterator* it);
+int getDimension(apf::Mesh* m);
 
-extern void writeVtkFiles(char* name, apf::Mesh2* m_local);
-
+extern void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall,
+                   apf::Field** f_arr, int nfields,
+                   apf::Numbering** n_arr, int n_nums,
+                   apf::GlobalNumbering** gn_arr, int n_gnums);
 // geometric model functions
 
 gmi_model* getModel(apf::Mesh* m);
@@ -101,6 +105,7 @@ bool hasNodesIn(apf::FieldShape* fshape_local, int dimension);
 extern int countNodesOn(apf::FieldShape* mshape_ptr, int type);
 extern apf::EntityShape* getEntityShape(apf::FieldShape* mshape_local, int type);
 int getOrder(apf::FieldShape* fshape);
+const char* getFieldShapeName(apf::FieldShape* fshape);
 
 // MeshElement related functions
 extern apf::MeshElement* createMeshElement( apf::Mesh2* m_local, apf::MeshEntity* e);
@@ -132,6 +137,8 @@ apf::Numbering* findNumbering(apf::Mesh* m, const char* name);
 extern void destroyNumberings(apf::Mesh* m, apf::Numbering* save_n[], int n_save);
 
 apf::FieldShape* getNumberingShape(apf::Numbering* n);
+int countNumberings(apf::Mesh* m);
+apf::Numbering* getNumbering(apf::Mesh* m, int i);
 extern int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number);
 extern  int getNumberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component);
 extern bool isNumbered(apf::Numbering*n, apf::MeshEntity* e, int node, int component);
@@ -140,7 +147,8 @@ extern int getDofNumbers(apf::Numbering* n, apf::MeshEntity* entities[], uint8_t
 void setNumberingOffset(apf::Numbering* num, int off);
 
 void getElementNumbers(apf::Numbering* n, apf::MeshEntity*e, int num_nodes, int nums[]);
-extern apf::Mesh* getMesh(apf::Numbering* n);
+extern apf::Mesh* getNumberingMesh(apf::Numbering* n);
+const char* getNumberingName(apf::Numbering* n);
 extern void printNumberingName(apf::Numbering* n);
 
 extern apf::MeshTag* createDoubleTag(apf::Mesh2 * m_local, char* name, int size);
@@ -173,10 +181,14 @@ void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components
 
 
 void zeroField(apf::Field* f);
+apf::Mesh* getFieldMesh(apf::Field* f);
+
 void reduceField(apf::Field* f, apf::Sharing* shr, int reduce_op);
 apf::Field* getCoordinateField(apf::Mesh* m_ptr);
 
 apf::Field* findField(apf::Mesh* m, char* fieldname);
+int countFields(apf::Mesh* m);
+apf::Field* getField(apf::Mesh*m, int i);
 void destroyField(apf::Field* f);
 void destroyFields(apf::Mesh* m, apf::Field* save_n[], int n_save);
 
@@ -193,9 +205,11 @@ void getRemotes(int part_nums[], apf::MeshEntity* entities[]);
 
 // mesh warping functions
 void setPoint(apf::Mesh2* m, apf::MeshEntity* e, int node, double* coords);
+void setParam(apf::Mesh2* m, apf::MeshEntity* e, double* coords);
 void acceptChanges(apf::Mesh2* m);
 void Verify(apf::Mesh* m);
 void getPoint(apf::Mesh* m, apf::MeshEntity* e,  int node, double* coords);
+void getParam(apf::Mesh* m, apf::MeshEntity* e, double* coords);
 
 // matched entity functions
 bool hasMatching(apf::Mesh* m);
@@ -212,6 +226,8 @@ std::size_t countMatches(apf::Mesh* m, apf::MeshEntity* e);
 void getMatches(int part_nums[], apf::MeshEntity* entities[]);
 
 
+void printTags(apf::Mesh* m);
+
 void getTopologyMaps(int* tri_edge_verts_in, int* tet_edge_verts_in, int* tet_tri_verts_in);
 
 // gmi functions
@@ -224,6 +240,22 @@ void gmi_register_simJ();
 }  // extern c
 
 
+void getUniqueNumberingName(apf::Mesh* m, const char* basename, char* newname);
 int getindex_c(const int i, const int j, const int si, const int sj);
+
+std::vector<std::string> getWritableFields(apf::Mesh* m,
+                                    std::vector<apf::Field*>& f_vec,
+                                    std::vector<apf::Numbering*>& n_vec,
+                                    std::vector<apf::GlobalNumbering*>& gn_vec,
+                                    bool writeall);
+
+bool isWritable(apf::FieldShape* fshape, apf::FieldShape* cshape, int dim);
+
+template <typename T>
+bool contains(std::vector<T>& vec, const T val)
+{
+  return std::find(vec.begin(), vec.end(), val) != vec.end();
+}
+
 
 #endif

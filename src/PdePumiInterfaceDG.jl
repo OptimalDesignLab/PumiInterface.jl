@@ -189,6 +189,9 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
                                      # element
   coord_nodenums_Nptr::Ptr{Void}  # numbering for nodes of coordinate field,
                                   # number of components = mesh.dim
+  geoNums::GeometricDofs  # mapping between coordinate dofs and geometric
+                          # dofs
+
   # constants needed by Pumi
   el_type::Int  # apf::Type for the elements of the mesh
   face_type::Int # apf::Type for the faces of the mesh
@@ -403,6 +406,9 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
                           # grid, numNodesPerElement_s x numNodesPerElement_f
   I_F2ST::Matrix{Float64} # transpose of above
 
+  fields::AttachedData
+  numberings::AttachedData
+
   """
     This inner constructor loads a Pumi mesh from files and sets a few
     essential fields that must be consistent with how the mesh was loaded
@@ -450,6 +456,8 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
     mesh.commsize = MPI.Comm_size(mesh.comm)
     myrank = mesh.myrank
     mesh.subdata = apf.SubMeshData(C_NULL)
+    mesh.fields = AttachedData()
+    mesh.numberings = AttachedData()
 
     if myrank == 0
       println("\nConstructing PumiMeshDG2 Object")
@@ -460,6 +468,9 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
     mesh.m_ptr, dim = apf.loadMesh(dmg_name, smb_name, order, 
                                shape_type=shape_type)
     apf.pushMeshRef(mesh.m_ptr)
+    recordAllFields(mesh)
+    recordAllNumberings(mesh)
+
     if dim != mesh.dim
       throw(ErrorException("loaded mesh is not 2 dimensions"))
     end
@@ -486,18 +497,21 @@ end  # end PumiMeshDG2 declaration
   The mesh.m_ptr field is not populated because this function is used
   for creating submeshes.
 """
-function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}) where {T, Tface}
+function PumiMeshDG2(old_mesh::PumiMeshDG2{T},
+                     sbpface::Tface=old_mesh.sbpface) where {T, Tface}
 
-  mesh = PumiMeshDG2{T, Tface}()  # get uninitailized object
+  mesh = PumiMeshDG2{T, Tface}()  # get uninitialized object
 
   # set essential fields from old_mesh
   mesh.isDG = true
   mesh.dim = 2
   mesh.comm = old_mesh.comm
   mesh.topo_pumi = old_mesh.topo_pumi
-  mesh.sbpface = old_mesh.sbpface
+  mesh.sbpface = sbpface
   mesh.myrank = old_mesh.myrank
   mesh.commsize = old_mesh.commsize
+  mesh.fields = AttachedData()
+  mesh.numberings = AttachedData()
 
   return mesh
 end
@@ -605,17 +619,20 @@ end
                while this constructor runs
    * sbp: SBP operator
    * opts: options dictionary
+   * sbpface: an `AbstractFace` object, defaults to `old_mesh.sbpface`
 
   **Outputs**
 
    * mesh: new mesh object
 """
-function PumiMeshDG2(old_mesh::PumiMeshDG2{T, Tface}, sbp, opts) where {T, Tface}
+function PumiMeshDG2(old_mesh::PumiMeshDG2{T}, sbp, opts, sbpface::Tface=old_mesh.sbpface) where {T, Tface}
 
-  mesh = PumiMeshDG2(old_mesh)
+  mesh = PumiMeshDG2(old_mesh, sbpface)
   mesh.m_ptr = old_mesh.m_ptr
   apf.pushMeshRef(mesh.m_ptr)
   mesh.subdata = apf.SubMeshData(C_NULL)
+  attachOrigFields(mesh, old_mesh.fields.orig)
+  attachOrigNumberings(mesh, old_mesh.numberings.orig)
 
   finishMeshInit(mesh, sbp, opts, dofpernode=old_mesh.numDofPerNode,
                  shape_type=old_mesh.shape_type)
@@ -676,6 +693,9 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
   # should take in the SBP operator name and return a shape_type
 
   mesh.coordshape_ptr, num_Entities, n_arr = apf.initMesh(mesh.m_ptr)
+  for n in n_arr[1:(mesh.dim + 1)]
+    attachUserNumbering(mesh, n)
+  end
   #  num_Entities, mesh.m_ptr, mesh.coordshape_ptr, dim, n_arr = apf.init2(dmg_name, smb_name, mesh_order, shape_type=coord_shape_type)
 
   mesh.coloringDistance = coloring_distance
@@ -689,12 +709,10 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
   mesh.order = order
   
   mesh.mshape_ptr = apf.getFieldShape(field_shape_type, order, mesh.dim)
+
   #TODO: is mesh.f_ptr used for anything? visualization uses mesh.f_new,
   # which has the same fieldshape?
-  mesh.f_ptr = apf.findField(mesh.m_ptr, "solution_field")
-  if mesh.f_ptr == C_NULL
-    mesh.f_ptr = apf.createPackedField(mesh.m_ptr, "solution_field", dofpernode, mesh.mshape_ptr)
-  end
+  mesh.f_ptr = apf.createPackedField(mesh, "solution_field", dofpernode, mesh.mshape_ptr)
 
   mesh.shr_ptr = apf.getSharing(mesh.m_ptr)
   mesh.normalshr_ptr = apf.getNormalSharing(mesh.m_ptr)
@@ -780,22 +798,25 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
 
   # create the coloring_Nptr
   el_mshape = apf.getConstantShapePtr(2)
-  mesh.coloring_Nptr = apf.createNumberingJ(mesh.m_ptr, "coloring", el_mshape, 1)
+  mesh.coloring_Nptr = apf.createNumberingJ(mesh, "coloring", 1, el_mshape)
 
   # create node status numbering (node, not dof)
-  mesh.nodestatus_Nptr = apf.createNumberingJ(mesh.m_ptr, "dof status", 
-                         mesh.mshape_ptr, 1)   
+  mesh.nodestatus_Nptr = apf.createNumberingJ(mesh, "dof status", 
+                                              1, mesh.mshape_ptr)   
   # create node numbering
-  mesh.nodenums_Nptr = apf.createNumberingJ(mesh.m_ptr, "reordered node numbers",
-                       mesh.mshape_ptr, 1)
+  mesh.nodenums_Nptr = apf.createNumberingJ(mesh, "reordered node numbers",
+                                            1, mesh.mshape_ptr)
 
   # create dof numbering
-  mesh.dofnums_Nptr = apf.createNumberingJ(mesh.m_ptr, "reordered dof numbers", 
-                      mesh.mshape_ptr, dofpernode)
+  mesh.dofnums_Nptr = apf.createNumberingJ(mesh, "reordered dof numbers", 
+                                           dofpernode, mesh.mshape_ptr)
 
   # coordinate node numbering
-  mesh.coord_nodenums_Nptr = apf.createNumberingJ(mesh.m_ptr, "coord node numbers",
-                                               mesh.coordshape_ptr, mesh.dim)
+  mesh.coord_nodenums_Nptr = apf.createNumberingJ(mesh, "coord node numbers",
+                                                  mesh.dim, mesh.coordshape_ptr)
+
+  xiNums_Nptr = apf.createNumberingJ(mesh, "geometric dof numbers",
+                                     mesh.dim, mesh.coordshape_ptr)
 
   # get entity pointers
 #  println("about to get entity pointers")
@@ -826,19 +847,27 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
             C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
 	    start_coords)
 
+    numXiDof = apf.reorderXi(mesh.m_ptr, xiNums_Nptr, start_coords)
  elseif opts["reordering_algorithm"] == "default"
 #    println("about to number nodes")
     numberNodesElement(mesh)
 
     # coordinate node numbering
+    # have to use getPoint here because mesh.geoNums hasn't been assigned yet
     start_coords = zeros(3)
-    apf.getPoint(mesh.m_ptr, mesh.verts[1], 0, start_coords)
+    apf.getPoint(mesh.m_ptr, mesh.verts[1], 0, start_coords)  
     apf.reorder(mesh.m_ptr, mesh.dim*mesh.coord_numNodes, mesh.dim, 
             C_NULL, mesh.coord_nodenums_Nptr, C_NULL, 
 	    start_coords)
+
+    numXiDof = apf.reorderXi(mesh.m_ptr, xiNums_Nptr, start_coords)
   else
     throw(ErrorException("invalid dof reordering algorithm requested"))
   end
+
+  mesh.geoNums = GeometricDofs(mesh.m_ptr, mesh.coord_nodenums_Nptr,
+                               xiNums_Nptr, mesh.dim*mesh.coord_numNodes,
+                               numXiDof)
 
 
 
@@ -1043,156 +1072,10 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
 
   registerFinalizer(mesh)
 
-  close(mesh.f)
+  #close(mesh.f)
   return mesh
 end
 
-
-#=
-"""
-
-  This constructor makes a new mesh object containing the specified elements
-  of the old mesh object.  The subgmesh remains valid as long as the parent
-  mesh is not changed.
-
-  The submesh does not support parallelization yet.
-  Submeshes are not compatable with staggered grid formulations
-  (ie. mesh.mesh2 is the parent mesh, so it can't be the staggered mesh).
-
-  **Inputs**
-
-   * mesh: old PumiMeshDG
-   * el_list: list of elements that should be present in the new mesh
-
-  **Outputs**
-
-   * submesh: the new PumiMeshDG object
-"""
-function PumiMeshDG2(oldmesh::PumiMeshDG, el_list::AbstractArray)
-
-  mesh = new()
-
-  # get counts here
-  count_entities(mesh, oldmesh. el_list)
-
-  #TODO: do proper checks for the NULL values in visualization functions
-  mesh.m_ptr = C_NULL
-  mesh.mnew_ptr = C_NULL
-  mesh.mshape_ptr = oldmesh.mshape_ptr
-  mesh.coordshape_ptr = oldmesh.coordshape_ptr
-  mesh.f_ptr = C_NULL
-  mesh.fnew_ptr = C_NULL
-  mesh.fnewshape_ptr = C_NULL
-  mesh.mexact_ptr = C_NULL
-  mesh.shr_ptr = C_NULL  # TODO: change when parallelizing
-  mesh.shape_type = oldmesh.shape_type
-  mesh.f = oldmesh.f
-  mesh.vert_Nptr = C_NULL
-  mesh.edge_Nptr = C_NULL
-  mesh.face_Nptr = C_NULL
-  mesh.el_Nptr = C_NULL
-  mesh.coloring_Nptr = C_NULL
-  mesh.entity_Nptr = C_NULL
-  mesh.order = oldmesh.order
-  mesh.numDofPerNode = oldmesh.numDofPerNode
-  mesh.numNodesPerElement = oldmesh.numNodesPerElement
-  mesh.numFacesPerElement = oldmesh.numFacesPerElement
-  mesh.numNodesPerType = copy(oldmesh.numNodesPerType)
-  mesh.numNodesPerFace = oldmesh.numNodesPerFace
-  mesh.typeOffsetsPerElement = copy(oldmesh.typeOffsetsPerElement)
-  mesh.typeOffsetsPerElement_ = copy(oldmesh.typeOffsetsPerElement_)
-  mesh.nodemapSnpToPumi = copy(oldmesh.nodemapSbpToPumi)
-  mesh.nodemapPumiToSbp = copy(oldmesh.nodemapPumiToSbp)
-
-  mesh.coord_order = oldmesh.coord_order
-  mesh.coord_numNodesPerElement = oldmesh.coord_numNodesPerElement
-  mesh.coord_numNodesPerType = copy(oldmesh.coord_numNodesPerType)
-  mesh.coord_typeOffsetsPerElement = copy(mesh.coord_typeOffsetsPerElement)
-  mesh.coord_numNodesPerFace = oldmesh.coord_numNodesPerFace
-  mesh.coord_xi = copy(oldmesh.coord_xi)
-  mesh.coord_facexi = copy(mesh.coord_facexi)
-
-  mesh.el_type = oldmesh.coord_eltype
-  mesh.face_type = oldmesh.face_type
-
-  #TODO update this section when parallelizing
-  mesh.comm = MPI.COMM_WORLD
-  mesh.myrank = oldmesh.myrank
-  mesh.commsize = oldmesh.commsize
-  @assert mesh.commisze == 1
-  mesh.peer_parts = Array{Int}(0)
-  mesh.npeers = 0
-  mesh.peer_face_counts = Array{Int}(0)
-  mesh.send_waited = Array{Bool}(0)
-  mesh.send_reqs = Array{MPI.Request}(0)
-  mesh.send_stats = Array{MPI.Status}(0)
-  mesh.recv_waited = Array{Bool}(0)
-  mesh.recv_reqs = Array{MPI.Request}(0)
-  mesh.recv_stats = Array{MPI.Status}(0)
-
-  mesh.ref_verts = copy(oldmesh.ref_verts)
-  mesh.dim = oldmesh.dim
-  mesh.isDG = oldmesh.isDG
-  mesh.isInterpolated = oldmesh.isInterpolated
-  mesh.coloringDistance = oldmesh.coloringDistance
-
-  # do boundary/interface counts here 
-
-  mesh.triangulation = copy(oldmesh.triangulation)
-  mesh.nodestatus_Nptr = C_NULL
-  mesh.nodenums_Nptr = C_NULL
-  mesh.dofnums_Nptr = C_NULL
-
-  copy_data_arrays(mesh, oldmesh, el_list)
-
-  mesh.dof_offset = 0
-
-  mesh.dofs = zeros(Int, mesh.numDofPerNode, mesh.numNodesPerElement, mesh.numEl)
-  #TODO: ??? this can't be right
-  copy_masked(mesh.dofs, oldmesh.dofs, el_list)
-
-  mesh.interp_op = copy(oldmesh.interp_op)
-
-  #TODO: update this section when parallelizing
-  mesh.bndries_local = Array{Array{Boundary, 1}}(0)
-  mesh.bndries_remote = Array{Array{Boundary, 1}}(0)
-  mesh.shared_interfaces = Array{Array{Interface, 1}}(0)
-  mesh.shared_element_offsets = Array{Int}(0)
-  mesh.local_element_counts = Array{Int}(0)
-  mesh.remote_element_counts = Array{Int}(0)
-  mesh.local_element_list = Array{Array{Int32, 1}}(0)
-  mesh.shared_element_colormasks = Array{Array{BitArray{1}, 1}}(0)
-
-  mesh.sbpface = oldmesh.sbpface
-  mesh.topo = oldmesh.topo
-  mesh.topo_pumi = oldmesh.topo_pumi
-
-  #TODO: mesh.vert_sharing
-
-  mesh.mesh2 = oldmesh
-
-  mesh.I_S2F = zeros(0, 0)
-  mesh.I_S2FT = zeros(0, 0)
-  mesh.I_F2S = zeros(0, 0)
-  mesh.I_F2ST = zeros(0, 0)
-
-  # TODO: mesh.min_node_dist, volume,
-  #       numColors, maxColors etc.
-  #       elementNodeOffsets, typeNodeFlags
-  #       numBC, bndry_funcs, bndry_funcs_revm, bndry_offsets, bndry_geo_nums
-  #       bndryfaces, interfaces
-  #       sparsity info
-  #       coloring info
-
-
-
-
-
-  
-
-  return submesh
-end
-=#
 
 function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opts; 
                                   coloring_distance=0)
@@ -1209,7 +1092,8 @@ function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
   mesh.coloringDistance = coloring_distance
   # create the coloring_Nptr
   el_mshape = apf.getConstantShapePtr(2)
-  mesh.coloring_Nptr = apf.createNumberingJ(mesh.m_ptr, "preconditioning coloring", el_mshape, 1)
+  mesh.coloring_Nptr = apf.createNumberingJ(mesh, "preconditioning coloring",
+                                            1, el_mshape)
 
   if coloring_distance == 2
     numc = colorMesh2(mesh)
@@ -1254,145 +1138,5 @@ function PumiMeshDG2Preconditioning(mesh_old::PumiMeshDG2, sbp::AbstractSBP, opt
 
   return mesh
 
-end
-
-
-# for re.initilizeing after mesh adaptation
-function reinitPumiMeshDG2(mesh::PumiMeshDG2)
-  # construct pumi mesh by loading the files named
-  # dmg_name = name of .dmg (geometry) file to load (use .null to load no file)
-  # smb_name = name of .smb (mesh) file to load
-  # order = order of shape functions
-  # dofpernode = number of dof per node, default = 1
-
-  println("Reinitilizng PumiMeshDG2")
-
-  # create random filenames because they are not used
-  smb_name = "a"
-  dmg_name = "b"
-  order = mesh.order
-  dofpernode = mesh.numDofPerNode
-
-  coordshape_ptr, num_Entities, n_arr = apf.initMesh(mesh.m_ptr)
-#  tmp, num_Entities, m_ptr, coordshape_ptr, dim, n_arr = apf.init2(dmg_name, smb_name, order, load_mesh=false, shape_type=mesh.shape_type) # do not load new mesh
-  f_ptr = mesh.f_ptr  # use existing solution field
-
-  numVert = convert(Int, num_Entities[1])
-  numEdge =convert(Int,  num_Entities[2])
-  numEl = convert(Int, num_Entities[3])
-
-  mesh.vert_Nptr = n_arr[1] #getVertNumbering()
-  mesh.edge_Nptr = n_arr[2] #getEdgeNumbering()
-  mesh.el_Nptr = n_arr[3] #getFaceNumbering()
-
-
-
-
-  verts = Array{Ptr{Void}}(numVert)
-  edges = Array{Ptr{Void}}(numEdge)
-  elements = Array{Ptr{Void}}(numEl)
-  dofnums_Nptr = mesh.dofnums_Nptr  # use existing dof pointers
-
-  # get pointers to all MeshEntities
-  # also apf.initilize the field to zero
-#  comps = zeros(dofpernode)
-  comps = [1.0, 2, 3, 4]
-  it = apf.MeshIterator(mesh.m_ptr, 0)
-  for i=1:numVert
-    verts[i] = apf.iterate(mesh.m_ptr, it)
-  end
-  apf.free(mesh.m_ptr, it)
-
-  it = apf.MeshIterator(mesh.m_ptr, 1)
-  for i=1:numEdge
-    edges[i] = apf.iterate(mesh.m_ptr, it)
-  end
-  apf.free(mesh.m_ptr, it)
-
-  it = apf.MeshIterator(mesh.m_ptr, it)
-  for i=1:numEl
-    elements[i] = apf.iterate(mesh.m_ptr, it)
-  end
-  apf.free(mesh.m_ptr, it)
-
-  # calculate number of nodes, dofs (works for first and second order)
-  numnodes = order*numVert 
-  numdof = numnodes*dofpernode
-  # number dofs
-  ctr= 1
-  for i=1:numVert
-    for j=1:dofpernode
-      apf.numberJ(dofnums_Nptr, verts[i], 0, j-1, ctr)
-#      println("vertex ", i,  " numbered ", ctr)
-      ctr += 1
-    end
-  end
-
-  if order >= 2
-    for i=1:numEdges
-      for j=1:dofpernode
-        apf.numberJ(dofnums_Nptr, edges[i], 0, j-1, ctr)
-        ctr += 1
-      end
-    end
-  end
-
- 
-
-  # count boundary edges
-  bnd_edges_cnt = 0
-  bnd_edges = Array{Int}(numEdge, 2)
-  it = apf.MeshIterator(mesh.m_ptr, 1)
-  for i=1:numEdge
-    edge_i = apf.iterate(mesh.m_ptr, it)
-    numFace = apf.countAdjacent(m_ptr, edge_i, 2)  # should be count upward
-
-    if numFace == 1  # if an exterior edge
-      faces = apf.getAdjacent(numFace)
-      facenum = apf.getNumberJ(mesh.el_Nptr, faces[1], 0, 0) + 1
-
-      bnd_edges_cnt += 1
-      bnd_edges[bnd_edges_cnt, 1] = facenum
-      bnd_edges[bnd_edges_cnt, 2] = i
-    end
-  end
-  apf.free(mesh.m_ptr, it)
-
-  bnd_edges_small = bnd_edges[1:bnd_edges_cnt, :]
-
-  # replace exising fields with new values
-  mesh.numVert = numVert
-  mesh.numEdge = numEdge
-  mesh.numEl = numEl
-  mesh.numDof = numdof
-  mesh.numNodes= numnodes
-  mesh.numBoundaryFaces = bnd_edges_cnt
-  mesh.verts = verts  # does this need to be a deep copy?
-  mesh.edges = edges
-  mesh.elements = elements
-#  mesh.boundary_nums = bnd_edges_small
-
-#=
-  println("typeof m_ptr = ", typeof(m_ptr))
-  println("typeof mshape_ptr = ", typeof(mshape_ptr))
-  println("typeof numVerg = ", typeof(numVert))
-  println("typeof numEdge = ", typeof(numEdge))
-  println("typeof numEl = ", typeof(numEl))
-  println("typeof order = ", typeof(order))
-  println("typeof numdof = ", typeof(numdof))
-  println("typeof bnd_edges_cnt = ", typeof(bnd_edges_cnt))
-  println("typeof verts = ", typeof(verts))
-  println("typeof edges = ", typeof(edges))
-  println("typeof element = ", typeof(elements))
-  println("typeof dofnums_Nptr = ", typeof(dofnums_Nptr))
-  println("typeof bnd_edges_small = ", typeof(bnd_edges_small))
-=#
-  println("numVert = ", numVert)
-  println("numEdge = ", numEdge)
-  println("numEl = ", numEl)
-  println("numDof = ", numdof)
-  println("numNodes = ", numnodes)
-
-  apf.writeVtkFiles("mesh_complete", m_ptr)
 end
 

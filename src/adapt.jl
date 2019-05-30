@@ -24,7 +24,7 @@
 function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
 
   # create apf::Field
-  fsize = apf.createPackedField(mesh.m_ptr, "size_field", 1, mesh.coordshape_ptr)
+  fsize = apf.createPackedField(mesh, "size_field", 1, mesh.coordshape_ptr)
 
   apf.zeroField(fsize)
 
@@ -37,8 +37,11 @@ function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
   vals = zeros(Cdouble, 1)
   down_entities = Array{Ptr{Void}}(12)  # apf::Downward
   # assign size to field
-  # for each entity, we specify the *minimum* size of any element it
+  # for each entity, we specify the *average* size of any element it
   # bounds
+  # This can be a problem because isolated elements sometimes won't be
+  # refined (if none of its neighbors are refined, the average size is too
+  # large to cause any refinement).
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
     for d=0:mesh.dim
@@ -46,11 +49,16 @@ function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
         ndown = apf.getDownward(mesh.m_ptr, el_i, d, down_entities)
         for j=1:ndown
           apf.getComponents(fsize, down_entities[j], 0, vals)
+          nel = apf.countAdjacent(mesh.m_ptr, down_entities[j], mesh.dim)
+          # compute average size
+          vals[1] += el_sizes[i]/nel
+          #=
           if vals[1] == 0
             vals[1] = el_sizes[i]
           else
             vals[1] = min(vals[1], el_sizes[i])
           end
+          =# 
 
           apf.setComponents(fsize, down_entities[j], 0, vals)
         end  # end loop j
@@ -59,6 +67,7 @@ function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
   end  # end loop i
 
   # take minimum along partition boundaries
+  # TODO: fix this to make it the average
   apf.reduceField(fsize, mesh.shr_ptr, 1);
 
   # return field
@@ -66,6 +75,7 @@ function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
 end
 
 
+#TODO: expose more of MA::Inputs options
 """
   This is the main entry point for runing mesh adaptation (h refinement).
   
@@ -88,12 +98,21 @@ end
    * u_vec_new: `u_vec` interpolated to the new mesh.  A vector of length
                  zero if `u_vec` was not supplied
 
+  **Keyword Arguments**
+
+   * free_mesh: if true, free the old mesh object.  Note that the old mesh
+                object cannot correctly call Pumi functions after adaptation.
+                Default true,  Only set to false if you are knowledgeable
+                about PdePumiInterface's internals.
+
   **Implementation Notes**
 
     The original and new mesh objects have the same apf::Mesh*.
 
 """
-function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0))
+function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0); free_mesh::Bool=true)
+
+  checkMeshPtr(oldmesh)
 
   # run the mesh adaptation
   _adaptMesh(oldmesh, el_sizes, u_vec)
@@ -102,35 +121,44 @@ function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_
   # To avoid the mesh reference count reaching zero and destroying the
   # mesh, we have to create the new mesh object before finalizing the
   # old one
-
   newmesh = PumiMeshDG2(oldmesh, sbp, opts)
-  finalize(oldmesh)
 
   if length(u_vec) > 0
     u_vec_new = zeros(Float64, newmesh.numDof)
-    retrieveSolutionFromMesh_interp(newmesh, u_vec_new)
+    retrieveSolutionFromMesh_interp(newmesh, u_vec_new, oldmesh.fnew_ptr)
   else
     u_vec_new = u_vec
   end
+
+  if free_mesh
+    finalize(oldmesh)
+  end
+
 
   return newmesh, u_vec_new
 end
 
 # method for 3D DG meshes
-function adaptMesh(oldmesh::PumiMeshDG3, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0))
+function adaptMesh(oldmesh::PumiMeshDG3, sbp, opts, el_sizes::AbstractVector, u_vec::AbstractVector=zeros(0); free_mesh::Bool=true)
+
+  checkMeshPtr(oldmesh)
 
   # run the mesh adaptation
   _adaptMesh(oldmesh, el_sizes, u_vec)
 
   newmesh = PumiMeshDG3(oldmesh, sbp, opts)
-  finalize(oldmesh)
 
   if length(u_vec) > 0
     u_vec_new = zeros(Float64, newmesh.numDof)
-    retrieveSolutionFromMesh_interp(newmesh, u_vec_new)
+    retrieveSolutionFromMesh_interp(newmesh, u_vec_new, oldmesh.fnew_ptr)
   else
     u_vec_new = u_vec
   end
+
+  if free_mesh
+    finalize(oldmesh)
+  end
+
 
   return newmesh, u_vec_new
 end
@@ -176,14 +204,7 @@ function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVec
   # cleanup intermediate data
   apf.deleteSolutionTransfers(soltrans)
   apf.deleteIsoFunc(isofunc)
-  apf.destroyField(size_f) 
-
-
-  # because we are going to reinitialize the mesh, and Pumi will return
-  # an existing Numbering (and possibly Field?) if a new one is created
-  # with the same name, we have to delete all existing Numberings/Fields
-  apf.destroyNumberings(mesh.m_ptr)
-  apf.destroyFields(mesh.m_ptr, [mesh.fnew_ptr])
+  apf.destroyField(mesh, size_f) 
 
   return nothing
 end

@@ -76,71 +76,39 @@ function getEntityPointers(mesh::PumiMesh)
   verts = Array{Ptr{Void}}(mesh.numVert)
   edges = Array{Ptr{Void}}(mesh.numEdge)
   elements = Array{Ptr{Void}}(mesh.numEl)
-  entity = Ptr{Void}(0)
-  idx = 0
   # get pointers to all MeshEntities
   # also initilize the field to zero
-#  resetAllIts2(mesh.m_ptr)
-#  comps = zeros(dofpernode)
-  it = apf.MeshIterator(mesh.m_ptr, 0)
-  for i=1:mesh.numVert
-#    entity = getVert()
-    entity = apf.iterate(mesh.m_ptr, it)
+  for entity in apf.MeshIterator(mesh.m_ptr, 0)
     idx = apf.getNumberJ(mesh.vert_Nptr, entity, 0, 0) + 1
     verts[idx] = entity
-#    incrementVertIt()
   end
-  apf.free(mesh.m_ptr, it)
 
-  it = apf.MeshIterator(mesh.m_ptr, 1)
-  for i=1:mesh.numEdge
-    entity = apf.iterate(mesh.m_ptr, it)
-#    entity = getEdge()
+  for entity in apf.MeshIterator(mesh.m_ptr, 1)
     idx = apf.getNumberJ(mesh.edge_Nptr, entity, 0, 0) + 1
     edges[idx] = entity
-#    incrementEdgeIt()
   end
-  apf.free(mesh.m_ptr, it)
 
   if mesh.dim == 3
     faces = Array{Ptr{Void}}(mesh.numFace)
-    it = apf.MeshIterator(mesh.m_ptr, 2)
-    for i=1:mesh.numFace
-      entity = apf.iterate(mesh.m_ptr, it)
-#      entity = getFace()
+    for entity in apf.MeshIterator(mesh.m_ptr, 2)
       idx = apf.getNumberJ(mesh.face_Nptr, entity, 0, 0) + 1
       faces[idx] = entity
-#      incrementFaceIt()
     end
-    apf.free(mesh.m_ptr, it)
 
-    it = apf.MeshIterator(mesh.m_ptr, 3)
-    for i=1:mesh.numEl
-      entity = apf.iterate(mesh.m_ptr, it)
-#      entity = getEl()
+    for entity in apf.MeshIterator(mesh.m_ptr, 3)
       idx = apf.getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
       elements[idx] = entity
-#      incrementElIt()
     end
-    apf.free(mesh.m_ptr, it)
 
 
   else
     faces = edges
-    it = apf.MeshIterator(mesh.m_ptr, 2)
-    for i=1:mesh.numEl
-      entity = apf.iterate(mesh.m_ptr, it)
-#      entity = getFace()
+    for entity in apf.MeshIterator(mesh.m_ptr, 2)
       idx = apf.getNumberJ(mesh.el_Nptr, entity, 0, 0) + 1
       elements[idx] = entity
-#      incrementFaceIt()
     end
-    apf.free(mesh.m_ptr, it)
-
-
   end
 
-#  resetAllIts2(mesh.m_ptr)
 
   return verts, edges, faces, elements
 

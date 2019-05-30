@@ -1445,7 +1445,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
 
   val1 = MPI.Allreduce(val1, MPI.SUM, mesh.comm)
   val2 = MPI.Allreduce(val2, MPI.SUM, mesh.comm)
-  @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
+  @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-12)
 
   #----------------------------------------------------------------------------
   # test back-propigation of the metrics (locally)
@@ -1489,7 +1489,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   val2 = sum(mesh.vert_coords_bar .* vert_coords_dot)
   #val2 = sum(xvec_bar .* xvec_dot)
 
-  @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
+  @test abs(val1 - val2) < max(abs(val1)*1e-12, 1e-12)
 
   #----------------------------------------------------------------------------
   # test back-propigation of metrics (parallel)
@@ -1532,7 +1532,736 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   val1 = MPI.Allreduce(val1, MPI.SUM, mesh.comm)
   val2 = MPI.Allreduce(val2, MPI.SUM, mesh.comm)
 
-  @test abs(val1 - val2) < max(abs(val1)*1e-13, 1e-13)
+  @test abs(val1 - val2) < max(abs(val1)*1e-12, 1e-12)
+
+  return nothing
+end
+
+
+function test_geoNums(mesh)
+
+
+  @testset "testing geometric numbering" begin
+    geonums = mesh.geoNums
+
+    for dim=0:mesh.dim
+      for e in apf.MeshIterator(mesh.m_ptr, dim)
+        me = apf.toModel(mesh.m_ptr, e)
+        me_dim = apf.getModelType(mesh.m_ptr, me)
+
+        for j=1:mesh.coord_numNodesPerType[dim+1]
+
+          for k=0:(me_dim-1)
+            @assert apf.isNumbered(geonums.xiNums, e, j-1, k)
+            n_k = apf.getNumberJ(geonums.xiNums, e, j-1, k)
+            @test n_k <= geonums.numXiDofs
+          end
+
+          for k=me_dim:(mesh.dim-1)
+            @assert apf.isNumbered(geonums.xiNums, e, j-1, k)
+            n_k = apf.getNumberJ(geonums.xiNums, e, j-1, k)
+            @test n_k == geonums.numXiDofs + 1
+          end
+        end   # end j
+      end # end iterator
+    end  # end dim
+
+  end # end testset
+
+  return nothing
+end
+
+
+function test_geoMapping(mesh)
+# mesh must have loaded a CAD-based geometric model
+
+
+  @testset "testing geoMapping" begin
+    println("testing geometric mapping")
+    xivec = zeros(mesh.geoNums.numXiDofs)
+    coords_arr = copy(mesh.vert_coords)
+
+    coords_xyzToXi(mesh, coords_arr, xivec)
+    fill!(coords_arr, 0)
+    coords_XiToXYZ(mesh, xivec, coords_arr)
+
+    println("maxdiff = ", maximum(abs.(coords_arr - mesh.vert_coords)))
+    @test maximum(abs.(coords_arr - mesh.vert_coords)) < 1e-8 # CAD is not that accurate
+
+  end
+
+  return nothing
+end
+
+
+function test_geoWrapping(mesh)
+# mesh must have loaded a CAD-based geometric model
+
+  println("testing geometric wrapping")
+  @testset "testing geoWrapping" begin
+    # test the kernel function
+    rng = [0.0, 1.0]
+    @test abs(PdePumiInterface.wrapPeriodicXi(rng, 1.5) - 0.5) < 1e-12
+    @test abs(PdePumiInterface.wrapPeriodicXi(rng, 1.4) - 0.4) < 1e-12
+    @test abs(PdePumiInterface.wrapPeriodicXi(rng, 2.4) - 0.4) < 1e-12
+    @test abs(PdePumiInterface.wrapPeriodicXi(rng, 3.4) - 0.4) < 1e-12
+
+    rng = [1.5, 3.5]
+    @test abs(PdePumiInterface.wrapPeriodicXi(rng, 4.0) - 2.0) < 1e-12
+
+    val = Complex128(4.0, 1.5)
+    val2 = Complex128(2.0, 1.5)
+    @test abs(PdePumiInterface.wrapPeriodicXi(rng, val) - val2) < 1e-12
+
+
+    # test the overall function
+    
+    # get periodic model entities
+    g = apf.getModel(mesh.m_ptr)
+    periodic_mes = Array{gmi.ModelEntity}(0)
+    for me in gmi.Gmi_iter(g, mesh.dim-1)
+      if gmi.periodic(g, me, 0)  # only check first dimension
+        push!(periodic_mes, me)
+      end
+    end
+
+    xvec = zeros(Float64, mesh.geoNums.numCoordDofs)
+    op = PdePumiInterface.AssignReduction{Float64}()
+    coords3DTo1D(mesh, mesh.vert_coords, xvec, op, parallel=false)
+
+    xivec = zeros(mesh.geoNums.numXiDofs)
+    coords_xyzToXi(mesh, xvec, xivec)
+    xivec2 = copy(xivec)
+
+    rng = zeros(Float64, 2)
+    geonums = mesh.geoNums
+    for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+      me = apf.toModel(mesh.m_ptr, e)
+      me_dim = apf.getModelType(mesh.m_ptr, me)
+      if me in periodic_mes
+        # add a multiple of the period to the xivec2
+        gmi.range(g, me, 0, rng)
+        delta = rng[2] - rng[1]
+
+        idx = apf.getNumberJ(geonums.xiNums, e, 0, 0)
+        xivec2[idx] += 2*delta
+      end
+    end
+
+    # call wrapXiVals, check xivec2 == xivec
+    PdePumiInterface.wrapXiCoords(mesh, xivec2)
+    @test maximum(abs.(xivec - xivec2)) < 1e-12
+
+
+  end  # end testset
+
+  return nothing
+end
+
+
+
+function test_geoDerivative(mesh)
+# mesh must have loaded a CAD-based geometric model.
+# test against finite difference
+
+  function f_x(i, xvec::AbstractVector)
+    # compute f(x)
+
+      coeff1 = i % 10
+      coeff2 = i % 5
+
+      x_i = xvec[i]
+#      val = coeff1*x_i*x_i + coeff2*x_i + i
+      val = coeff1*x_i 
+
+    return val
+  end  # end function
+
+  function f_x_deriv(i, xvec::AbstractVector, df_dx::AbstractVector)
+    # compute f(x)
+
+    #for i=1:length(xvec)
+#    i = 19
+      coeff1 = i % 10
+      coeff2 = i % 5
+
+      x_i = xvec[i]
+      #df_dx[i] = 2*coeff1*x_i + coeff2
+      df_dx[i] = coeff1
+    #end
+  end  # end function
+
+  function f2_x(xvec::AbstractVector)
+
+    val = 0.0
+    for i=1:length(xvec)
+      val += xvec[i]*xvec[i]
+    end
+
+    return val
+  end
+
+  function f2_x_deriv(xvec::AbstractVector, df_dx::AbstractVector)
+    for i=1:length(xvec)
+      df_dx[i] = 2*xvec[i]
+    end
+  end
+
+
+
+  @testset "Geometric Derivative" begin
+    println("\ntesting geometric derivative")
+    xvec = getXCoords(mesh)
+    xvec_pert = copy(xvec)
+    xivec = getXiCoords(mesh)
+    #=
+    xivec = zeros(mesh.geoNums.numXiDofs)
+    coords_xyzToXi(mesh, xvec, xivec)
+    coords_XiToXYZ(mesh, xivec, xvec)  # hopefully this reduces numerical
+                                       # error when compared to coords_XiToXYZ
+    =#
+    df_dx = zeros(mesh.geoNums.numCoordDofs)
+    df_dxi = zeros(mesh.geoNums.numXiDofs)
+
+    xi_indices = constructGeoMapping(mesh)
+    h = 1e-6
+
+#=
+    # test each component individually
+    # this test is rather slow, so don't run it.
+    maxdiff = 0.0
+    for i=1:length(xvec)
+      # function at initial x value
+      val1 = f_x(i, xvec)
+      fill!(df_dx, 0)
+      f_x_deriv(i, xvec, df_dx)
+      coords_dXTodXi(mesh, df_dx, df_dxi)
+
+      # only do j values related to i
+      for j in xi_indices[i]
+        if length(xi_indices[i]) != 1
+          continue
+        end
+        # compute finite difference
+        xivec[j] += h
+        coords_XiToXYZ(mesh, xivec, xvec_pert)
+        val2 = f_x(i, xvec_pert)
+        xivec[j] -= h
+        
+        dfdxi_fd = (val2 - val1)/h
+        #println("df_dxi = ", df_dxi[j])
+        #println("df_dxi_fd = ", dfdxi_fd)
+
+        diff = abs(df_dxi[j] - dfdxi_fd)
+        #@test abs(df_dxi[j] - dfdxi_fd) < 1e-5
+
+        if diff > maxdiff
+          maxdiff = diff
+        end
+      end  # end j
+    end  # end i
+    println("maxdiff = ", maxdiff)
+=#
+    h = 1e-6
+    pert = rand(length(xivec))
+
+    # finite difference
+    J1 = f2_x(xvec)
+    for i=1:length(pert)
+      xivec[i] += h*pert[i]
+    end
+    coords_XiToXYZ(mesh, xivec, xvec_pert)
+    J2 = f2_x(xvec_pert)
+    for i=1:length(pert)
+      xivec[i] -= h*pert[i]
+    end
+    val1 = (J2 - J1)/h
+
+
+    # using CAD derivative
+    dJdx = zeros(xvec)
+    dJdxi = zeros(xivec)
+    f2_x_deriv(xvec, dJdx)
+    coords_dXTodXi(mesh, dJdx, dJdxi)
+
+    val2 = dot(dJdxi, pert)
+
+    @test abs(val1 - val2) < 1e-2
+
+  end  # end testset
+
+  return nothing
+end
+
+
+function constructGeoMapping(mesh)
+# get array of all xi indices that correspond to a given x index
+
+
+  geonums = mesh.geoNums
+  indices = Array{Array{Int, 1}}(geonums.numCoordDofs)
+  for i=1:mesh.geoNums.numCoordDofs
+    indices[i] = Array{Int}(0)
+  end
+
+  for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+    for j=1:mesh.coord_numNodesPerType[dim+1]
+      for k=1:mesh.dim
+        idx_in = apf.getNumberJ(geonums.coordNums, e, j-1, k-1)
+        for d=1:mesh.dim
+          idx_out = apf.getNumberJ(geonums.xiNums, e, j-1, d-1)
+          if idx_out != geonums.numXiDofs + 1
+            push!(indices[idx_in], idx_out)
+          end  # end if
+        end  # end d
+      end   # end k
+    end  # end j
+  end  # end iterator
+
+  return indices
+end
+
+
+function test_setPoint(mesh, opts)
+
+  coords_orig = zeros(Float64, 3)
+  coords = zeros(Float64, 3)
+  coords2 = zeros(Float64, 3)
+  coords3 = zeros(Float64, 3)
+  xi_orig = zeros(Float64, 3)
+  xi = zeros(Float64, 3)
+  xi3 = zeros(Float64, 3)
+
+  geoname = opts["dmg_name"]
+  if endswith(geoname, ".x_t") || endswith(geoname, ".smd")
+    println("\nTesting setPoint")
+    @test mesh.geoNums.can_eval
+
+    println("testing setCoordsXi")
+    for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+      for j=1:mesh.coord_numNodesPerType[dim+1]
+        g = apf.getModel(mesh.m_ptr)
+        me = apf.toModel(mesh.m_ptr, e)
+        me_dim = apf.getModelType(mesh.m_ptr, me)
+
+        # skip things that don't have parametric coords/can't change them
+        if me_dim == 0 || me_dim == 3
+          continue
+        end
+
+        getCoordsXi(mesh, e, j-1, xi_orig, coords_orig)
+        getCoordsXi(mesh, e, j-1, xi, coords)
+
+        for i=1:me_dim
+          xi[i] += 0.1
+        end
+      
+        setCoordsXi(mesh, e, j-1, xi, coords2)
+        getCoordsXi(mesh, e, j-1, xi3, coords3)
+
+        @test maximum(abs.(coords2 - coords3)) < 1e-8
+        @test maximum(abs.(xi - xi3)) < 1e-13
+      end
+    end
+
+  end  # end if
+
+  # test setCoords
+  println("testing setCoords")
+  for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+    for j=1:mesh.coord_numNodesPerType[dim+1]
+      g = apf.getModel(mesh.m_ptr)
+      me = apf.toModel(mesh.m_ptr, e)
+      me_dim = apf.getModelType(mesh.m_ptr, me)
+
+      getCoords(mesh, e, j-1, coords_orig)
+
+      if mesh.geoNums.can_eval
+        if me_dim > 0 && me_dim < 3
+          getCoordsXi(mesh, e, j-1, xi_orig, coords)
+        else
+          getCoords(mesh, e, j-1, coords)
+        end
+
+        # test snapping
+        for i=1:mesh.dim
+          coords[i] += 0.1
+        end
+
+        setCoords(mesh, e, j-1, coords, true)
+
+        if me_dim == 0
+          getCoords(mesh, e, j-1, coords3)
+          @test maximum(abs.(coords3 - coords_orig)) < 1e-8
+        elseif me_dim == 3
+          getCoords(mesh, e, j-1, coords3)
+          @test maximum(abs.(coords3 - coords)) < 1e-8
+        else
+          getCoordsXi(mesh, e, j-1, xi3, coords3)
+          gmi.geval(g, me, xi3, coords2)
+          @test maximum(abs.(coords2 - coords)) < 1e-8
+          @test maximum(abs.(coords3 - coords)) < 1e-8
+        end
+
+        # test non snapping
+        fill!(coords2, 0); fill!(coords3, 0)
+        fill!(xi, 0); fill!(xi3, 0)
+
+        setCoords(mesh, e, j-1, coords_orig, true)
+        for i=1:3
+          coords[i] = coords_orig[i] + 0.1
+        end
+        setCoords(mesh, e, j-1, coords, false)
+
+        if me_dim == 0
+          getCoords(mesh, e, j-1, coords3)
+          @test maximum(abs.(coords3 - coords)) < 1e-8
+        elseif me_dim == 3
+          getCoords(mesh, e, j-1, coords3)
+          @test maximum(abs.(coords3 - coords)) < 1e-8
+        else
+          # check that the xi coordinates changed, even though they are
+          # not consistent with the xyz coordinates
+          getCoordsXi(mesh, e, j-1, xi3, coords3)
+          gmi.geval(g, me, xi3, coords2)
+          coords_tmp = zeros(Float64, 3)
+          gmi.geval(g, me, xi_orig, coords_tmp)
+          @test maximum(abs.(coords2 - coords)) > 1e-8
+          @test maximum(abs.(coords3 - coords)) < 1e-8
+        end
+      else  # cannot eval
+
+        for i=1:mesh.dim
+          coords[i] += 0.1
+        end
+
+        setCoords(mesh, e, j-1, coords, true)
+        getCoords(mesh, e, j-1, coords2)
+
+        @test maximum(abs.(coords2 - coords)) < 1e-13
+      end
+    end
+  end
+
+  return nothing
+end
+
+
+"""
+  Tests the single-element version of update_coords with snapping
+"""
+function test_geoWarp(mesh, sbp, opts)
+
+  # test single-element update_coords
+  coords_orig = copy(mesh.vert_coords)
+  
+  # double all coordinates
+  coords_i = zeros(Float64, 2, 3)
+  for i=1:mesh.numEl
+    for j=1:3
+      coords_i[1, j] = coords_orig[1, j, i] + 0.0001
+      coords_i[2, j] = coords_orig[2, j, i] + 0.0001
+    end
+    update_coords(mesh, i, coords_i)
+  end
+
+  commit_coords(mesh, sbp, opts)
+
+  # check xyz and xi are consistent
+  xyz_j = zeros(Float64, 3)
+  xi_j = zeros(Float64, 2)
+  xyz2_j = zeros(Float64, 3)
+  g = apf.getModel(mesh.m_ptr)
+  for e in apf.MeshIterator(mesh.m_ptr, 0)
+    apf.getPoint(mesh.m_ptr, e, 0, xyz_j)
+    apf.getParam(mesh.m_ptr, e, xi_j)
+    me = apf.toModel(mesh.m_ptr, e)
+    gmi.geval(g, me, xi_j, xyz2_j)
+
+    for k=1:mesh.dim
+      @test abs(xyz2_j[k] - xyz_j[k]) < 1e-5  # closestPoint is not that accurate
+    end
+  end
+
+  return nothing
+end
+
+
+function test_update_coords(mesh, sbp, opts)
+
+  @assert mesh.geoNums.can_eval
+
+  # test updateCoords works
+  xivec = getXiCoords(mesh)
+  xvec = getXCoords(mesh)
+  println("initially, xvec = \n", xvec)
+
+  xivec .+= 1e-3*rand(length(xivec))
+  update_coordsXi(mesh, sbp, opts, xivec)
+  update_coords(mesh, sbp, opts, xvec)
+  xvec2 = getXCoords(mesh)
+
+  println("xvec = \n", xvec)
+  println("xvec2 = \n", xvec2)
+  println("diff = \n", xvec2 - xvec)
+  @test maximum(abs.(xvec2 - xvec)) < 1e-12
+
+  return nothing
+end
+
+
+function test_coords_file(opts, sbp, sbpface, mesh_ctor=PumiMeshDG2)
+
+
+  mesh = mesh_ctor(Float64, sbp, opts, sbpface)
+
+  # perturb coordinates
+  if mesh.geoNums.can_eval
+    xivec = getXiCoords(mesh)
+    pert = 0.001*rand(size(xivec))
+    xivec .+= pert
+    update_coordsXi(mesh, sbp, opts, xivec)
+  else
+    xvec = getXCoords(mesh)
+    pert = 0.01*rand(size(xvec))
+    xvec .+= pert
+    update_coords(mesh, sbp, opts, xvec)
+  end
+    
+  writeCoordsBinary(mesh, "coordsb.dat")
+
+  # load new mesh and check coordinates
+  mesh2 = mesh_ctor(Float64, sbp, opts, sbpface)
+  readCoordsBinary(mesh2, sbp, opts, "coordsb.dat")
+
+  println("coords maxdiff = ", maximum(abs.(mesh.coords - mesh2.coords)))
+  @test maximum(abs.(mesh.coords - mesh2.coords)) < 1e-15
+
+  if mesh.geoNums.can_eval
+    xivec2 = getXiCoords(mesh2)
+    @test maximum(abs.(xivec2 - xivec)) < 1e-15
+  end
+
+  # test loading when mesh does not support xi coordinates
+  opts2 = copy(opts)
+  opts2["dmg_name"] = ".null"
+  mesh3 = mesh_ctor(Float64, sbp, opts, sbpface)
+  readCoordsBinary(mesh3, sbp, opts, "coordsb.dat")
+  @test maximum(abs.(mesh.coords - mesh3.coords)) < 1e-15
+
+  if mesh.geoNums.can_eval
+    # save from mesh that does not support xi coordinates and load on mesh
+    # that does
+    writeCoordsBinary(mesh3, "coordsb2.dat")
+
+    mesh4 = mesh_ctor(Float64, sbp, opts, sbpface)
+    readCoordsBinary(mesh4, sbp, opts, "coordsb2.dat")
+
+    @test maximum(abs.(mesh.coords - mesh4.coords)) < 1e-15
+  
+    xivec2 = getXiCoords(mesh4)
+    @test maximum(abs.(xivec2 - xivec)) < 1e-7
+  end
+
+  #TODO: test Complex128
+  return nothing
+end
+
+
+function test_refcounting()
+
+  order = 1
+  smb_name = "vortex.smb"
+  dmg_name = "vortex.dmg"
+
+  opts = Dict{Any, Any}(
+    "dmg_name" => dmg_name,
+    "smb_name" => smb_name,
+    "order" => order,
+    "coloring_distance" => 2,
+    "numBC" => 1,
+    "BC1" =>  [4, 7, 10, 13],
+    "run_type" => 4,
+    )
+#    interp_op = [0.5 0 0; 0 0.5 0; 0 0 0.5]
+
+  sbp = getTriSBPOmega(degree=order)
+  vtx = sbp.vtx
+  sbpface = TriFace{Float64}(order, sbp.cub, vtx)
+
+  mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+
+  #fshape_ptr = apf.getConstantShapePtr(0)
+  fshape_ptr = mesh.coordshape_ptr
+  f_ptr = apf.createPackedField(mesh, "testfield1", 1, fshape_ptr)
+
+  @test PdePumiInterface.countFieldRef(f_ptr) == 1
+
+  f_ptr2 = apf.createPackedField(mesh, "testfield1", 1, fshape_ptr)
+  @test f_ptr2 != f_ptr
+  @test PdePumiInterface.countFieldRef(f_ptr2) == 1
+
+  # load the same mesh from disk again, check the fields are not shared
+  mesh2 = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+
+  f_ptr3 = apf.createPackedField(mesh2, "testfield1", 1, fshape_ptr)
+
+  @test mesh.m_ptr != mesh2.m_ptr
+  for f in mesh.fields.orig
+    @test !(f in mesh2.fields.orig)
+  end
+  for f in mesh.fields.user
+    @test !(f in mesh2.fields.user)
+  end
+
+  m1_ptr = mesh.m_ptr
+  finalize(mesh)
+  @test apf.countMeshRefs(m1_ptr) == 0
+  @test PdePumiInterface.countFieldRef(f_ptr) == 0
+
+  # make sure finalizer is freeing fields
+  finalize(mesh2)
+  @test PdePumiInterface.countFieldRef(f_ptr3) == 0
+
+
+  # create 2 Julia meshes sharing the same apf::Mesh
+  mesh1 = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+
+  #fshape_ptr = apf.getConstantShapePtr(0)
+  fshape_ptr = mesh.coordshape_ptr
+  f_orig_mesh1 = apf.createPackedField(mesh1.m_ptr, "origfield_mesh1",
+                                       1, fshape_ptr)
+  PdePumiInterface.attachOrigField(mesh1, f_orig_mesh1)
+
+  n_orig_mesh1 = apf.createNumberingJ(mesh1.m_ptr, "orignum_mesh1", fshape_ptr,
+                                      1)
+  PdePumiInterface.attachOrigNumbering(mesh1, n_orig_mesh1)
+
+
+  f_user_mesh1 = apf.createPackedField(mesh1.m_ptr, "userfield_mesh1",
+                                       1, fshape_ptr)
+  PdePumiInterface.attachUserField(mesh1, f_user_mesh1)
+
+  n_user_mesh1 = apf.createNumberingJ(mesh1.m_ptr, "usernum_mesh1", fshape_ptr,
+                                      1)
+  PdePumiInterface.attachUserNumbering(mesh1, n_user_mesh1)
+
+
+  mesh2 = PumiMeshDG2(mesh1, sbp, opts)
+
+  n_user_mesh2 = apf.createNumberingJ(mesh2, "usernum_mesh2", 1, fshape_ptr)
+  f_user_mesh2 = apf.createPackedField(mesh2, "userfield_mesh2", 1, fshape_ptr)
+
+  # test orig fields are attached to both, but user fields are not
+  @test f_orig_mesh1 in mesh2.fields.orig
+  @test !(f_user_mesh1 in mesh2.fields.user)
+  @test f_user_mesh1 in mesh1.fields.user
+
+  @test n_orig_mesh1 in mesh2.numberings.orig
+  @test !(n_user_mesh1 in mesh2.numberings.user)
+  @test n_user_mesh1 in mesh1.numberings.user
+
+  @test PdePumiInterface.countFieldRef(f_orig_mesh1) == 2
+  @test PdePumiInterface.countFieldRef(f_user_mesh1) == 1
+
+  @test PdePumiInterface.countNumberingRef(n_orig_mesh1) == 2
+  @test PdePumiInterface.countNumberingRef(n_user_mesh1) == 1
+
+  # write values to field
+  vals = Float64[1.0]
+  for (e, dim) in apf.FieldEntityIt(mesh1.m_ptr, fshape_ptr)
+    apf.numberJ(n_orig_mesh1, e, 0, 0, 1)
+    apf.numberJ(n_user_mesh1, e, 0, 0, 1)
+    apf.numberJ(n_user_mesh2, e, 0, 0, 1)
+
+    apf.setComponents(f_orig_mesh1, e, 0, vals)
+    apf.setComponents(f_user_mesh1, e, 0, vals)
+    apf.setComponents(f_user_mesh2, e, 0, vals)
+  end
+
+
+  writeVisFiles(mesh1, "mesh1_vis")
+  writeVisFiles(mesh2, "mesh2_vis")
+
+  mesh1_has_f_orig1 = false
+  mesh1_has_n_orig1 = false
+  mesh1_has_f_user1 = false
+  mesh1_has_n_user1 = false
+
+  mesh2_has_f_orig1 = false
+  mesh2_has_n_orig1 = false
+  mesh2_has_f_user1 = false
+  mesh2_has_n_user1 = false
+
+  mesh1_has_f_user2 = false
+  mesh1_has_n_user2 = false
+  mesh2_has_f_user2 = false
+  mesh2_has_n_user2 = false
+
+  for line in eachline("mesh1_vis/mesh1_vis.pvtu")
+    if contains(line, "origfield_mesh1")
+      mesh1_has_f_orig1 = true
+    end
+    if contains(line, "orignum_mesh1")
+      mesh1_has_n_orig1 = true
+    end
+    if contains(line, "userfield_mesh1")
+      mesh1_has_f_user1 = true
+    end
+    if contains(line, "usernum_mesh1")
+      mesh1_has_n_user1 = true
+    end
+    if contains(line, "userfield_mesh2")
+      mesh1_has_f_user2 = true
+    end
+    if contains(line, "usernum_mesh2")
+      mesh1_has_n_user2 = true
+    end
+  end
+
+  @test mesh1_has_f_orig1
+  @test mesh1_has_n_orig1
+  @test mesh1_has_f_user1
+  @test mesh1_has_n_user1
+  @test !mesh1_has_f_user2
+  @test !mesh1_has_n_user2
+
+  for line in eachline("mesh2_vis/mesh2_vis.pvtu")
+    if contains(line, "origfield_mesh1")
+      mesh2_has_f_orig1 = true
+    end
+    if contains(line, "orignum_mesh1")
+      mesh2_has_n_orig1 = true
+    end
+    if contains(line, "userfield_mesh1")
+      mesh2_has_f_user1 = true
+    end
+    if contains(line, "usernum_mesh1")
+      mesh2_has_n_user1 = true
+    end
+    if contains(line, "userfield_mesh2")
+      mesh2_has_f_user2 = true
+    end
+    if contains(line, "usernum_mesh2")
+      mesh2_has_n_user2 = true
+    end
+  end
+
+  @test mesh2_has_f_orig1
+  @test mesh2_has_n_orig1
+  @test !mesh2_has_f_user1
+  @test !mesh2_has_n_user1
+  @test mesh2_has_f_user2
+  @test mesh2_has_n_user2
+
+  finalize(mesh1)
+  @test PdePumiInterface.countFieldRef(f_orig_mesh1) == 1
+  @test PdePumiInterface.countFieldRef(f_user_mesh1) == 0
+
+  @test PdePumiInterface.countNumberingRef(n_orig_mesh1) == 1
+  @test PdePumiInterface.countNumberingRef(n_user_mesh1) == 0
+
+  finalize(mesh2)
 
   return nothing
 end

@@ -9,6 +9,7 @@ using ODLCommonTools
 import ODLCommonTools.sview
 using SummationByParts
 using PdePumiInterface
+using PumiConfig
 
 import Base.isapprox
 
@@ -72,9 +73,9 @@ end
   edgeit = apf.MeshIterator(m_ptr, 1)
   faceit = apf.MeshIterator(m_ptr, 2)
 
-  vert = apf.deref(m_ptr, vertit)
-  edge = apf.deref(m_ptr, edgeit)
-  face = apf.deref(m_ptr, faceit)
+  vert = apf.deref(vertit)
+  edge = apf.deref(edgeit)
+  face = apf.deref(faceit)
 #  vert = getVert()
 #  edge = getEdge()
 #  face = getFace()
@@ -91,28 +92,28 @@ end
 
 
   for i=1:num_Entities[1]  # loop over verts
-    entity = apf.iterate(m_ptr, vertit)
+    entity = apf.iterate(vertit)
     @test ( apf.getNumberJ(vertN_ptr, entity, 0, 0) )== i-1
 #    incrementVertIt()
   end
-  apf.free(m_ptr, vertit)
+  apf.free(vertit)
 #  resetVertIt()
 
   for i=1:num_Entities[2]  # loop over edges
-    entity = apf.iterate(m_ptr, edgeit)
+    entity = apf.iterate(edgeit)
     @test ( apf.getNumberJ(edgeN_ptr, entity, 0, 0) )== i-1
 #    incrementEdgeIt()
   end
-  apf.free(m_ptr, edgeit)
+  apf.free(edgeit)
 #  resetEdgeIt()
 
 
   for i=1:num_Entities[3]  # loop over faces
-    entity = apf.iterate(m_ptr, faceit)
+    entity = apf.iterate(faceit)
     @test ( apf.getNumberJ(faceN_ptr, entity, 0, 0) )== i-1
 #    incrementFaceIt()
   end
-  apf.free(m_ptr, faceit)
+  apf.free(faceit)
 #  resetFaceIt()
 
 
@@ -134,7 +135,6 @@ end
   for i=1:num_down
     down_nums[i] = apf.getNumberJ(edgeN_ptr, down_entities[i], 0, 0)
   end
-#  println("down_nums = ", down_nums)
    @test ( down_nums )== [1, 5, 0]
 
   down_entities, num_down = apf.getDownward(m_ptr, face, 0) # face -> verts
@@ -321,15 +321,40 @@ end
     @test ( apf.countRemotes(m_ptr, i) )== 0
   end
 
+  # test MeshEntity iteration
+  nvert = 0
+  for e in apf.MeshIterator(m_ptr, 0)
+    nvert += 1
+  end
+  @test nvert == num_Entities[1]
 
 
+  # test FieldEntity iteration
+  # count number of vertices in 1st order lagrange field
+  fshape = apf.getFieldShape(0, 1, apf.getDimension(m_ptr))
+  it = apf.FieldEntityIt(m_ptr, fshape)
+  @test Base.iteratorsize(it) == Base.HasLength()
+  @test Base.eltype(it) == Tuple{Ptr{Void}, Int}
+  state = Base.start(it)
+  old_state, new_state = Base.next(it, state)
+  @test typeof(old_state) == Base.eltype(it)
+  apf.free(it)
+
+  nvert = 0
+  for (e, edim) in apf.FieldEntityIt(m_ptr, fshape)
+    @test edim == 0
+    nvert += 1
+  end
+  @test nvert == num_Entities[1]
+  println("nvert = ", nvert)
 
 
-
-
-
-
-
+  # test enumerate
+  i = 1
+  for (idx, e) in enumerate(apf.FieldEntityIt(m_ptr, fshape))
+    @test idx == i
+    i += 1
+  end
 
 
   # check coordinates
@@ -364,6 +389,43 @@ end
 
  apf.numberJ(n_ptr, vert, 0, 0, 1)
  @test ( apf.getNumberJ(n_ptr, vert, 0, 0) )== 1
+ apf.destroyNumbering(n_ptr)
+
+
+  # test writeVtk all fields option
+  # the mesh has a first order lagrange field, so make a 2nd order numbering
+  nname = "testOmegaNumbering"
+  nshape = apf.getFieldShape(2, 1, 2)
+  n_ptr = apf.createNumberingJ(m_ptr, nname, nshape, 1)
+
+  for (i, el_i) in enumerate(apf.MeshIterator(m_ptr, 2))
+    for j=0:2
+      apf.numberJ(n_ptr, el_i, j, 0, i)
+    end
+  end
+
+  apf.writeVtkFiles("test_vtk", m_ptr)
+  apf.writeVtkFiles("test_vtk_all", m_ptr, writeall=true)
+
+  found_name = false
+  for line in eachline("test_vtk/test_vtk.pvtu")
+    if contains(line, nname)
+      found_name = true
+      break
+    end
+  end
+
+  found_name_all = false
+  for line in eachline("test_vtk_all/test_vtk_all.pvtu")
+    if contains(line, "faceNums")
+      found_name_all = true
+      break
+    end
+  end
+
+  @test !found_name
+  @test found_name_all
+  apf.destroyNumbering(n_ptr)
 
 
  # test mesh warping functions
@@ -374,14 +436,14 @@ end
  coords = zeros(3)
  entity = C_NULL
  for i=1:num_Entities[1]
-   vert_i = apf.iterate(m_ptr, it)
+   vert_i = apf.iterate(it)
    apf.getPoint(m_ptr, vert_i, 0, coords)
    if coords[1] < -0.5 && coords[2] < -0.5
      entity = vert_i
      break
    end
  end
-  apf.free(m_ptr, it)
+  apf.free(it)
  @test ( entity )!=C_NULL
 
  coords[1] *= 2
@@ -418,26 +480,26 @@ end
 
   it = apf.MeshIterator(m_ptr, 0)
   for i =1:numVert
-    entity = apf.iterate(m_ptr, it)
+    entity = apf.iterate(it)
     if apf.isOwned(shr_ptr, entity)
       nowned += 1
     end
 
 #    incrementVertIt()
   end
-  apf.free(m_ptr, it)
+  apf.free(it)
   @test ( nowned )== numVert - 4
 
   nowned = 0
   it = apf.MeshIterator(m_ptr, 1)
   for i=1:numEdge
-    entity = apf.iterate(m_ptr, it)
+    entity = apf.iterate(it)
     if apf.isOwned(shr_ptr, entity)
       nowned += 1
     end
 #    incrementEdgeIt()
   end
-  apf.free(m_ptr, it)
+  apf.free(it)
   @test ( nowned )== numEdge - 3
 
   ncopies = zeros(Int, 2)
@@ -448,7 +510,7 @@ end
 #  resetAllIts2(m_ptr)
   it = apf.MeshIterator(m_ptr, 1)
   for i=1:numEdge
-    entity = apf.iterate(m_ptr, it)
+    entity = apf.iterate(it)
     n = apf.countCopies(shr_ptr, entity)
     n2 = apf.countMatches(m_ptr, entity)
     ncopies[n+1] += 1  # either 0 or 1 copy
@@ -467,10 +529,36 @@ end
     end
 #    incrementEdgeIt()
   end
-  apf.free(m_ptr, it)
+  apf.free(it)
 
   @test ( ncopies[2] )== 6  # 3 x 3 element mesh has 6 shared edges
   @test ( nmatches[2] )== 6
+
+
+  # test that convertSimMesh works correctly
+  if HAVE_SIMMETRIX
+    startdir = pwd()
+    dirname = "test_convertSim"
+    srcdir = joinpath(pwd(), "meshes", "UnitCubeCurve")
+    if isdir(dirname)
+      rm(dirname, recursive=true)
+    end
+    mkdir(dirname)
+    cd(dirname)
+    fname = "UnitCubeCurve"
+    cp(joinpath(srcdir, "$fname.smd"), "./$fname.smd")
+    cp(joinpath(srcdir, "$fname.sms"), "./$fname.sms")
+    exepath = joinpath(pwd(), "..", "..", "install", "bin")
+    run(`$exepath/convertSimMesh $fname.smd $fname.sms $fname.smb`)
+
+    order = 2  # linear elements
+    m_ptr, dim = apf.loadMesh("$fname.smd", "$fname.smb", order)
+    # check that the quadratic parameter field is present
+    f_ptr = apf.findField(m_ptr, "edge_params")
+    @test f_ptr != C_NULL
+    cd(startdir)
+  end
+
 
 end  # end context
 end
@@ -522,7 +610,6 @@ include("test_gmi.jl")
 test_gmi()
 
 
-println("about to test pdepumiinterface")
 include("test_math.jl")
 include("test_funcs.jl")  # include functions used by both 2d and 3D
 include("common_functions.jl")

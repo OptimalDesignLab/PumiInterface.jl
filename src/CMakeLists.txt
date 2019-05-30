@@ -72,7 +72,6 @@ SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 # which point to directories outside the build tree to the install RPATH
 SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-
 # the RPATH to be used when installing, but only if it's not a system directory
 LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
 IF("${isSystemDir}" STREQUAL "-1")
@@ -83,8 +82,16 @@ ENDIF("${isSystemDir}" STREQUAL "-1")
 
 #this is just example code, do your own thing
 add_executable(test_init test_init.cc)
+if (HAVE_SIMMETRIX)
+  add_executable(test_cad test_cad.cc)
+  add_executable(convertSimMesh convertSimMesh.cc)
+  add_executable(test_init2 test_init2.cc)
+endif (HAVE_SIMMETRIX)
+
+add_executable(printGeoEntities printGeoEntities.cc)
+add_executable(uniform_refine uniform_refine.cc)
 add_executable(test_meshadapt test_meshadapt.cc)
-add_library(pumiInterface funcs1.cc a2.cc apfSBPShape.cc apfSBPShape3.cc dgSBPShape1.cc dgSBPShape2.cc dgSBPShape4.cc dgSBPShape5.cc dgSBPShape6.cc dgSBP3Shape1.cc dgSBP3Shape2.cc dgSBP3Shape4.cc dgSBP3Shape5.cc triangulation.cc triangulationDG.cc submesh_create.cc)
+add_library(pumiInterface funcs1.cc a2.cc apfSBPShape.cc apfSBPShape3.cc dgSBPShape1.cc dgSBPShape2.cc dgSBPShape4.cc dgSBPShape5.cc dgSBPShape8.cc dgSBPShape8.cc dgSBP3Shape1.cc dgSBP3Shape2.cc dgSBP3Shape4.cc dgSBP3Shape5.cc triangulation.cc triangulationDG.cc submesh_create.cc)
 
 #for any targets that use PUMI, just use this command
 #to it to include the right directories and link to all
@@ -94,10 +101,24 @@ add_library(pumiInterface funcs1.cc a2.cc apfSBPShape.cc apfSBPShape3.cc dgSBPSh
 #target_link_libraries(mylibrary PUBLIC SCOREC::core)
 target_link_libraries(pumiInterface PUBLIC SCOREC::core)
 target_link_libraries(test_init PRIVATE SCOREC::core)
+if (HAVE_SIMMETRIX)
+  target_link_libraries(test_init2 PRIVATE SCOREC::core)
+  target_link_libraries(test_cad PRIVATE SCOREC::core)
+  target_link_libraries(convertSimMesh PRIVATE SCOREC::core)
+endif (HAVE_SIMMETRIX)
+target_link_libraries(printGeoEntities PRIVATE SCOREC::core)
+target_link_libraries(uniform_refine PRIVATE SCOREC::core)
 target_link_libraries(test_meshadapt PRIVATE SCOREC::core)
 
 install (TARGETS pumiInterface DESTINATION lib)
 install (TARGETS test_init DESTINATION bin)
+if(HAVE_SIMMETRIX)
+  install (TARGETS test_init2 DESTINATION bin)
+  install (TARGETS test_cad DESTINATION bin)
+  install (TARGETS convertSimMesh DESTINATION bin)
+endif (HAVE_SIMMETRIX)
+install (TARGETS printGeoEntities DESTINATION bin)
+install (TARGETS uniform_refine DESTINATION bin)
 install (TARGETS test_meshadapt DESTINATION bin)
 
 install (FILES funcs1.h a2.h "${PROJECT_BINARY_DIR}/pumiInterface_config.h" DESTINATION include)

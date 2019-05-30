@@ -94,15 +94,15 @@ int initABC(char* dmg_name, char* smb_name, int number_entities[4], apf::Mesh2* 
     fshape = apf::getLagrange(order);
   }
 
+  if (myrank == 0)
+    std::cout << "chaning coordinate FieldShape to " << fshape->getName() << std::endl;
 
 
-    if ( order == 1)
-    {
-      apf::changeMeshShape(m, fshape, false);
-    } else
-    {
-      apf::changeMeshShape(m, fshape, true);
-    }
+  if ( order == 1)
+    apf::changeMeshShape(m, fshape, false);
+  else
+    apf::changeMeshShape(m, fshape, true);
+
 
 //    std::cout << "finished loading mesh, changing shape" << std::endl;
 
@@ -198,6 +198,15 @@ apf::Mesh2* loadMesh(const char* dmg_name, const char* smb_name, int shape_type,
     std::cerr << "Warning: changing mesh coordinate field from " << order_orig << " to " << order << " will result in loss of resolution" << std::endl;
   }
 
+  // workaround for bug in hasNodesIn for LagrangeQuadratic
+  // This sould be deleted when LagrangeQuadratic is fixed
+  // ref: https://github.com/SCOREC/core/issues/203
+  if (m->getShape() == apf::getLagrange(2))
+  {
+    change_shape = true;
+    fshape = apf::getSerendipity();
+  }
+
   if (change_shape)
   {
     //std::cout << "about to perform final mesh shape change" << std::endl;
@@ -234,12 +243,17 @@ void initMesh(apf::Mesh* m, int number_entities[],
   }
 
   // create numberings
-  n_array[0] = apf::createNumbering(m, "vertNums", apf::getConstant(0), 1);
-  n_array[1] = apf::createNumbering(m, "edgeNums", apf::getConstant(1), 1);
-  n_array[2] = apf::createNumbering(m, "faceNums", apf::getConstant(2), 1);
-  if (dim == 3)
-    n_array[3] = apf::createNumbering(m, "regionNums", apf::getConstant(3), 1);
+  char v_name[256], e_name[256], f_name[256], r_name[256];
+  getUniqueNumberingName(m, "vertNums", v_name);
+  getUniqueNumberingName(m, "edgeNums", e_name);
+  getUniqueNumberingName(m, "faceNums", f_name);
+  getUniqueNumberingName(m, "regionNums", r_name);
 
+  n_array[0] = apf::createNumbering(m, v_name, apf::getConstant(0), 1);
+  n_array[1] = apf::createNumbering(m, e_name, apf::getConstant(1), 1);
+  n_array[2] = apf::createNumbering(m, f_name, apf::getConstant(2), 1);
+  if (dim == 3)
+    n_array[3] = apf::createNumbering(m, r_name, apf::getConstant(3), 1);
 
   apf::MeshIterator* it;
   for (int i = 0; i < (dim+1); ++i)  // loop over dimensions
@@ -269,6 +283,100 @@ void initMesh(apf::Mesh* m, int number_entities[],
 //  ma::writePointSet(m, 2, 21, "pointcloud");
 */
 }  // function initMesh()
+
+
+void getUniqueNumberingName(apf::Mesh* m, const char* basename, char* newname)
+{
+  apf::Numbering* n = m->findNumbering(basename);
+  if (!n)
+  {
+    sprintf(newname, "%s", basename);
+    return;
+  } else
+  {
+    int idx = 1;
+    while (true)
+    {
+      sprintf(newname, "%s_%d", basename, idx);
+      n = m->findNumbering(newname);
+      std::cout << "name = " << newname << " n_ptr = " << n << std::endl;
+      if (!n)
+        return;
+
+      idx++;
+    }
+  }
+}
+
+// This function returns the apf::Field that has the CAD parametric coordinates
+// of the mid-edge nodes, if possible, otherwise returns the null pointer.
+// This is necessary because Pumi does not store mid-edge node parametric
+// coordinates.
+apf::Field* initGeometry(apf::Mesh2* m)
+{
+  gmi_model* g = m->getModel();
+  const char* fname = "edge_params";
+
+  if (!gmi_can_eval(g))
+    return NULL;
+
+  if (!m->getShape()->hasNodesIn(1))  // linear mesh
+    return NULL;
+
+  // this is the field convertSimMesh is supposed to write for quadratic
+  // meshes.  If it didn't for some reason, use gmi_closest_point to make it,
+  // even though that is less accurate/requires snapping the mesh
+  apf::Field* fedge = m->findField(fname);
+
+  if (!fedge)
+  {
+    std::cout << "Adding quadratic parameter field: derivatives may be less accurate" << std::endl;
+    apf::FieldShape* fshape_edges = apf::getConstant(1);
+    fedge = apf::createPackedField(m, fname, 2, fshape_edges);
+
+    snapEdgeNodes(m, fedge);
+  }  // end if
+
+
+  return fedge;
+}
+
+// Snaps mid-edge nodes to the geometry and updates the field that stores their
+// parametric coordinates
+void snapEdgeNodes(apf::Mesh2* m, apf::Field* fedge)
+{
+  apf::MeshEntity* e;
+  apf::MeshIterator* it = m->begin(1);
+  gmi_model* g = m->getModel();
+
+  //pMesh smesh_local = PM_mesh(smesh, 0);
+  double params[2];
+  double xnew[3];
+  apf::Vector3 x;
+  while ((e = m->iterate(it)))
+  {
+
+    apf::ModelEntity* me = m->toModel(e);
+    int me_dim = m->getModelType(me);
+    m->getPoint(e, 0, x);
+
+    if (me_dim < 3)
+    {
+      gmi_closest_point(g, (gmi_ent*)me, &x[0], xnew, params);
+      //  because gmi_closest_point is not that accurate (and noisy), evaluate
+      //  p to make sure x and p are consistent
+      gmi_eval(g, (gmi_ent*)me, params, &x[0]);
+    } else  // regions don't have parametric coordinates
+    {
+      params[0] = 0;
+      params[1] = 0;
+    }
+
+    m->setPoint(e, 0, x);
+    apf::setComponents(fedge, e, 0, params);
+  }  // end while
+
+}
 
 // perform cleanup activities, making it safe to load a new mesh
 void cleanup(apf::Mesh* m_local)
@@ -314,8 +422,16 @@ void popMeshRef(apf::Mesh* m)
   {
     meshref[m] = nrefs - 1;
   }
+}
 
+int countMeshRefs(apf::Mesh* m)
+{
 
+  std::map<apf::Mesh*, int>::size_type nfound = meshref.count(m);
+  if (nfound == 0)
+    return 0;
+  else
+    return meshref[m];
 }
 
 // this function defines the mapping from the shape_type integer to the
@@ -333,7 +449,11 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     }
     else if ( shape_type == 0)  // use lagrange
     {
-      fshape = apf::getLagrange(order);
+      if (order == 2)
+        fshape = apf::getSerendipity();  // always returns quadratic
+      else
+        fshape = apf::getLagrange(order);
+
       change_shape = true;
     } else if ( shape_type == 1)  // use SBP shape functions (SBP-Gamma CG)
     {
@@ -363,6 +483,10 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     {
       fshape = apf::getDG7SBPShape(order);
       change_shape = true;
+    } else if (shape_type == 8)
+    {
+      fshape = apf::getDG8SBPShape(order);
+      change_shape = true;
     } else  // default to lagrange shape functions
     {
       std::cout << "Error: unrecognized shape_type: " << shape_type << std::endl;
@@ -379,7 +503,11 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     }
     else if (shape_type == 0) // use lagrange
     {
-      fshape = apf::getLagrange(order);
+      if (order == 2)
+        fshape = apf::getSerendipity();  // always returns quadratic
+      else
+        fshape = apf::getLagrange(order);
+
       change_shape = true;
     } else if (shape_type == 2)  // use SBP DG1 shape functions (3d Omega?)
     {
@@ -435,7 +563,7 @@ apf::FieldShape* getConstantShapePtr(int dimension)
 }
 
 
-int count(apf::Mesh2* m_local, int dimension)
+int count(apf::Mesh* m_local, int dimension)
 {
   return m_local->count(dimension);
 }
@@ -470,14 +598,49 @@ apf::MeshEntity* deref(apf::Mesh2* m, apf::MeshIterator* it)
   return m->deref(it);
 }
 
+int getDimension(apf::Mesh* m)
+{
+  return m->getDimension();
+}
 
 
-void writeVtkFiles(char* name, apf::Mesh2* m_local)
+// writeall: if true, write all fiels to vtk, even if they are not cleanly
+//           representable
+// f_arr: list of apf::Field* to consider for printing (defaults to all
+//        fields if null)
+// n_arr: list of apf::Numbering* to consider for printing (defaults to all
+//        if null)
+// gn_arr: list of apf::GlobalNumbering* to consider for printing (defaults to
+//          all if null)
+void writeVtkFiles(char* name, apf::Mesh2* m_local, bool writeall,
+                   apf::Field** f_arr, int nfields,
+                   apf::Numbering** n_arr, int n_nums,
+                   apf::GlobalNumbering** gn_arr, int n_gnums)
 {
 
 //   apf::writeASCIIVtkFiles(name, m_local);
-    
+  if (writeall && nfields == 0 && n_nums == 0 && n_gnums == 0)
+    // write all fields and don't use lists to check which ones
    apf::writeVtkFiles(name, m_local);
+  else  // use lists and/or fieldshape to decide which fields to print
+  {
+    std::vector<apf::Field*> f_vec(nfields);
+    for (int i=0; i < nfields; ++i)
+      f_vec[i] = f_arr[i];
+
+    std::vector<apf::Numbering*> n_vec(n_nums);
+    for (int i=0; i < n_nums; ++i)
+      n_vec[i] = n_arr[i];
+
+    std::vector<apf::GlobalNumbering*> gn_vec(n_gnums);
+    for (int i=0; i < n_gnums; ++i)
+      gn_vec[i] = gn_arr[i];
+
+
+    std::vector<std::string> writeFields = getWritableFields(m_local, f_vec,
+                                                      n_vec, gn_vec, writeall);
+    apf::writeVtkFiles(name, m_local, writeFields);
+  }
 /*
     apf::FieldShape* mshape = m->getShape();
     crv::writeControlPointVtuFiles(m, name);
@@ -486,6 +649,82 @@ void writeVtkFiles(char* name, apf::Mesh2* m_local)
 
   }
   */
+}
+
+std::vector<std::string> getWritableFields(apf::Mesh* m,
+                                    std::vector<apf::Field*>& f_vec,
+                                    std::vector<apf::Numbering*>& n_vec,
+                                    std::vector<apf::GlobalNumbering*>& gn_vec,
+                                    bool writeall)
+{
+    std::vector<std::string> writeFields;
+    apf::FieldShape* cshape = m->getShape();
+    int dim = m->getDimension();
+
+    // isWritable checks that the FieldShape is compatible
+    // isPrintable is an apf function that checks if the field is complete
+
+    // apf::Fields
+    for (int i=0; i < m->countFields(); ++i)
+    {
+      apf::Field* f = m->getField(i);
+      if (f_vec.size() > 0 && !contains(f_vec, f))
+        continue;
+
+      if ((isWritable(apf::getShape(f), cshape, dim) && isPrintable(f)) || writeall)
+        writeFields.push_back(apf::getName(f));
+    }
+
+    // apf::Numberings
+    for (int i=0; i < m->countNumberings(); ++i)
+    {
+      apf::Numbering* n = m->getNumbering(i);
+      if (n_vec.size() > 0 && !contains(n_vec, n))
+        continue;
+
+
+      if ((isWritable(apf::getShape(n), cshape, dim) && isPrintable(n)) || writeall)
+        writeFields.push_back(apf::getName(n));
+    }
+
+    // apf::GlobalNumberings
+    for (int i=0; i < m->countGlobalNumberings(); ++i)
+    {
+      apf::GlobalNumbering* n = m->getGlobalNumbering(i);
+      if (gn_vec.size() > 0 && !contains(gn_vec, n))
+        continue;
+
+      if ((isWritable(apf::getShape(n), cshape, dim) && isPrintable(n)) || writeall)
+        writeFields.push_back(apf::getName(n));
+    }
+
+    return writeFields;
+}
+
+// is field (cleanly) representable in VTK.  Checks that the field does not
+// have nodes that are not present on the coordinate fields
+// fshape is the shape of the field to be printed, cshape is the mesh coordinate
+// field shape
+bool isWritable(apf::FieldShape* fshape, apf::FieldShape* cshape, int dim)
+{
+  bool is_shape_compatible = true;
+  for (int d=0; d <= dim; ++d)
+    if (fshape->hasNodesIn(d) && !cshape->hasNodesIn(d))
+    {
+      is_shape_compatible = false;
+      break;
+    }
+
+  // check if this is vertex or element numbering
+  bool is_el_numbering = fshape->countNodesOn(apf::Mesh::simplexTypes[dim]) == 1;
+  for (int d=0; d < dim; ++d)
+    if (fshape->hasNodesIn(d))
+    {
+      is_el_numbering = false;
+      break;
+    }
+
+  return is_shape_compatible || is_el_numbering;
 }
 
 
@@ -643,6 +882,11 @@ apf::EntityShape* getEntityShape(apf::FieldShape* mshape_local, int type)
 int getOrder(apf::FieldShape* fshape)
 {
   return fshape->getOrder();
+}
+
+const char* getFieldShapeName(apf::FieldShape* fshape)
+{
+  return fshape->getName();
 }
 
 
@@ -915,6 +1159,17 @@ apf::FieldShape* getNumberingShape(apf::Numbering* n)
   return apf::getShape(n);
 }
 
+int countNumberings(apf::Mesh* m)
+{
+  return m->countNumberings();
+}
+
+apf::Numbering* getNumbering(apf::Mesh* m, int i)
+{
+  return m->getNumbering(i);
+}
+
+
 // number an entity in a given numbering from julia
 int numberJ(apf::Numbering* n, apf::MeshEntity* e, int node, int component, int number)
 {
@@ -1081,9 +1336,14 @@ void getElementNumbers(apf::Numbering* n, apf::MeshEntity*e, int num_dof, int nu
 }
 
 
-apf::Mesh* getMesh(apf::Numbering* n)
+apf::Mesh* getNumberingMesh(apf::Numbering* n)
 {
   return apf::getMesh(n);
+}
+
+const char* getNumberingName(apf::Numbering* n)
+{
+  return apf::getName(n);
 }
 
 void printNumberingName(apf::Numbering* n)
@@ -1201,6 +1461,11 @@ void zeroField(apf::Field* f)
   apf::zeroField(f);
 }
 
+apf::Mesh* getFieldMesh(apf::Field* f)
+{
+  return apf::getMesh(f);
+}
+
 const apf::ReductionSum<double>* Sum = new apf::ReductionSum<double>();
 const apf::ReductionMin<double>* Min = new apf::ReductionMin<double>();
 const apf::ReductionMax<double>* Max = new apf::ReductionMax<double>();
@@ -1227,6 +1492,17 @@ apf::Field* findField(apf::Mesh* m, char* fieldname)
 {
   return m->findField(fieldname);
 }
+
+int countFields(apf::Mesh* m)
+{
+  return m->countFields();
+}
+
+apf::Field* getField(apf::Mesh*m, int i)
+{
+  return m->getField(i);
+}
+
 void destroyField(apf::Field* f)
 {
   apf::destroyField(f);
@@ -1317,6 +1593,12 @@ void setPoint(apf::Mesh2* m, apf::MeshEntity* e, int node, double* coords)
   m->setPoint(e, node, vec);
 }
 
+void setParam(apf::Mesh2* m, apf::MeshEntity* e, double* coords)
+{
+  apf::Vector3 vec(coords);
+  m->setParam(e, vec);
+}
+
 void acceptChanges(apf::Mesh2* m)
 {
   m->acceptChanges();
@@ -1333,6 +1615,13 @@ void getPoint(apf::Mesh* m, apf::MeshEntity* e,  int node, double* coords)
   
   m->getPoint(e, node, vec);
   vec.toArray(coords);
+}
+
+void getParam(apf::Mesh* m, apf::MeshEntity* e, double* coords)
+{
+  apf::Vector3 p;
+  m->getParam(e, p);
+  p.toArray(coords);
 }
 
 //-----------------------------------------------------------------------------
@@ -1459,6 +1748,17 @@ void getTopologyMaps(int* tri_edge_verts_in, int* tet_edge_verts_in, int* tet_tr
     }
 }
 
+
+void printTags(apf::Mesh* m)
+{
+
+  apf::DynamicArray<apf::MeshTag*> tags;
+  m->getTags(tags);
+
+  for (std::size_t i=0; i < tags.getSize(); ++i)
+    std::cout << "Tag " << i << " name = " << m->getTagName(tags[i]) << std::endl;
+
+}
 
 //-----------------------------------------------------------------------------
 // GMI functions

@@ -11,7 +11,8 @@ import gmi_types: ModelEntity, Model, Gmi_set, Gmi_iter
 
 
 # iteration
-import Base: start, next, done, eltype, iteratorsize, eltype
+import Base: start, next, done, eltype, iteratorsize, iteratoreltype, eltype
+using Base: SizeUnknown, HasEltype
 
 
 const gmi_lib = joinpath(CONFIG_PATHS["PUMI_LIBDIR"], "libgmi")
@@ -84,7 +85,9 @@ function Gmi_iter(g::Model, dim::Integer)
 end
 
 
-function start(obj::Gmi_iter) return  _gmi_next(obj.g, obj.it) end
+function start(obj::Gmi_iter)
+  return  _gmi_next(obj.g, obj.it)
+end
 
 
 function next(obj::Gmi_iter, state::ModelEntity)
@@ -107,7 +110,17 @@ function done(obj::Gmi_iter, state::ModelEntity)
 end
 
 
-function eltype(::Type{Gmi_iter}) return ModelEntity end
+function iteratorsize(::Type{Gmi_iter})
+  return SizeUnknown()
+end
+
+function iteratoreltype(::Type{Gmi_iter})
+  return HasEltype()
+end
+
+function eltype(::Type{Gmi_iter})
+  return ModelEntity
+end
 
 
 
@@ -157,9 +170,16 @@ end
 function geval(g::Model, ge::ModelEntity, p::AbstractVector{Cdouble},
                x::AbstractVector{Cdouble})
 
-  @assert length(p) == 2
+  @assert length(p) >= 2
   @assert length(x) == 3
   ccall( (:gmi_eval, gmi_lib), Void, (Model, ModelEntity, Ptr{Cdouble}, Ptr{Cdouble}), g, ge, p, x)
+
+  # make sure any unused components are zeroed out
+  for i=3:length(p)
+    p[i] = 0
+  end
+
+
 end
 
 
@@ -194,9 +214,16 @@ function closest_point(g::Model, ge::ModelEntity,
 
   @assert length(from) == 3
   @assert length(to) == 3
-  @assert length(to_p) == 2
+  @assert length(to_p) >= 2
 
   ccall( (:gmi_closest_point, gmi_lib), Void, (Model, ModelEntity, Ptr{Cdouble}, Ptr{Cdouble}, Ptr{Cdouble}), g, ge, from, to, to_p)
+
+  # make sure any unused components are zeroed out
+  for i=3:length(to_p)
+    to_p[i] = 0
+  end
+
+
 end
 
 
@@ -212,7 +239,7 @@ end
 
 
 """
-  If `ge` is an edge, only `t0` is populated with dX/dp[1].  If `get` is
+  If `ge` is an edge, only `t0` is populated with dX/dp[1].  If `ge` is
   a face`, then `t1` is also populated with dX/dp[2]
 """
 function first_derivative(g::Model, ge::ModelEntity, p::AbstractVector{Cdouble},
@@ -277,7 +304,9 @@ end
 # the functions gmi_sim_startJ/stopJ check if Simmetrix is supported, so call
 # these unconditionally
 sim_start()
-atexit(sim_stop)
+#atexit(sim_stop)  # atexit hooks run before finalizers, so if a finalizer
+#                  # causes the mesh to be destroyed, it won't be able to
+#                  # destroy the geometric model (causes a segfault)
 
 
 end # end module

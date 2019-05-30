@@ -301,10 +301,10 @@ function pushKey!(data::ScatterData{T, N, N2}, e_local::Ptr{Void},
                   localidx::Union{T2, AbstractVector{T2}}) where {T, N, N2, T2 <: CartesianIndex}
 
   peeridx = getPeerIdx(data, peernum)
-
   if peeridx == 0
     push!(data.send, PeerData(T, peernum, data.tag, data.comm))
     push!(data.peernums_send, peernum)
+    push!(data.curridx, 1)
     peeridx = length(data.send)
   end
 
@@ -313,7 +313,6 @@ function pushKey!(data::ScatterData{T, N, N2}, e_local::Ptr{Void},
   push!(data_i._entities_local, e_local)
   pushorappend!(data_i.local_indices, localidx)
   push!(data_i.colptr, length(data_i.local_indices) + 1)
-  push!(data.curridx, 1)
 
   return nothing
 end
@@ -718,53 +717,47 @@ function initSendToOwner(mesh::PumiMesh{T}, fshape::Ptr{Void}, dims::NTuple) whe
 
   coords = Array{Float64}(3)  # DEBUGGING
   local_indices = Array{CartesianIndex{2}}(400)
-  for dim=0:(mesh.dim-1)  # elements cant be shared in parallel
-    it = apf.MeshIterator(mesh.m_ptr, dim)
-    nnodes = apf.countNodesOn(fshape, dim)  # dim == apf::Type up to faces
 
-    if nnodes == 0
+  nnodes_per_type = zeros(Int, mesh.dim + 1)
+  for i=1:mesh.dim
+    nnodes_per_type[i] = apf.countNodesOn(fshape, i-1)  # dim == apf::Type up to faces
+  end
+
+  for (entity, dim) in apf.FieldEntityIt(mesh.m_ptr, fshape)
+    nnodes = nnodes_per_type[dim+1]
+
+    # bail out early if entity is not shared
+    if !apf.isSharedShr(shr, entity)
       continue
     end
 
-    for i=1:mesh.numEntitiesPerType[dim+1]
+    ncopy = apf.countCopies(shr, entity)
+    @assert ncopy <= 400
+    apf.getCopies(part_nums, remote_entities)
 
-      entity = apf.iterate(mesh.m_ptr, it)
+    owner = apf.getOwner(shr, entity)
+    if owner == mesh.myrank
+      pushReceivePart!(data, sview(part_nums, 1:Int(ncopy)))
+    else # figure out all entries in the 3D array that correspond to this
+         # entity
 
-      # bail out early if entity is not shared
-      if !apf.isSharedShr(shr, entity)
-        continue
-      end
+      # get remote_entity
+      owner_idx = findfirst(sview(part_nums, 1:Int(ncopy)), owner)
+      remote_entity = remote_entities[owner_idx]
+      
 
-      ncopy = apf.countCopies(shr, entity)
-      @assert ncopy <= 400
-      apf.getCopies(part_nums, remote_entities)
+      nel = apf.countAdjacent(mesh.m_ptr, entity, mesh.dim)
+      @assert nel <= 400
+      apf.getAdjacent(_adj_els); adj_els = sview(_adj_els, 1:Int(nel))
 
-      owner = apf.getOwner(shr, entity)
-      if owner == mesh.myrank
-        pushReceivePart!(data, sview(part_nums, 1:Int(ncopy)))
-      else # figure out all entries in the 3D array that correspond to this
-           # entity
+      addEntityKeys(mesh, data, nnodes, node_entities, adj_els,
+                    entity, remote_entity, owner, local_indices)
 
-        # get remote_entity
-        owner_idx = findfirst(sview(part_nums, 1:Int(ncopy)), owner)
-        remote_entity = remote_entities[owner_idx]
-        
+    end  # end if
+  end  # end iterator
 
-        nel = apf.countAdjacent(mesh.m_ptr, entity, mesh.dim)
-        @assert nel <= 400
-        apf.getAdjacent(_adj_els); adj_els = sview(_adj_els, 1:Int(nel))
-
-        addEntityKeys(mesh, data, nnodes, node_entities, adj_els,
-                      entity, remote_entity, owner, local_indices)
-
-      end  # end if
-    end  # end loop i
-
-    apf.free(mesh.m_ptr, it)
-  end  #end loop dim
-
+  flush(mesh.f)
   exchangeKeys(data)
-
 
   return data
 end

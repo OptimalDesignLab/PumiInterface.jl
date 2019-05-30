@@ -36,7 +36,6 @@
 """
 function getAllFaceData(mesh::PumiMesh, opts)
 
-  # TODO: change countBoundaryEdges to only take 1 argument
   nbndryfaces, ninterfaces, npinterfaces, geo_edge_nums = countBoundaryEdges(mesh)
   mesh.numBoundaryFaces = nbndryfaces
   mesh.numInterfaces = ninterfaces
@@ -56,6 +55,10 @@ function getAllFaceData(mesh::PumiMesh, opts)
     opts["numBC"] = numBC
     opts[string("BC", numBC)] = unused_geo_edge_nums
     opts[string("BC", numBC, "_name")] = "defaultBC"
+
+    if opts["error_undefined_bc"]
+      error("dimension $(mesh.dim-1) geometric entities $unused_geo_edge_nums do not have assigned boundary condition")
+    end
   end
 
   # populate mesh.bndry_faces from options dictionary
@@ -138,10 +141,12 @@ end
 
   Inputs:
     geo_edge_nums: vector containing the numbers of all the geometric edges
+                   that have non-periodic mesh edges on them
     opts: the options dictionary
 
   Outputs:
-    unused_geo_edge_nums: numbers of the geometric edges that do not have
+    unused_geo_edge_nums: numbers of the geometric edges (with mesh edges on
+                          them) that do not have
                           boundary conditions applied to them
 
 """
@@ -185,8 +190,6 @@ function popBCEdges(geo_edge_nums::AbstractArray{I, 1}, opts) where I <: Integer
 
   return unused_geo_edge_nums
 end
-
-      
 
 
 """

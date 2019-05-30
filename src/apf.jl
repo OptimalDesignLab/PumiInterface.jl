@@ -87,7 +87,7 @@ global const isNumbered_name = "isNumbered"
 global const getDofNumbers_name = "getDofNumbers"
 global const setNumberingOffset_name = "setNumberingOffset"
 global const getElementNumbers_name = "getElementNumbers"
-global const getMesh_name = "getMesh"
+global const getMesh_name = "getNumberingMesh"
 global const printNumberingName_name = "printNumberingName"
 
 global const createDoubleTag_name = "createDoubleTag"
@@ -96,6 +96,7 @@ global const getDoubleTag_name = "getDoubleTag"
 
 
 global const reorder_name = "reorder"
+global const reorderXi_name = "reorderXi"
 
 global const createIsoFunc_name = "createIsoFunc"
 global const deleteIsoFunc_name = "deleteIsoFunc"
@@ -154,28 +155,35 @@ global const getMatches_name = "getMatches"
 
 
 # export low level interface functions
-export init, loadMesh, initMesh, pushMeshRef, popMeshRef,
+export init, loadMesh, initMesh, initGeometry, snapEdgeNodes, pushMeshRef,
+       popMeshRef,
        getConstantShapePtr, getMeshShapePtr, countJ, writeVtkFiles,
        getMeshDimension, getType, getDownward, countAdjacent, getAdjacent,
        getAlignment, hasNodesIn, countNodesOn, getEntityShape, getOrder,
+       getFieldShapeName,
        createMeshElement, countIntPoints, getIntPoint, getIntWeight,
        getJacobian, countNodes, getValues, getLocalGradients, alignSharedNodes,
        getVertCoords, getEdgeCoords, getFaceCoords, getElCoords,
        getAllEntityCoords, createNumberingJ, destroyNumbering, findNumbering,
        destroyNumberings,
-       getNumberingShape, numberJ, getNumberJ, isNumbered, getDofNumbers,
-       getElementNumbers, getMesh, printNumberingName, createDoubleTag,
-       setDoubleTag, getDoubleTag, reorder, createIsoFunc, createAnisoFunc,
+       getNumberingShape, countNumberings, getNumbering,
+       numberJ, getNumberJ, isNumbered, getDofNumbers,
+       getElementNumbers, getNumberingMesh, getNumberingName,
+       printNumberingName, createDoubleTag,
+       setDoubleTag, getDoubleTag, reorder, reorderXi,
+       createIsoFunc, createAnisoFunc,
        deleteIsoFunc, createSolutionTransfers, deleteSolutionTransfers,
        addSolutionTransfer, configureMAInput, runMA, getAvgElementSize, IsoFuncJ,
        SolutionTransfers, MAInput,
        createPackedField, setComponents,
-       getComponents, zeroField, reduceField, getCoordinateField, findField, destroyField, destroyFields,
+       getComponents, zeroField, getFieldMesh,
+       reduceField, getCoordinateField, findField,
+       countFields, getField, destroyField, destroyFields,
        countBridgeAdjacent,
        getBridgeAdjacent, setNumberingOffset, createSubMesh, transferField
 
 # iterator functors
-export MeshIterator, iterate, iteraten, free, deref
+export MeshIterator, iterate, iteraten, free, deref, getDimension, count
 
 export createSubMeshDG, transferFieldDG, getFieldShape
 
@@ -184,7 +192,7 @@ export countPeers, getPeers
 export countPeers, getPeers, countRemotes, getRemotes, isShared
 export getEntity, incrementIt, resetIt
 
-export setPoint, acceptChanges, Verify, getPoint
+export setPoint, setParam,  acceptChanges, Verify, getPoint, getParam
 export hasMatching, getSharing, getNormalSharing, freeSharing, isOwned,
        countCopies, getCopies, countMatches, getMatches, getOwner, isSharedShr
 
@@ -334,6 +342,47 @@ function initMesh(m_ptr::Ptr{Void})
 end
 
 
+"""
+  This function initializes the field used for storing the CAD parametric
+  coordinates of the mid-edge nodes.
+
+  **Inputs**
+
+   * m_ptr: the apf::Mesh2 *
+
+  **Outputs**
+
+   * f_ptr: pointer to the apf::Field holding the CAD parametric coordinates
+            of the mid-edge nodes.  If geometric model does not have parametric
+            coordinates or if the mesh is linear, the null pointer is returned.
+            The field has one node per edge with 2 values at each node.
+"""
+function initGeometry(m_ptr::Ptr{Void})
+
+  f_ptr = ccall( (:initGeometry, pumi_libname), Ptr{Void}, (Ptr{Void},), m_ptr)
+
+  return f_ptr
+end
+
+
+"""
+  This function snaps the mid-edge nodes to the geometry and updates the
+  apf::Field with the new parametric values.  Only call this function if the
+  geometry model is capable of snapping.
+
+  **Inputs**
+
+   * m_ptr: the mesh pointer
+   * f_ptr: the Field pointer
+"""
+function snapEdgeNodes(m_ptr::Ptr{Void}, f_ptr::Ptr{Void})
+
+  ccall( (:snapEdgeNodes, pumi_libname), Void, (Ptr{Void}, Ptr{Void}), m_ptr, f_ptr)
+
+  return nothing
+end
+
+
 function pushMeshRef(m_ptr::Ptr{Void})
 
   ccall( (pushMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
@@ -342,6 +391,13 @@ end
 function popMeshRef(m_ptr::Ptr{Void})
   ccall( (popMeshRef_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
 end
+
+function countMeshRefs(m_ptr::Ptr{Void})
+  n = ccall( (:countMeshRefs, pumi_libname), Cint, (Ptr{Void},), m_ptr)
+
+  return n
+end
+
 
 
 # no longer needed
@@ -359,58 +415,150 @@ function getConstantShapePtr(dimension::Integer)
 
 end
 
+#------------------------------------------------------------------------------
+# Iterators
+
 import apf_types.MeshIterator
+
 
 function MeshIterator(m_ptr::Ptr{Void}, dim::Integer)
 
-  it = ccall( (:begin, pumi_libname), Ptr{Void}, (Ptr{Void}, Cint,), m_ptr, dim)
+  it = ccall( (:begin, pumi_libname), _MeshIterator, (Ptr{Void}, Cint,), m_ptr, dim)
 
-  return MeshIterator(it)
+  len = countJ(m_ptr, dim)
+  return MeshIterator(it, m_ptr, len)
 end
 
-function free(m_ptr::Ptr{Void}, it::MeshIterator)
+function free(it::MeshIterator)
 
-  ccall((:end, pumi_libname), Void, (Ptr{Void}, MeshIterator), m_ptr, it)
+  ccall((:end, pumi_libname), Void, (Ptr{Void}, _MeshIterator), it.m_ptr, it.p)
 
 end
 
-function iterate(m_ptr::Ptr{Void}, it::MeshIterator)
+function iterate(it::MeshIterator)
 
-  me = ccall((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
+  me = ccall((:iterate, pumi_libname), Ptr{Void}, (Ptr{Void}, _MeshIterator), it.m_ptr, it.p)
 
   return me
 end
 
-function iteraten(m_ptr::Ptr{Void}, it::MeshIterator, n::Integer)
+function iteraten(it::MeshIterator, n::Integer)
 
-  me = ccall((:iteraten, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator, Cint), m_ptr, it, n)
+  me = ccall((:iteraten, pumi_libname), Ptr{Void}, (Ptr{Void}, _MeshIterator, Cint), it.m_ptr, it.p, n)
+
+  return me
+end
+
+
+function deref(it::MeshIterator)
+
+  me = ccall((:deref, pumi_libname), Ptr{Void}, (Ptr{Void}, _MeshIterator), it.m_ptr, it.p)
 
   return me
 end
 
+import Base: start, next, done, iteratorsize, iteratoreltype, eltype, length, size
+using Base: HasLength, HasEltype
 
-function deref(m_ptr::Ptr{Void}, it::MeshIterator)
 
-  me = ccall((:deref, pumi_libname), Ptr{Void}, (Ptr{Void}, MeshIterator), m_ptr, it)
+function start(it::MeshIterator)
 
-  return me
+  return iterate(it)
 end
+
+
+function next(iter::MeshIterator, state)
+
+  # the state always leads the current element by 1, so we can do the done
+  # check
+  e_next = iterate(iter)
+  new_state = e_next
+  return state, new_state
+end
+
+
+function done(iter::MeshIterator, state)
+
+  isdone = state == C_NULL
+  if isdone
+    free(iter)
+  end
+
+  return isdone
+end
+
+
+function iteratorsize(::Type{MeshIterator})
+  return HasLength()
+end
+
+function length(iter::MeshIterator)
+  return iter.len
+end
+
+function iteratoreltype(::Type{MeshIterator})
+  return HasEltype()
+end
+
+function eltype(::Type{MeshIterator})
+  return Ptr{Void}
+end
+
+
+#------------------------------------------------------------------------------
+
+function getDimension(m_ptr::Ptr{Void})
+
+  val = ccall( (:getDimension, pumi_libname), Cint, (Ptr{Void},), m_ptr)
+
+  return val
+end
+
 
 
 function countJ(m_ptr, dimension::Integer)
 # returns the number of entities of a particular dimension
 
-  i = ccall( (count_name, pumi_libname), Int32, (Ptr{Void},Int32), m_ptr, dimension)
+  i = ccall( (count_name, pumi_libname), Cint, (Ptr{Void}, Cint), m_ptr, dimension)
   return i
 end
 
-function writeVtkFiles(name::AbstractString, m_ptr)
+
+"""
+  Writes VTK files.  The keyword argument `writeall` determines which Numberings
+  and Fields are written to the file.  By default only those with a FieldShape
+  compatible with the the coordinate field are written.
+
+  **Inputs**
+
+   * name: file name
+   * m_ptr: mesh pointer
+   * f_ptrs: Vector of apf::Field*, defaults to array of zero length
+   * n_ptrs: Vector of apf::Numbering*, defaults to array of zero length
+   * gn_ptrs: Vector of apf::GlobalNumbering*, defaults to array of zero length
+
+  **Keyword Arguments**
+
+   * writeall: if true, write fields that are not representable cleanly in
+               vtk file, default false
+
+  For `f_ptrs`, `n_ptrs`, and `gn_ptrs`, only the objects in the vector will
+  be considered for writing to the vtk file (according to `writeall`).  If the
+  vector has zero length, all objects will be considered.
+"""
+function writeVtkFiles(name::AbstractString, m_ptr,
+                       f_ptrs=Vector{Ptr{Void}}(0),
+                       n_ptrs=Vector{Ptr{Void}}(0),
+                       gn_ptrs=Vector{Ptr{Void}}(0);
+                       writeall::Bool=false)
 # write vtk files to be read by paraview
 
-  ccall( (writeVtkFiles_name, pumi_libname), Void, (Ptr{UInt8}, Ptr{Void}), name, m_ptr)
+ccall( (writeVtkFiles_name, pumi_libname), Void,
+      (Ptr{UInt8}, Ptr{Void}, CppBool, Ptr{Ptr{Void}}, Cint, Ptr{Ptr{Void}},
+       Cint, Ptr{Ptr{Void}}, Cint), name, m_ptr, writeall,
+      f_ptrs, length(f_ptrs), n_ptrs, length(n_ptrs), gn_ptrs, length(gn_ptrs))
   return nothing
 end
-
 
 function getModel(m_ptr::Ptr{Void})
 
@@ -586,6 +734,15 @@ function getOrder(mshape_ptr::Ptr{Void})
 
   return Int(order)  # make order an Int for convenience
 end
+
+
+function getFieldShapeName(mshape_ptr::Ptr{Void})
+
+  str= ccall( (:getFieldShapeName, pumi_libname), Cstring, (Ptr{Void},), mshape_ptr)
+
+  return unsafe_string(str)
+end
+
 
 
 function createMeshElement(m_ptr, entity)
@@ -773,7 +930,7 @@ function getAllEntityCoords(m_ptr::Ptr{Void}, entity::Ptr{Void},
   return nothing
 end
 
-function createNumberingJ(m_ptr, name::AbstractString, field, components::Integer)
+function createNumberingJ(m_ptr::Ptr{Void}, name::AbstractString, field::Ptr{Void}, components::Integer)
 # create a generally defined numbering, get a pointer to it
 # this just passes through to :createNumbering
 # field is an :FieldShape*
@@ -816,6 +973,20 @@ end
 function getNumberingShape(n_ptr::Ptr{Void})
 
   fshape = ccall( (getNumberingShape_name, pumi_libname), Ptr{Void}, (Ptr{Void},), n_ptr)
+end
+
+function countNumberings(m_ptr::Ptr{Void})
+
+  n = ccall( (:countNumberings, pumi_libname), Cint, (Ptr{Void},), m_ptr)
+
+  return n
+end
+
+function getNumbering(m_ptr::Ptr{Void}, i::Integer)
+
+  n_ptr = ccall( (:getNumbering, pumi_libname), Ptr{Void}, (Ptr{Void}, Cint), m_ptr, i)
+
+  return n_ptr
 end
 
 function numberJ(numbering_ptr, entity, node::Integer, component::Integer, number::Integer)
@@ -889,13 +1060,19 @@ function getElementNumbers(n_ptr, entity, num_dof::Integer, nums::Array{Int32, 1
 
 end
 
-function getMesh(n_ptr)
+function getNumberingMesh(n_ptr)
 # get the mesh a numbering is defined on
 
   m_ptr = ccall( (getMesh_name, pumi_libname), Ptr{Void}, (Ptr{Void},), n_ptr)
   return m_ptr
 end
 
+
+function getNumberingName(n_ptr::Ptr{Void})
+
+  ptr = ccall( (:getNumberingName, pumi_libname), Cstring, (Ptr{Void},), n_ptr)
+  return unsafe_string(ptr)
+end
 
 function printNumberingName(numbering)
 # print the name of a numbering
@@ -967,6 +1144,41 @@ function reorder(m_ptr, ndof::Integer, ncomp::Integer, node_statusN_ptr,
 
   return nothing
 
+end
+
+
+"""
+  This function populates the `xiNums` apf::Numbering with the numbering of
+  the geometric degrees of freedom. The number of degrees of freedom a 
+  MeshEntity has is exactly equal to the dimension of the geometry entity it
+  is classified on.  Therefore, a mesh vertex classified on a geometric vertex
+  has zero degrees of freedom, while a vertex classified on a geometric edge
+  has one.  This effectively constrains the MeshEntity to remain on the
+  geometric entity it is classified on.  Any unused entries in the `xiNums`
+  have value `numXiDof + 1`.
+
+  **Inputs**
+
+   * m_ptr: apf::Mesh*
+   * xiNums: apf::Numbering* to be written to
+   * start_coords: the MeshEntity closest to this these coordinates will be
+                   used to start the numbering process.  Note that reverse
+                   numbering is performed, so this mesh entity will have the
+                   highest dof number.  This array must be of length 3, even in
+                   2D.
+  **Outputs**
+
+   * numXiDof: the number of geometric degrees of freedom
+"""
+function reorderXi(m_ptr::Ptr{Void}, xiNums::Ptr{Void},
+                   start_coords::Vector{Cdouble})
+
+  @assert length(start_coords) == 3
+
+  val = ccall( (reorderXi_name, pumi_libname), Cint, (Ptr{Void}, Ptr{Void},
+          Ptr{Cdouble}), m_ptr, xiNums, start_coords)
+
+  return val
 end
 
 #------------------------------------------------------------------------------
@@ -1158,6 +1370,15 @@ function zeroField(f_ptr)
   ccall( (zeroField_name, pumi_libname), Void, (Ptr{Void},), f_ptr)
 end
 
+function getFieldMesh(f_ptr::Ptr{Void})
+# get the mesh a numbering is defined on
+
+  m_ptr = ccall( (:getFieldMesh, pumi_libname), Ptr{Void}, (Ptr{Void},), f_ptr)
+  return m_ptr
+end
+
+
+
 """
   Apply a reduction operation along the partition boundaries of a Field
   to make the field globally consistent.  The field must have values
@@ -1186,6 +1407,22 @@ function findField(m_ptr::Ptr{Void}, fieldname::String)
 
   return f_ptr
 end
+
+function countFields(m_ptr::Ptr{Void})
+
+  n = ccall( (:countFields, pumi_libname), Cint, (Ptr{Void},), m_ptr)
+
+  return n
+end
+
+function getField(m_ptr::Ptr{Void}, i::Integer)
+
+  f_ptr = ccall( (:getField, pumi_libname), Ptr{Void}, (Ptr{Void}, Cint), m_ptr, i)
+
+  return f_ptr
+end
+
+
 
 function destroyField(f_ptr::Ptr{Void})
 
@@ -1366,6 +1603,16 @@ function setPoint(m_ptr, entity, node, coords::AbstractArray{Float64})
   return nothing
 end
 
+function setParam(m_ptr, entity, coords::AbstractArray{Float64})
+  @assert length(coords) >= 2
+
+  ccall((:setParam, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}), m_ptr, entity, coords)
+
+  return nothing
+end
+
+
+
 function acceptChanges(m_ptr)
 
   ccall( (acceptChanges_name, pumi_libname), Void, (Ptr{Void},), m_ptr)
@@ -1386,6 +1633,16 @@ function getPoint(m_ptr, entity, node, coords::AbstractArray{Float64})
 
   return nothing
 end
+
+function getParam(m_ptr, entity, coords::AbstractArray{Float64})
+  @assert length(coords) >= 2
+
+  ccall((:getParam, pumi_libname), Void, (Ptr{Void}, Ptr{Void}, Ptr{Float64}), m_ptr, entity, coords)
+
+  return nothing
+end
+
+
 
 function hasMatching(m_ptr::Ptr{Void})
 
@@ -1578,6 +1835,10 @@ function free(sdata::SubMeshData)
   return n_ptr
 end
 
+function printTags(m_ptr::Ptr{Void})
+
+  ccall( (:printTags, pumi_libname), Void, (Ptr{Void},), m_ptr)
+end
 
 
 include("apf2.jl")  # higher level functions

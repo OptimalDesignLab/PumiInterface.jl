@@ -1,0 +1,14 @@
+Unit square (2D), 176 elements
+
+Geometry
+               Edge 13
+ Vertex 22<-.-----------.->Vertex 22
+            |           |
+            |           |
+    Edge 4  |           | Edge 10
+            |           |
+ Vertex 16<-.-----------.->Vertex 19
+               Edge 7
+
+Origin is at vertex 16
+

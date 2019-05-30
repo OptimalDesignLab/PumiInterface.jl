@@ -88,21 +88,13 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
 
     shr = apf.getNormalSharing(mesh.m_ptr)
     # test that all entities owned by another process are present
-    for dim=0:(mesh.dim-1)
-      it = apf.MeshIterator(mesh.m_ptr, dim)
-      nnodes = apf.countNodesOn(mesh.coordshape_ptr, dim) != 0
-
-
-      for j=1:mesh.numEntitiesPerType[dim+1]
-        entity = apf.iterate(mesh.m_ptr, it)
-        owner = apf.getOwner(shr, entity)
-        if apf.isSharedShr(shr, entity) && owner != mesh.myrank && apf.countNodesOn(mesh.coordshape_ptr, dim) != 0
-          owner_idx = getPeerIdx(data, owner)
-          @test entity in data.send[owner_idx]._entities_local
-        end
+    for (entity, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+      owner = apf.getOwner(shr, entity)
+      if apf.isSharedShr(shr, entity) && owner != mesh.myrank && apf.countNodesOn(mesh.coordshape_ptr, dim) != 0
+        owner_idx = getPeerIdx(data, owner)
+        @test entity in data.send[owner_idx]._entities_local
       end
-      apf.free(mesh.m_ptr, it)
-    end
+    end  # end iterator
 
     # test that the local indices were computed correctly
     coords = Array{Float64}(3)
@@ -140,38 +132,28 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
 
     receiveParallelData(data, calc_func)
     coords = Array{Float64}(3)
-    for dim=0:mesh.dim
+    for (entity, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+      owner = apf.getOwner(shr, entity)
+      #typ = apf.getType(mesh.m_ptr, entity)
 
-      if !apf.hasNodesIn(mesh.coordshape_ptr, dim)
-        continue
-      end
-
-      it = apf.MeshIterator(mesh.m_ptr, dim)
-      for i=1:mesh.numEntitiesPerType[dim+1]
-        entity = apf.iterate(mesh.m_ptr, it)
-        owner = apf.getOwner(shr, entity)
-        #typ = apf.getType(mesh.m_ptr, entity)
-
-        if apf.isSharedShr(shr, entity)
-          ncopies = apf.countCopies(shr, entity)
-          nlocals = apf.countAdjacent(mesh.m_ptr, entity, mesh.dim)
-          for j=1:mesh.coord_numNodesPerType[dim+1]
-            apf.getPoint(mesh.m_ptr, entity, j-1, coords)
-            for k=1:mesh.dim
+      if apf.isSharedShr(shr, entity)
+        ncopies = apf.countCopies(shr, entity)
+        nlocals = apf.countAdjacent(mesh.m_ptr, entity, mesh.dim)
+        for j=1:mesh.coord_numNodesPerType[dim+1]
+          apf.getPoint(mesh.m_ptr, entity, j-1, coords)
+          for k=1:mesh.dim
+            idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+            if owner == mesh.myrank
+              @test abs(data_recv[idx] - ncopies*coords[k]) < 1e-13
+              @test abs(coords_vec[idx] - coords[k]) < 1e-13
+            elseif owner != mesh.myrank
               idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
-              if owner == mesh.myrank
-                @test abs(data_recv[idx] - ncopies*coords[k]) < 1e-13
-                @test abs(coords_vec[idx] - coords[k]) < 1e-13
-              elseif owner != mesh.myrank
-                idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
-                @test coords_vec[idx] == 0
-              end  # end if
-            end  # end k
-          end  # end j
-        end  # end if
-      end  # end i
-      apf.free(mesh.m_ptr, it)
-    end  # end dim
+              @test coords_vec[idx] == 0
+            end  # end if
+          end  # end k
+        end  # end j
+      end  # end if
+    end  # end iterator
 
 
     # test scattering data
@@ -187,28 +169,21 @@ function test_initSendToOwner(mesh::PumiMesh{T}) where {T}
     calc_func2 = (data::PeerData) -> PdePumiInterface.receiveFromOwner(data, mesh, coords_vec2)
     PdePumiInterface.receiveParallelData_rev(data, calc_func2)
     # check the rank-specific offset
-    for dim=0:mesh.dim
-      it = apf.MeshIterator(mesh.m_ptr, dim)
-      for i=1:mesh.numEntitiesPerType[dim+1]
-        entity = apf.iterate(mesh.m_ptr, it)
-        for j=1:mesh.coord_numNodesPerType[dim+1]
-          apf.getPoint(mesh.m_ptr, entity, j-1, coords)
-          for k=1:mesh.dim
-            idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
+    for (entity, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)
+      for j=1:mesh.coord_numNodesPerType[dim+1]
+        apf.getPoint(mesh.m_ptr, entity, j-1, coords)
+        for k=1:mesh.dim
+          idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, j-1, k-1)
 
-            if apf.isOwned(mesh.normalshr_ptr, entity)
-              @test abs(coords_vec2[idx] - (coords[k] + mesh.myrank)) < 1e-13
-            else
-              owner = apf.getOwner(mesh.normalshr_ptr, entity)
-              @test abs(coords_vec2[idx] - (coords[k] + owner)) < 1e-13
-            end
-          end  # end k
-        end  # end j
-      end   # end i
-
-      apf.free(mesh.m_ptr, it)
-    end  # end dim
-
+          if apf.isOwned(mesh.normalshr_ptr, entity)
+            @test abs(coords_vec2[idx] - (coords[k] + mesh.myrank)) < 1e-13
+          else
+            owner = apf.getOwner(mesh.normalshr_ptr, entity)
+            @test abs(coords_vec2[idx] - (coords[k] + owner)) < 1e-13
+          end
+        end  # end k
+      end  # end j
+    end   # end iterator
 
   end  # end testset
 #  error("stop here")

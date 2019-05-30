@@ -40,6 +40,7 @@ function set_defaults(opts)
   get!(opts, "reordering_algorithm", "default")
   get!(opts, "write_element_vertnums", false)
   get!(opts, "exact_visualization", false)
+  get!(opts, "error_undefined_bc", true)
 
   # force the use of the metric calculation method for linear elements
   # typically the curvilinear method is used even for linear (straight-sided)

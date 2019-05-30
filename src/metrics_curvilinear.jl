@@ -517,21 +517,15 @@ function is_inward_normal(mesh, iface::Union{Boundary, Interface},
 
   for j=1:numVertPerFace
     v_j = topo.face_verts[j, facenum_local]
-#    face_verts[j] = el_verts[topo.face_verts[j, facenum_local]]
-#    apf.getPoint(mesh.m_ptr, face_verts[j], 0, tmp)
 
     for p=1:mesh.dim
       face_vert_coords[p, j] = mesh.vert_coords[p, v_j, elnum]
-#      face_vert_coords[p, j] = tmp[p]
     end
   end
 
   # get the vert not on the face
   other_vert = 0
   for j=1:numVertPerElement
-#    if !(el_verts[j] in face_verts)
-#      other_vert = el_verts[j]
-#    end
      if !(j in sview(topo.face_verts, :, facenum_local))
        other_vert = j
      end
@@ -540,12 +534,6 @@ function is_inward_normal(mesh, iface::Union{Boundary, Interface},
   for p=1:mesh.dim
     other_vert_coords[p] = mesh.vert_coords[p, other_vert, elnum]
   end
-  #=
-  apf.getPoint(mesh.m_ptr, other_vert, 0, tmp)
-  for p=1:mesh.dim
-    other_vert_coords[p] = tmp[p]
-  end
-  =#
   # check that the face normal is in the opposite direction as the
   # vectors from a vertex on the face to the vertex not on the face
 
@@ -725,13 +713,13 @@ function getCurvilinearMetricsAndCoordinates_inner(mesh, sbp,
   end
   =#
 
-  #=
+#= 
   println("sbp.numnodes = ", sbp.numnodes)
-  println("size(coords) = ", size(coords))
-  println("size(dxidx) = ", size(dxidx))
-  println("size(jac) = ", size(jac))
+  println("size(coords) = ", size(coords_block))
+  println("size(dxidx) = ", size(dxidx_block))
+  println("size(jac) = ", size(jac_block))
   println("size(Eone) = ", size(Eone))
-  =#
+=# 
   calcMappingJacobian!(sbp, mesh.coord_order, ref_vtx, vert_coords_block, 
                        coords_block, dxidx_block, jac_block, Eone)
 
@@ -1274,8 +1262,6 @@ function getMeshFaceCoordinates(mesh::PumiMesh3DG, elnum::Integer,
   end
 
   if mesh.coord_numNodesPerType[2] > 0
-#    println("getting 2nd order node")
-
     for i=1:3  # 3 edges per face
       edge_idx = topo.face_edges[i, facenum] + 4 # 4 = numVerts
       for j=1:3  # 3 coordinates per face

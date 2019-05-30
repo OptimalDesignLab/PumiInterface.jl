@@ -78,6 +78,9 @@ end
 
 
 function saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector)
+
+  checkMeshPtr(mesh)
+
   if mesh.isDG
     # all DG meshes interpolate directly
     interpolateToMesh(mesh, u)
@@ -183,7 +186,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
   matches_partnums = zeros(Cint, 400 + 8)  # upper bound
   matches_entities = Array{Ptr{Void}}(400 + 8)
 
-  # count nodes on solution field 
+  # count nodes on solution field
   numNodesPerType = Array{Int}(mesh.dim + 1)
   numNodesPerType[1] = apf.countNodesOn(fshape_ptr, 0)
   numNodesPerType[2] = apf.countNodesOn(fshape_ptr, 1)
@@ -249,7 +252,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 #          entity = node_entities[col]
 #          @assert i == 1
           vertnum = apf.getNumberJ(mesh.entity_Nptrs[edim+1], entity, 0, 0) + 1
-          apf.getPoint(mesh.m_ptr, entity, 0, coords)
+          getCoords(mesh, entity, 0, coords)
 
           # pack array to send to other processes
           if edim == 0 && haskey(vshare.rev_mapping, vertnum)
@@ -337,7 +340,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
 
     for i=1:length(vertnums_p)
       vert_i = mesh.verts[vertnums_p[i]]
-      apf.getPoint(mesh.m_ptr, vert_i, 0, coords)
+      getCoords(mesh, vert_i, 0, coords)
       apf.getComponents(mesh.fnew_ptr, vert_i, 0, u_node)
       weight_i = peer_vals_p[mesh.numDofPerNode + 1, i]
       for p=1:mesh.numDofPerNode
@@ -355,7 +358,7 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
   # add in the local match data
   for i=1:mesh.numVert
     vert_i = mesh.verts[i]
-    apf.getPoint(mesh.m_ptr, vert_i, 0, coords)
+    getCoords(mesh, vert_i, 0, coords)
     apf.getComponents(mesh.fnew_ptr, vert_i, 0, u_node)
     for p=1:mesh.numDofPerNode
 #      println(mesh.f, "adding local match contribution ", match_data[p, i], " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
@@ -371,16 +374,8 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
     # divide by the total volume of elements that contributed to each node
     # so the result is the average value
     up_els = Array{Ptr{Void}}(400)  # equivalent of apf::Up
-    for dim=1:(mesh.dim + 1)
-      if numNodesPerType[dim] > 0
-  #      @assert dim == 1
-        it = apf.MeshIterator(mesh.m_ptr, dim - 1)
-  #      resetIt(dim - 1) 
-        for i=1:numEntitiesPerType[dim]
-  #        entity_i = getEntity(dim - 1)
-          entity_i = apf.iterate(mesh.m_ptr, it)
-          entity_num = apf.getNumberJ(mesh.entity_Nptrs[dim], entity_i, 0, 0) + 1
-  #        apf.getPoint(mesh.m_ptr, entity_i, 0, coords)
+        for (entity_i, dim) in apf.FieldEntityIt(mesh.m_ptr, fshape_ptr)
+          entity_num = apf.getNumberJ(mesh.entity_Nptrs[dim+1], entity_i, 0, 0) + 1
           nel = apf.countAdjacent(mesh.mnew_ptr, entity_i, mesh.dim)
           apf.getAdjacent(up_els)
           # compute the sum of the volumes of the elements
@@ -407,51 +402,32 @@ function interpolateToMesh(mesh::PumiMesh{T}, u::AbstractVector, reduce_op::Func
             for p=1:size(interp, 2)
               jac_entity += interp[node_idx, p]*real(jac_el[p])
             end
-
-  #          println(mesh.f, "adding jac contribution ", jac_entity, " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
-
             jac_sum += jac_entity
           end  # end loop j
 
           # add in the parallel contributions
-          if dim == 1 && haskey(vshare.rev_mapping, entity_num)
+          if dim == 0 && haskey(vshare.rev_mapping, entity_num)
             pair = vshare.rev_mapping[entity_num]
             for i=1:length(pair.first)  # loop over peers that share this vert
-  #            println(mesh.f, "adding parallel jac contributions from peer ", pair.first[i])
               peer_idx = findfirst(vshare.peer_nums, pair.first[i])
               vert_idx = pair.second[i]
               jac_entity = peer_vals_recv[peer_idx][mesh.numDofPerNode + 1, vert_idx]
-  #            println(mesh.f, "adding parallel jac contribution ", jac_entity, " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
               jac_sum += jac_entity
             end
           end  # end if haskey
 
-          if dim == 1
+          if dim == 0
             jac_entity = match_data[mesh.numDofPerNode + 1, entity_num]
-
-  #          println(mesh.f, "adding local match jac contribution ", jac_entity , " to vert at ", coords[1], ", ", coords[2], ", ", coords[3])
             jac_sum += jac_entity
           end
 
-  #        println(mesh.f, "jac_sum = ", jac_sum, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
-
-          
-
           apf.getComponents(mesh.fnew_ptr, entity_i, 0, u_node)
-  #        println(mesh.f, "net solution value = ", u_node, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
           fac = 1/jac_sum
           for p=1:mesh.numDofPerNode
             u_node[p] = fac*u_node[p]
           end
-  #        println(mesh.f, "average solution value = ", u_node, " for vert at ", coords[1], ", ", coords[2], ", ", coords[3])
-
           apf.setComponents(mesh.fnew_ptr, entity_i, 0, u_node)
-  #        incrementIt(dim - 1)
-        end  # end loop i
-
-        apf.free(mesh.m_ptr, it)
-      end  # end if
-    end  # end loop dim
+        end  # end iterator
   end  # end if reduce_op == avgReduce
 
   # wait for sends to finish before exiting
@@ -470,8 +446,17 @@ end  # end function
   This function is the counterpart to [`interpolateToMesh`](@ref).  It retrieves
   a solution saved to the mesh and puts in into a vector
 
+  **Inputs**
+
+   * mesh
+   * fnew_ptr: the apf::Field* to retrieve from. Must have fieldshape
+               mesh.fnewshape_ptr (typically the coordinate fieldshape)
+
+  **Inputs/Outputs**
+
+   * u_vec: to be overwritten
 """
-function retrieveSolutionFromMesh_interp(mesh::PumiMeshDG, u_vec::AbstractVector)
+function retrieveSolutionFromMesh_interp(mesh::PumiMeshDG, u_vec::AbstractVector, fnew_ptr=mesh.fnew_ptr)
 
   @assert mesh.m_ptr == mesh.mnew_ptr  # needed for averaging step
   @assert size(mesh.interp_op, 1) == mesh.coord_numNodesPerElement
@@ -479,7 +464,7 @@ function retrieveSolutionFromMesh_interp(mesh::PumiMeshDG, u_vec::AbstractVector
   myrank = mesh.myrank
   interp = mesh.interp_op2
   u_el = zeros(Float64, mesh.numNodesPerElement, mesh.numDofPerNode)
-  u_verts = zeros(Float64, size(interp, 1), mesh.numDofPerNode)
+  u_verts = zeros(Float64, size(interp, 2), mesh.numDofPerNode)
   u_node = zeros(Float64, mesh.numDofPerNode)  # hold new node values
   node_entities = Array{Ptr{Void}}(mesh.coord_numNodesPerElement)
   dofs = mesh.dofs
@@ -510,7 +495,7 @@ function retrieveSolutionFromMesh_interp(mesh::PumiMeshDG, u_vec::AbstractVector
           entity = node_entities[col]
 
           # skip elementNodeOffsets - maximum of 1 node per entity
-          apf.getComponents(mesh.fnew_ptr, entity, 0, u_node)
+          apf.getComponents(fnew_ptr, entity, 0, u_node)
           for p=1:mesh.numDofPerNode
             u_verts[col, p] = u_node[p]
           end
@@ -538,30 +523,42 @@ end
 
 
 
-function writeVisFiles(mesh::PumiMeshDG, fname::AbstractString)
+function writeVisFiles(mesh::PumiMeshDG, fname::AbstractString; writeall::Bool=false)
   # writes vtk files 
 
-#  println(mesh.f, "writing vtk ", fname)
-  apf.writeVtkFiles(fname, mesh.mnew_ptr)
+  checkMeshPtr(mesh)
+
+  if mesh.myrank == 0
+    println("writing visualization files ", fname)
+  end
+  f_arr = collect(mesh.fields)
+  n_arr = collect(mesh.numberings)
+  gn_arr = Vector{Ptr{Void}}(0)
+  apf.writeVtkFiles(fname, mesh.mnew_ptr, f_arr, n_arr, gn_arr, writeall=writeall)
 
   if mesh.mexact_ptr != C_NULL
     fname_exact = fname*"_exact"
-    apf.writeVtkFiles(fname_exact, mesh.mexact_ptr)
+    apf.writeVtkFiles(fname_exact, mesh.mexact_ptr, writeall=writeall)
   end
 
   return nothing
 end
 
 
-function writeVisFiles(mesh::PumiMesh2CG, fname::AbstractString)
+function writeVisFiles(mesh::PumiMesh2CG, fname::AbstractString; writeall::Bool=false)
   # writes vtk files 
 
+  checkMeshPtr(mesh)
+
   if mesh.order <= 2
-    println("writing original mesh vtk file")
-    apf.writeVtkFiles(fname, mesh.m_ptr)
+    f_arr = collect(mesh.fields)
+    n_arr = collect(mesh.numberings)
+    gn_arr = Vector{Ptr{Void}}(0)
+
+    apf.writeVtkFiles(fname, mesh.m_ptr, f_arr, n_arr, gn_arr,
+                      writeall=writeall)
   else
-    println("writing subtriangulated mesh vtk file")
-    apf.writeVtkFiles(fname, mesh.mnew_ptr)
+    apf.writeVtkFiles(fname, mesh.mnew_ptr, writeall=writeall)
   end
 
   return nothing

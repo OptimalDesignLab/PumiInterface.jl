@@ -282,3 +282,14 @@ function updateBCs(opts::Dict, new_geo::Integer, name::AbstractString)
   return nothing
 end
 
+function checkMeshPtr(mesh::PumiMesh)
+
+  if mesh.m_ptr == C_NULL
+    error("mesh has already been finalized")
+  end
+
+  return nothing
+end
+
+
+

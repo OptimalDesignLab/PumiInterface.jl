@@ -1,5 +1,7 @@
 # test 2D PdePumiInterface
 
+using PumiConfig
+
 @testset "--- Testing PdePumiInterface --- " begin
 
   test_math()
@@ -30,7 +32,7 @@
   a2 = rand(1, 3)
   @test_throws Exception  PdePumiInterface.copy_masked(a2, a, mask)
 
-
+  test_refcounting()
 
 
 
@@ -196,7 +198,6 @@
 #    println("mesh.coords = ", mesh.coords)
     
     @test isapprox( mesh.jac, ones(mesh.numNodesPerElement ,2)) 
-
 
     fnames = ["boundary_nums", "face_vertnums", "edge_vertnums"]
     for name in fnames
@@ -905,6 +906,7 @@ end
   # coordinates
   opts["smb_name"] = "square_05_curve.smb"
   opts["use_linear_metrics"] = false
+  opts["BC1"] = [0, 1, 2, 3]
   mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
   mesh_c = PumiMeshDG2(Complex128, sbp, opts, sbpface, dofpernode=4)
 #  mesh =  PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
@@ -1027,5 +1029,125 @@ end
   test_adapt_2d()
 
   test_ScatterData(mesh)
+
+  # do this last since it rewrites the mesh coordinate field
+  test_setPoint(mesh, opts)
+
+
+  opts["smb_name"] = "meshes/tri4x4_.smb"
+  opts["dmg_name"] = "meshes/tri4x4_.dmg"
+  mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+  test_geoNums(mesh)
+
+  println("\nTesting coords file")
+  test_coords_file(opts, sbp, sbpface)
+
+  if HAVE_SIMMETRIX
+    # load airfoil CAD mesh
+    opts = Dict{Any, Any}(
+    "dimensions" => 2,
+    "run_type" => 5,
+    "jac_type" => 2,
+    "order" => 1,
+    "use_DG" => true,
+    "coloring_distance" => 2,
+    "numBC" => 2,
+    "BC1" => [40],
+    "BC1_name" => "FreeStreamBC",
+    "BC2" => [5],
+    "BC2_name" => "noPenetrationBC",
+    "smb_name" => "meshes/airfoil2_.smb",
+    "dmg_name" => "meshes/airfoil2.smd",
+    )
+
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+    test_geoMapping(mesh)
+    test_geoWrapping(mesh)
+
+    # the airfoil has large curvature at the trailing edge, so its hard to find
+    # a finite difference step size that works.  Use a smoother shape instead.
+
+    # load airfoil CAD mesh
+    opts = Dict{Any, Any}(
+    "dimensions" => 2,
+    "run_type" => 5,
+    "jac_type" => 2,
+    "order" => 1,
+    "use_DG" => true,
+    "coloring_distance" => 2,
+    "numBC" => 1,
+    "BC1" => [4, 7, 10, 13],
+    "BC1_name" => "FreeStreamBC",
+    "smb_name" => "meshes/UnitSquare/UnitSquare.smb",
+    "dmg_name" => "meshes/UnitSquare/UnitSquare.x_t",
+    )
+    
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+    @time test_geoDerivative(mesh)
+    println("test_geoDerivative @time printed above")
+
+    println("\n\nTesting geometric derivative on curved geometry")
+    # load smooth CAD mesh
+    opts = Dict{Any, Any}(
+    "dimensions" => 2,
+    "run_type" => 5,
+    "jac_type" => 2,
+    "order" => 1,
+    "use_DG" => true,
+    "coloring_distance" => 2,
+    "numBC" => 1,
+    "BC1" => [4, 7, 10, 13],
+    "BC1_name" => "FreeStreamBC",
+    "smb_name" => "meshes/UnitSquareCurve/UnitSquareCurve_linear.smb",
+    "dmg_name" => "meshes/UnitSquareCurve/UnitSquareCurve.x_t",
+    )
+ 
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+    test_geoDerivative(mesh)
+  
+    test_coords_file(opts, sbp, sbpface)
+
+    xivec = getXiCoords(mesh)
+    xivec_pert = rand(length(xivec))
+    for i=1:length(xivec)
+      xivec[i] += 1e-3*xivec[i]
+    end
+    update_coordsXi(mesh, sbp, opts, xivec)
+    test_geoDerivative(mesh)
+    test_geoWarp(mesh, sbp, opts)
+    test_update_coords(mesh, sbp, opts)
+
+    # this following test messes up the coordinate field, so load a new mesh
+    # for this test
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+    test_setPoint(mesh, opts)
+
+
+    #TODO: test quadratic mesh once that works
+ 
+    opts = Dict{Any, Any}(
+    "dimensions" => 2,
+    "run_type" => 5,
+    "jac_type" => 2,
+    "order" => 1,
+    "use_DG" => true,
+    "coloring_distance" => 2,
+    "numBC" => 1,
+    "BC1" => [4, 7, 10, 13],
+    "BC1_name" => "FreeStreamBC",
+    "smb_name" => "meshes/UnitSquareCurve/UnitSquareCurve_quadratic.smb",
+    "dmg_name" => "meshes/UnitSquareCurve/UnitSquareCurve.x_t",
+    )
+
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+    println("testing quadratic mesh")
+    test_setPoint(mesh, opts)
+    test_coords_file(opts, sbp, sbpface)
+
+    # load new mesh because test_setPoint messes up the coordinate field
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+    test_geoDerivative(mesh)
+
+  end 
 
 end

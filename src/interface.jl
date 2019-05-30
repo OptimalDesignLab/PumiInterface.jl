@@ -45,8 +45,8 @@ function numberSurfacePoints(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglo
   if n_old != C_NULL
     apf.destroyNumbering(n_old)
   end
-  n_face = apf.createNumberingJ(mesh.m_ptr, numbering_name, 
-                             mesh.coordshape_ptr, 1)
+  n_face = apf.createNumberingJ(mesh, numbering_name, 
+                                1, mesh.coordshape_ptr)
   topo = mesh.topo
   num_i = 1
   verts = Array{Ptr{Void}}(4)
@@ -70,7 +70,6 @@ function numberSurfacePoints(mesh::PumiMeshDG, bc_nums::AbstractVector{I}, isglo
         v_k = verts[mesh.topo.face_verts[k, bndry_j.face]]
 
         if !apf.isNumbered(n_face, v_k, 0, 0)
-#          apf.getPoint(mesh.m_ptr, v_k, 0, coords)
           apf.numberJ(n_face, v_k, 0, 0, num_i)
           push!(face_verts, v_k)
           num_i += 1
@@ -240,7 +239,7 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
   fill!(coords_vec, reduce_op.neutral_element)
   node_entities = apf.ElementNodeEntities(mesh.m_ptr, mesh.coordshape_ptr, mesh.dim)
 
- 
+
   #TODO: not sure if this gives enough time for data to arrive, maybe combine
   #      with calcCoordinatesAndMetrics_rev?
   shr = mesh.normalshr_ptr
@@ -251,7 +250,9 @@ function coords3DTo1D(mesh::PumiMeshDG, coords_arr::AbstractArray{T, 3},
       if !_parallel || (_parallel && apf.getOwner(shr, entity) == mesh.myrank)
         for k=1:mesh.dim
           idx = apf.getNumberJ(mesh.coord_nodenums_Nptr, entity, 0, k-1)
+          orig_val = coords_vec[idx]
           coords_vec[idx] = reduce_op(coords_vec[idx], coords_arr[k, j, i])
+
         end
       end  # end if
     end  # end j
