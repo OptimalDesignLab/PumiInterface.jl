@@ -299,7 +299,6 @@ void getUniqueNumberingName(apf::Mesh* m, const char* basename, char* newname)
     {
       sprintf(newname, "%s_%d", basename, idx);
       n = m->findNumbering(newname);
-      std::cout << "name = " << newname << " n_ptr = " << n << std::endl;
       if (!n)
         return;
 
