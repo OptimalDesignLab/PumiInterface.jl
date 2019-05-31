@@ -545,5 +545,7 @@ their arguments.
 
  * v0.8: upgrade from Julia 0.4 to Julia 0.6
  * v0.9: add parallel reverse mode derivative and gmi interface
+ * v0.10: add CAD Xi coordinate interface, derivative, and initial mesh
+          adaptation support
 
 [![Build Status](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl.svg?branch=build_system)](https://travis-ci.org/OptimalDesignLab/PumiInterface.jl)
