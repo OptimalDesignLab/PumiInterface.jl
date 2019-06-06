@@ -20,11 +20,16 @@ const COORDSFILE_VERSION = Int32(1)  # file format version
   **Inputs**
 
    * mesh
-   * fname: the file name, including extension.  An underscore and MPI rank
+   * fname: the file name.  An underscore and MPI rank
             will be appended to the file name (before the extension), and
-            one file will be written per process.
+            one file will be written per process.  A .dat extension will
+            be used if the filename does not already have one
 """
 function writeCoordsBinary(mesh::PumiMesh, fname::String)
+
+  if !hasExtension(fname)
+    fname = string(fname, ".dat")
+  end
 
   f = open(get_parallel_fname(fname, mesh.myrank), "w")
 
