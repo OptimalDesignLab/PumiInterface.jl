@@ -359,6 +359,7 @@ mutable struct PumiMeshDG3{T1, Tface <: AbstractFace{Float64}} <: PumiMesh3DG{T1
   shared_element_colormasks::Array{Array{BitArray{1}, 1}, 1}                               
   remote_metrics::Array{RemoteMetrics{T1}, 1}  # metric information for
                                                  # remote elements
+  remote_metrics_bar::Array{RemoteMetrics{T1}, 1}  # metric information for
 
   #TODO: remove this once SBP interface is clarified
   sbpface::Tface  # SBP object needed to do interpolation

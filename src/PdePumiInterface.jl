@@ -247,13 +247,40 @@ function RemoteMetrics(mesh::PumiMeshDG{Tmsh}, peer_idx::Int; islocal=true) wher
   end
 
   peer_num = mesh.peer_parts[peer_idx]
-  vert_coords = Array{Tmsh}(mesh.dim, mesh.coord_numNodesPerElement, numEl)
-  coords = Array{Tmsh}(mesh.dim, mesh.numNodesPerElement, numEl)
-  dxidx = Array{Tmsh}(mesh.dim, mesh.dim, mesh.numNodesPerElement, numEl)
-  jac = Array{Tmsh}(mesh.numNodesPerElement, numEl)
+  vert_coords = zeros(Tmsh, mesh.dim, mesh.coord_numNodesPerElement, numEl)
+  coords = zeros(Tmsh, mesh.dim, mesh.numNodesPerElement, numEl)
+  dxidx = zeros(Tmsh, mesh.dim, mesh.dim, mesh.numNodesPerElement, numEl)
+  jac = zeros(Tmsh, mesh.numNodesPerElement, numEl)
 
   return RemoteMetrics{Tmsh}(peer_num, peer_idx, islocal, vert_coords, coords,
                              dxidx, jac)
+end
+
+
+"""
+  Zeros all the arrays of a `RemoteMetrics`.  Intended for use by the
+  Remote metrics object that hold the _bar part of the metrics.
+"""
+function zeroMetrics(obj::RemoteMetrics)
+
+  fill!(obj.vert_coords, 0)
+  fill!(obj.coords, 0)
+  fill!(obj.dxidx, 0)
+  fill!(obj.jac, 0)
+
+  return nothing
+end
+
+import Base: copy!
+
+function copy!(dest::RemoteMetrics, src::RemoteMetrics)
+
+  copy!(dest.vert_coords, src.vert_coords)
+  copy!(dest.coords, src.coords)
+  copy!(dest.dxidx, src.dxidx)
+  copy!(dest.jac, src.jac)
+
+  return nothing
 end
 
 
@@ -371,12 +398,19 @@ function zeroBarArrays(mesh::PumiMesh)
 
       # treat parallel (Arrays-of-Arrays) separately
       if contains(fname_str, "sharedface")
-        if length(field) == 0
+        if length(field) == 0  # if not configured for reverse mode, the
+                               # outer array is allocated with length 0
           continue
         end
 
         for i=1:mesh.npeers
           fill!(field[i], 0.0)
+        end
+      elseif fname_str == "remote_metrics_bar"
+        if length(field) != 0
+          for i=1:mesh.npeers
+            zeroMetrics(field[i])
+          end
         end
       else
         fill!(field, 0.0)

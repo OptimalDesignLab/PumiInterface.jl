@@ -385,6 +385,8 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
 
   remote_metrics::Array{RemoteMetrics{T1}, 1}  # metric information for
                                                  # remote elements
+  remote_metrics_bar::Array{RemoteMetrics{T1}, 1}
+
   sbpface::Tface  # SBP object needed to do interpolation
   topo::ElementTopology{2}  # topology of the SBP element
   topo_pumi::ElementTopology{2}  # topology of the pumi element

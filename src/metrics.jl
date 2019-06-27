@@ -155,6 +155,7 @@ end
 
   Reverse mode of getAllCoordinatesAndMetrics.  Back propigates
   mesh.nrm_*_bar, mesh.dxidx_bar, mesh.jac_bar to mesh.vert_coords_bar.
+  Also does communication to get the contribution from `mesh.remote_metrics_bar`
 
   Users should generally call zeroBarArrays() before calling this function
   a second time, to zero out all intermediate arrays.
@@ -165,6 +166,9 @@ end
   This function does not yet support the reverse mode of mesh.remote_metrics.
 """
 function getAllCoordinatesAndMetrics_rev(mesh, sbp, opts)
+
+  # parallel communication to get contributions from mesh.remote_metrics_bar
+  exchangeMetricInfo_rev(mesh, sbp)
 
   if opts["use_linear_metrics"]
 #   if mesh.coord_order == 1
@@ -272,11 +276,13 @@ end
 
   **Inputs**
 
-   * mesh: a DG mesh. mesh.remote_metrics is populated by this function
+   * mesh: a DG mesh. mesh.remote_metrics, mesh.remote_metrics_bar are
+           populated by this function
 """
 function exchangeMetricInfo(mesh::PumiMeshDG{Tmsh}, sbp) where Tmsh
 
   remote_metrics = Array{RemoteMetrics{Tmsh}}(mesh.npeers)  # receive buffers
+  remote_metrics_bar = Array{RemoteMetrics{Tmsh}}(mesh.npeers)
   local_metrics = Array{RemoteMetrics{Tmsh}}(mesh.npeers)  # send buffers
   send_reqs = Array{MPI.Request}(4, mesh.npeers)
   recv_reqs = Array{MPI.Request}(4, mesh.npeers)
@@ -285,6 +291,7 @@ function exchangeMetricInfo(mesh::PumiMeshDG{Tmsh}, sbp) where Tmsh
   # allocate the arrays and post the MPI receives
   for i=1:mesh.npeers
     remote_metrics[i] = RemoteMetrics(mesh, i, islocal=false)
+    remote_metrics_bar[i] = RemoteMetrics(mesh, i, islocal=false)
     local_metrics[i] = RemoteMetrics(mesh, i, islocal=true)
 
     obj = remote_metrics[i]
@@ -317,9 +324,73 @@ function exchangeMetricInfo(mesh::PumiMeshDG{Tmsh}, sbp) where Tmsh
   end
 
   mesh.remote_metrics = remote_metrics
+  mesh.remote_metrics_bar = remote_metrics_bar
 
   return nothing
 end
+
+"""
+  Reverse mode of `exchangeMetricInfo`.
+"""
+function exchangeMetricInfo_rev(mesh::PumiMeshDG{Tmsh}, sbp) where Tmsh
+
+  local_metrics_bar = Array{RemoteMetrics{Tmsh}}(mesh.npeers)  # send buffers
+  send_reqs = Array{MPI.Request}(4, mesh.npeers)
+  recv_reqs = Array{MPI.Request}(4, mesh.npeers)
+
+
+  # allocate the arrays and post the MPI receives
+  for i=1:mesh.npeers
+    local_metrics_bar[i] = RemoteMetrics(mesh, i, islocal=true)
+
+    obj = local_metrics_bar[i]
+    peernum = mesh.peer_parts[i]
+    recv_reqs[1, i] = MPI.Irecv!(obj.vert_coords, peernum, 5, mesh.comm)
+    recv_reqs[2, i] = MPI.Irecv!(obj.coords, peernum, 6, mesh.comm)
+    recv_reqs[3, i] = MPI.Irecv!(obj.dxidx, peernum, 7, mesh.comm)
+    recv_reqs[4, i] = MPI.Irecv!(obj.jac, peernum, 8, mesh.comm)
+  end
+
+
+  # extract the local values and send them
+  for i=1:mesh.npeers
+    obj = mesh.remote_metrics_bar[i]
+    peernum = mesh.peer_parts[i]
+
+    send_reqs[1, i] = MPI.Isend(obj.vert_coords, peernum, 5, mesh.comm)
+    send_reqs[2, i] = MPI.Isend(obj.coords, peernum, 6, mesh.comm)
+    send_reqs[3, i] = MPI.Isend(obj.dxidx, peernum, 7, mesh.comm)
+    send_reqs[4, i] = MPI.Isend(obj.jac, peernum, 8, mesh.comm)
+  end
+
+  # wait for communications to finish and unpack the receive buffer
+  wait_leaders = Array{MPI.Request}(mesh.npeers)
+  for i=1:mesh.npeers
+    # wait on the dxidx array because it is probably largest/slowest
+    wait_leaders[i] = recv_reqs[3, i]
+  end
+
+  for i=1:mesh.npeers
+    idx, state = MPI.Waitany!(wait_leaders)
+    # wait for other communications on the same object
+    MPI.Wait!(recv_reqs[1, idx])
+    MPI.Wait!(recv_reqs[2, idx])
+    MPI.Wait!(recv_reqs[4, idx])
+
+    getLocalMetrics_rev(mesh, local_metrics_bar[idx])
+  end
+
+  # wait for sends to complete before exiting
+  for i=1:mesh.npeers
+    for j=1:4
+      MPI.Wait!(send_reqs[j, i])
+    end
+  end
+
+  return nothing
+end
+
+
 
 """
   Copy the metric values from the main mesh arrays into the RemoteMetrics
@@ -368,6 +439,58 @@ function getLocalMetrics(mesh, obj::RemoteMetrics)
     # jac
     for j=1:mesh.numNodesPerElement
       obj.jac[j, i] = mesh.jac[j, elnum]
+    end
+
+  end  # end loop i
+
+  return nothing
+end
+
+"""
+  Reverse mode of `getLocalMetrics`.
+
+  **Inputs**
+
+   * mesh
+   * obj: a `RemoteMetrics` object.  This object should already have received
+          the bar metrics from the remote process.
+"""
+function getLocalMetrics_rev(mesh, obj::RemoteMetrics)
+
+  @assert obj.islocal
+
+  numEl = size(obj.vert_coords, 3)
+  elnums = mesh.local_element_lists[obj.peer_idx]
+  for i=1:numEl
+    elnum = elnums[i]
+
+    # vert_coords
+    for j=1:size(obj.vert_coords, 2)
+      for k=1:size(obj.vert_coords, 1)
+        mesh.vert_coords_bar[k, j, elnum] += obj.vert_coords[k, j, i]
+      end
+    end
+
+    # coords
+    # TODO: support mesh.coords_bar
+    #for j=1:size(obj.coords, 2)
+    #  for k=1:size(obj.coords, 1)
+    #    mesh.coords_bar[k, j, elnum] += obj.coords[k, j, i]
+    #  end
+    #end
+
+    # dxidx 
+    for j=1:mesh.numNodesPerElement
+      for d2=1:mesh.dim
+        for d1=1:mesh.dim
+          mesh.dxidx_bar[d1, d2, j, elnum] += obj.dxidx[d1, d2, j, i]
+        end
+      end
+    end
+
+    # jac
+    for j=1:mesh.numNodesPerElement
+      mesh.jac_bar[j, elnum] += obj.jac[j, i]
     end
 
   end  # end loop i

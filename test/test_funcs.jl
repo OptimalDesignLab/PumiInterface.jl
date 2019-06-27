@@ -1388,6 +1388,18 @@ function rand_realpart(dims...)
   return a
 end
 
+function rand_realpart!(A::AbstractArray)
+
+  rand!(A)
+  for i=1:length(A)
+    A[i] = real(A[i])
+  end
+
+  return nothing
+end
+
+
+import PdePumiInterface: RemoteMetrics
 
 """
   Tests back propigating the metrics to the 1D vector form
@@ -1395,6 +1407,7 @@ end
 function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
 
   println("testing metrics_rev_1d")
+  srand(1234)
   h = 1e-20
   pert = Complex128(0, h)
 
@@ -1408,8 +1421,15 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   nrm_face_bar    = rand_realpart(size(mesh.nrm_face_bar))
   coords_bndry_bar    = rand_realpart(size(mesh.coords_bndry_bar))
   nrm_sharedface_bar = Array{Array{Complex128, 3}}(mesh.npeers)
+  remote_metrics_bar = Array{RemoteMetrics{Complex128}}(mesh.npeers)
   for i=1:mesh.npeers
     nrm_sharedface_bar[i] = rand_realpart(size(mesh.nrm_sharedface[i]))
+    remote_metrics_bar[i] = RemoteMetrics(mesh, i, islocal=false)
+    obj = remote_metrics_bar[i]
+    rand_realpart!(obj.vert_coords)
+    #rand_realpart!(obj.coords)
+    rand_realpart!(obj.dxidx)
+    rand_realpart!(obj.jac)
   end
 
 
@@ -1480,7 +1500,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   copy!(mesh.nrm_bndry_bar, nrm_bndry_bar)
   copy!(mesh.nrm_face_bar, nrm_face_bar)
   copy!(mesh.coords_bndry_bar, coords_bndry_bar)
-  for i=1:mesh.npeers  # DEBUGGING
+  for i=1:mesh.npeers
     copy!(mesh.nrm_sharedface_bar[i], nrm_sharedface_bar[i])
   end
 
@@ -1493,6 +1513,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
 
   #----------------------------------------------------------------------------
   # test back-propigation of metrics (parallel)
+
   zeroBarArrays(mesh)
   fill!(xvec_bar, 0)
 
@@ -1509,6 +1530,24 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
          sum(imag(mesh.coords_bndry)/h .* coords_bndry_bar)
   for i=1:mesh.npeers
     val1 += sum(imag(mesh.nrm_sharedface[i])/h .* nrm_sharedface_bar[i])
+    
+    
+    arr_dot = mesh.remote_metrics[i].vert_coords
+    arr_bar = remote_metrics_bar[i].vert_coords
+    val1 += sum(imag(arr_dot)/h .* arr_bar)
+    
+    #arr_dot = mesh.remote_metrics[i].coords
+    #arr_bar = remote_metrics_bar[i].coords
+    #val1 += sum(imag(arr_dot)/h .* arr_bar)
+
+    arr_dot = mesh.remote_metrics[i].dxidx
+    arr_bar = remote_metrics_bar[i].dxidx
+    val1 += sum(imag(arr_dot)/h .* arr_bar)
+
+    arr_dot = mesh.remote_metrics[i].jac
+    arr_bar = remote_metrics_bar[i].jac
+    val1 += sum(imag(arr_dot)/h .* arr_bar)
+    
   end
 
   # remove complex parts
@@ -1525,6 +1564,7 @@ function test_metrics_rev_1d(mesh::PumiMesh{T}, sbp, opts) where {T}
   copy!(mesh.coords_bndry_bar, coords_bndry_bar)
   for i=1:mesh.npeers
     copy!(mesh.nrm_sharedface_bar[i], nrm_sharedface_bar[i])
+    copy!(mesh.remote_metrics_bar[i], remote_metrics_bar[i])
   end
 
   getAllCoordinatesAndMetrics_rev(mesh, sbp, opts, xvec_bar)
