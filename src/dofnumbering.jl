@@ -431,9 +431,6 @@ end
 function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
 # number nodes and elements starting from a particular location
 
-  println("numbering nodes windy")
-  println("startin from ", start_coords)
-
   # calculate number of nodes, dofs
   numDof = mesh.numDof
   if (numDof > 2^30 || numDof < 0)

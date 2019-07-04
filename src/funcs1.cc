@@ -329,7 +329,8 @@ apf::Field* initGeometry(apf::Mesh2* m)
 
   if (!fedge)
   {
-    std::cout << "Adding quadratic parameter field: derivatives may be less accurate" << std::endl;
+    if (PCU_Comm_Self() == 0)
+      std::cout << "Adding quadratic parameter field: derivatives may be less accurate" << std::endl;
     apf::FieldShape* fshape_edges = apf::getConstant(1);
     fedge = apf::createPackedField(m, fname, 2, fshape_edges);
 

@@ -758,7 +758,7 @@ function finishMeshInit(mesh::PumiMeshDG3{T1}, sbp::AbstractSBP, opts,
 
 
   if opts["reordering_algorithm"] == "adjacency"
-    start_coords = opts["eordering_start_coords"]
+    start_coords = opts["reordering_start_coords"]
     numberNodesWindy(mesh, start_coords)
     # tell the algorithm there is only 1 dof per node because we only
     # want to label nodes
