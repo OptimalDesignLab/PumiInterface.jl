@@ -25,7 +25,7 @@ extern "C"
 {
   extern bool hasNode(apf::Mesh2* m, apf::MeshEntity* e);
   extern void addQueues(std::queue<apf::MeshEntity*> & q1, std::queue<apf::MeshEntity*> & q2);
-  extern apf::MeshEntity* getStartEntity(apf::Mesh2* & m, const double x, const double y);
+  extern apf::MeshEntity* getStartEntity(apf::Mesh2* & m, const double start_coords[3], apf::Numbering* nodeNums=NULL, int sentinel=-1);
   extern void printType(apf::Mesh* m, apf::MeshEntity* e);
   extern void numberdofs(apf::Mesh2* m, apf::Numbering* nodeNums, int numN);
 

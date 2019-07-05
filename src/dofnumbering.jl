@@ -466,6 +466,8 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   que = FIFOQueue{Ptr{Void}}(size_hint = div(mesh.numEl, 2))
   push!(que, start_el)
 
+  #TODO: this should probably be a reverse ordering to be consistent
+  #      with how other algorithms work (ie. Reverse Kuthill-McKee)
   curr_elnum = 1
   curr_dof = 1
   # the dreaded while loop
@@ -505,7 +507,19 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
       end
     end  # end loop over adjacent elements
 
+    # this can only happen if either 1) this algorithm is broken, or
+    # 2) there are disjoint sets of elements on this process
+    # Assume it is 2 and find a new starting element
+    if curr_elnum != (mesh.numEl + 1) && isempty(que)
+      new_startel = getStartEl(mesh, start_coords, el_Nptr, mesh.numEl)
+      @assert new_startel != C_NULL
+      push!(que, new_startel)
+    end
+
   end  # end while loop 
+
+  #-----------------------------------------
+  # Error checking and cleanup
 
   if (curr_dof -1) != numDof 
     println("Warning: number of dofs assigned is not equal to the expected number")
@@ -532,9 +546,25 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   return nothing
 end
 
+"""
+  Finds the element with the (linear) centroid closest to the specified
+  coordinates.  Can optionally skip certain elements that are already numbered.
 
-function getStartEl(mesh::PumiMeshDG, start_coords)
-# find the element with centroid closest to start_coords
+  **Inputs**
+
+   * mesh
+   * start_coords: vector of length `mesh.dim` containing the point that
+                   the element will be closest to
+   * el_Nptr: an apf::Numbering* that numbers the mesh elements (optional)
+   * sentinel: the sentinal value for element numbers.  Element numbers less
+               than or equal to this value will be skipped.  This argument
+               is required if `el_Nptr` is provided. This value should be
+               1-based (even though `el_Nptr` is zero-based)
+
+
+"""
+function getStartEl(mesh::PumiMeshDG, start_coords, el_Nptr::Ptr{Void}=C_NULL, sentinel::Integer=-1)
+  # find the element with centroid closest to start_coords
 
   numVertsPerElement = mesh.numTypePerElement[1]
   coords = zeros(3, numVertsPerElement)
@@ -544,9 +574,18 @@ function getStartEl(mesh::PumiMeshDG, start_coords)
 #  resetIt(dim)
 
   min_norm = typemin(Float64)
-  min_el = Ptr{Void}(0)
+  min_el = C_NULL
 
   for el_i  in apf.MeshIterator(mesh.m_ptr, dim)
+
+    # skip already numbered elements
+    if el_Nptr != C_NULL
+      elnum = apf.getNumberJ(el_Nptr, el_i, 0, 0) + 1
+      if elnum <= sentinel
+        continue
+      end
+    end
+
     getElementCoords(mesh, el_i, coords)
 
     # compute centroid
@@ -570,7 +609,6 @@ function getStartEl(mesh::PumiMeshDG, start_coords)
     end
 
     fill!(centroid, 0.0)
-#    incrementIt(dim)
   end
 
   return min_el

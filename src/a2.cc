@@ -62,7 +62,9 @@ void addQueues(std::queue<apf::MeshEntity*> & q1, std::queue<apf::MeshEntity*> &
 // search for node vertex classified on geometric vertex that is closest to 
 // the point (x,y) and has minimum connectivity
 //
-apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double start_coords[3])
+apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double start_coords[3],
+                               apf::Numbering* nodeNums /*=NULL*/,
+                               int sentinel /*=-1*/)
 {
   double x = start_coords[0];
   double y = start_coords[1];
@@ -76,15 +78,12 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double start_coords
   apf::Vector3 coords; // coordinates of current point
   double dist;  // distance from coords to (x,y)
   double min_dist; // minimum distance to (x,y)
-  apf::ModelEntity* me_i;
-  int me_dimension;
   x = start_coords[0];
   y = start_coords[1];
   z = start_coords[2];
 
   apf::MeshIterator* it = m_local->begin(0); // iterator over verticies
 
-  gmi_model* g = m_local->getModel();
 /*
   std::cout << "g = " << g << std::endl;
   std::cout << "g.n[0] = " << g->n[0] << std::endl;
@@ -92,48 +91,37 @@ apf::MeshEntity* getStartEntity(apf::Mesh2* & m_local, const double start_coords
   std::cout << "g.n[2] = " << g->n[2] << std::endl;
   std::cout << "g.n[3] = " << g->n[3] << std::endl;
 */
-  bool is_null = g->n[0] == 0;
-  // initilize
-  e_i = m_local->deref(it);
-
-  e_min = e_i;  // ensure we return a value if conditions are never
-                // satisfied
-
-  // calculate distance to (x,y)
-  m_local-> getPoint(e_i, 0, coords);
-  // no need to take square root if we are only interested in relative
-  // distance
-  min_dist = (coords[0] - x)*(coords[0] - x) + (coords[1] - y)*(coords[1] - y) + (coords[2] - z)*(coords[2] - z);
-
+  e_min = NULL;
+  min_dist = std::numeric_limits<double>::max();
 
 
   while ( (e_i = m_local->iterate(it)) )
   {
-    me_i = m_local->toModel(e_i);
-    me_dimension = m_local->getModelType(me_i);
-    if ( !me_dimension || is_null ) // if me_dimension == 0
+    // skip already numbered elements
+    if (nodeNums && apf::getNumber(nodeNums, e_i, 0, 0) <= sentinel)
+      continue;
+
+    // calculate distance to (x,y)
+    m_local-> getPoint(e_i, 0, coords);
+    // no need to take square root if we are only interested in relative
+    // distance
+    dist = (coords[0] - x)*(coords[0] - x) + (coords[1] - y)*(coords[1] - y) + (coords[2] - z)*(coords[2] - z);
+
+    if (dist < min_dist)
     {
-
-      // calculate distance to (x,y)
-      m_local-> getPoint(e_i, 0, coords);
-      // no need to take square root if we are only interested in relative
-      // distance
-      dist = (coords[0] - x)*(coords[0] - x) + (coords[1] - y)*(coords[1] - y) + (coords[2] - z)*(coords[2] - z);
-
-      if (dist < min_dist)
-      {
-        e_min = e_i;
-        min_dist = dist;
-//        std::cout << "choosing this vertex" << std::endl;
-      }
+      e_min = e_i;
+      min_dist = dist;
     }
   }
 
-  m_local->getPoint(e_min, 0, coords);
 
 //  if (PCU_Comm_Self() == 0)
-//    std::cout << "starting entity coordinates = " << coords[0] << ", " << coords[1] << ", " << coords[2]  << std::endl;
+//  {
+//     m_local->getPoint(e_min, 0, coords);
+//     std::cout << "starting entity coordinates = " << coords[0] << ", " << coords[1] << ", " << coords[2]  << std::endl;
+//  }
 
+  assert(e_min);  // it shouldn't be possible to not find a an entity
   return e_min;
 
 }
@@ -534,6 +522,11 @@ void reorder(apf::Mesh2* m_local, int ndof, const int comp,
 
 
       }  // end if (vertex)
+
+      // either the algorithm is broken or there are disjoint sets of mesh
+      // entities.  Assume the second and find a new starting entity
+      if (nodeLabel_i != 1 && que1.size() == 0)
+        que1.push(getStartEntity(m_local, start_coords, nodeNums, ndof));
     } // end while loop over que    
 
 
@@ -694,6 +687,12 @@ int reorderXi(apf::Mesh2* m_local, apf::Numbering* xiNums,
       addQueues(que1, tmpQue);
 
       }  // end if (vertex)
+
+      // either the algorithm is broken or there are disjoint sets of mesh
+      // entities.  Assume the second and find a new starting entity
+      if (nodeLabel_i != 1 && que1.size() == 0)
+        que1.push(getStartEntity(m_local, start_coords, xiNums, NODE_UNUSED));
+
     } // end while loop over que    
 
 
