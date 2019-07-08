@@ -466,10 +466,8 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   que = FIFOQueue{Ptr{Void}}(size_hint = div(mesh.numEl, 2))
   push!(que, start_el)
 
-  #TODO: this should probably be a reverse ordering to be consistent
-  #      with how other algorithms work (ie. Reverse Kuthill-McKee)
-  curr_elnum = 1
-  curr_dof = 1
+  curr_elnum = mesh.numEl
+  curr_dof = numDof
   # the dreaded while loop
   while (!isempty(que))
 #    print("\n")
@@ -478,14 +476,14 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
     # only unlabelled entities are added to the que, and they are added 
     # exactly once, so no need to check here
     apf.numberJ(el_Nptr, curr_el, 0, 0, curr_elnum)
-    curr_elnum += 1
+    curr_elnum -= 1
 
     # now label dofs
     for i=1:mesh.numNodesPerElement
       pumi_node = nodemap[i]
       for j=1:dofpernode
         apf.numberJ(numbering_ptr, curr_el, pumi_node-1, j-1, curr_dof)
-        curr_dof += 1
+        curr_dof -= 1
       end
     end
 
@@ -510,7 +508,7 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
     # this can only happen if either 1) this algorithm is broken, or
     # 2) there are disjoint sets of elements on this process
     # Assume it is 2 and find a new starting element
-    if curr_elnum != (mesh.numEl + 1) && isempty(que)
+    if curr_elnum != 0 && isempty(que)
       new_startel = getStartEl(mesh, start_coords, el_Nptr, mesh.numEl)
       @assert new_startel != C_NULL
       push!(que, new_startel)
@@ -521,13 +519,13 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   #-----------------------------------------
   # Error checking and cleanup
 
-  if (curr_dof -1) != numDof 
+  if curr_dof != 0
     println("Warning: number of dofs assigned is not equal to the expected number")
-    println("number of dofs assigned = ", curr_dof-1, " ,expected number = ", numDof)
+    println("number of dofs remaining = ", curr_dof)
     throw(ErrorException("dof numbering failed"))
   end
 
-  if (curr_elnum - 1) != mesh.numEl
+  if curr_elnum != 0
     throw(ErrorException("element numbering failed"))
   end
 
