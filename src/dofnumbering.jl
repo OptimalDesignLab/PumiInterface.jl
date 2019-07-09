@@ -437,7 +437,6 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
     println("Warning: too many dofs, renumbering will fail")
   end
 
-
   if number_dofs
     numbering_ptr = mesh.dofnums_Nptr
     dofpernode = mesh.numDofPerNode
@@ -451,6 +450,7 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   el_Nptr = mesh.el_Nptr
   adj_els = Array{Ptr{Void}}(mesh.numFacesPerElement)
   nodemap = mesh.nodemapSbpToPumi
+  numDofPerElement = dofpernode*mesh.numNodesPerElement
   
   # initially number all components in range (numEl+1):(2*numEl)
   curr_elnum = mesh.numEl+1
@@ -466,7 +466,7 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
   que = FIFOQueue{Ptr{Void}}(size_hint = div(mesh.numEl, 2))
   push!(que, start_el)
 
-  curr_elnum = mesh.numEl
+  curr_elnum = mesh.numEl - 1
   curr_dof = numDof
   # the dreaded while loop
   while (!isempty(que))
@@ -479,13 +479,17 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
     curr_elnum -= 1
 
     # now label dofs
+    # We have to label the dofs on each element in ascending order, so that
+    # eqn.res = eqn.res_vec
+    _curr_dof = curr_dof - numDofPerElement + 1
     for i=1:mesh.numNodesPerElement
       pumi_node = nodemap[i]
       for j=1:dofpernode
-        apf.numberJ(numbering_ptr, curr_el, pumi_node-1, j-1, curr_dof)
-        curr_dof -= 1
+        apf.numberJ(numbering_ptr, curr_el, pumi_node-1, j-1, _curr_dof)
+        _curr_dof += 1
       end
     end
+    curr_dof -= numDofPerElement
 
     # add face adjacent neighbor elements to the que
     numadj = apf.countBridgeAdjacent(mesh.m_ptr, curr_el, dim-1, dim)
@@ -508,8 +512,8 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
     # this can only happen if either 1) this algorithm is broken, or
     # 2) there are disjoint sets of elements on this process
     # Assume it is 2 and find a new starting element
-    if curr_elnum != 0 && isempty(que)
-      new_startel = getStartEl(mesh, start_coords, el_Nptr, mesh.numEl)
+    if curr_elnum != -1 && isempty(que)
+      new_startel = getStartEl(mesh, start_coords, el_Nptr, mesh.numEl - 1)
       @assert new_startel != C_NULL
       push!(que, new_startel)
     end
@@ -525,10 +529,10 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
     throw(ErrorException("dof numbering failed"))
   end
 
-  if curr_elnum != 0
+  if curr_elnum != -1
     throw(ErrorException("element numbering failed"))
   end
-
+#=
   # the element number should have been zero based (oops), so decrement
   # the element numbers
   for i=1:mesh.numEl
@@ -536,7 +540,7 @@ function numberNodesWindy(mesh::PumiMeshDG, start_coords, number_dofs=false)
     idx = apf.getNumberJ(mesh.el_Nptr, el_i, 0, 0)
     apf.numberJ(mesh.el_Nptr, el_i, 0, 0, idx - 1)
   end
-
+=#
   # need to update the element pointer array because element numbering has
   # changed
   #TODO: don't reallocate the arrays
@@ -557,7 +561,7 @@ end
    * sentinel: the sentinal value for element numbers.  Element numbers less
                than or equal to this value will be skipped.  This argument
                is required if `el_Nptr` is provided. This value should be
-               1-based (even though `el_Nptr` is zero-based)
+               zero-based
 
 
 """
@@ -578,7 +582,7 @@ function getStartEl(mesh::PumiMeshDG, start_coords, el_Nptr::Ptr{Void}=C_NULL, s
 
     # skip already numbered elements
     if el_Nptr != C_NULL
-      elnum = apf.getNumberJ(el_Nptr, el_i, 0, 0) + 1
+      elnum = apf.getNumberJ(el_Nptr, el_i, 0, 0)
       if elnum <= sentinel
         continue
       end
@@ -587,6 +591,7 @@ function getStartEl(mesh::PumiMeshDG, start_coords, el_Nptr::Ptr{Void}=C_NULL, s
     getElementCoords(mesh, el_i, coords)
 
     # compute centroid
+    fill!(centroid, 0.0)
     for j=1:dim
       for k=1:numVertsPerElement
         centroid[j] += coords[j, k]
@@ -606,10 +611,61 @@ function getStartEl(mesh::PumiMeshDG, start_coords, el_Nptr::Ptr{Void}=C_NULL, s
       min_el = el_i
     end
 
-    fill!(centroid, 0.0)
   end
 
   return min_el
+end
+
+
+"""
+  Verifies the element numbering, specifically that every element number
+  is assigned exactly once, and all numbers are in the range of 0 to
+  mesh.numEl -1
+"""
+function checkElementNumbering(mesh, el_Nptr)
+
+  # check all numbers are assigned, none more than once
+  elnums = zeros(Int, mesh.numEl)
+
+  for el in apf.MeshIterator(mesh.m_ptr, mesh.dim)
+    elnum = apf.getNumberJ(el_Nptr, el, 0, 0) + 1
+    @assert elnum >= 1
+    @assert elnum <= mesh.numEl
+    elnums[elnum] += 1
+  end
+
+  for i=1:mesh.numEl
+    @assert elnums[i] == 1
+  end
+
+  return nothing
+end
+
+
+"""
+  Verifies the dof numbering, specifically that every dof number is assigned
+  exactly once and all numbers are in the range 1 to mesh.numDof
+"""
+function checkDofNumbering(mesh, dof_Nptr)
+
+  dofnums = zeros(UInt8, mesh.numDof)
+
+  for el in apf.MeshIterator(mesh.m_ptr, mesh.dim)
+    for j=1:mesh.numNodesPerElement
+      for k=1:mesh.numDofPerNode
+        dofnum = apf.getNumberJ(dof_Nptr, el, j-1, k-1)
+        @assert dofnum > 0
+        @assert dofnum <= mesh.numDof
+        dofnums[dofnum] += 1
+      end
+    end
+  end
+
+  for i=1:mesh.numDof
+    @assert dofnums[i] == 1
+  end
+
+  return nothing
 end
 
 

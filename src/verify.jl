@@ -7,6 +7,10 @@
 function checkFinalMesh(mesh::PumiMesh)
 
   checkFaceCount(mesh)
+  if mesh.isDG
+    checkElementNumbering(mesh, mesh.el_Nptr)
+    checkDofNumbering(mesh, mesh.dofnums_Nptr)
+  end
 
   # add more checks here
 
