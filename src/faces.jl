@@ -176,6 +176,7 @@ function popBCEdges(geo_edge_nums::AbstractArray{I, 1}, opts) where I <: Integer
     end
   end
 
+
   unused_geo_edge_nums = Array{Int}(0)
 
   for i=1:length(geo_edge_nums)

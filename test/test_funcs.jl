@@ -2305,3 +2305,29 @@ function test_refcounting()
 
   return nothing
 end
+
+
+function test_interioredge(mesh)
+# this only works with the mesh corner20_split_mesh0_.smb
+
+  nfaces = 12 +12 + 9 + 8 + 4
+  @test mesh.numBoundaryFaces == nfaces
+  @test length(mesh.bndryfaces) == nfaces
+
+  for face in mesh.bndryfaces
+    @test face.element > 0
+    @test face.face <= mesh.numEl
+    @test face.face > 0
+    @test face.face <= 3
+  end
+
+  # test no duplicates
+  bndryfaces = sort(mesh.bndryfaces)
+  for i=2:mesh.numBoundaryFaces
+    @test bndryfaces[i] != bndryfaces[i - 1]
+  end
+
+  return nothing
+end
+
+

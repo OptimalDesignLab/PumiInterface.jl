@@ -31,7 +31,9 @@
   TOOD: use sview to remove this machinery
 
 """
-function getMeshEdgesFromModel(mesh::PumiMesh, medges::AbstractArray{I, 1}, offset::Integer, boundary_nums::AbstractArray{T, 2}) where {T, I<:Integer}
+function getMeshEdgesFromModel(mesh::PumiMesh, medges::AbstractArray{I, 1},
+                               offset::Integer, boundary_nums::AbstractArray{T, 2}
+                              ) where {T, I<:Integer}
 # get the global numbers of the mesh edges lying on the model edges in medges
 # medges typically coresponds to all the model edges that have a particular
 # boundary condition applied to them
@@ -49,13 +51,16 @@ function getMeshEdgesFromModel(mesh::PumiMesh, medges::AbstractArray{I, 1}, offs
     me_dim = apf.getModelType(mesh.m_ptr, me_i)
     me_tag = apf.getModelTag(mesh.m_ptr, me_i)
     if me_dim == (mesh.dim-1)  # face (edge in 2d)
-      onBoundary = findfirst(medges, me_tag)
+      # this also handles internal geometric edges: users should never specify BCs
+      # on them
+      onBoundary = findfirst(medges, me_tag) != 0
+      
 
       # check if face is periodic
       isPeriodic = apf.countMatches(mesh.m_ptr, edge_i) > 0
-      print_warning = print_warning || (isPeriodic && onBoundary != 0)
+      print_warning = print_warning || (isPeriodic && onBoundary)
 
-      if onBoundary != 0 && !isPeriodic # if mesh face is on any of the  model faces
+      if onBoundary && !isPeriodic # if mesh face is on any of the  model faces
         
 	# get face number
         numFace = apf.countAdjacent(mesh.m_ptr, edge_i, mesh.dim)  # should be count upward
@@ -111,9 +116,11 @@ function countBoundaryEdges(mesh::PumiMesh)
   internal_edge_cnt = 0 # count the number of internal interfaces
   periodic_edge_cnt = 0  # number of *pairs* of periodic BCs
   geo_edge_nums = Array{Int}(0)
+  #internal_edge_geo_cnt = 0  # number of mesh edges on internal geometric edge
+  #internal_geo_edge_nums = Array{Int}(0)  # internal geometric edge numbers
 
   # temporary arrays
-  elements = Array{Ptr{Void}}(2)  # edge has maximum 2 faces
+  #elements = Array{Ptr{Void}}(2)  # edge has maximum 2 faces
   part_nums = Array{Cint}(1)
   matched_entities = Array{Ptr{Void}}(1)
   seen_matches = Set{Ptr{Void}}()
@@ -147,9 +154,10 @@ function countBoundaryEdges(mesh::PumiMesh)
       push!(seen_matches, matched_entities[1])
     end
 
-    if me_dim == (mesh.dim-1) && nmatches == 0  # if classified on model edge
-      apf.getAdjacent(elements)
-      elnum = apf.getNumberJ(mesh.el_Nptr, elements[1], 0, 0) + 1
+    # if on a geometric edge that is on the boundary of the domain
+    if me_dim == (mesh.dim-1) && nmatches == 0 && numEl == 1
+      #apf.getAdjacent(elements)
+      #elnum = apf.getNumberJ(mesh.el_Nptr, elements[1], 0, 0) + 1
       bnd_edges_cnt += 1
 
       # accumulate all geometric edges with non-matched mesh edges
@@ -157,6 +165,14 @@ function countBoundaryEdges(mesh::PumiMesh)
         push!(geo_edge_nums, me_tag)
       end
     end  # end if me_dim == 1
+#=
+    if me_dim == (mesh.dim - 1) && nmatches == 0 && numEl == 2
+      internal_edge_geo_cnt += 1
+      if !(me_tag in internal_geo_edge_nums)
+        push!(internal_geo_edge_nums, me_tag)
+      end
+    end
+=#
 
   end  # end for loop
 
