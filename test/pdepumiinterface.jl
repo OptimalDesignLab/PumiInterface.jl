@@ -1043,6 +1043,7 @@ end
   test_coords_file(opts, sbp, sbpface)
 
   if HAVE_SIMMETRIX
+
     # load airfoil CAD mesh
     opts = Dict{Any, Any}(
     "dimensions" => 2,
@@ -1148,6 +1149,25 @@ end
     mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
     test_geoDerivative(mesh)
 
+   
+    # test mesh with geometry that has an internal edge
+    println("\n\nTesting internal edge")
+    opts = Dict{Any, Any}(
+    "dimensions" => 2,
+    "run_type" => 5,
+    "jac_type" => 2,
+    "order" => 1,
+    "use_DG" => true,
+    "coloring_distance" => 2,
+    "numBC" => 1,
+    "BC1" => [7, 56, 60, 13, 4, 10, 16],
+    "BC1_name" => "FreeStreamBC",
+    "smb_name" => "meshes/corner20_split/corner20_split_mesh0_.smb",
+    "dmg_name" => "meshes/corner20_split/corner20_split.smd",
+    )
+
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
+    test_interioredge(mesh)
   end 
 
 end

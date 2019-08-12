@@ -1,0 +1,14 @@
+Half of a 20 degree (semi-angle) wedge, with an internal geometric edge half
+way up the wedge (to facilitate extracting a pressure profile)
+
+Edge 7: lower half of wedge
+Edge 56: upper half of wedge
+
+Edge 63: the internal edge
+
+Edge 60: upstream half of top horiztonal boundary
+Edge 13: downstream half of top horiztonal boundary
+Edge 4: symmetry plane
+
+Edge 16: inflow boundary
+Edge 10: outflow boundary

@@ -51,14 +51,14 @@ function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
           apf.getComponents(fsize, down_entities[j], 0, vals)
           nel = apf.countAdjacent(mesh.m_ptr, down_entities[j], mesh.dim)
           # compute average size
-          vals[1] += el_sizes[i]/nel
-          #=
+          #vals[1] += el_sizes[i]/nel
+          
+          # take minimum size
           if vals[1] == 0
             vals[1] = el_sizes[i]
           else
             vals[1] = min(vals[1], el_sizes[i])
           end
-          =# 
 
           apf.setComponents(fsize, down_entities[j], 0, vals)
         end  # end loop j
