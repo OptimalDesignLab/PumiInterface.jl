@@ -4,4 +4,6 @@
 
 #cmakedefine HAVE_SIMMETRIX
 
+#cmakedefine ENABLE_ZOLTAN
+
 #endif

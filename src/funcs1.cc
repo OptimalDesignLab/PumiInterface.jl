@@ -18,6 +18,11 @@
 #include <gmi_sim.h>
 #include <SimUtil.h>
 #endif
+
+#ifdef ENABLE_ZOLTAN
+#include <apfZoltan.h>
+#endif
+
 //#include "a2.h"
 
 //=============================================================================
@@ -1803,4 +1808,66 @@ void gmi_register_simJ()
 #ifdef HAVE_SIMMETRIX
   gmi_register_sim();
 #endif
+}
+
+
+//-----------------------------------------------------------------------------
+// Mesh partitioning function
+//-----------------------------------------------------------------------------
+
+// A better API would be to return the apf::Migration* to the user, but that
+// would require Julia to do memory management, which it is bad at, so instead
+// we only allow extracting certain info from the apf::Migration* and free it
+// in the C code
+
+
+// m: the apf::Mesh
+// split_factor: the number of parts to split each mesh partition into
+// elnums: an apf::Numbering* of the elements, will be overwritten with the
+//         part numbers computed by the partitioning.  The part numbers will
+//         be 0 to split_factor - 1 (on all MPI ranks, not just the first)
+void getDefaultSplit(apf::Mesh* m, int split_factor, apf::Numbering* partnums)
+{
+  int meshdim = m->getDimension();
+
+  // use the Zoltan splitter if possible, otherwise fall back to the Rib
+  // one included with Pumi
+  #ifdef ENABLE_ZOLTAN
+  apf::Splitter* splitter = apf::makeZoltanSplitter(m, apf::GRAPH,
+                                                    apf::PARTITION, false);
+  double split_tol = 1.05;
+  #else
+  apf::Splitter* splitter = Parma_MakeRibSplitter(m);
+  double split_tol = 1.10;
+  #endif
+  apf::MeshTag* weights = Parma_WeighByMemory(m);
+  apf::Migration * plan = splitter->split(weights, split_tol, split_factor);
+  apf::removeTagFromDimension(m, weights, m->getDimension());
+  m->destroyTag(weights);
+  delete splitter;
+
+  // make sure every element has an assigned destiation, so the iteration
+  // below is valid
+//  size_t ndest = plan->count();
+//  std::cout << "number of elements on mesh = " << m->count(meshdim) << std::endl;
+//  std::cout << "number of elements with assigned destinations = " << ndest << std::endl;
+//  assert( ndest == m->count(meshdim) );
+
+  // write to the apf::Numbering
+  apf::MeshEntity* e;
+  int newpart;
+  apf::MeshIterator* it = m->begin(meshdim);
+  while ((e = m->iterate(it)))
+  {
+    // the apf::Migration object appears to only track elements that will be
+    // moved to a *different* part, so assume any element not tracked it on
+    // part 0.
+    if (plan->has(e))
+      newpart = plan->sending(e);
+    else
+      newpart = 0;
+    apf::number(partnums, e, 0, 0, newpart);
+  }
+  m->end(it);
+  delete plan;
 }

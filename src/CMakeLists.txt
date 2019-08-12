@@ -7,6 +7,7 @@ cmake_minimum_required(VERSION 3.0.0)
 
 project(MeshCreate VERSION 1.0.0 LANGUAGES CXX)
 option(HAVE_SIMMETRIX "If Pumi was built with Simmetrix support" OFF)
+option(ENABLE_ZOLTAN "If Pumi was built with Zoltan support" OFF)
 
 # Starting here are the critical lines:
 
@@ -39,13 +40,23 @@ MESSAGE( STATUS "installation prefix: " ${CMAKE_INSTALL_PREFIX})
 
 # Figure out of Pumi was built with Simmetrix support
 get_target_property(SCOREC_LIBS SCOREC::core INTERFACE_LINK_LIBRARIES)
-#MESSAGE(STATUS ${SCOREC_LIBS})
+MESSAGE(STATUS ${SCOREC_LIBS})
 if(SCOREC_LIBS MATCHES "gmi_sim")
   MESSAGE(STATUS "Found gmi_sim")
   set (HAVE_SIMMETRIX ON)
 else()
   MESSAGE(STATUS "gmi_sim not found")
 endif()
+
+
+# Figure out of Pumi was built with Zoltan support
+if(SCOREC_LIBS MATCHES "apf_zoltan")
+  MESSAGE(STATUS "Found apf_zoltan")
+  set (ENABLE_ZOLTAN ON)
+else()
+  MESSAGE(STATUS "apf_zoltan not found")
+endif()
+
 
 configure_file (
   "${PROJECT_SOURCE_DIR}/pumiInterface_config.h.in"
@@ -56,7 +67,8 @@ include_directories("${PROJECT_BINARY_DIR}")
 # write the path info to be read from Julia
 file(WRITE "PUMI_RPATH" "PUMI_CMAKE_PATH ${SCOREC_CONFIG}\n")
 file(APPEND "PUMI_RPATH" "PUMIINTERFACE_PREFIX ${CMAKE_INSTALL_PREFIX}\n")
-file(APPEND "PUMI_RPATH" "HAVE_SIMMETRIX ${HAVE_SIMMETRIX}")
+file(APPEND "PUMI_RPATH" "HAVE_SIMMETRIX ${HAVE_SIMMETRIX}\n")
+file(APPEND "PUMI_RPATH" "ENABLE_ZOLTAN ${ENABLE_ZOLTAN}")
 
 # set RPATH for binaries
 # use, i.e. don't skip the full RPATH for the build tree

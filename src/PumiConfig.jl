@@ -79,5 +79,6 @@ end
 readConfigFile()
 
 global const HAVE_SIMMETRIX = CONFIG_PATHS["HAVE_SIMMETRIX"] == "ON"
+global const HAVE_SIMMETRIX = CONFIG_PATHS["HAVE_SIMMETRIX"] == "ON"
 
 end  # end module

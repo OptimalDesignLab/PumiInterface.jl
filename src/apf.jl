@@ -201,6 +201,8 @@ export createSubMesh, getNewMesh, getOldMesh, writeNewMesh, getParentNumbering,
        getNewMeshData, getGeoTag, SubMeshData
 
 
+# mesh partitioning
+export getDefaultSplit
 
 
 @doc """
@@ -1840,6 +1842,36 @@ function printTags(m_ptr::Ptr{Void})
   ccall( (:printTags, pumi_libname), Void, (Ptr{Void},), m_ptr)
 end
 
+
+#------------------------------------------------------------------------------
+# mesh partitioning functions
+
+"""
+  Compute the partitioning of each mesh part.  This does not actually partition
+  the mesh, it only computes what part numbers the elements should be assigned
+  to.
+
+  **Inputs**
+
+   * m_ptr: apf::Mesh*
+   * split_factor: an integer specifying how many parts to split *each* existing
+                   mesh part into
+
+  **Inputs/Outputs**
+
+   * partnums: an apf::Numbering* of the elements that will be overwritten with
+               the destination part numbers.  The destination part numbers are
+               0 to split_factor - 1 (because the partitioning is local, each
+               existing mesh part is subdivided).
+"""
+function getDefaultSplit(m_ptr::Ptr{Void}, split_factor::Integer, partnums::Ptr{Void})
+
+
+  ccall( (:getDefaultSplit, pumi_libname), Void, (Ptr{Void}, Cint, Ptr{Void}),
+          m_ptr, split_factor, partnums)
+
+  return nothing
+end
 
 include("apf2.jl")  # higher level functions
 end  # end of module

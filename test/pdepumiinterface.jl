@@ -914,6 +914,7 @@ end
   testSurfaceNumbering(mesh, sbp, opts)
   test_coordNumbering(mesh)
   test_coord_field(mesh)
+  test_split(mesh)
 
   #TODO: check sizes of arrays
 

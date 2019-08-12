@@ -15,6 +15,7 @@
 #include <apfNumbering.h>
 #include <apfShape.h>
 #include <ma.h>
+#include <parma.h>
 #include <crv.h>  // curved mesh stuff
 #include <stdlib.h>   // malloc, free, etc.
 #include <math.h>
@@ -233,6 +234,9 @@ void getTopologyMaps(int* tri_edge_verts_in, int* tet_edge_verts_in, int* tet_tr
 // gmi functions
 int gmi_adjacent_count(struct gmi_model* g, struct gmi_ent* e, int dim);
 struct gmi_set* gmi_adjacent_get(gmi_ent* v[]);
+
+// mesh partitioning functions
+void getDefaultSplit(apf::Mesh* m, int split_factor, apf::Numbering* partnums);
 
 void gmi_sim_startJ();
 void gmi_sim_stopJ();

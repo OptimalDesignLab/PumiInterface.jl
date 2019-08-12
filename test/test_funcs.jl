@@ -2331,3 +2331,31 @@ function test_interioredge(mesh)
 end
 
 
+function test_split(mesh::PumiMesh)
+
+  println("testing splitting mesh with ", mesh.numEl, " elements")
+  nshape = apf.getConstantShapePtr(mesh.dim)
+  partnums = apf.createNumberingJ(mesh, "split_partnums", 1, nshape)
+
+  apf.getDefaultSplit(mesh.m_ptr, 4, partnums)
+
+  # count the number of element assigned to each part, make sure it satisfies
+  # some tolerance
+  elcounts = zeros(Int, 4)
+  for el in mesh.elements
+    partnum = apf.getNumberJ(partnums, el, 0, 0) + 1
+    println("partnum = ", partnum)
+    elcounts[partnum] += 1
+  end
+
+  println("elcounts = ", elcounts)
+  expected_count = mesh.numEl/4
+  for i=1:4
+    @test elcounts[i] >= expected_count/1.1
+    @test elcounts[i] <= 1.1*expected_count
+  end
+
+  return nothing
+end
+
+
