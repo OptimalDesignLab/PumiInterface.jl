@@ -2332,8 +2332,8 @@ end
 
 
 function test_split(mesh::PumiMesh)
+  # test splitting a mesh
 
-  println("testing splitting mesh with ", mesh.numEl, " elements")
   nshape = apf.getConstantShapePtr(mesh.dim)
   partnums = apf.createNumberingJ(mesh, "split_partnums", 1, nshape)
 
@@ -2344,18 +2344,94 @@ function test_split(mesh::PumiMesh)
   elcounts = zeros(Int, 4)
   for el in mesh.elements
     partnum = apf.getNumberJ(partnums, el, 0, 0) + 1
-    println("partnum = ", partnum)
     elcounts[partnum] += 1
   end
 
   println("elcounts = ", elcounts)
   expected_count = mesh.numEl/4
+  @test sum(elcounts) == mesh.numEl
   for i=1:4
     @test elcounts[i] >= expected_count/1.1
     @test elcounts[i] <= 1.1*expected_count
   end
 
+  test_split_submesh(mesh)
   return nothing
 end
 
 
+function test_split_submesh(mesh::PumiMesh)
+  # test creating a submesh and splitting it
+
+  println("testing splitting submesh")
+  # create submesh with first half of elements
+  nel = div(mesh.numEl, 2)
+  elnums = zeros(Cint, nel)
+  for i=1:nel
+    elnums[i] = i
+  end
+  sdata = apf.createSubMesh(mesh.m_ptr, mesh.entity_Nptrs, elnums)
+  m2_ptr = apf.getNewMesh(sdata)
+
+  # create the apf::Numbering on the submesh
+  nshape = apf.getConstantShapePtr(mesh.dim)
+  partnums = apf.createNumberingJ(m2_ptr, "split_partnums2", nshape, 1)
+  
+  apf.getDefaultSplit(m2_ptr, 4, partnums)
+
+  # count the number of element assigned to each part, make sure it satisfies
+  # some tolerance
+  elcounts = zeros(Int, 4)
+  for el in apf.MeshIterator(m2_ptr, mesh.dim)
+    partnum = apf.getNumberJ(partnums, el, 0, 0) + 1
+    elcounts[partnum] += 1
+  end
+
+  expected_count = nel/4
+  @test sum(elcounts) == nel
+  for i=1:4
+    @test elcounts[i] >= expected_count/1.1
+    @test elcounts[i] <= 1.1*expected_count
+  end
+
+  apf.free(sdata)
+
+  return nothing
+end
+
+
+function test_submesh_transfer(mesh::PumiMesh)
+# test transferring numberings to submesh
+
+  nel = div(mesh.numEl, 2)
+  elnums = zeros(Cint, nel)
+  for i=1:nel
+    elnums[i] = i
+  end
+  sdata = apf.createSubMesh(mesh.m_ptr, mesh.entity_Nptrs, elnums)
+  m2_ptr = apf.getNewMesh(sdata)
+
+  n_old_ptr = mesh.vert_Nptr
+  n_new_ptr = apf.transferNumbering(sdata, n_old_ptr)
+
+  # verify that vertices with same coords have same numbers
+  coords_old = zeros(Float64, 3)
+  coords_new = zeros(Float64, 3)
+  for e_old in apf.MeshIterator(mesh.m_ptr, 0)
+    apf.getPoint(mesh.m_ptr, e_old, 0, coords_old)
+    for e_new in apf.MeshIterator(m2_ptr, 0)
+      apf.getPoint(m2_ptr, e_new, 0, coords_new)
+
+      if norm(coords_old - coords_new) < 1e-10
+        num_old = apf.getNumberJ(n_old_ptr, e_old, 0, 0)
+        num_new = apf.getNumberJ(n_new_ptr, e_new, 0, 0)
+        @test num_old == num_new
+      end
+    end
+  end
+
+
+  apf.free(sdata)
+
+  return nothing
+end

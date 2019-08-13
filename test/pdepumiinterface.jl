@@ -915,6 +915,7 @@ end
   test_coordNumbering(mesh)
   test_coord_field(mesh)
   test_split(mesh)
+  test_submesh_transfer(mesh)
 
   #TODO: check sizes of arrays
 

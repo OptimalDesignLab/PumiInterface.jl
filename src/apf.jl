@@ -198,7 +198,7 @@ export hasMatching, getSharing, getNormalSharing, freeSharing, isOwned,
 
 # SubMesh creation
 export createSubMesh, getNewMesh, getOldMesh, writeNewMesh, getParentNumbering, 
-       getNewMeshData, getGeoTag, SubMeshData
+       getNewMeshData, getGeoTag, SubMeshData, transferNumbering
 
 
 # mesh partitioning
@@ -1532,7 +1532,7 @@ end
 @doc """
 ### PumiInterface.transferField
 
-  Transfers the specified field from the hold mesh to the new mesh.
+  Transfers the specified field from the old mesh to the new mesh.
 
   See createSubMesh for the meanings of the arguments
 """->
@@ -1840,6 +1840,28 @@ end
 function printTags(m_ptr::Ptr{Void})
 
   ccall( (:printTags, pumi_libname), Void, (Ptr{Void},), m_ptr)
+end
+
+
+"""
+  Copies an apf::Numbering to the submesh.  The values are only copied for
+  entities that exist on both meshes
+
+  **Inputs**
+
+   * sdata: SubMeshData
+   * n_ptr: the apf::Numbering* on the old mesh
+
+  **Outputs**
+
+   * n2_ptr: the apf::Numbering* on the submesh
+"""
+function transferNumbering(sdata::SubMeshData, n_ptr::Ptr{Void})
+
+  n2_ptr = ccall( (:transferNumbering2, pumi_libname), Ptr{Void},
+                   (SubMeshData, Ptr{Void}), sdata, n_ptr)
+
+  return n2_ptr
 end
 
 

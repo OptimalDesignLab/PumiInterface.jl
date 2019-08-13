@@ -433,3 +433,46 @@ void writeElNumbering(SubMeshData* sdata)
   //TODO: save parent_N to sdata
 }
 
+
+apf::Numbering* transferNumbering2(SubMeshData* sdata, apf::Numbering* n_old)
+{
+  // copy n_old (which lives on the old mesh) to a new numbering on the submesh
+  // Values are copied only for entities which exist on both meshes
+
+  apf::Mesh* m_old = sdata->m_old;
+  apf::Mesh* m_new = sdata->m_new;
+  apf::FieldShape* fshape = apf::getShape(n_old);
+  int ncomp = apf::countComponents(n_old);
+  apf::Numbering* n_new = apf::createNumbering(m_new, apf::getName(n_old),
+                                              fshape, ncomp);
+
+  for (int dim=0; dim <= m_old->getDimension(); ++dim)
+  {
+    if (!fshape->hasNodesIn(dim))
+      continue;
+
+    apf::MeshIterator* it = m_old->begin(dim);
+    apf::MeshEntity* e_old;
+    apf::MeshEntity* e_new;
+    apf::Numbering* n_dim = sdata->numberings[dim];
+    while ((e_old = m_old->iterate(it)))
+    {
+      int e_num = apf::getNumber(n_dim, e_old, 0, 0);
+      e_new = sdata->entities[dim][e_num];
+      if (e_new != NULL)
+      {
+        int etype = m_old->getType(e_old);
+        for (int node=0; node < fshape->countNodesOn(etype);++node)
+          for (int i=0; i < ncomp; ++i)
+          {
+            int val = apf::getNumber(n_old, e_old, node, i);
+            apf::number(n_new, e_new, node, i, val);
+          }  // end i
+      }   // end if e_new
+    }  // end while
+  }  // end for dim
+
+
+  return n_new;
+}
+
