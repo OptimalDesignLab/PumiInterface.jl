@@ -23,7 +23,7 @@ global const MPI_URL = "https://github.com/JuliaParallel/MPI.jl.git"
 global const MPI_VER = "v0.5.0"
 
 global const SBP_URL = "https://github.com/OptimalDesignLab/SummationByParts.jl.git"
-global const SBP_VER = "v0.7"
+global const SBP_VER = "jc_v0.5"
 
 
 start_dir = pwd()
