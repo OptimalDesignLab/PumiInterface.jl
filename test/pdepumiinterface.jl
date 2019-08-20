@@ -914,7 +914,8 @@ end
   testSurfaceNumbering(mesh, sbp, opts)
   test_coordNumbering(mesh)
   test_coord_field(mesh)
-  test_split(mesh)
+  # TODO: re-enable when Pumi's ENABLE_ZOLTAN flag is available
+  #test_split(mesh)
   test_submesh_transfer(mesh)
 
   #TODO: check sizes of arrays
