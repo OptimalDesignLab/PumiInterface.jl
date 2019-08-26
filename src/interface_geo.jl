@@ -632,6 +632,9 @@ function update_coordsXi(mesh::PumiMesh, sbp, opts, xivec::AbstractVector;
                        verify=true, write_vis=false)
   @assert length(xivec) == mesh.geoNums.numXiDofs
 
+  # wrap periodic coordinates
+  wrapXiCoords(mesh, xivec)
+
   xi_j = zeros(Float64, 3)
   geonums = mesh.geoNums
   for (e, dim) in apf.FieldEntityIt(mesh.m_ptr, mesh.coordshape_ptr)

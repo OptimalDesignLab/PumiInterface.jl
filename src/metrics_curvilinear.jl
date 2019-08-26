@@ -225,6 +225,7 @@ function calcFaceCoordinatesAndNormals(
       face_idx += 1
     end
 
+
     # populate output array for current block
     calcFaceNormals!(mesh.sbpface, mesh.coord_order, ref_verts, coords_lag_face,
                      coords_face_block, nrm_face_block)
@@ -257,7 +258,6 @@ function calcFaceCoordinatesAndNormals(
 
   calcFaceNormals!(mesh.sbpface, mesh.coord_order, ref_verts, 
                    coords_lag_face_block, coords_face_block, nrm_face_block)
-
 
   # make sure the normal vectors point outwards
   fixOutwardNormal(mesh, sview(faces, start_idx:end_idx), nrm_face_block)

@@ -127,7 +127,14 @@ function setCoordsXi(mesh::PumiMesh, entity::Ptr{Void}, node::Integer,
   @assert me_dim > 0  # vertex parametric coordinates cannot be modified
   @assert mesh.geoNums.can_eval
 
-  #TODO: check xi range?
+  # check xi range
+  xi_range = Array{Float64}(2)
+  for i=1:me_dim
+    gmi.range(g, me, i-1, xi_range)
+    @assert xi[i] >= xi_range[1]
+    @assert xi[i] <= xi_range[2]
+  end
+
 
   e_dim = apf.getDimension(mesh.m_ptr, entity)
   if e_dim == 0

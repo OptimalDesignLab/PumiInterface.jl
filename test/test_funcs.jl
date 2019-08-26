@@ -1871,7 +1871,7 @@ function test_setPoint(mesh, opts)
   xi_orig = zeros(Float64, 3)
   xi = zeros(Float64, 3)
   xi3 = zeros(Float64, 3)
-
+  rng = zeros(Float64, 2)
   geoname = opts["dmg_name"]
   if endswith(geoname, ".x_t") || endswith(geoname, ".smd")
     println("\nTesting setPoint")
@@ -1893,7 +1893,11 @@ function test_setPoint(mesh, opts)
         getCoordsXi(mesh, e, j-1, xi, coords)
 
         for i=1:me_dim
-          xi[i] += 0.1
+          gmi.range(g, me, i-1, rng)
+          offset = 0.01
+          if xi[i] < rng[2] - offset  # avoid out of range values
+            xi[i] += 0.01
+          end
         end
       
         setCoordsXi(mesh, e, j-1, xi, coords2)
