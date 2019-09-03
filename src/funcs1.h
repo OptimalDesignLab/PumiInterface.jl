@@ -171,6 +171,9 @@ extern ma::Input* configureMAInput(apf::Mesh2* m, IsotropicFunctionJ* isofunc,
                             ma::SolutionTransfer* soltrans);
 
 extern void runMA(ma::Input* in);
+extern void configureAndRunMA(apf::Mesh2* m, IsotropicFunctionJ* isofunc,
+                              ma::SolutionTransfer* soltrans);
+
 extern void getAvgElementSize(apf::Mesh* m, apf::Numbering* el_N, double* el_sizes);
 
 // apf::Field functions (needed for automagical solution transfer)

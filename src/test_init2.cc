@@ -11,6 +11,7 @@
 //#include <apfNumbering.h>
 //#include <apfShape.h>
 #include <ma.h>
+#include <crv.h>
 #include "mpi.h"
 #include <gmi_sim.h>
 #include <SimUtil.h>
@@ -61,7 +62,10 @@ int main (int argc, char** argv)
   //apf::writeASCIIVtkFiles("output_check", m);
   apf::writeVtkFiles("output_check", m);
 
-  ma::runUniformRefinement(m);
+  //ma::runUniformRefinement(m);
+  ma::Input* in = ma::configureUniformRefine(m);
+  crv::adapt(in);
+
 
   apf::writeVtkFiles("output_adapted", m);
 

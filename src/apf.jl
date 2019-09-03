@@ -173,7 +173,8 @@ export init, loadMesh, initMesh, initGeometry, snapEdgeNodes, pushMeshRef,
        setDoubleTag, getDoubleTag, reorder, reorderXi,
        createIsoFunc, createAnisoFunc,
        deleteIsoFunc, createSolutionTransfers, deleteSolutionTransfers,
-       addSolutionTransfer, configureMAInput, runMA, getAvgElementSize, IsoFuncJ,
+       addSolutionTransfer, configureMAInput, runMA, configureAndRunMA,
+       getAvgElementSize, IsoFuncJ,
        SolutionTransfers, MAInput,
        createPackedField, setComponents,
        getComponents, zeroField, getFieldMesh,
@@ -1322,6 +1323,25 @@ function runMA(input::MAInput)
 
   return nothing
 end
+
+
+"""
+  This function configures and runs mesh adaptation.  This function is
+  preferred over separate calls to `configureMAInput` and `runMA` because
+  it correctly handles 2nd order meshes.
+
+  Same arguments at `configureMAInput`
+"""
+function configureAndRunMA(m_ptr::Ptr{Void}, isofunc::IsoFuncJ,
+                          soltrans::SolutionTransfers)
+
+  ccall( (:configureAndRunMA, pumi_libname), Void,
+         (Ptr{Void}, IsoFuncJ, SolutionTransfers), m_ptr, isofunc, soltrans)
+
+  return nothing
+end
+
+
 
 """
   Gets the average size of each element (ie. the average edge length)

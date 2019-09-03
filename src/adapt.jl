@@ -67,7 +67,6 @@ function getSizeField(mesh::PumiMesh, el_sizes::AbstractVector)
   end  # end loop i
 
   # take minimum along partition boundaries
-  # TODO: fix this to make it the average
   apf.reduceField(fsize, mesh.shr_ptr, 1);
 
   # return field
@@ -195,11 +194,8 @@ function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVec
     apf.addSolutionTransfer(soltrans, mesh.fnew_ptr)  # transfer field to new mesh
   end
 
-  # configure input
-  ma_input = apf.configureMAInput(mesh.m_ptr, isofunc, soltrans)
-
-  # run mesh adaptation
-  apf.runMA(ma_input)  # this function deletes ma_input
+  # configure input and run adaptation
+  ma_input = apf.configureAndRunMA(mesh.m_ptr, isofunc, soltrans)
 
   # cleanup intermediate data
   apf.deleteSolutionTransfers(soltrans)

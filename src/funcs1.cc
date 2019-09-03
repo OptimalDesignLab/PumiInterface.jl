@@ -1417,6 +1417,45 @@ void runMA(ma::Input* in)
   ma::adapt(in); // this function deletes in, but not soltrans or isofunc
 }
 
+// Configures and runs mesh adaptation with solution transfer.
+// This is better for curved meshes because it handles the transform
+// between Lagrange and Bezier meshes internally, while also working for
+// linear meshes
+// Inputs:
+//  * m: the apf::Mesh2*
+//  * isofunc: the function describing the size field
+//  * soltrans: the solution transfer
+void configureAndRunMA(apf::Mesh2* m, IsotropicFunctionJ* isofunc,
+                       ma::SolutionTransfer* soltrans)
+{
+  if (m->getShape()->getOrder() == 1)
+  {
+    ma::Input* in = ma::configure(m, isofunc, soltrans);
+    ma::adapt(in);
+  } else
+  {
+    apf::FieldShape* fshape_orig = m->getShape();
+    int order = fshape_orig->getOrder();
+    bool change_shape = fshape_orig->getName() != std::string("Bezier");
+
+    // make mesh shape Bezier so we can do mesh adaptation
+    if (change_shape)
+    {
+      crv::BezierCurver bc(m, order, 0);
+      bc.run();
+    }
+
+    // do curved mesh adaptation
+    ma::Input* in = ma::configure(m, isofunc, soltrans);
+    crv::adapt(in);  // this deletes in
+
+    // change mesh shape back to original
+    if (change_shape)
+      apf::changeMeshShape(m, fshape_orig, true);
+  }  // end if
+}
+
+
 // Get the average edge length of every element
 // el_N is the Numbering of the elements
 void getAvgElementSize(apf::Mesh* m, apf::Numbering* el_N, double* el_sizes)
