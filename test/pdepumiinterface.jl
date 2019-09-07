@@ -841,7 +841,6 @@ end
   end
 
 
-
   # just for good measure, create a new mesh
   mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
 #  mesh =  PumiMeshDG2{Float64, typeof(sbpface)}(dmg_name, smb_name, order, sbp, opts, sbpface, coloring_distance=2, dofpernode=4)
@@ -1036,6 +1035,8 @@ end
   # do this last since it rewrites the mesh coordinate field
   test_setPoint(mesh, opts)
 
+  # test high order DG interpolation to Pumi fields
+  test_ho_interpolation()
 
   opts["smb_name"] = "meshes/tri4x4_.smb"
   opts["dmg_name"] = "meshes/tri4x4_.dmg"

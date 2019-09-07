@@ -250,12 +250,18 @@ function getXiCoords(order::Integer, dim::Integer)
       throw(ErrorException("unsupported order $order for dimension $dim"))
     end
   elseif dim == 2
+    # these xi values are consistent with Pumi's Lagrange elements (and
+    # DGLagrange)
     if order == 1
       xicoords = [0. 1 0;
                   0 0 1]
     elseif order == 2
       xicoords = [0. 1 0 0.5 0.5 0.0;
-                  0 0 1 0.0 0.5 0.5]
+                  0  0 1 0.0 0.5 0.5]
+    elseif order == 3
+  # Node numbers: 1  2 3 4   5   6   7   8   9   10
+      xicoords = [0. 1 0 1/3 2/3 2/3 1/3 0   0   1/3;
+                  0  0 1 0   0   1/3 2/3 2/3 1/3 1/3]
     else
       throw(ErrorException("unsupported order $order for dimension $dim"))
     end
@@ -277,3 +283,36 @@ function getXiCoords(order::Integer, dim::Integer)
 
 
 end
+
+
+"""
+  Constructs the interpolation operators between the SBP nodes and the
+  DGLagrange apf::FieldShape nodes
+
+  **Inputs**
+
+   * mesh
+   * sbp
+
+  **Outputs**
+
+   * interp_op:  interplation operator from SBP nodes to DGLagrange nodes
+   * interp_op2: interpolation operator from DGLagrange nodes to SBP nodes
+"""
+function getDGInterpolations(mesh::PumiMesh, sbp::AbstractSBP)
+
+
+  coord_xi = getXiCoords(mesh.order, mesh.dim)
+  ref_coords = baryToXY(coord_xi, sbp.vtx)
+  node_coords = calcnodes(sbp)
+  order = min(mesh.order, 3)  # currently we only support 3rd order Lagrange
+
+  interp_op = SummationByParts.buildinterpolation(sbp, ref_coords)
+  interp_op2 = SummationByParts.buildinterpolation(ref_coords, node_coords,
+                                                   mesh.order)
+
+  return interp_op, interp_op2
+end
+
+
+

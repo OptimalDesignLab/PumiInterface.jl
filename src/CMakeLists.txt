@@ -104,7 +104,7 @@ endif (HAVE_SIMMETRIX)
 add_executable(printGeoEntities printGeoEntities.cc)
 add_executable(uniform_refine uniform_refine.cc)
 add_executable(test_meshadapt test_meshadapt.cc)
-add_library(pumiInterface funcs1.cc a2.cc apfSBPShape.cc apfSBPShape3.cc dgSBPShape1.cc dgSBPShape2.cc dgSBPShape4.cc dgSBPShape5.cc dgSBPShape8.cc dgSBPShape8.cc dgSBP3Shape1.cc dgSBP3Shape2.cc dgSBP3Shape4.cc dgSBP3Shape5.cc triangulation.cc triangulationDG.cc submesh_create.cc)
+add_library(pumiInterface funcs1.cc a2.cc apfSBPShape.cc apfSBPShape3.cc dgSBPShape1.cc dgSBPShape2.cc dgSBPShape4.cc dgSBPShape5.cc dgSBPShape8.cc dgSBPShape9.cc dgSBP3Shape1.cc dgSBP3Shape2.cc dgSBP3Shape4.cc dgSBP3Shape5.cc triangulation.cc triangulationDG.cc submesh_create.cc)
 
 #for any targets that use PUMI, just use this command
 #to it to include the right directories and link to all

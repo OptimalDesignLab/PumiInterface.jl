@@ -350,6 +350,12 @@ mutable struct PumiMeshDG2{T1, Tface <: AbstractFace{Float64}} <: PumiMesh2DG{T1
   interp_op2::Array{Float64, 2}  # numNodesPerEl x coord_numNodesPerElement
                                  # array that interpolates from the
                                  # coordinate field to the solution field
+  interp_op3::Array{Float64, 2} # interpolates from the SBP nodes to the
+                                # DGLagrange nodes, number of lagrange nodes
+                                # x numNodesPerElement
+  interp_op4::Array{Float64, 2}  # interpolates from DGLagrange nodes to
+                                 # SBP nodes, numNodesPerElement x number of
+                                 # lagrange nodes
   ###### parallel data #####
 
   # array of arrays of Boundary objects, one array for each peer part
@@ -779,7 +785,13 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
   ref_coords = baryToXY(mesh.coord_xi, sbp.vtx)
   mesh.interp_op = SummationByParts.buildinterpolation(sbp, ref_coords)
   mesh.interp_op2 = SummationByParts.buildinterpolation(ref_coords, calcnodes(sbp), mesh.coord_order)
-  
+
+  if mesh.dim == 2
+    interp_op3, interp_op4 = getDGInterpolations(mesh, sbp)
+    mesh.interp_op3 = interp_op3
+    mesh.interp_op4 = interp_op4
+  end
+    
   mesh.typeOffsetsPerElement_ = [Int32(i) for i in mesh.typeOffsetsPerElement]
 
   mesh.numNodesPerElement = mesh.typeOffsetsPerElement[end] - 1

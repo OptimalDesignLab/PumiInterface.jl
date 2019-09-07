@@ -31,10 +31,6 @@ function _saveSolutionToMesh(mesh::PumiMesh, u::AbstractVector,
     for i=1:node_entities.nentities
       entity = node_entities.entities[i]
       for k=1:node_entities.nodecounts[i]
-#    for i=1:3  # loop over verts, edges, faces
-#      for j=1:num_entities[i]  # loop over all entities of this type
-#	for k=1:mesh.numNodesPerType[i]  # loop over nodes on this entity
-#          entity = node_entities[col]  # current entity
 	  offset_k = mesh.elementNodeOffsets[col, el] # offset for current node
 	  new_node = abs(offset_k - k) - 1
 
@@ -516,6 +512,118 @@ function retrieveSolutionFromMesh_interp(mesh::PumiMeshDG, u_vec::AbstractVector
     end
 
   end  # end loop i
+
+  return nothing
+end
+
+
+"""
+  Saves the solution to a mesh field.  Only works for DGLagrange fields.
+
+  **Inputs**
+
+   * mesh
+   * u: vector containing the solution
+   * f_ptr: the field to write to
+"""
+function _saveSolutionToMesh_ho(mesh::PumiMesh, u::AbstractVector,
+                                f_ptr::Ptr{Void})
+
+  fshape = apf.getFieldFieldShape(f_ptr)
+  println("fshape name = ", apf.getFieldShapeName(fshape))
+  println("mesh.order = ", mesh.order)
+  println("size(mesh.dofs) = ", size(mesh.dofs))
+  @assert apf.getFieldShapeName(fshape)[1:10] == "DGLagrange"
+  order = apf.getOrder(fshape)
+
+  if mesh.dim == 2
+    eshape = apf.getEntityShape(fshape, apf.TRIANGLE)
+  else
+    eshape = apf.getEntityShape(fshape, apf.TET)
+  end
+  nsrc = mesh.numNodesPerElement
+  u_src = zeros(Float64, nsrc, mesh.numDofPerNode)
+  ndest = apf.countNodes(eshape)
+  u_dest = zeros(Float64, ndest, mesh.numDofPerNode)
+  u_node = zeros(Float64, mesh.numDofPerNode)
+  interp_op = mesh.interp_op3
+
+  println("size(interp_op) = ", size(interp_op))
+  println("size(u_src) = ", size(u_src))
+  println("size(u_dest) = ", size(u_dest))
+  for i=1:mesh.numEl
+    el_i = mesh.elements[i]
+
+    # get source data
+    for j=1:nsrc
+      for k=1:mesh.numDofPerNode
+        u_src[j, k] = real(u[mesh.dofs[k, j, i]])
+      end
+    end
+
+    # interpolate
+    smallmatmat!(interp_op, u_src, u_dest)
+
+    # save to mesh
+    for j=1:ndest
+      for k=1:mesh.numDofPerNode
+        u_node[k] = u_dest[j, k]
+      end
+      apf.setComponents(f_ptr, el_i, j-1, u_node)
+    end
+  end  # end i
+
+
+  return nothing
+end
+
+
+"""
+  Counterpart to _saveSolutionToMesh_ho.  Only works for DGLagrange fields
+"""
+function retrieveSolutionFromMesh_ho(mesh::PumiMesh, f_ptr::Ptr{Void},
+                                     u::AbstractVector)
+
+  fshape = apf.getFieldFieldShape(f_ptr)
+  @assert apf.getFieldShapeName(fshape)[1:10] == "DGLagrange"
+  order = apf.getOrder(fshape)
+
+  if mesh.dim == 2
+    eshape = apf.getEntityShape(fshape, apf.TRIANGLE)
+  else
+    eshape = apf.getEntityShape(fshape, apf.TET)
+  end
+  ndest = mesh.numNodesPerElement
+  u_dest = zeros(Float64, ndest, mesh.numDofPerNode)
+  nsrc = apf.countNodes(eshape)
+  u_src = zeros(Float64, nsrc, mesh.numDofPerNode)
+  u_node = zeros(Float64, mesh.numDofPerNode)
+  interp_op = mesh.interp_op4
+
+  for i=1:mesh.numEl
+    el_i = mesh.elements[i]
+
+    # retrieve from mesh
+    for j=1:nsrc
+      apf.getComponents(f_ptr, el_i, j-1, u_node)
+      for k=1:mesh.numDofPerNode
+        u_src[j, k] = u_node[k]
+      end
+    end
+
+    # interpolate
+    smallmatmat!(interp_op, u_src, u_dest)
+
+    # write to vector
+    for j=1:ndest
+      for k=1:mesh.numDofPerNode
+        u[mesh.dofs[k, j, i]] = u_dest[j, k]
+      end
+    end
+
+
+  end  # end i
+
 
   return nothing
 end

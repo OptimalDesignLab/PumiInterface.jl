@@ -177,7 +177,7 @@ export init, loadMesh, initMesh, initGeometry, snapEdgeNodes, pushMeshRef,
        getAvgElementSize, IsoFuncJ,
        SolutionTransfers, MAInput,
        createPackedField, setComponents,
-       getComponents, zeroField, getFieldMesh,
+       getComponents, getFieldFieldShape, zeroField, getFieldMesh,
        reduceField, getCoordinateField, findField,
        countFields, getField, destroyField, destroyFields,
        countBridgeAdjacent,
@@ -1387,6 +1387,14 @@ function getComponents(f_ptr, entity_ptr, node::Integer, components::AbstractVec
 
   return nothing
 end
+
+function getFieldFieldShape(f_ptr::Ptr{Void})
+
+  fshape = ccall( (:getFieldFieldShape, pumi_libname), Ptr{Void}, (Ptr{Void},), f_ptr)
+
+  return fshape
+end
+
 
 function zeroField(f_ptr)
   ccall( (zeroField_name, pumi_libname), Void, (Ptr{Void},), f_ptr)

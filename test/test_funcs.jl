@@ -2439,3 +2439,63 @@ function test_submesh_transfer(mesh::PumiMesh)
 
   return nothing
 end
+
+
+function test_ho_interpolation(mesh)
+
+  # test saveSolutionToMesh interpolation
+  u_vals = zeros(mesh.numDof)
+  for i=1:mesh.numEl
+    for j=1:mesh.numNodesPerElement
+      x = mesh.coords[1, j, i]
+      y = mesh.coords[2, j, i]
+
+      val = x^mesh.order + 2*y^mesh.order
+      for k=1:mesh.numDofPerNode
+        u_vals[mesh.dofs[k, j, i]] = val
+      end
+    end
+  end
+
+  # get DGLagrangeField
+  fshape = apf.getFieldShape(9, mesh.order, mesh.dim)
+  f_ptr = PdePumiInterface.createPackedField(mesh, "ho_field", 4, fshape)
+
+  PdePumiInterface._saveSolutionToMesh_ho(mesh, u_vals, f_ptr)
+  u_vals2 = zeros(mesh.numDof)
+
+  PdePumiInterface.retrieveSolutionFromMesh_ho(mesh, f_ptr, u_vals2)
+
+  println("p = $(mesh.order) interpolation diff = ", maximum(abs.(u_vals - u_vals2)))
+  println("data = \n", hcat(u_vals, u_vals2))
+  @test maximum(abs.(u_vals - u_vals2)) < 1e-13
+
+  return nothing
+end
+
+
+function test_ho_interpolation()
+
+# test high order saveToMesh
+  for p=1:3
+    opts = Dict{Any, Any}(
+    "dmg_name" => ".null",
+    "smb_name" => "tri2l.smb",
+    "order" => p,
+    "coloring_distance" => 2,
+    "numBC" => 1,
+    "BC1" =>  [0],
+    "run_type" => 4,
+    )
+    sbp = getTriSBPOmega(degree=p)
+    vtx = sbp.vtx
+    sbpface = TriFace{Float64}(p, sbp.cub, vtx)
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4, shape_type=7)
+
+    test_ho_interpolation(mesh)
+  end
+
+  return nothing
+end
+
+

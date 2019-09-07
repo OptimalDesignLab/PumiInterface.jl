@@ -31,6 +31,7 @@
 #include "dgSBPShape5.h"
 #include "dgSBPShape6.h"
 #include "dgSBPShape8.h"
+#include "dgSBPShape9.h"
 #include "dgSBP3Shape1.h"
 #include "dgSBP3Shape2.h"
 #include "dgSBP3Shape4.h"
@@ -183,6 +184,7 @@ void setComponents(apf::Field* f, apf::MeshEntity* e, int node,  double const co
 
 void getComponents(apf::Field* f, apf::MeshEntity*e, int node, double components[]);
 
+apf::FieldShape* getFieldFieldShape(apf::Field* f);
 
 void zeroField(apf::Field* f);
 apf::Mesh* getFieldMesh(apf::Field* f);

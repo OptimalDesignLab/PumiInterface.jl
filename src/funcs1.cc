@@ -492,6 +492,10 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     {
       fshape = apf::getDG8SBPShape(order);
       change_shape = true;
+    } else if (shape_type == 9)  // DG Lagrange elements
+    {
+      fshape = apf::getDG9SBPShape(order, dim);
+      change_shape = true;
     } else  // default to lagrange shape functions
     {
       std::cout << "Error: unrecognized shape_type: " << shape_type << std::endl;
@@ -530,9 +534,12 @@ apf::FieldShape* getFieldShape(int shape_type, int order, int dim, bool& change_
     {
       fshape = apf::getDG5SBP3Shape(order);  // ???
       change_shape = true;
+    } else if (shape_type == 9)  // DG Lagrange elements
+    {
+      fshape = apf::getDG9SBPShape(order, dim);
+      change_shape = true;
     } else  // default to lagrange shape functions
     {
-
       std::cout << "Error: unrecognized shape_type: " << shape_type << std::endl;
       std::abort();
 
@@ -1508,6 +1515,11 @@ void zeroField(apf::Field* f)
 apf::Mesh* getFieldMesh(apf::Field* f)
 {
   return apf::getMesh(f);
+}
+
+apf::FieldShape* getFieldFieldShape(apf::Field* f)
+{
+  return apf::getShape(f);
 }
 
 const apf::ReductionSum<double>* Sum = new apf::ReductionSum<double>();
