@@ -114,7 +114,7 @@ function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_
   checkMeshPtr(oldmesh)
 
   # run the mesh adaptation
-  _adaptMesh(oldmesh, el_sizes, u_vec)
+  f_ptr = _adaptMesh(oldmesh, el_sizes, u_vec)
 
   # now construct new mesh object
   # To avoid the mesh reference count reaching zero and destroying the
@@ -124,7 +124,8 @@ function adaptMesh(oldmesh::PumiMeshDG2, sbp, opts, el_sizes::AbstractVector, u_
 
   if length(u_vec) > 0
     u_vec_new = zeros(Float64, newmesh.numDof)
-    retrieveSolutionFromMesh_interp(newmesh, u_vec_new, oldmesh.fnew_ptr)
+    retrieveSolutionFromMesh_ho(newmesh, f_ptr, u_vec_new)
+    destroyField(oldmesh, f_ptr)
   else
     u_vec_new = u_vec
   end
@@ -143,13 +144,14 @@ function adaptMesh(oldmesh::PumiMeshDG3, sbp, opts, el_sizes::AbstractVector, u_
   checkMeshPtr(oldmesh)
 
   # run the mesh adaptation
-  _adaptMesh(oldmesh, el_sizes, u_vec)
+  f_ptr = _adaptMesh(oldmesh, el_sizes, u_vec)
 
   newmesh = PumiMeshDG3(oldmesh, sbp, opts)
 
   if length(u_vec) > 0
     u_vec_new = zeros(Float64, newmesh.numDof)
-    retrieveSolutionFromMesh_interp(newmesh, u_vec_new, oldmesh.fnew_ptr)
+    retrieveSolutionFromMesh_ho(newmesh, f_ptr, u_vec_new)
+    destroyField(oldmesh, f_ptr)
   else
     u_vec_new = u_vec
   end
@@ -179,6 +181,10 @@ end
    * el_sizes: desired size for each element (vector)
    * u_vec: solution field to interpolate to the adapted mesh (optional)
 
+  **Outputs**
+
+   * f_ptr: if length(u_vec) > 0, this is the field containing u_vec
+            interpolated to the adapted mesh, otherwise the null pointer
 """
 function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVector)
 
@@ -190,8 +196,13 @@ function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVec
   soltrans = apf.createSolutionTransfers()
   apf.addSolutionTransfer(soltrans, size_f)
   if length(u_vec) > 0
-    saveSolutionToMesh(mesh, u_vec)
-    apf.addSolutionTransfer(soltrans, mesh.fnew_ptr)  # transfer field to new mesh
+    fshape = apf.getFieldShape(9, mesh.order, mesh.dim)
+    f_ptr = PdePumiInterface.createPackedField(mesh, "ho_field", 4, fshape)
+    _saveSolutionToMesh_ho(mesh, u_vec, f_ptr)
+
+    apf.addSolutionTransfer(soltrans, f_ptr)  # transfer field to new mesh
+  else
+    f_ptr = C_NULL
   end
 
   # configure input and run adaptation
@@ -202,7 +213,7 @@ function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVec
   apf.deleteIsoFunc(isofunc)
   apf.destroyField(mesh, size_f) 
 
-  return nothing
+  return f_ptr
 end
 
 
