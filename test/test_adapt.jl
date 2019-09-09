@@ -25,7 +25,7 @@ function test_adapt_2d(;parallel=false)
     vtx = sbp.vtx
     sbpface = TriFace{Float64}(order, sbp.cub, vtx)
 
-    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=1)
+    mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=1, shape_type=7)
 
 
     # write linear field to mesh
@@ -45,6 +45,7 @@ function test_adapt_2d(;parallel=false)
 
     newmesh, unew = adaptMesh(mesh, sbp, opts, el_sizes, u)
     println("adapted u = ", unew)
+    println("newmesh.dofs = \n", newmesh.dofs)
     println("newmesh.numEl = ", newmesh.numEl)
     @test newmesh.numEl == 4*numEl_initial
 
@@ -54,12 +55,16 @@ function test_adapt_2d(;parallel=false)
         x = newmesh.coords[1, j, i]; y = newmesh.coords[2, j, i]
         println("x = ", x)
         println("y = ", y)
-        println("dof = ", mesh.dofs[1, j, i])
-        #@test isapprox(unew[newmesh.dofs[1, j, i]], x^order + y^order + 1) atol=1e-13
+        println("dof = ", newmesh.dofs[1, j, i])
+        @test isapprox(unew[newmesh.dofs[1, j, i]], x^order + y^order + 1) atol=1e-13
         #val = isapprox(unew[newmesh.dofs[1, j, i]], x + y + 1, atol=1e-13)
         #println("val = ", val)
       end
     end
+
+    # this print statement prevents julia from segfaulting...this makes no
+    # sense
+    println("finished testing field")
 
   end  # end testset
 
