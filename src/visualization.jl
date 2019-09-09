@@ -529,6 +529,8 @@ end
 function _saveSolutionToMesh_ho(mesh::PumiMesh, u::AbstractVector,
                                 f_ptr::Ptr{Void})
 
+  println("\nSaving solution to mesh")
+
   fshape = apf.getFieldFieldShape(f_ptr)
   println("fshape name = ", apf.getFieldShapeName(fshape))
   println("mesh.order = ", mesh.order)
@@ -563,6 +565,15 @@ function _saveSolutionToMesh_ho(mesh::PumiMesh, u::AbstractVector,
 
     # interpolate
     smallmatmat!(interp_op, u_src, u_dest)
+    if i == 227
+      println("u_src =\n", u_src)
+      println("coords_src = \n", real(mesh.coords[:, :, i]))
+      println("u_dest =\n", u_dest)
+      coords_xi = getXiCoords(mesh.order, mesh.dim)
+      coords_vert = mesh.vert_coords[:, 1:(mesh.dim+1), i].'
+      coords_xy = baryToXY(coords_xi, coords_vert)
+      println("coords_dest =\n", coords_xy)
+    end
 
     # save to mesh
     for j=1:ndest
@@ -584,6 +595,7 @@ end
 function retrieveSolutionFromMesh_ho(mesh::PumiMesh, f_ptr::Ptr{Void},
                                      u::AbstractVector)
 
+  println("\nRetrieving solution from mesh")
   fshape = apf.getFieldFieldShape(f_ptr)
   @assert apf.getFieldShapeName(fshape)[1:10] == "DGLagrange"
   order = apf.getOrder(fshape)
@@ -613,6 +625,18 @@ function retrieveSolutionFromMesh_ho(mesh::PumiMesh, f_ptr::Ptr{Void},
 
     # interpolate
     smallmatmat!(interp_op, u_src, u_dest)
+
+    if i == 477
+      println("u_src =\n", u_src)
+      coords_xi = getXiCoords(mesh.order, mesh.dim)
+      coords_vert = mesh.vert_coords[:, 1:(mesh.dim+1), i].'
+      coords_xy = baryToXY(coords_xi, coords_vert)
+      println("coords_src =\n", coords_xy)
+
+      println("u_dest =\n", u_dest)
+      println("coords_dest = \n", real(mesh.coords[:, :, i]))
+    end
+
 
     # write to vector
     for j=1:ndest

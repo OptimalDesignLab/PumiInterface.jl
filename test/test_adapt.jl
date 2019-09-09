@@ -33,23 +33,31 @@ function test_adapt_2d(;parallel=false)
     for i=1:mesh.numEl
       for j=1:mesh.numNodesPerElement
         x = mesh.coords[1, j, i]; y = mesh.coords[2, j, i]
-        u[mesh.dofs[1, j, i]] = x + y + 1
+        u[mesh.dofs[1, j, i]] = x^order + y^order + 1
       end
     end
 
+    println("initial u = ", u)
     el_sizes = getElementSizes(mesh)
     scale!(el_sizes, 0.5)
 
     numEl_initial = mesh.numEl
 
     newmesh, unew = adaptMesh(mesh, sbp, opts, el_sizes, u)
-
+    println("adapted u = ", unew)
+    println("newmesh.numEl = ", newmesh.numEl)
     @test newmesh.numEl == 4*numEl_initial
 
+    println("about to check field")
     for i=1:newmesh.numEl
       for j=1:newmesh.numNodesPerElement
         x = newmesh.coords[1, j, i]; y = newmesh.coords[2, j, i]
-        @test isapprox(unew[newmesh.dofs[1, j, i]], x + y + 1) atol=1e-13
+        println("x = ", x)
+        println("y = ", y)
+        println("dof = ", mesh.dofs[1, j, i])
+        #@test isapprox(unew[newmesh.dofs[1, j, i]], x^order + y^order + 1) atol=1e-13
+        #val = isapprox(unew[newmesh.dofs[1, j, i]], x + y + 1, atol=1e-13)
+        #println("val = ", val)
       end
     end
 

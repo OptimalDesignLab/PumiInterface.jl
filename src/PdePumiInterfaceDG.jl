@@ -786,7 +786,7 @@ function finishMeshInit(mesh::PumiMeshDG2{T1},  sbp::AbstractSBP, opts; dofperno
   mesh.interp_op = SummationByParts.buildinterpolation(sbp, ref_coords)
   mesh.interp_op2 = SummationByParts.buildinterpolation(ref_coords, calcnodes(sbp), mesh.coord_order)
 
-  if mesh.dim == 2
+  if mesh.dim == 2 && mesh.order <= 3
     interp_op3, interp_op4 = getDGInterpolations(mesh, sbp)
     mesh.interp_op3 = interp_op3
     mesh.interp_op4 = interp_op4
