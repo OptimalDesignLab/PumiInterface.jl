@@ -255,7 +255,7 @@ int numberXiDofs(apf::Mesh2* m, apf::Numbering* xiNums)
     while ( (e = m->iterate(it)) )
     {
       for (int i=0; i < fshape->countNodesOn(m->getType(e)); ++i)
-        for (int d1=0; d1 <= m->getDimension(); ++d1)
+        for (int d1=0; d1 < m->getDimension(); ++d1)
           apf::number(xiNums, e, i, d1, ndof + 2);
 
     }  // end while
