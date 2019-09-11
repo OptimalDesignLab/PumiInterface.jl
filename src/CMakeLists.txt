@@ -97,7 +97,7 @@ add_executable(test_init test_init.cc)
 if (HAVE_SIMMETRIX)
   add_executable(test_cad test_cad.cc)
   add_executable(convertSimMesh convertSimMesh.cc)
-  add_executable(test_init2 test_init2.cc)
+  add_executable(test_init2 test_init2.cc dgSBPShape9.cc)
   add_executable(test_init3 test_init3.cc)
 endif (HAVE_SIMMETRIX)
 

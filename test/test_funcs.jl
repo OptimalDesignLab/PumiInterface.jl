@@ -2499,3 +2499,58 @@ function test_ho_interpolation()
 end
 
 
+function test_bary()
+  _test_bary(2)
+  _test_bary(3)
+end
+
+function _test_bary(dim::Integer)
+# test conversion from barycentric coordinates to cartesian
+
+  order = 1
+
+  if dim == 2
+    sbp = getTriSBPOmega(degree=order)
+    vtx = sbp.vtx
+    sbpface = TriFace{Float64}(order, sbp.cub, vtx)
+  else
+    sbp = getTetSBPOmega(degree=order, Tsbp=Float64)
+    ref_verts = sbp.vtx
+    sbpface = TetFace{Float64}(order, sbp.cub, ref_verts)
+  end
+
+  coords_xi = PdePumiInterface.getXiCoords(order, dim)
+  coords_x = PdePumiInterface.baryToXY(coords_xi, sbp.vtx)
+
+  for i=1:size(coords_xi, 2)
+    @test norm(coords_x[:, i] - sbp.vtx[i, :]) < 1e-13
+  end
+
+  # test face
+  if dim == 3
+    coords_xi = PdePumiInterface.getXiCoords(order, dim-1)
+    coords_x = PdePumiInterface.baryToXY(coords_xi, sbpface.vtx)
+    for i=1:size(coords_xi, 2)
+      @test norm(coords_x[:, i] - sbpface.vtx[i, :]) < 1e-13
+    end
+  end
+
+
+  # test case where the transformation matrix is not diagonal
+  vtx = Float64[-1 -1;
+                 0 -1;
+                 0 0]
+  coords_xi = PdePumiInterface.getXiCoords(1, 2)
+  coords_x = PdePumiInterface.baryToXY(coords_xi, vtx)
+
+  for i=1:size(coords_xi, 2)
+    @test norm(coords_x[:, i] - vtx[i, :]) < 1e-13
+  end
+
+
+
+
+  return nothing
+end
+
+

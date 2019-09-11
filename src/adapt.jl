@@ -197,7 +197,7 @@ function _adaptMesh(mesh::PumiMesh, el_sizes::AbstractVector, u_vec::AbstractVec
   apf.addSolutionTransfer(soltrans, size_f)
   if length(u_vec) > 0
     fshape = apf.getFieldShape(9, mesh.order, mesh.dim)
-    f_ptr = PdePumiInterface.createPackedField(mesh, "ho_field", 4, fshape)
+    f_ptr = PdePumiInterface.createPackedField(mesh, "ho_field", mesh.numDofPerNode, fshape)
     _saveSolutionToMesh_ho(mesh, u_vec, f_ptr)
 
     apf.addSolutionTransfer(soltrans, f_ptr)  # transfer field to new mesh

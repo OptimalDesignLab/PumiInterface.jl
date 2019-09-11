@@ -211,25 +211,25 @@ public:
       switch (node)
       {
         case 0:  // vertices
-          {xi = Vector3(0.0, 0.0, 0.0); break; }
+          {xi = Vector3(0.0,   0.0,   0.0); break; }
         case 1:
-          {xi = Vector3(1.0, 0.0, 0.0); break; }
+          {xi = Vector3(1.0,   0.0,   0.0); break; }
         case 2:
-          {xi = Vector3(0.0, 1.0, 0.0); break; }
+          {xi = Vector3(0.0,   1.0,   0.0); break; }
         case 3:  // 1st edge
-          {xi = Vector3(1/3, 0.0, 0.0); break; }
+          {xi = Vector3(1.0/3, 0.0,   0.0); break; }
         case 4:
-          {xi = Vector3(2/3, 0.0, 0.0); break; }
+          {xi = Vector3(2.0/3, 0.0,   0.0); break; }
         case 5:  // 2nd edge
-          {xi = Vector3(2/3, 1/3, 0.0); break; }
+          {xi = Vector3(2.0/3, 1./3,  0.0); break; }
         case 6:
-          {xi = Vector3(1/3, 2/3, 0.0); break; }
+          {xi = Vector3(1.0/3, 2.0/3, 0.0); break; }
         case 7:  // 3rd edge
-          {xi = Vector3(0.0, 2/3, 0.0); break; }
+          {xi = Vector3(0,     2.0/3, 0.0); break; }
         case 8:
-          {xi = Vector3(0.0, 1/3, 0.0); break; }
+          {xi = Vector3(0,     1.0/3, 0.0); break; }
         case 9:  // interior
-          {xi = Vector3(1/3, 1/3, 0.0); break; }
+          {xi = Vector3(1.0/3, 1.0/3, 0.0); break; }
         default:
           {xi = Vector3(0, 0, 0); break; }
       }
@@ -242,124 +242,12 @@ public:
 };  // class DGLagrange
 
 
-// DEBUGGING
-class DGLinear : public FieldShape
-{
-  public:
-    DGLinear() { registerSelf(apf::DGLinear::getName()); }
-    const char* getName() const { return "DGLagrange1_debug"; }
-    class Vertex : public EntityShape
-    {
-      public:
-        void getValues(Mesh*, MeshEntity*,
-            Vector3 const&, NewArray<double>& values) const
-        {
-          fail("no nodes on DGLinear vertex");
-        }
-        void getLocalGradients(Mesh*, MeshEntity*,
-            Vector3 const&, NewArray<Vector3>&) const
-        {
-          fail("no nodes on DGLinear vertex");
-        }
-        int countNodes() const {return 0;}
-    };
-    class Edge : public EntityShape
-    {
-      public:
-        void getValues(Mesh*, MeshEntity*,
-            Vector3 const& xi, NewArray<double>& values) const
-        {
-
-          fail("no nodes on DGLinear edge");
-        }
-        void getLocalGradients(Mesh*, MeshEntity*,
-            Vector3 const&, NewArray<Vector3>& grads) const
-        {
-          fail("no nodes on DGLinear edge");
-        }
-        int countNodes() const {return 0;}
-    };
-    class Triangle : public EntityShape
-    {
-      public:
-        void getValues(Mesh*, MeshEntity*,
-            Vector3 const& xi, NewArray<double>& values) const
-        {
-          values.allocate(3);
-          values[0] = 1-xi[0]-xi[1];
-          values[1] = xi[0];
-          values[2] = xi[1];
-        }
-        void getLocalGradients(Mesh*, MeshEntity*,
-            Vector3 const&, NewArray<Vector3>& grads) const
-        {
-          grads.allocate(3);
-          grads[0] = Vector3(-1,-1,0);
-          grads[1] = Vector3( 1, 0,0);
-          grads[2] = Vector3( 0, 1,0);
-        }
-        int countNodes() const {return 3;}
-    };
-
-    EntityShape* getEntityShape(int type)
-    {
-      static Vertex vertex;
-      static Edge edge;
-      static Triangle triangle;
-      static EntityShape* shapes[Mesh::TYPES] =
-      {&vertex,
-       &edge,
-       &triangle,
-       NULL,    //quad
-       NULL,    // tet
-       NULL,    // hex
-       NULL,  // prism
-       NULL};  // pyramid
-      return shapes[type];
-    }
-    bool hasNodesIn(int dimension)
-    {
-      if (dimension == 2)
-        return true;
-      else
-        return false;
-    }
-    int countNodesOn(int type)
-    {
-      if (type == Mesh::TRIANGLE)
-        return 3;
-      else
-        return 0;
-    }
-    int getOrder() {return 1;}
-    void getNodeXi(int type, int node, Vector3& xi)
-    {
-      assert(type == Mesh::TRIANGLE);
-
-      switch (node)
-      {
-      case 0:
-        {xi = Vector3(0.0, 0.0, 0.0); break; }
-      case 1:
-        {xi = Vector3(1.0, 0.0, 0.0); break; }
-      case 2:
-        {xi = Vector3(0.0, 1.0, 0.0); break; }
-      default:
-        {xi = Vector3(0, 0, 0); break; }
-      }
-    }
-};
-
-
-
-
 FieldShape* getDG9SBPShape(int order, int dim)
 {
   if (dim != 2)
     fail("DGLagrange only supported in 2D");
 
-  //static DGLagrange linear1(1, 2);
-  static DGLinear linear1;
+  static DGLagrange linear1(1, 2);
   static DGLagrange quadratic1(2, 2);
   static DGLagrange cubic1(3, 2);
   switch (order) {

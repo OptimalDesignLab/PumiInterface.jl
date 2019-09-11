@@ -529,12 +529,7 @@ end
 function _saveSolutionToMesh_ho(mesh::PumiMesh, u::AbstractVector,
                                 f_ptr::Ptr{Void})
 
-  println("\nSaving solution to mesh")
-
   fshape = apf.getFieldFieldShape(f_ptr)
-  println("fshape name = ", apf.getFieldShapeName(fshape))
-  println("mesh.order = ", mesh.order)
-  println("size(mesh.dofs) = ", size(mesh.dofs))
   @assert apf.getFieldShapeName(fshape)[1:10] == "DGLagrange"
   order = apf.getOrder(fshape)
 
@@ -550,9 +545,6 @@ function _saveSolutionToMesh_ho(mesh::PumiMesh, u::AbstractVector,
   u_node = zeros(Float64, mesh.numDofPerNode)
   interp_op = mesh.interp_op3
 
-  println("size(interp_op) = ", size(interp_op))
-  println("size(u_src) = ", size(u_src))
-  println("size(u_dest) = ", size(u_dest))
   for i=1:mesh.numEl
     el_i = mesh.elements[i]
 
@@ -565,15 +557,6 @@ function _saveSolutionToMesh_ho(mesh::PumiMesh, u::AbstractVector,
 
     # interpolate
     smallmatmat!(interp_op, u_src, u_dest)
-    if i == 227
-      println("u_src =\n", u_src)
-      println("coords_src = \n", real(mesh.coords[:, :, i]))
-      println("u_dest =\n", u_dest)
-      coords_xi = getXiCoords(mesh.order, mesh.dim)
-      coords_vert = mesh.vert_coords[:, 1:(mesh.dim+1), i].'
-      coords_xy = baryToXY(coords_xi, coords_vert)
-      println("coords_dest =\n", coords_xy)
-    end
 
     # save to mesh
     for j=1:ndest
@@ -595,7 +578,6 @@ end
 function retrieveSolutionFromMesh_ho(mesh::PumiMesh, f_ptr::Ptr{Void},
                                      u::AbstractVector)
 
-  println("\nRetrieving solution from mesh")
   fshape = apf.getFieldFieldShape(f_ptr)
   @assert apf.getFieldShapeName(fshape)[1:10] == "DGLagrange"
   order = apf.getOrder(fshape)
@@ -617,6 +599,7 @@ function retrieveSolutionFromMesh_ho(mesh::PumiMesh, f_ptr::Ptr{Void},
 
     # retrieve from mesh
     for j=1:nsrc
+      fill!(u_node, 0)
       apf.getComponents(f_ptr, el_i, j-1, u_node)
       for k=1:mesh.numDofPerNode
         u_src[j, k] = u_node[k]
@@ -625,18 +608,6 @@ function retrieveSolutionFromMesh_ho(mesh::PumiMesh, f_ptr::Ptr{Void},
 
     # interpolate
     smallmatmat!(interp_op, u_src, u_dest)
-
-    if i == 477
-      println("u_src =\n", u_src)
-      coords_xi = getXiCoords(mesh.order, mesh.dim)
-      coords_vert = mesh.vert_coords[:, 1:(mesh.dim+1), i].'
-      coords_xy = baryToXY(coords_xi, coords_vert)
-      println("coords_src =\n", coords_xy)
-
-      println("u_dest =\n", u_dest)
-      println("coords_dest = \n", real(mesh.coords[:, :, i]))
-    end
-
 
     # write to vector
     for j=1:ndest

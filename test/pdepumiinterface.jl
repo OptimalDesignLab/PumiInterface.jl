@@ -3,7 +3,7 @@
 using PumiConfig
 
 @testset "--- Testing PdePumiInterface --- " begin
-
+#=
   test_math()
 
   # test masked copy
@@ -1027,9 +1027,10 @@ end
   compare_meshes(mesh, mesh_c)
 
   test_submesh()
-
+=#
+  test_bary()
   test_adapt_2d()
-
+#=
   test_ScatterData(mesh)
 
   # do this last since it rewrites the mesh coordinate field
@@ -1173,5 +1174,5 @@ end
     mesh = PumiMeshDG2(Float64, sbp, opts, sbpface, dofpernode=4)
     test_interioredge(mesh)
   end 
-
+=#
 end

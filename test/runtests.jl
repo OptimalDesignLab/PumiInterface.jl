@@ -616,9 +616,9 @@ include("common_functions.jl")
 include("test_adapt.jl") # mesh adaptation
 include("test_parallel_types.jl")
 include("pdepumiinterface.jl")
-include("pdepumiinterface3.jl")
+#include("pdepumiinterface3.jl")
 
 MPI.Barrier(MPI.COMM_WORLD)
 if MPI.Initialized()
-  MPI.Finalize()
+#  MPI.Finalize()
 end

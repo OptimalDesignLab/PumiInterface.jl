@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <cmath>
 #include <string.h>
 #include <apf.h>
 #include <gmi.h>
@@ -16,7 +17,82 @@
 #include <gmi_sim.h>
 #include <SimUtil.h>
 
+#include "dgSBPShape9.h"  // DGLagrange FieldShape
 // prototype for constructing minimal reproducable examples, using gmi_sim
+
+
+double computeValue(apf::Mesh* m, apf::MeshEntity* e, apf::Vector3& xi, int order, apf::Vector3& x)
+{
+  apf::MeshElement* me = apf::createMeshElement(m, e);
+  apf::mapLocalToGlobal(me, xi, x);
+  apf::destroyMeshElement(me);
+
+  return pow(x.x(), order) + pow(x.y(), order) + 1;
+}
+
+
+void writeField(apf::Mesh* m, apf::Field* f, int order)
+{
+  apf::FieldShape* fshape = apf::getShape(f);
+  apf::MeshEntity* e;
+  apf::Vector3 xi, x;
+  apf::MeshIterator* it = m->begin(m->getDimension());
+  double vals[1];
+
+  while (( e = m->iterate(it)))
+  {
+    int type = m->getType(e);
+    int nnodes = fshape->countNodesOn(type);
+    std::cout << "element " << e << " has " << nnodes << " nodes" << std::endl;
+    for (int i=0; i < nnodes; ++i)
+    {
+      fshape->getNodeXi(type, i, xi);
+      std::cout << "xi (" << xi.x() << ", " << xi.y() << ")" << std::endl;
+      vals[0] = computeValue(m, e, xi, order, x);
+      apf::setComponents(f, e, i, vals);
+    }
+  }
+
+  m->end(it);
+}
+
+
+void checkField(apf::Mesh* m, apf::Field* f, int order)
+{
+  apf::FieldShape* fshape = apf::getShape(f);
+  apf::MeshEntity* e;
+  apf::Vector3 xi, x;
+  apf::MeshIterator* it = m->begin(m->getDimension());
+  double vals[1];
+  double val_exact;
+
+  while (( e = m->iterate(it)))
+  {
+    int type = m->getType(e);
+    int nnodes = fshape->countNodesOn(type);
+    std::cout << "element " << e << " has " << nnodes << " nodes" << std::endl;
+    for (int i=0; i < nnodes; ++i)
+    {
+      std::cout << "\nnode " << i << std::endl;
+      fshape->getNodeXi(type, i, xi);
+      std::cout << "xi (" << xi.x() << ", " << xi.y() << ")" << std::endl;
+      val_exact = computeValue(m, e, xi, order, x);
+      apf::getComponents(f, e, i, vals);
+
+      double diff = std::abs(vals[0] - val_exact);
+      if (diff > 1e-13)
+      {
+        std::cout << "point (" << x.x() << ", " << x.y() << ")" << std::endl;
+        std::cout << "exact value = " << val_exact << ", field value = " << vals[0] << std::endl;
+        std::cout << "diff = " << diff << std::endl;
+      }
+    }
+  }
+
+  m->end(it);
+}
+
+
 
 int main (int argc, char** argv)
 {
@@ -62,9 +138,21 @@ int main (int argc, char** argv)
   //apf::writeASCIIVtkFiles("output_check", m);
   apf::writeVtkFiles("output_check", m);
 
+  // create field
+  std::cout << "creating field" << std::endl;
+  int order = 3;
+  apf::FieldShape* fshape = apf::getDG9SBPShape(order, m->getDimension());
+  apf::Field* f = apf::createPackedField(m, "ho_field", 1, fshape);
+  writeField(m, f, order);
+  ma::SolutionTransfer* soltrans = ma::createFieldTransfer(f);
+
+  std::cout << "adapting mesh" << std::endl;
   //ma::runUniformRefinement(m);
-  ma::Input* in = ma::configureUniformRefine(m);
-  crv::adapt(in);
+  ma::Input* in = ma::configureUniformRefine(m, 1, soltrans);
+  ma::adapt(in);
+
+  std::cout << "checking field" << std::endl;
+  checkField(m, f, order);
 
 
   apf::writeVtkFiles("output_adapted", m);

@@ -27,7 +27,7 @@ function baryToXY(bary::AbstractMatrix{T2}, vtx::AbstractMatrix) where T2
   r1 = vtx[1, :]
 
   for i=1:dim
-    T[i, :] = vtx[i+1, :] - r1
+    T[:, i] = vtx[i+1, :] - r1
   end
 
   # compute xyz coordinates
